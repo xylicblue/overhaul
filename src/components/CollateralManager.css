@@ -1,0 +1,545 @@
+.collateral-manager {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+}
+
+.collateral-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #30363d;
+}
+
+.collateral-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #c9d1d9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.label-with-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+/* Info Icon and Tooltip */
+.info-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+}
+
+.info-icon {
+  font-size: 14px;
+  color: #58a6ff;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  transition: all 0.2s ease;
+}
+
+.info-icon-wrapper:hover .info-icon {
+  background: rgba(88, 166, 255, 0.2);
+  border-color: #58a6ff;
+  transform: scale(1.1);
+}
+
+.info-tooltip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: linear-gradient(135deg, #1c2128 0%, #161b22 100%);
+  border: 1px solid #58a6ff;
+  border-radius: 8px;
+  padding: 0.75rem;
+  width: 280px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(88, 166, 255, 0.3);
+  pointer-events: none;
+}
+
+.info-tooltip::before {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: -6px;
+  transform: rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: #1c2128;
+  border-left: 1px solid #58a6ff;
+  border-top: 1px solid #58a6ff;
+}
+
+.info-icon-wrapper:hover .info-tooltip {
+  opacity: 1;
+  visibility: visible;
+  top: calc(100% + 12px);
+}
+
+.tooltip-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #58a6ff;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.3px;
+}
+
+.tooltip-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c9d1d9;
+  font-weight: 400;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 20px;
+  padding: 4px;
+  flex-shrink: 0;
+  min-width: 150px;
+}
+
+.mode-toggle button {
+  flex: 1;
+  padding: 0.45rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: #8b949e;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.mode-toggle button.active {
+  background: #58a6ff;
+  color: #ffffff;
+}
+
+.mode-toggle button:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  color: #c9d1d9;
+}
+
+.token-selector {
+  margin-bottom: 1rem;
+}
+
+.token-selector label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #8b949e;
+  margin: 0;
+}
+
+.token-selector select {
+  width: 100%;
+  padding: 0.6rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.token-selector select:hover {
+  border-color: #58a6ff;
+}
+
+.token-selector select:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+}
+
+.balance-info {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0;
+  font-size: 12px;
+}
+
+.balance-row span {
+  color: #8b949e;
+}
+
+.balance-row .value {
+  color: #c9d1d9;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.amount-input {
+  margin-bottom: 1rem;
+}
+
+.amount-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.amount-input label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #8b949e;
+  margin: 0;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.amount-input input {
+  width: 100%;
+  padding: 0.6rem 3.5rem 0.6rem 0.75rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.amount-input input:hover {
+  border-color: #58a6ff;
+}
+
+.amount-input input:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+}
+
+.token-symbol {
+  position: absolute;
+  right: 0.75rem;
+  color: #8b949e;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.max-button {
+  padding: 0.35rem 0.7rem;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #58a6ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.max-button:hover {
+  background: rgba(88, 166, 255, 0.1);
+  border-color: #58a6ff;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.button-with-tooltip {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.button-with-tooltip:hover .button-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.button-tooltip {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: 0;
+  transform: translateY(8px);
+  width: 280px;
+  background: #0d1117;
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  z-index: 100;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.button-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  right: 20px;
+  border: 8px solid transparent;
+  border-top-color: #0d1117;
+}
+
+.button-tooltip .tooltip-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #58a6ff;
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.button-tooltip .tooltip-text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #c9d1d9;
+}
+
+.action-buttons button {
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.approve-button {
+  background: transparent;
+  border-color: #d29922;
+  color: #d29922;
+}
+
+.approve-button:hover:not(:disabled) {
+  background: rgba(210, 153, 34, 0.1);
+  border-color: #d29922;
+}
+
+.deposit-button {
+  background: #58a6ff;
+  border-color: #58a6ff;
+  color: #ffffff;
+}
+
+.deposit-button:hover:not(:disabled) {
+  background: #6cb6ff;
+  border-color: #6cb6ff;
+}
+
+.withdraw-button {
+  background: #f85149;
+  border-color: #f85149;
+  color: #ffffff;
+}
+
+.withdraw-button:hover:not(:disabled) {
+  background: #ff6961;
+  border-color: #ff6961;
+}
+
+.action-buttons button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #30363d;
+  border-color: #30363d;
+  color: #8b949e;
+}
+
+.tx-link {
+  margin-top: 0.75rem;
+  padding: 0.6rem;
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.tx-link a {
+  color: #58a6ff;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tx-link a:hover {
+  color: #6cb6ff;
+  text-decoration: underline;
+}
+
+.not-connected {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #8b949e;
+  font-size: 13px;
+}
+
+/* Faucet Section Styles */
+.faucet-section {
+  background: linear-gradient(135deg, rgba(56, 139, 253, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+/* Faucet tooltip - position centered and constrained */
+.faucet-section .info-tooltip {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  max-width: calc(100vw - 40px);
+}
+
+.faucet-section .info-icon-wrapper:hover .info-tooltip {
+  transform: translateX(-50%);
+}
+
+.faucet-section .info-tooltip::before {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.faucet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.faucet-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c9d1d9;
+}
+
+.eth-balance {
+  font-size: 12px;
+  font-weight: 600;
+  color: #58a6ff;
+  font-family: 'Courier New', monospace;
+}
+
+.faucet-button {
+  width: 100%;
+  padding: 0.6rem;
+  background: linear-gradient(135deg, #388bfd 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 20px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.faucet-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
+}
+
+.faucet-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.faucet-icon {
+  font-size: 14px;
+}
+
+.faucet-button .spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.faucet-tx {
+  margin-top: 0.5rem;
+  padding: 0.4rem;
+  background: rgba(88, 166, 255, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .collateral-manager {
+    padding: 16px;
+  }
+
+  .collateral-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .mode-toggle {
+    width: 100%;
+  }
+
+  .mode-toggle button {
+    flex: 1;
+  }
+}

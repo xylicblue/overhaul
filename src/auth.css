@@ -1,0 +1,346 @@
+/* src/styles/Auth.css */
+
+:root {
+    /* --accent-color: #00e0c6; */
+    --accent-color: #ffffff;
+    --accent-glow: rgba(186, 186, 186, 0.3);
+    --dark-bg: #111111;
+    --card-bg: rgba(28, 28, 32, 0.7);
+    --border-color: rgba(255, 255, 255, 0.15);
+    --text-primary: #ffffff;
+    --text-secondary: #888888;
+}
+
+/* --- ADDED: Universal box-sizing for robust layout --- */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* --- BASE LAYOUT & PROMO PANEL --- */
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background-color: var(--dark-bg);
+    position: relative;
+}
+
+.auth-home-button {
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: 50px;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    z-index: 10;
+}
+
+.auth-home-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.auth-split-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    max-width: 1200px;
+    align-items: center;
+    gap: 4rem;
+}
+
+.auth-promo-panel {
+    position: relative;
+    text-align: left;
+}
+
+/* ... (promo panel h1, h2, p, and bg-text styles remain the same) ... */
+.promo-bg-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 18rem; font-weight: 800; color: rgba(255, 255, 255, 0.03); z-index: -1; pointer-events: none; }
+.auth-logo { height: 80px; margin-bottom: 1rem; }
+.auth-promo-panel h1 { font-size: 2rem; font-weight: 700; color: var(--accent-color); letter-spacing: 2px; margin: 0; }
+.auth-promo-panel h2 { font-size: 3.5rem; font-weight: 700; color: var(--text-primary); margin: 0.5rem 0; line-height: 1.1; }
+.auth-promo-panel p { font-size: 1.1rem; color: var(--text-secondary); }
+
+/* --- FORM CONTAINER & NEW HEADER --- */
+.auth-form-panel {
+    width: 100%;
+}
+.auth-form-container {
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    /* padding: 2.25rem;  */
+    padding: 2.25rem;
+    border-radius: 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    text-align: left !important;
+}
+
+/* REPLACED: .auth-tabs is now a simpler .form-header */
+.form-header {
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+}
+.form-header h3 {
+    color: var(--accent-color);
+    font-weight: 600;
+    margin: 0;
+    position: relative;
+    display: inline-block; /* Make the underline only as wide as the text */
+}
+.form-header h3::after {
+    content: '';
+    position: absolute;
+    bottom: -1rem; /* Aligns with the parent's padding-bottom */
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--accent-color);
+}
+
+/* --- FORM FIELDS & ICONS --- */
+/* (The rest of the CSS is the same and correct) */
+.auth-form { display: flex; flex-direction: column; gap: 1.5rem; text-align: left; }
+.input-wrapper { display: flex; flex-direction: column; gap: 0.5rem; text-align: left; }
+.input-wrapper label { color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; text-align: left !important; display: block; }
+.input-field { position: relative; }
+.input-icon { position: absolute; top: 50%; left: 1rem; transform: translateY(-50%); width: 20px; height: 20px; fill: var(--text-secondary); transition: fill 0.3s; }
+.input-field input { 
+    width: 100%; 
+    padding: 1rem 3rem 1rem 3rem; 
+    background: rgba(0, 0, 0, 0.2); 
+    border: 1px solid var(--border-color); 
+    border-radius: 12px; 
+    color: var(--text-primary); 
+    font-size: 1rem; 
+    transition: all 0.3s ease; 
+    min-width: 500px;
+}
+.input-field input:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 15px var(--accent-glow); }
+.input-field input:focus ~ .input-icon { fill: var(--accent-color); }
+.password-toggle-icon { position: absolute; top: 50%; right: 1rem; transform: translateY(-50%); background: none; border: none; cursor: pointer; width: 20px; height: 20px; padding: 0; }
+.password-toggle-icon svg { width: 100%; height: 100%; fill: var(--text-secondary); transition: fill 0.3s; }
+.password-toggle-icon:hover svg { fill: var(--text-primary); }
+.forgot-password-link { text-align: right; font-size: 0.85rem; color: var(--accent-color); text-decoration: none; margin-top: 0.5rem; }
+
+/* ... (Validation, button, and redirect styles remain the same) ... */
+.password-requirements { list-style: none; padding: 0; margin: -1rem 0 0 0.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.requirement-item { display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; font-weight: 500; transition: color 0.3s; }
+.requirement-item .icon { font-size: 1rem; line-height: 1; font-weight: bold; }
+.requirement-item.valid { color: #28a745; }
+.requirement-item.invalid { color: #888888; }
+.auth-error-inline { color: #ff8a8a; font-size: 0.85rem; margin-top: -1rem; }
+.auth-button {  margin-top: 0.5rem; ;background: var(--accent-color); color: #000; padding: 1rem; font-weight: 700; border-radius: 12px; transition: all 0.3s ease; border: none; cursor: pointer; font-size: 1rem; box-shadow: 0 5px 20px var(--accent-glow); }
+.auth-button:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 30px var(--accent-glow); }
+.auth-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.auth-redirect { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-secondary); }
+.auth-redirect a { color: var(--accent-color); font-weight: 600; text-decoration: none; }
+
+/* --- RESPONSIVE DESIGN --- */
+@media (max-width: 900px) {
+    .auth-split-layout { grid-template-columns: 1fr; }
+    .auth-promo-panel { display: none; }
+}
+/* src/styles/Auth.css */
+
+/* --- FORM CONTAINER & HEADER --- */
+
+
+/* --- FORM FIELDS & ICONS --- */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem; /* Reduced gap between form elements */
+}
+
+/* --- SIGNUP VALIDATION & REDIRECTS --- */
+.password-requirements {
+    list-style: none;
+    padding: 0;
+    margin: -0.75rem 0 0 0.25rem; /* Tucked closer to the inputs above */
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem; /* Tighter list items */
+}
+.requirement-item {
+    display: flex; align-items: center; gap: 0.6rem;
+    font-size: 0.8rem; /* Slightly smaller font for compactness */
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+
+
+.auth-redirect {
+    text-align: center;
+    margin-top: 1.5rem; /* Maintained for good separation */
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* src/styles/Auth.css */
+
+/* --- STYLES FOR DIVIDER & GOOGLE BUTTON --- */
+
+.auth-divider {
+    display: flex;
+    margin-top: 2.5rem;
+    align-items: center;
+    text-align: center;
+    color: var(--text-secondary);
+    margin: 1.5rem 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.auth-divider span {
+    margin-top: -2.5rem;
+    padding: 0 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.google-signin-button {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    background-color: #ffffff;
+    color: #1f1f1f;
+    border: 1px solid #dcdcdc;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: -1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.google-signin-button:hover {
+    background-color: #f7f7f7;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.google-icon {
+    width: 20px;
+    height: 20px;
+}
+
+
+.form-header {
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    /* This ensures the container itself manages the layout */
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* Adds a nice space between the title and subtitle */
+}
+
+.form-header h3 {
+    color: var(--accent-color);
+    font-weight: 600;
+    margin: 0;
+    position: relative;
+    display: inline-block; /* Still keeps the underline tight to the text */
+    align-self: flex-start; /* Aligns the h3 to the left */
+}
+.form-header h3::after {
+    content: '';
+    position: absolute;
+    bottom: -1rem;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--accent-color);
+}
+
+/* Style for the subtitle to ensure it behaves correctly */
+.form-header p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0;
+    text-align: left;
+}
+/* src/styles/Auth.css */
+
+/* --- STYLES FOR BEAUTIFUL & ACTIONABLE ERROR MESSAGES --- */
+
+/* First, let's refine the generic error style */
+.auth-error {
+    color: #ff8a8a; /* A brighter, more readable red */
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.5);
+    padding: 0.75rem;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-top: 0; /* Let the form's gap handle spacing */
+}
+
+/* Now, style the new confirmation error container */
+.auth-confirmation-error {
+    background-color: rgba(255, 187, 5, 0.1); /* Use a warning yellow for non-critical errors */
+    border: 1px solid rgba(255, 187, 5, 0.5);
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.auth-confirmation-error p {
+    margin: 0 0 0.75rem 0;
+    color: #FBBC05; /* A matching yellow text color */
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.resend-button {
+    background: none;
+    border: none;
+    color: var(--accent-color); /* Use your vibrant accent color */
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    padding: 0;
+    transition: opacity 0.2s;
+}
+
+.resend-button:hover {
+    opacity: 0.8;
+}
+/* src/styles/Auth.css */
+
+/* --- NEW: Style for inline field-specific errors --- */
+.auth-error-inline {
+    color: #ff8a8a; /* A bright, readable red */
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin: 0.25rem 0 0 0.25rem; /* Small top margin to space it from the input */
+    text-align: left;
+}

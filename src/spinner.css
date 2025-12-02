@@ -1,0 +1,16 @@
+/* src/styles/LoadingSpinner.css */
+
+.spinner-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem; /* Give it some space */
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, 0.2); /* Soft, semi-transparent base */
+    border-top-color: var(--accent-color); /* The vibrant accent color */
+    border-radius: 50%;
+}

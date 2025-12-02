@@ -1,0 +1,33 @@
+/* src/styles/SectionSeparator.css */
+
+.separator-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5rem 0; /* Creates vertical "breathing room" */
+    background-color: var(--dark-bg); /* Ensures consistent dark background */
+}
+
+.separator-line {
+    height: 1px;
+    width: 100px;
+    background-color: rgba(74, 85, 104, 0.5); /* Subtle dark gray */
+}
+
+/* Set transform origin for the "draw" animation */
+.separator-line.left {
+    transform-origin: right;
+}
+.separator-line.right {
+    transform-origin: left;
+}
+
+.separator-diamond {
+    width: 12px;
+    height: 12px;
+    background-color: transparent;
+    border: 1px solid var(--primary-color);
+    transform: rotate(45deg); /* Rotates the square to look like a diamond */
+    margin: 0 1rem;
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+}

@@ -1,0 +1,184 @@
+/* Chart Toggle Styles */
+.chart-toggle-container {
+  width: 100%;
+}
+
+.chart-toggle-buttons {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(13, 17, 23, 0.8);
+  border-bottom: 1px solid #30363d;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 20px;
+  color: #8b949e;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+  background: rgba(88, 166, 255, 0.1);
+  border-color: rgba(88, 166, 255, 0.3);
+  color: #c9d1d9;
+}
+
+.toggle-btn.active {
+  background: linear-gradient(135deg, rgba(88, 166, 255, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+  border-color: #58a6ff;
+  color: #ffffff;
+}
+
+.toggle-icon {
+  font-size: 1rem;
+}
+
+.chart-display {
+  min-height: 400px;
+}
+
+/* vAMM Chart specific styles */
+.vamm-chart-section {
+  padding: 1rem;
+  background-color: #111110;
+  border-radius: 8px;
+}
+
+.vamm-chart-section .price-display-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #30363d;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.vamm-chart-section .price-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.vamm-chart-section .price-title h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #c9d1d9;
+  margin: 0;
+}
+
+.market-badge {
+  padding: 0.25rem 0.75rem;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #a78bfa;
+}
+
+.vamm-chart-section .price-value {
+  text-align: right;
+}
+
+.vamm-chart-section .price-value h4 {
+  font-size: 0.75rem;
+  color: #8b949e;
+  margin: 0 0 0.25rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vamm-chart-section .price-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.vamm-chart-section .price-main h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  font-family: 'Courier New', monospace;
+}
+
+.vamm-chart-section .price-change-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.vamm-chart-section .price-change-chip.price-up {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.vamm-chart-section .price-change-chip.price-down {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.vamm-chart-section .time-range-toggles {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  margin-top: 0.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.vamm-chart-section .time-range-toggles button {
+  padding: 0.4rem 0.8rem;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #8b949e;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vamm-chart-section .time-range-toggles button:hover {
+  background: rgba(88, 166, 255, 0.1);
+  border-color: rgba(88, 166, 255, 0.3);
+}
+
+.vamm-chart-section .time-range-toggles button.active {
+  background: #58a6ff;
+  border-color: #58a6ff;
+  color: #ffffff;
+}
+
+.vamm-chart-section .chart-message {
+  text-align: center;
+  color: #8b949e;
+  padding: 3rem 1rem;
+  font-size: 0.95rem;
+}
+
+.vamm-chart-section .chart-message-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  background: rgba(30, 30, 30, 0.5);
+  border-radius: 8px;
+  border: 1px dashed #30363d;
+}

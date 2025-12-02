@@ -1,0 +1,211 @@
+/* src/components/TradingPanel.css */
+
+.trading-panel-container {
+  background-color: #131722; /* A slightly different dark blue */
+  color: #d1d5db; /* Lighter text for readability */
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #374151;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem; /* Space between sections */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.panel-section {
+  border-bottom: 1px solid #2a2e39;
+  padding-bottom: 1rem;
+}
+
+.panel-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* --- Market Header --- */
+.market-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+}
+
+.market-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.status-active {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.market-assets {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-top: -1rem; /* Pull it closer to the header */
+}
+
+/* --- Key Details --- */
+.key-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+.detail-item .label {
+  color: #9ca3af;
+}
+
+.detail-item .value {
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.price-live {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #00aaff; /* A distinct color for the price */
+}
+
+/* --- Order Entry --- */
+.order-entry .tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background-color: #1f2937;
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.order-entry .tabs button {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.order-entry .tabs button.active {
+  background-color: #374151;
+  color: #ffffff;
+}
+
+.form-group {
+  margin-bottom: 0.75rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin-bottom: 0.25rem;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  background-color: #1f2937;
+  border: 1px solid #4b5563;
+  color: white;
+  height: 2.5rem;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.order-summary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-top: 1rem;
+}
+
+.place-order-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: opacity 0.2s;
+}
+
+.place-order-btn:hover {
+  opacity: 0.9;
+}
+
+.btn-buy {
+  background-color: #10b981;
+  color: white;
+}
+
+.btn-sell {
+  background-color: #ef4444;
+  color: white;
+}
+
+/* --- User Position --- */
+.user-position h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 0.75rem;
+}
+
+.position-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* --- Utility Classes --- */
+.text-green {
+  color: #4ade80;
+}
+
+.text-red {
+  color: #f87171;
+}
+/* ... add this to the end of your existing file ... */
+
+.trading-panel-placeholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
+}
+
+.trading-panel-placeholder h2 {
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+}
+
+.status-closing-only {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
