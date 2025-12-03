@@ -19,8 +19,28 @@ import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import ceoPortrait from "./assets/gabe.jpg";
 import ProfileDropdown from "./dropdown";
 
-// --- Background Effects Component ---
+// --- Background Effects Component (Optimized for Mobile) ---
 const BackgroundEffects = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Simplified background for mobile - no animations, reduced blur
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[300px] h-[300px] bg-indigo-900/20 rounded-full blur-[60px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[300px] h-[300px] bg-blue-900/20 rounded-full blur-[60px]" />
+      </div>
+    );
+  }
+
+  // Full animated background for desktop
   return (
     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
       {/* Orb 1: Deep Indigo */}
@@ -180,11 +200,20 @@ const LandingPage = () => {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 500], [0, 150]);
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
+
+  // Mobile detection for performance optimization
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -475,7 +504,7 @@ const LandingPage = () => {
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
         <motion.div
-          style={{ y: heroY, opacity: heroOpacity }}
+          style={isMobile ? {} : { y: heroY, opacity: heroOpacity }}
           className="container mx-auto px-6 relative z-10 text-center"
         >
           <motion.div
@@ -600,6 +629,7 @@ const LandingPage = () => {
               <img
                 src={whatIsItVisual}
                 alt="Visual"
+                loading="lazy"
                 className="relative z-10 w-full rounded-2xl border border-white/10 shadow-2xl transform group-hover:scale-[1.02] transition-transform duration-500"
               />
             </motion.div>
@@ -789,6 +819,7 @@ const LandingPage = () => {
               <img
                 src={ceoPortrait}
                 alt="Gabe Jaffe"
+                loading="lazy"
                 className="relative z-10 w-full rounded-2xl border border-white/10 shadow-2xl"
               />
             </motion.div>
