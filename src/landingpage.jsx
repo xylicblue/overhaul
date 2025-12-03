@@ -288,9 +288,9 @@ const LandingPage = () => {
               alt="Byte Strike"
               className="h-9 w-auto transition-transform group-hover:scale-105 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]"
             />
-            <span className="font-bold text-xl tracking-tight text-white group-hover:text-indigo-400 transition-colors">
+            {/* <span className="font-bold text-xl tracking-tight text-white group-hover:text-indigo-400 transition-colors">
               ByteStrike
-            </span>
+            </span> */}
           </Routerlink>
 
           {/* Desktop Nav */}

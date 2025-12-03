@@ -18,10 +18,14 @@ const AppHeader = ({ session, profile, handleLogout }) => {
       {/* Logo & Nav */}
       <div className="flex items-center gap-8">
         <Link to="/" className="flex items-center gap-3 group">
-          <img src={logoImage} alt="ByteStrike" className="h-8 w-auto group-hover:scale-105 transition-transform" />
-          <span className="text-lg font-bold text-white tracking-tight group-hover:text-blue-400 transition-colors hidden sm:block">
+          <img
+            src={logoImage}
+            alt="ByteStrike"
+            className="h-8 w-auto group-hover:scale-105 transition-transform"
+          />
+          {/* <span className="text-lg font-bold text-white tracking-tight group-hover:text-blue-400 transition-colors hidden sm:block">
             ByteStrike
-          </span>
+          </span> */}
         </Link>
 
         {/* Desktop Nav */}
@@ -104,7 +108,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
       {isMenuOpen && (
         <div className="absolute top-14 left-0 right-0 bg-slate-900 border-b border-slate-800 p-4 flex flex-col gap-4 md:hidden shadow-xl">
           <div className="flex justify-center pb-2">
-             <HeaderWallet />
+            <HeaderWallet />
           </div>
           <NavLink
             to="/trade"
@@ -144,11 +148,17 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
                 <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  {profile.username ? profile.username.charAt(0).toUpperCase() : "U"}
+                  {profile.username
+                    ? profile.username.charAt(0).toUpperCase()
+                    : "U"}
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-bold text-white">{profile.username || "User"}</span>
-                  <span className="text-xs text-slate-400 truncate max-w-[150px]">{session.user.email}</span>
+                  <span className="font-bold text-white">
+                    {profile.username || "User"}
+                  </span>
+                  <span className="text-xs text-slate-400 truncate max-w-[150px]">
+                    {session.user.email}
+                  </span>
                 </div>
               </div>
 
@@ -157,7 +167,20 @@ const AppHeader = ({ session, profile, handleLogout }) => {
                 className="flex items-center gap-2 text-slate-300 hover:text-white p-2"
                 onClick={() => setIsMenuOpen(false)}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
                 Settings
               </Link>
 
@@ -201,8 +224,12 @@ const SharedLayout = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) =>
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => setSession(session));
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) =>
       setSession(session)
     );
     return () => subscription.unsubscribe();
@@ -224,11 +251,18 @@ const SharedLayout = () => {
         .channel("realtime-profiles")
         .on(
           "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${session.user.id}` },
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "profiles",
+            filter: `id=eq.${session.user.id}`,
+          },
           (payload) => setProfile(payload.new)
         )
         .subscribe();
-      return () => { supabase.removeChannel(channel); };
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [session]);
 
@@ -240,16 +274,20 @@ const SharedLayout = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col font-sans">
       {session && <Web3AuthHandler />}
-      <AppHeader session={session} profile={profile} handleLogout={handleLogout} />
-      
+      <AppHeader
+        session={session}
+        profile={profile}
+        handleLogout={handleLogout}
+      />
+
       {/* Main Content Area - Padded top for fixed header */}
       <div className="flex-1 pt-14 flex flex-col">
         <Outlet />
       </div>
 
       {/* Footer - Only show on non-trading pages if needed, but for now keep it */}
-      <div className="hidden md:block"> 
-         {/* Use CSS to hide footer on /trade route if possible, or just keep it simple */}
+      <div className="hidden md:block">
+        {/* Use CSS to hide footer on /trade route if possible, or just keep it simple */}
       </div>
     </div>
   );
