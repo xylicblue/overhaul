@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "./creatclient";
 import { useAccount } from "wagmi";
 import { useAllPositions, useAccountValue } from "./hooks/useClearingHouse";
+import { useMarkPrice } from "./hooks/useVAMM";
 import "./portfolio.css";
 
 import {
@@ -19,11 +20,55 @@ import {
 
 // --- UI SUB-COMPONENTS ---
 
+// Position row component with unrealized PnL calculation
+const PositionRow = ({ pos }) => {
+  const { price: markPrice } = useMarkPrice(pos.vammAddress);
+
+  const entryPrice = parseFloat(pos.entryPriceX18);
+  const absSize = Math.abs(parseFloat(pos.size));
+  const currentPrice = markPrice ? parseFloat(markPrice) : 0;
+  const margin = parseFloat(pos.margin);
+
+  // Calculate unrealized PnL (same formula as PositionPanel)
+  const unrealizedPnL = currentPrice > 0
+    ? pos.isLong
+      ? (currentPrice - entryPrice) * absSize
+      : (entryPrice - currentPrice) * absSize
+    : 0;
+
+  return (
+    <tr key={pos.marketId} className="hover:bg-slate-800/30 transition-colors">
+      <td className="px-6 py-4 font-medium text-white">{pos.marketName}</td>
+      <td className="px-6 py-4">
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+            pos.isLong
+              ? "bg-green-500/10 text-green-400 border border-green-500/20"
+              : "bg-red-500/10 text-red-400 border border-red-500/20"
+          }`}
+        >
+          {pos.isLong ? <HiArrowUp className="w-3 h-3" /> : <HiArrowDown className="w-3 h-3" />}
+          {pos.isLong ? "Long" : "Short"}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-right font-mono text-slate-300">{absSize.toFixed(4)}</td>
+      <td className="px-6 py-4 text-right font-mono text-slate-300">${entryPrice.toFixed(2)}</td>
+      <td className="px-6 py-4 text-right font-mono text-slate-300">
+        ${currentPrice > 0 ? currentPrice.toFixed(2) : "..."}
+      </td>
+      <td className="px-6 py-4 text-right font-mono text-slate-300">${margin.toFixed(2)}</td>
+      <td className={`px-6 py-4 text-right font-mono font-bold ${unrealizedPnL >= 0 ? "text-green-400" : "text-red-400"}`}>
+        {unrealizedPnL >= 0 ? "+" : ""}${unrealizedPnL.toFixed(2)}
+      </td>
+    </tr>
+  );
+};
+
 const PortfolioHeader = ({
   username,
   portfolioValue,
-  unrealizedPnl,
-  unrealizedPnlPercent,
+  realizedPnl,
+  realizedPnlPercent,
 }) => (
   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
     <div>
@@ -48,26 +93,26 @@ const PortfolioHeader = ({
       </div>
       <div className="flex-1 md:flex-none bg-slate-900/50 border border-slate-800 rounded-xl p-4 backdrop-blur-sm">
         <div className="flex items-center gap-2 text-slate-400 text-xs font-medium mb-1">
-          {unrealizedPnl >= 0 ? (
+          {realizedPnl >= 0 ? (
             <HiArrowTrendingUp className="w-4 h-4 text-green-400" />
           ) : (
             <HiArrowTrendingDown className="w-4 h-4 text-red-400" />
           )}
-          <span>Unrealized P&L</span>
+          <span>Realized P&L</span>
         </div>
         <div
           className={`flex items-baseline gap-2 font-mono font-bold ${
-            unrealizedPnl >= 0 ? "text-green-400" : "text-red-400"
+            realizedPnl >= 0 ? "text-green-400" : "text-red-400"
           }`}
         >
           <span className="text-xl">
-            {unrealizedPnl >= 0 ? "+" : ""}$
-            {Math.abs(unrealizedPnl).toLocaleString(undefined, {
+            {realizedPnl >= 0 ? "+" : ""}$
+            {Math.abs(realizedPnl).toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
           </span>
-          <span className="text-xs opacity-80">({unrealizedPnlPercent}%)</span>
+          <span className="text-xs opacity-80">({realizedPnlPercent}%)</span>
         </div>
       </div>
     </div>
@@ -240,54 +285,14 @@ const PortfolioPage = () => {
                       <th className="px-6 py-4">Side</th>
                       <th className="px-6 py-4 text-right">Size</th>
                       <th className="px-6 py-4 text-right">Entry Price</th>
+                      <th className="px-6 py-4 text-right">Mark Price</th>
                       <th className="px-6 py-4 text-right">Margin</th>
-                      <th className="px-6 py-4 text-right">Realized P&L</th>
+                      <th className="px-6 py-4 text-right">Unrealized P&L</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
                     {positions.map((pos) => (
-                      <tr
-                        key={pos.marketId}
-                        className="hover:bg-slate-800/30 transition-colors"
-                      >
-                        <td className="px-6 py-4 font-medium text-white">
-                          {pos.marketName}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                              pos.isLong
-                                ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                                : "bg-red-500/10 text-red-400 border border-red-500/20"
-                            }`}
-                          >
-                            {pos.isLong ? (
-                              <HiArrowUp className="w-3 h-3" />
-                            ) : (
-                              <HiArrowDown className="w-3 h-3" />
-                            )}
-                            {pos.isLong ? "Long" : "Short"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-300">
-                          {Math.abs(parseFloat(pos.size)).toFixed(4)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-300">
-                          ${parseFloat(pos.entryPriceX18).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-300">
-                          ${parseFloat(pos.margin).toFixed(2)}
-                        </td>
-                        <td
-                          className={`px-6 py-4 text-right font-mono font-bold ${
-                            parseFloat(pos.realizedPnL) >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
-                          }`}
-                        >
-                          ${parseFloat(pos.realizedPnL).toFixed(2)}
-                        </td>
-                      </tr>
+                      <PositionRow key={pos.marketId} pos={pos} />
                     ))}
                   </tbody>
                 </table>
@@ -393,8 +398,8 @@ const PortfolioPage = () => {
     0
   );
 
-  // Calculate unrealized P&L: sum of realized P&L from all open positions
-  const unrealizedPnL = positions.reduce(
+  // Calculate total realized P&L: sum of realized P&L from all open positions
+  const totalRealizedPnL = positions.reduce(
     (sum, pos) => sum + parseFloat(pos.realizedPnL || 0),
     0
   );
@@ -402,9 +407,9 @@ const PortfolioPage = () => {
   const availableMargin = totalValue - totalMargin;
   const buyingPower = totalValue * 10; // Assuming 10x leverage
 
-  // Calculate unrealized P&L percentage relative to total margin used
-  const unrealizedPnlPercent =
-    totalMargin > 0 ? ((unrealizedPnL / totalMargin) * 100).toFixed(2) : "0.00";
+  // Calculate realized P&L percentage relative to total margin used
+  const realizedPnlPercent =
+    totalMargin > 0 ? ((totalRealizedPnL / totalMargin) * 100).toFixed(2) : "0.00";
 
   if (!isConnected) {
     return (
@@ -429,8 +434,8 @@ const PortfolioPage = () => {
         <PortfolioHeader
           username={profile?.username}
           portfolioValue={totalValue}
-          unrealizedPnl={unrealizedPnL}
-          unrealizedPnlPercent={unrealizedPnlPercent}
+          realizedPnl={totalRealizedPnL}
+          realizedPnlPercent={realizedPnlPercent}
         />
         <AccountSummary
           availableMargin={availableMargin}
