@@ -511,7 +511,7 @@ const LandingPage = () => {
                 to="/trade"
                 className="relative group px-8 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold text-lg backdrop-blur-md hover:bg-white/10 hover:border-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 transition-all duration-300 flex items-center gap-2"
               >
-                Launch App
+                Trade
                 <svg
                   className="w-5 h-5 group-hover:translate-x-1 transition-transform"
                   fill="none"
@@ -800,8 +800,38 @@ const LandingPage = () => {
               <p className="text-slate-300 leading-relaxed mb-8 text-lg">
                 Gabe Jaffe is a Sophomore student at the McDonough School of
                 Business at Georgetown University. At the age of 15, he founded
-                his first company, Teen Hampton and Teen NYC. Now, he is working
-                to build the foundations of a futures market for compute as a
+                his first company, Teen Hampton and Teen NYC, a digital platform
+                for teenage tutors, sports instructors, and babysitters, that
+                has housed more than 100 workers and served more than 1,000
+                clients. As Gabe scaled the business, he appeared on{" "}
+                <a
+                  href="https://www.youtube.com/watch?v=MJko_jIdZxk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
+                >
+                  Good Day New York
+                </a>
+                ,{" "}
+                <a
+                  href="https://www.foxnews.com/video/6307767277112"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
+                >
+                  Fox National News
+                </a>
+                ,{" "}
+                <a
+                  href="https://www.youtube.com/watch?v=stkR3mEhIAQ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
+                >
+                  CBS Inside Edition
+                </a>
+                , and more to discuss his accomplishments. Now, he is working to
+                build the foundations of a futures market for compute as a
                 commodity to accelerate AI learning and market growth.
               </p>
               <blockquote className="border-l-4 border-indigo-500 pl-6 italic text-slate-400 mb-10 text-xl font-light">
