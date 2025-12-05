@@ -1,10 +1,11 @@
 // Component to display user's open positions
 import { useState, useEffect } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { toast } from "react-hot-toast";
 import { useAllPositions, useClosePosition } from "../hooks/useClearingHouse";
-import { useMarkPrice } from "../hooks/useVAMM";
-import { SEPOLIA_CONTRACTS } from "../contracts/addresses";
+import { useMarkPrice, useFundingRate } from "../hooks/useVAMM";
+import { SEPOLIA_CONTRACTS, MARKET_IDS } from "../contracts/addresses";
+import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wallet, TrendingUp, TrendingDown, X, AlertCircle, ArrowRight, Activity } from "lucide-react";
 
@@ -142,7 +143,30 @@ function PositionCard({
   const { price: markPrice } = useMarkPrice(vammAddress);
   const currentPrice = markPrice ? parseFloat(markPrice) : 0;
 
+  // Get current funding index to calculate funding payments
+  const { cumulativeFunding: currentFundingIndex } = useFundingRate(vammAddress);
+  const currentIndex = parseFloat(currentFundingIndex || 0);
+  const lastIndex = parseFloat(position.lastFundingIndex || 0);
+
+  // Calculate funding payment: (currentIndex - lastIndex) × size / 1e18
+  // Negative payment means the position received funding
+  const fundingPayment = (currentIndex - lastIndex) * size;
+  const fundingEarned = -fundingPayment; // Flip sign: negative payment = positive earning
+
+  // Get market config for fee calculation
+  const { data: marketConfig } = useReadContract({
+    address: SEPOLIA_CONTRACTS.marketRegistry,
+    abi: MarketRegistryABI.abi,
+    functionName: "getMarket",
+    args: [position.marketId],
+    chainId: 11155111,
+  });
+
+  // Calculate trading fees paid: notional × feeBps / 10000
+  const feeBps = marketConfig?.feeBps || 10; // Default 0.1%
   const openNotional = entryPrice * absSize;
+  const feesPaid = (openNotional * feeBps) / 10000;
+
   const currentPnL =
     currentPrice > 0
       ? isLong
@@ -261,6 +285,16 @@ function PositionCard({
           <div className="flex justify-between items-center">
             <span className="text-slate-500">Margin</span>
             <span className="text-slate-200 font-mono">${margin.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">Funding</span>
+            <span className={`font-mono ${fundingEarned >= 0 ? "text-green-400" : "text-red-400"}`}>
+              {fundingEarned >= 0 ? "+" : ""}${fundingEarned.toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">Fees Paid</span>
+            <span className="text-red-400/80 font-mono">-${feesPaid.toFixed(2)}</span>
           </div>
         </div>
 

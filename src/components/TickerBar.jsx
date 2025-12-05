@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { useMarket } from "../marketcontext";
 import { useMarketRealTimeData, useMarketsData } from "../marketData";
+import { useReadContract } from "wagmi";
+import { SEPOLIA_CONTRACTS, MARKET_IDS } from "../contracts/addresses";
+import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
 import {
   ChevronDown,
   Search,
@@ -64,6 +67,20 @@ const TickerBar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef(null);
+
+  // Fetch market config for fee display
+  const marketId = MARKET_IDS[marketName] || MARKET_IDS["H100-PERP"];
+  const { data: marketConfig } = useReadContract({
+    address: SEPOLIA_CONTRACTS.marketRegistry,
+    abi: MarketRegistryABI.abi,
+    functionName: "getMarket",
+    args: [marketId],
+    chainId: 11155111,
+  });
+
+  const marketFee = marketConfig?.feeBps
+    ? `${(marketConfig.feeBps / 100).toFixed(2)}%`
+    : "0.10%";
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -218,6 +235,19 @@ const TickerBar = () => {
             <InfoTooltip
               title="Funding Rate"
               description="The periodic payment between long and short positions every 8 hours. Positive rates mean longs (GPU buyers) pay shorts (GPU sellers); negative means shorts pay longs. This keeps the perpetual price anchored to real H100 rental market rates."
+            />
+          </span>
+        </div>
+
+        <div className="flex flex-col shrink-0">
+          <span className="text-xs font-medium text-blue-400 font-mono whitespace-nowrap">
+            {marketFee}
+          </span>
+          <span className="text-[10px] text-slate-500 flex items-center whitespace-nowrap">
+            Market Fee
+            <InfoTooltip
+              title="Trading Fee"
+              description="Fee charged on each trade as a percentage of notional value. This fee is split between the insurance fund and protocol treasury to maintain system stability."
             />
           </span>
         </div>
