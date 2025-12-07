@@ -9,7 +9,7 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
   const [priceChange, setPriceChange] = useState(null);
   const [priceChangePercent, setPriceChangePercent] = useState(null);
   const [hasEnoughData, setHasEnoughData] = useState(false);
-  const [timeRange, setTimeRange] = useState("1h");
+  const [timeRange, setTimeRange] = useState("7d");
 
   const isPriceUp = priceChange !== null && priceChange >= 0;
 
@@ -18,20 +18,26 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
       setLoading(true);
       try {
         let minutesAgo;
-        if (timeRange === "7d") minutesAgo = 7 * 24 * 60;
-        else if (timeRange === "1d") minutesAgo = 24 * 60;
-        else if (timeRange === "4h") minutesAgo = 4 * 60;
-        else if (timeRange === "1h") minutesAgo = 60;
-        else minutesAgo = 2;
+        if (timeRange === "max") minutesAgo = null; // No time filter for max
+        else if (timeRange === "1m") minutesAgo = 30 * 24 * 60; // 30 days
+        else if (timeRange === "7d") minutesAgo = 7 * 24 * 60;
+        else minutesAgo = 7 * 24 * 60; // Default to 7d
 
-        const startTime = new Date(Date.now() - minutesAgo * 60 * 1000).toISOString();
-
-        const { data, error } = await supabase
+        let query = supabase
           .from("vamm_price_history")
           .select("price, twap, timestamp")
           .eq("market", market)
-          .gte("timestamp", startTime)
           .order("timestamp", { ascending: true });
+
+        // Only apply time filter if not "max"
+        if (minutesAgo !== null) {
+          const startTime = new Date(
+            Date.now() - minutesAgo * 60 * 1000
+          ).toISOString();
+          query = query.gte("timestamp", startTime);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         if (!data || data.length < 2) throw new Error("Not enough data");
@@ -46,7 +52,9 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
         const openingPrice = parseFloat(openingEntry.price);
         const absoluteChange = livePrice - openingPrice;
         setPriceChange(absoluteChange);
-        setPriceChangePercent(openingPrice !== 0 ? (absoluteChange / openingPrice) * 100 : 0);
+        setPriceChangePercent(
+          openingPrice !== 0 ? (absoluteChange / openingPrice) * 100 : 0
+        );
 
         const candleData = convertToCandlesticks(data, timeRange);
         setChartData(candleData);
@@ -65,24 +73,36 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
       .channel("vamm_price_changes")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "vamm_price_history", filter: `market=eq.${market}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "vamm_price_history",
+          filter: `market=eq.${market}`,
+        },
         (payload) => setCurrentPrice(parseFloat(payload.new.price))
       )
       .subscribe();
 
-    return () => { subscription.unsubscribe(); };
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [timeRange, market]);
 
   const convertToCandlesticks = (data, range) => {
     if (!data || data.length === 0) return [];
     let intervalSeconds;
     switch (range) {
-      case "2m": intervalSeconds = 15; break;
-      case "1h": intervalSeconds = 5 * 60; break;
-      case "4h": intervalSeconds = 15 * 60; break;
-      case "1d": intervalSeconds = 60 * 60; break;
-      case "7d": intervalSeconds = 4 * 60 * 60; break;
-      default: intervalSeconds = 15;
+      case "7d":
+        intervalSeconds = 4 * 60 * 60;
+        break;
+      case "1m":
+        intervalSeconds = 8 * 60 * 60;
+        break; // 8 hour candles for 1 month
+      case "max":
+        intervalSeconds = 12 * 60 * 60;
+        break; // 12 hour candles for all time
+      default:
+        intervalSeconds = 4 * 60 * 60;
     }
 
     const candles = [];
@@ -92,9 +112,14 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
       const timestamp = new Date(point.timestamp);
       const price = parseFloat(point.price);
       const intervalMs = intervalSeconds * 1000;
-      const candleTime = new Date(Math.floor(timestamp.getTime() / intervalMs) * intervalMs);
+      const candleTime = new Date(
+        Math.floor(timestamp.getTime() / intervalMs) * intervalMs
+      );
 
-      if (!currentCandle || currentCandle.x.getTime() !== candleTime.getTime()) {
+      if (
+        !currentCandle ||
+        currentCandle.x.getTime() !== candleTime.getTime()
+      ) {
         if (currentCandle) candles.push(currentCandle);
         currentCandle = { x: candleTime, y: [price, price, price, price] };
       } else {
@@ -140,7 +165,8 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
       axisTicks: { show: false },
       labels: {
         style: { colors: "#94a3b8", fontSize: "11px" },
-        format: timeRange === "2m" ? "HH:mm:ss" : timeRange === "1h" || timeRange === "4h" ? "HH:mm" : "MMM dd HH:mm",
+        format:
+          timeRange === "max" || timeRange === "1m" ? "MMM dd" : "MMM dd HH:mm",
       },
     },
     yaxis: {
@@ -163,17 +189,35 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
       <div className="flex items-start justify-between p-4 border-b border-slate-800/50">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-sm font-medium text-slate-400">vAMM Mark Price</h2>
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">PERP</span>
+            <h2 className="text-sm font-medium text-slate-400">
+              vAMM Mark Price
+            </h2>
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              PERP
+            </span>
           </div>
           <div className="flex items-baseline gap-3">
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              {loading ? "..." : currentPrice !== null ? `$${currentPrice.toFixed(2)}` : "N/A"}
+              {loading
+                ? "..."
+                : currentPrice !== null
+                ? `$${currentPrice.toFixed(2)}`
+                : "N/A"}
             </h1>
             {hasEnoughData && priceChange !== null && (
-              <div className={`flex items-center text-xs font-medium ${isPriceUp ? "text-green-400" : "text-red-400"}`}>
-                <span>{isPriceUp ? "+" : ""}{priceChange.toFixed(2)}</span>
-                <span className="ml-1">({isPriceUp ? "+" : ""}{priceChangePercent.toFixed(2)}%)</span>
+              <div
+                className={`flex items-center text-xs font-medium ${
+                  isPriceUp ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                <span>
+                  {isPriceUp ? "+" : ""}
+                  {priceChange.toFixed(2)}
+                </span>
+                <span className="ml-1">
+                  ({isPriceUp ? "+" : ""}
+                  {priceChangePercent.toFixed(2)}%)
+                </span>
               </div>
             )}
           </div>
@@ -181,7 +225,7 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
 
         {/* Time Range Toggles */}
         <div className="flex bg-slate-900 rounded-lg p-0.5 border border-slate-800">
-          {["1h", "4h", "1d", "7d"].map((range) => (
+          {["7d", "1m", "max"].map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
@@ -191,7 +235,7 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
                   : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
               }`}
             >
-              {range}
+              {range === "max" ? "Max" : range === "1m" ? "1M" : range}
             </button>
           ))}
         </div>
@@ -205,7 +249,13 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
             Loading vAMM Data...
           </div>
         ) : hasEnoughData ? (
-          <Chart options={chartOptions} series={[{ name: "Price", data: chartData }]} type="candlestick" height="100%" width="100%" />
+          <Chart
+            options={chartOptions}
+            series={[{ name: "Price", data: chartData }]}
+            type="candlestick"
+            height="100%"
+            width="100%"
+          />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">
             Not enough vAMM data yet.

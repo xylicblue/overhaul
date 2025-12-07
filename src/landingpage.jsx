@@ -19,8 +19,28 @@ import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import ceoPortrait from "./assets/gabe.jpg";
 import ProfileDropdown from "./dropdown";
 
-// --- Background Effects Component ---
+// --- Background Effects Component (Optimized for Mobile) ---
 const BackgroundEffects = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Simplified background for mobile - no animations, reduced blur
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[300px] h-[300px] bg-indigo-900/20 rounded-full blur-[60px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[300px] h-[300px] bg-blue-900/20 rounded-full blur-[60px]" />
+      </div>
+    );
+  }
+
+  // Full animated background for desktop
   return (
     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
       {/* Orb 1: Deep Indigo */}
@@ -180,11 +200,20 @@ const LandingPage = () => {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 500], [0, 150]);
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
+
+  // Mobile detection for performance optimization
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -288,9 +317,9 @@ const LandingPage = () => {
               alt="Byte Strike"
               className="h-9 w-auto transition-transform group-hover:scale-105 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]"
             />
-            <span className="font-bold text-xl tracking-tight text-white group-hover:text-indigo-400 transition-colors">
+            {/* <span className="font-bold text-xl tracking-tight text-white group-hover:text-indigo-400 transition-colors">
               ByteStrike
-            </span>
+            </span> */}
           </Routerlink>
 
           {/* Desktop Nav */}
@@ -475,7 +504,7 @@ const LandingPage = () => {
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
         <motion.div
-          style={{ y: heroY, opacity: heroOpacity }}
+          style={isMobile ? {} : { y: heroY, opacity: heroOpacity }}
           className="container mx-auto px-6 relative z-10 text-center"
         >
           <motion.div
@@ -511,7 +540,7 @@ const LandingPage = () => {
                 to="/trade"
                 className="relative group px-8 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold text-lg backdrop-blur-md hover:bg-white/10 hover:border-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 transition-all duration-300 flex items-center gap-2"
               >
-                Launch App
+                Trade
                 <svg
                   className="w-5 h-5 group-hover:translate-x-1 transition-transform"
                   fill="none"
@@ -600,6 +629,7 @@ const LandingPage = () => {
               <img
                 src={whatIsItVisual}
                 alt="Visual"
+                loading="lazy"
                 className="relative z-10 w-full rounded-2xl border border-white/10 shadow-2xl transform group-hover:scale-[1.02] transition-transform duration-500"
               />
             </motion.div>
@@ -789,6 +819,7 @@ const LandingPage = () => {
               <img
                 src={ceoPortrait}
                 alt="Gabe Jaffe"
+                loading="lazy"
                 className="relative z-10 w-full rounded-2xl border border-white/10 shadow-2xl"
               />
             </motion.div>
@@ -800,8 +831,38 @@ const LandingPage = () => {
               <p className="text-slate-300 leading-relaxed mb-8 text-lg">
                 Gabe Jaffe is a Sophomore student at the McDonough School of
                 Business at Georgetown University. At the age of 15, he founded
-                his first company, Teen Hampton and Teen NYC. Now, he is working
-                to build the foundations of a futures market for compute as a
+                his first company, Teen Hampton and Teen NYC, a digital platform
+                for teenage tutors, sports instructors, and babysitters, that
+                has housed more than 100 workers and served more than 1,000
+                clients. As Gabe scaled the business, he appeared on{" "}
+                <a
+                  href="https://www.youtube.com/watch?v=MJko_jIdZxk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
+                >
+                  Good Day New York
+                </a>
+                ,{" "}
+                <a
+                  href="https://www.foxnews.com/video/6307767277112"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
+                >
+                  Fox National News
+                </a>
+                ,{" "}
+                <a
+                  href="https://www.youtube.com/watch?v=stkR3mEhIAQ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
+                >
+                  CBS Inside Edition
+                </a>
+                , and more to discuss his accomplishments. Now, he is working to
+                build the foundations of a futures market for compute as a
                 commodity to accelerate AI learning and market growth.
               </p>
               <blockquote className="border-l-4 border-indigo-500 pl-6 italic text-slate-400 mb-10 text-xl font-light">
