@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./creatclient";
 import { useAccount } from "wagmi";
-import { useAllPositions, useAccountValue } from "./hooks/useClearingHouse";
+import { useAllPositions, useAccountValue, useVaultBalance } from "./hooks/useClearingHouse";
 import { useMarkPrice } from "./hooks/useVAMM";
 import "./portfolio.css";
 
@@ -197,6 +197,7 @@ const PortfolioPage = () => {
   const { address, isConnected } = useAccount();
   const { positions, isLoading: positionsLoading } = useAllPositions();
   const { accountValue, isLoading: accountLoading } = useAccountValue();
+  const { totalCollateralValue, isLoading: vaultLoading } = useVaultBalance();
 
   useEffect(() => {
     // Fetch the current session
@@ -391,12 +392,16 @@ const PortfolioPage = () => {
     }
   };
 
-  // Calculate portfolio metrics from real data
-  const totalValue = parseFloat(accountValue) || 0;
-  const totalMargin = positions.reduce(
-    (sum, pos) => sum + parseFloat(pos.margin),
-    0
-  );
+  // Calculate portfolio metrics from on-chain data
+  // IMPORTANT: accountValue from getAccountValue() is ALREADY (collateral - reserved margin)
+  // So it represents your available margin directly!
+  const availableMargin = parseFloat(accountValue) || 0;
+
+  // Total collateral is the raw vault balance
+  const totalCollateral = parseFloat(totalCollateralValue) || 0;
+
+  // Total margin locked = collateral - available
+  const totalMarginUsed = totalCollateral - availableMargin;
 
   // Calculate total realized P&L: sum of realized P&L from all open positions
   const totalRealizedPnL = positions.reduce(
@@ -404,12 +409,12 @@ const PortfolioPage = () => {
     0
   );
 
-  const availableMargin = totalValue - totalMargin;
-  const buyingPower = totalValue * 10; // Assuming 10x leverage
+  // Buying power = available margin × leverage (10x)
+  const buyingPower = availableMargin * 10;
 
   // Calculate realized P&L percentage relative to total margin used
   const realizedPnlPercent =
-    totalMargin > 0 ? ((totalRealizedPnL / totalMargin) * 100).toFixed(2) : "0.00";
+    totalMarginUsed > 0 ? ((totalRealizedPnL / totalMarginUsed) * 100).toFixed(2) : "0.00";
 
   if (!isConnected) {
     return (
@@ -433,13 +438,13 @@ const PortfolioPage = () => {
       <div className="max-w-7xl mx-auto">
         <PortfolioHeader
           username={profile?.username}
-          portfolioValue={totalValue}
+          portfolioValue={totalCollateral}
           realizedPnl={totalRealizedPnL}
           realizedPnlPercent={realizedPnlPercent}
         />
         <AccountSummary
           availableMargin={availableMargin}
-          totalCollateral={totalValue}
+          totalCollateral={totalCollateral}
           buyingPower={buyingPower}
         />
         <div className="space-y-6">

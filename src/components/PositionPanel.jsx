@@ -263,8 +263,36 @@ function PositionCard({
               {isProfitable ? "+" : ""}${currentPnL.toFixed(2)}
             </div>
             <div className={`text-xs font-medium ${isProfitable ? "text-green-500/70" : "text-red-500/70"}`}>
-              {isProfitable ? "+" : ""}{pnlPercent.toFixed(2)}%
+              Trading P&L {isProfitable ? "+" : ""}{pnlPercent.toFixed(2)}%
             </div>
+          </div>
+        </div>
+
+        {/* P&L Breakdown */}
+        <div className="mb-3 bg-slate-950/30 rounded-lg p-3 border border-white/5 space-y-2">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-400">Trading P&L</span>
+            <span className={`font-mono font-semibold ${currentPnL >= 0 ? "text-green-400" : "text-red-400"}`}>
+              {currentPnL >= 0 ? "+" : ""}${currentPnL.toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-400">
+              Funding {fundingEarned >= 0 ? "Received" : "Paid"}
+            </span>
+            <span className={`font-mono font-semibold ${fundingEarned >= 0 ? "text-green-400" : "text-red-400"}`}>
+              {fundingEarned >= 0 ? "+" : ""}${fundingEarned.toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-400">Fees Paid</span>
+            <span className="text-red-400/80 font-mono font-semibold">-${feesPaid.toFixed(2)}</span>
+          </div>
+          <div className="border-t border-white/5 pt-2 flex justify-between items-center text-xs">
+            <span className="text-white font-semibold">Net P&L</span>
+            <span className={`font-mono font-bold ${(currentPnL + fundingEarned - feesPaid) >= 0 ? "text-green-400" : "text-red-400"}`}>
+              {(currentPnL + fundingEarned - feesPaid) >= 0 ? "+" : ""}${(currentPnL + fundingEarned - feesPaid).toFixed(2)}
+            </span>
           </div>
         </div>
 
@@ -285,16 +313,6 @@ function PositionCard({
           <div className="flex justify-between items-center">
             <span className="text-slate-500">Margin</span>
             <span className="text-slate-200 font-mono">${margin.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Funding</span>
-            <span className={`font-mono ${fundingEarned >= 0 ? "text-green-400" : "text-red-400"}`}>
-              {fundingEarned >= 0 ? "+" : ""}${fundingEarned.toFixed(2)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Fees Paid</span>
-            <span className="text-red-400/80 font-mono">-${feesPaid.toFixed(2)}</span>
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import {
   MARKET_IDS,
   DEFAULT_MARKET_ID,
 } from "./contracts/addresses";
+import { get24hStats } from "./services/eventIndexer";
 
 // GPU Compute Futures markets deployed on Sepolia testnet
 // Traders speculate on H100 GPU hourly rental prices ($/hour)
@@ -168,6 +169,7 @@ export const getMarketDetails = (marketName) => {
  */
 export const useMarketRealTimeData = (marketName) => {
   const [data, setData] = useState(null);
+  const [stats24h, setStats24h] = useState(null);
 
   // Find the market config
   const market = DEPLOYED_MARKETS.find((m) => m.name === marketName);
@@ -192,12 +194,31 @@ export const useMarketRealTimeData = (marketName) => {
     10000
   );
 
+  // Fetch 24h stats from Supabase
+  useEffect(() => {
+    const fetch24hStats = async () => {
+      try {
+        const stats = await get24hStats(market.marketId);
+        setStats24h(stats);
+      } catch (error) {
+        console.error('Error fetching 24h stats:', error);
+      }
+    };
+
+    fetch24hStats();
+
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetch24hStats, 30000);
+    return () => clearInterval(interval);
+  }, [market.marketId]);
+
   useEffect(() => {
     // Debug logging
     console.log("useMarketRealTimeData for", marketName, {
       markPrice,
       twap,
       oraclePrice,
+      stats24h,
       priceLoading,
       twapLoading,
       oracleLoading,
@@ -237,9 +258,23 @@ export const useMarketRealTimeData = (marketName) => {
         maximumFractionDigits: 2,
       });
 
-      // Calculate 24h change (mock - difference between TWAP and current)
-      const change24hMock = ((markPriceNum - twapNum) / twapNum) * 100;
-      const change24hDisplay = change24hMock.toFixed(2) + "%";
+      // Use REAL 24h data from Supabase if available, otherwise show placeholder
+      let change24hDisplay, change24hValue, volume24hDisplay;
+
+      if (stats24h && stats24h.change_24h_percent !== null) {
+        // Real data from indexed events
+        change24hValue = parseFloat(stats24h.change_24h_percent);
+        change24hDisplay = change24hValue.toFixed(2) + "%";
+        volume24hDisplay = "$" + parseFloat(stats24h.volume_24h_usd).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      } else {
+        // Placeholder until indexer is deployed
+        change24hValue = ((markPriceNum - twapNum) / twapNum) * 100;
+        change24hDisplay = "~" + change24hValue.toFixed(2) + "%";
+        volume24hDisplay = "$100.00"; // Placeholder value
+      }
 
       setData({
         name: market.name,
@@ -260,10 +295,14 @@ export const useMarketRealTimeData = (marketName) => {
         vammPrice: twapFormatted,
         fundingRate: fundingRateDisplay,
         fundingRateAnnualized: fundingRateAnnualized.toFixed(2) + "% APR",
-        change24h: change24hDisplay, // Mock based on TWAP difference
-        change24hValue: change24hMock,
-        volume24h: "~$" + (markPriceNum * 10).toFixed(2), // Mock: assume 10 ETH traded
-        openInterest: "~" + (Math.random() * 100).toFixed(2) + " ETH", // Mock
+        change24h: change24hDisplay,
+        change24hValue: change24hValue,
+        volume24h: volume24hDisplay,
+        // Additional 24h stats from Supabase
+        high24h: stats24h?.high_24h ? "$" + parseFloat(stats24h.high_24h).toFixed(2) : "N/A",
+        low24h: stats24h?.low_24h ? "$" + parseFloat(stats24h.low_24h).toFixed(2) : "N/A",
+        trades24h: stats24h?.trades_24h || 0,
+        openInterest: "~" + (Math.random() * 100).toFixed(2) + " ETH", // Still mock - needs separate tracking
         lastFundingTime: lastFundingTime,
         // Helper info
         premium: premium.toFixed(6) + "%",
@@ -272,6 +311,7 @@ export const useMarketRealTimeData = (marketName) => {
         isPriceLoaded: !priceLoading,
         isTwapLoaded: !twapLoading,
         isOracleLoaded: !oracleLoading,
+        is24hStatsLoaded: stats24h !== null,
       });
     }
   }, [
@@ -283,7 +323,9 @@ export const useMarketRealTimeData = (marketName) => {
     priceLoading,
     twapLoading,
     oracleLoading,
+    stats24h,
     market,
+    marketName,
   ]);
 
   return {
