@@ -2,7 +2,10 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "./creatclient";
 import { useAccount } from "wagmi";
 import { useAllPositions, useAccountValue, useVaultBalance } from "./hooks/useClearingHouse";
-import { useMarkPrice } from "./hooks/useVAMM";
+import { useMarkPrice, useFundingRate } from "./hooks/useVAMM";
+import { useReadContract } from "wagmi";
+import { SEPOLIA_CONTRACTS } from "./contracts/addresses";
+import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
 import "./portfolio.css";
 
 import {
@@ -20,11 +23,92 @@ import {
 
 // --- UI SUB-COMPONENTS ---
 
+// Position Row Component - calculates Net P&L (unrealized)
+const PositionRow = ({ pos }) => {
+  const { price: markPrice } = useMarkPrice(pos.vammAddress);
+  const { cumulativeFunding: currentFundingIndex } = useFundingRate(pos.vammAddress);
+
+  const { data: marketConfig } = useReadContract({
+    address: SEPOLIA_CONTRACTS.marketRegistry,
+    abi: MarketRegistryABI.abi,
+    functionName: "getMarket",
+    args: [pos.marketId],
+    chainId: 11155111,
+  });
+
+  const entryPrice = parseFloat(pos.entryPriceX18);
+  const size = parseFloat(pos.size);
+  const absSize = Math.abs(size);
+  const currentPrice = markPrice ? parseFloat(markPrice) : 0;
+  const isLong = pos.isLong;
+
+  // Trading P&L
+  const tradingPnL = currentPrice > 0
+    ? isLong
+      ? (currentPrice - entryPrice) * absSize
+      : (entryPrice - currentPrice) * absSize
+    : 0;
+
+  // Funding earned/paid
+  const currentIndex = parseFloat(currentFundingIndex || 0);
+  const lastIndex = parseFloat(pos.lastFundingIndex || 0);
+  const fundingPayment = (currentIndex - lastIndex) * size;
+  const fundingEarned = -fundingPayment;
+
+  // Fees paid
+  const feeBps = marketConfig?.feeBps || 10;
+  const openNotional = entryPrice * absSize;
+  const feesPaid = (openNotional * feeBps) / 10000;
+
+  // Net P&L (this is what shows in position card)
+  const netPnL = tradingPnL + fundingEarned - feesPaid;
+
+  return (
+    <tr className="hover:bg-slate-800/30 transition-colors">
+      <td className="px-6 py-4 font-medium text-white">
+        {pos.marketName}
+      </td>
+      <td className="px-6 py-4">
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+            isLong
+              ? "bg-green-500/10 text-green-400 border border-green-500/20"
+              : "bg-red-500/10 text-red-400 border border-red-500/20"
+          }`}
+        >
+          {isLong ? (
+            <HiArrowUp className="w-3 h-3" />
+          ) : (
+            <HiArrowDown className="w-3 h-3" />
+          )}
+          {isLong ? "Long" : "Short"}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-right font-mono text-slate-300">
+        {absSize.toFixed(4)}
+      </td>
+      <td className="px-6 py-4 text-right font-mono text-slate-300">
+        ${entryPrice.toFixed(2)}
+      </td>
+      <td className="px-6 py-4 text-right font-mono text-slate-300">
+        ${parseFloat(pos.margin).toFixed(2)}
+      </td>
+      <td
+        className={`px-6 py-4 text-right font-mono font-bold ${
+          netPnL >= 0 ? "text-green-400" : "text-red-400"
+        }`}
+      >
+        {netPnL >= 0 ? "+" : ""}${netPnL.toFixed(2)}
+      </td>
+    </tr>
+  );
+};
+
 const PortfolioHeader = ({
   username,
   portfolioValue,
-  unrealizedPnl,
-  unrealizedPnlPercent,
+  realizedPnl,
+  realizedPnlPercent,
 }) => (
   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
     <div>
@@ -49,26 +133,26 @@ const PortfolioHeader = ({
       </div>
       <div className="flex-1 md:flex-none bg-slate-900/50 border border-slate-800 rounded-xl p-4 backdrop-blur-sm">
         <div className="flex items-center gap-2 text-slate-400 text-xs font-medium mb-1">
-          {unrealizedPnl >= 0 ? (
+          {realizedPnl >= 0 ? (
             <HiArrowTrendingUp className="w-4 h-4 text-green-400" />
           ) : (
             <HiArrowTrendingDown className="w-4 h-4 text-red-400" />
           )}
-          <span>Unrealized P&L</span>
+          <span>Realized P&L</span>
         </div>
         <div
           className={`flex items-baseline gap-2 font-mono font-bold ${
-            unrealizedPnl >= 0 ? "text-green-400" : "text-red-400"
+            realizedPnl >= 0 ? "text-green-400" : "text-red-400"
           }`}
         >
           <span className="text-xl">
-            {unrealizedPnl >= 0 ? "+" : ""}$
-            {Math.abs(unrealizedPnl).toLocaleString(undefined, {
+            {realizedPnl >= 0 ? "+" : ""}$
+            {Math.abs(realizedPnl).toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
           </span>
-          <span className="text-xs opacity-80">({unrealizedPnlPercent}%)</span>
+          <span className="text-xs opacity-80">({realizedPnlPercent}%)</span>
         </div>
       </div>
     </div>
@@ -243,53 +327,12 @@ const PortfolioPage = () => {
                       <th className="px-6 py-4 text-right">Size</th>
                       <th className="px-6 py-4 text-right">Entry Price</th>
                       <th className="px-6 py-4 text-right">Margin</th>
-                      <th className="px-6 py-4 text-right">Realized P&L</th>
+                      <th className="px-6 py-4 text-right">Unrealized P&L</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
                     {positions.map((pos) => (
-                      <tr
-                        key={pos.marketId}
-                        className="hover:bg-slate-800/30 transition-colors"
-                      >
-                        <td className="px-6 py-4 font-medium text-white">
-                          {pos.marketName}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                              pos.isLong
-                                ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                                : "bg-red-500/10 text-red-400 border border-red-500/20"
-                            }`}
-                          >
-                            {pos.isLong ? (
-                              <HiArrowUp className="w-3 h-3" />
-                            ) : (
-                              <HiArrowDown className="w-3 h-3" />
-                            )}
-                            {pos.isLong ? "Long" : "Short"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-300">
-                          {Math.abs(parseFloat(pos.size)).toFixed(4)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-300">
-                          ${parseFloat(pos.entryPriceX18).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-300">
-                          ${parseFloat(pos.margin).toFixed(2)}
-                        </td>
-                        <td
-                          className={`px-6 py-4 text-right font-mono font-bold ${
-                            parseFloat(pos.realizedPnL) >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
-                          }`}
-                        >
-                          ${parseFloat(pos.realizedPnL).toFixed(2)}
-                        </td>
-                      </tr>
+                      <PositionRow key={pos.marketId} pos={pos} />
                     ))}
                   </tbody>
                 </table>
@@ -408,9 +451,9 @@ const PortfolioPage = () => {
   // Buying power = available margin × leverage (10x)
   const buyingPower = availableMargin * 10;
 
-  // Calculate realized P&L percentage relative to total margin used
+  // Calculate realized P&L percentage relative to total collateral
   const realizedPnlPercent =
-    totalMarginUsed > 0 ? ((totalRealizedPnL / totalMarginUsed) * 100).toFixed(2) : "0.00";
+    totalCollateral > 0 ? ((totalRealizedPnL / totalCollateral) * 100).toFixed(2) : "0.00";
 
   if (!isConnected) {
     return (
