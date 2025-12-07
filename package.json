@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "indexer": "node scripts/runIndexer.js"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.3.6",
@@ -23,6 +24,7 @@
     "apexcharts": "^5.3.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
     "ethers": "^6.15.0",
     "framer-motion": "^12.23.6",
     "klinecharts": "^10.0.0-beta1",
