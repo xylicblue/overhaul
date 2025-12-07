@@ -399,8 +399,8 @@ const PortfolioPage = () => {
   // Total margin locked = collateral - available
   const totalMarginUsed = totalCollateral - availableMargin;
 
-  // Calculate unrealized P&L: sum of realized P&L from all open positions
-  const unrealizedPnL = positions.reduce(
+  // Calculate total realized P&L: sum of realized P&L from all open positions
+  const totalRealizedPnL = (positions || []).reduce(
     (sum, pos) => sum + parseFloat(pos.realizedPnL || 0),
     0
   );
