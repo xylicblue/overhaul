@@ -404,7 +404,7 @@ const PortfolioPage = () => {
   const totalMarginUsed = totalCollateral - availableMargin;
 
   // Calculate total realized P&L: sum of realized P&L from all open positions
-  const totalRealizedPnL = positions.reduce(
+  const totalRealizedPnL = (positions || []).reduce(
     (sum, pos) => sum + parseFloat(pos.realizedPnL || 0),
     0
   );
