@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./creatclient";
 import { useAccount } from "wagmi";
-import { useAllPositions, useAccountValue, useVaultBalance } from "./hooks/useClearingHouse";
+import {
+  useAllPositions,
+  useAccountValue,
+  useVaultBalance,
+} from "./hooks/useClearingHouse";
 import { useMarkPrice, useFundingRate } from "./hooks/useVAMM";
 import { useReadContract } from "wagmi";
 import { SEPOLIA_CONTRACTS } from "./contracts/addresses";
@@ -26,7 +30,9 @@ import {
 // Position Row Component - calculates Net P&L (unrealized)
 const PositionRow = ({ pos }) => {
   const { price: markPrice } = useMarkPrice(pos.vammAddress);
-  const { cumulativeFunding: currentFundingIndex } = useFundingRate(pos.vammAddress);
+  const { cumulativeFunding: currentFundingIndex } = useFundingRate(
+    pos.vammAddress
+  );
 
   const { data: marketConfig } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
@@ -43,11 +49,12 @@ const PositionRow = ({ pos }) => {
   const isLong = pos.isLong;
 
   // Trading P&L
-  const tradingPnL = currentPrice > 0
-    ? isLong
-      ? (currentPrice - entryPrice) * absSize
-      : (entryPrice - currentPrice) * absSize
-    : 0;
+  const tradingPnL =
+    currentPrice > 0
+      ? isLong
+        ? (currentPrice - entryPrice) * absSize
+        : (entryPrice - currentPrice) * absSize
+      : 0;
 
   // Funding earned/paid
   const currentIndex = parseFloat(currentFundingIndex || 0);
@@ -65,9 +72,7 @@ const PositionRow = ({ pos }) => {
 
   return (
     <tr className="hover:bg-slate-800/30 transition-colors">
-      <td className="px-6 py-4 font-medium text-white">
-        {pos.marketName}
-      </td>
+      <td className="px-6 py-4 font-medium text-white">{pos.marketName}</td>
       <td className="px-6 py-4">
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -367,59 +372,82 @@ const PortfolioPage = () => {
                       <th className="px-6 py-4 text-right">Size</th>
                       <th className="px-6 py-4 text-right">Price</th>
                       <th className="px-6 py-4 text-right">Notional</th>
+                      <th className="px-6 py-4 text-right">P&L</th>
                       <th className="px-6 py-4 text-right">Tx Hash</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {tradeHistory.map((trade, index) => (
-                      <tr
-                        key={trade.id || index}
-                        className="hover:bg-slate-800/30 transition-colors"
-                      >
-                        <td className="px-6 py-4 text-slate-400 text-xs">
-                          {new Date(trade.created_at).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 font-medium text-white">
-                          {trade.market}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                              trade.side === "Long"
-                                ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                                : "bg-red-500/10 text-red-400 border border-red-500/20"
+                    {tradeHistory.map((trade, index) => {
+                      const hasPnL =
+                        trade.pnl !== null && trade.pnl !== undefined;
+                      const pnlValue = hasPnL ? parseFloat(trade.pnl) : null;
+                      const isPnLPositive = pnlValue !== null && pnlValue >= 0;
+
+                      return (
+                        <tr
+                          key={trade.id || index}
+                          className="hover:bg-slate-800/30 transition-colors"
+                        >
+                          <td className="px-6 py-4 text-slate-400 text-xs">
+                            {new Date(trade.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 font-medium text-white">
+                            {trade.market}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                                trade.side === "Long"
+                                  ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                                  : "bg-red-500/10 text-red-400 border border-red-500/20"
+                              }`}
+                            >
+                              {trade.side === "Long" ? (
+                                <HiArrowUp className="w-3 h-3" />
+                              ) : (
+                                <HiArrowDown className="w-3 h-3" />
+                              )}
+                              {trade.side}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right font-mono text-slate-300">
+                            {parseFloat(trade.size).toFixed(4)}
+                          </td>
+                          <td className="px-6 py-4 text-right font-mono text-slate-300">
+                            ${parseFloat(trade.price).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 text-right font-mono text-slate-300">
+                            ${parseFloat(trade.notional).toFixed(2)}
+                          </td>
+                          <td
+                            className={`px-6 py-4 text-right font-mono font-bold ${
+                              hasPnL
+                                ? isPnLPositive
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                                : "text-slate-500"
                             }`}
                           >
-                            {trade.side === "Long" ? (
-                              <HiArrowUp className="w-3 h-3" />
-                            ) : (
-                              <HiArrowDown className="w-3 h-3" />
-                            )}
-                            {trade.side}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-300">
-                          {parseFloat(trade.size).toFixed(4)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-300">
-                          ${parseFloat(trade.price).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-300">
-                          ${parseFloat(trade.notional).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <a
-                            href={`https://sepolia.etherscan.io/tx/${trade.tx_hash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs"
-                          >
-                            {trade.tx_hash?.slice(0, 6)}...
-                            {trade.tx_hash?.slice(-4)}
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
+                            {hasPnL
+                              ? `${isPnLPositive ? "+" : ""}$${pnlValue.toFixed(
+                                  2
+                                )}`
+                              : "—"}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <a
+                              href={`https://sepolia.etherscan.io/tx/${trade.tx_hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs"
+                            >
+                              {trade.tx_hash?.slice(0, 6)}...
+                              {trade.tx_hash?.slice(-4)}
+                            </a>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -453,7 +481,9 @@ const PortfolioPage = () => {
 
   // Calculate realized P&L percentage relative to total collateral
   const realizedPnlPercent =
-    totalCollateral > 0 ? ((totalRealizedPnL / totalCollateral) * 100).toFixed(2) : "0.00";
+    totalCollateral > 0
+      ? ((totalRealizedPnL / totalCollateral) * 100).toFixed(2)
+      : "0.00";
 
   if (!isConnected) {
     return (
