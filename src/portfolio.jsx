@@ -371,8 +371,9 @@ const PortfolioPage = () => {
                       <th className="px-6 py-4">Side</th>
                       <th className="px-6 py-4 text-right">Size</th>
                       <th className="px-6 py-4 text-right">Price</th>
-                      <th className="px-6 py-4 text-right">Notional</th>
                       <th className="px-6 py-4 text-right">P&L</th>
+                      <th className="px-6 py-4 text-right">Funding</th>
+                      <th className="px-6 py-4 text-right">Fees</th>
                       <th className="px-6 py-4 text-right">Tx Hash</th>
                     </tr>
                   </thead>
@@ -382,6 +383,22 @@ const PortfolioPage = () => {
                         trade.pnl !== null && trade.pnl !== undefined;
                       const pnlValue = hasPnL ? parseFloat(trade.pnl) : null;
                       const isPnLPositive = pnlValue !== null && pnlValue >= 0;
+
+                      const hasFunding =
+                        trade.funding_earned !== null &&
+                        trade.funding_earned !== undefined;
+                      const fundingValue = hasFunding
+                        ? parseFloat(trade.funding_earned)
+                        : null;
+                      const isFundingPositive =
+                        fundingValue !== null && fundingValue >= 0;
+
+                      const hasFees =
+                        trade.fees_paid !== null &&
+                        trade.fees_paid !== undefined;
+                      const feesValue = hasFees
+                        ? parseFloat(trade.fees_paid)
+                        : null;
 
                       return (
                         <tr
@@ -416,9 +433,6 @@ const PortfolioPage = () => {
                           <td className="px-6 py-4 text-right font-mono text-slate-300">
                             ${parseFloat(trade.price).toFixed(2)}
                           </td>
-                          <td className="px-6 py-4 text-right font-mono text-slate-300">
-                            ${parseFloat(trade.notional).toFixed(2)}
-                          </td>
                           <td
                             className={`px-6 py-4 text-right font-mono font-bold ${
                               hasPnL
@@ -433,6 +447,24 @@ const PortfolioPage = () => {
                                   2
                                 )}`
                               : "—"}
+                          </td>
+                          <td
+                            className={`px-6 py-4 text-right font-mono ${
+                              hasFunding
+                                ? isFundingPositive
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                                : "text-slate-500"
+                            }`}
+                          >
+                            {hasFunding
+                              ? `${
+                                  isFundingPositive ? "+" : ""
+                                }$${fundingValue.toFixed(2)}`
+                              : "—"}
+                          </td>
+                          <td className="px-6 py-4 text-right font-mono text-red-400">
+                            {hasFees ? `-$${feesValue.toFixed(2)}` : "—"}
                           </td>
                           <td className="px-6 py-4 text-right">
                             <a

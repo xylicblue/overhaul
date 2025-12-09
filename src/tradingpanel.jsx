@@ -43,12 +43,12 @@ const InfoTooltip = ({ title, description }) => {
   return (
     <>
       <div
-        className="inline-flex text-slate-500 hover:text-slate-300 cursor-help transition-colors"
+        className="inline-flex text-blue-400 hover:text-blue-300 cursor-help transition-colors"
         ref={wrapperRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <Info size={12} />
+        <Info size={14} className="opacity-80 hover:opacity-100" />
       </div>
       {isHovered &&
         ReactDOM.createPortal(
@@ -373,50 +373,50 @@ export const TradingPanel = ({ selectedMarket }) => {
         {/* Risk Metrics */}
         <Card className="bg-slate-900/30 border-slate-800/50">
           <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldCheck size={12} className="text-slate-400" />
-              <span className="text-xs text-slate-400 font-medium">
+            <div className="flex items-center gap-2 mb-4">
+              <ShieldCheck size={16} className="text-blue-400" />
+              <span className="text-sm text-slate-300 font-semibold">
                 Risk Parameters
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-slate-950/50 p-2 rounded-lg border border-slate-800 flex flex-col items-center">
-                <span className="text-[10px] text-slate-500 mb-0.5 flex items-center gap-1">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
+                <span className="text-xs text-slate-500 mb-1 flex items-center gap-1.5">
                   IMR
                   <InfoTooltip
                     title="Initial Margin Requirement"
                     description="The minimum margin required to open a new position. For example, 10% IMR means you need $100 margin to open a $1000 position (10x leverage)."
                   />
                 </span>
-                <Badge variant="secondary" className="font-mono">
+                <Badge variant="secondary" className="font-mono text-xs px-2 py-0.5">
                   {riskParams?.imrPercent
                     ? riskParams.imrPercent.toFixed(1) + "%"
                     : "10.0%"}
                 </Badge>
               </div>
-              <div className="bg-slate-950/50 p-2 rounded-lg border border-slate-800 flex flex-col items-center">
-                <span className="text-[10px] text-slate-500 mb-0.5 flex items-center gap-1">
+              <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
+                <span className="text-xs text-slate-500 mb-1 flex items-center gap-1.5">
                   MMR
                   <InfoTooltip
                     title="Maintenance Margin Requirement"
                     description="The minimum margin needed to keep your position open. If your margin falls below this level, your position can be liquidated. Lower than IMR to give you buffer room."
                   />
                 </span>
-                <Badge variant="secondary" className="font-mono">
+                <Badge variant="secondary" className="font-mono text-xs px-2 py-0.5">
                   {riskParams?.mmrPercent
                     ? riskParams.mmrPercent.toFixed(1) + "%"
                     : "5.0%"}
                 </Badge>
               </div>
-              <div className="bg-slate-950/50 p-2 rounded-lg border border-slate-800 flex flex-col items-center">
-                <span className="text-[10px] text-slate-500 mb-0.5 flex items-center gap-1">
+              <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
+                <span className="text-xs text-slate-500 mb-1 flex items-center gap-1.5">
                   Liq. Pen
                   <InfoTooltip
                     title="Liquidation Penalty"
                     description="The penalty charged if your position gets liquidated. This goes to the liquidator (50%) and protocol insurance fund (50%). Avoid liquidation!"
                   />
                 </span>
-                <Badge variant="warning" className="font-mono">
+                <Badge variant="warning" className="font-mono text-xs px-2 py-0.5">
                   {riskParams?.liquidationPenaltyPercent
                     ? riskParams.liquidationPenaltyPercent.toFixed(1) + "%"
                     : "5.0%"}

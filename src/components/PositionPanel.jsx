@@ -247,6 +247,9 @@ function PositionCard({
         if (!address || !position) return;
 
         const closedSize = closedSizeRef.current || absSize;
+        // Calculate the proportion of position being closed
+        const closeProportion = closedSize / absSize;
+
         // Calculate P&L for the closed portion
         const closedPnL =
           currentPrice > 0
@@ -254,6 +257,16 @@ function PositionCard({
               ? (currentPrice - entryPrice) * closedSize
               : (entryPrice - currentPrice) * closedSize
             : 0;
+
+        // Calculate funding earned for the closed portion (proportional)
+        const closedFundingEarned = fundingEarned * closeProportion;
+
+        // Calculate fees paid for the closed portion
+        // Opening fee was already paid, closing fee is on close notional
+        const closeNotional = closedSize * (currentPrice || entryPrice);
+        const closingFee = (closeNotional * feeBps) / 10000;
+        const openingFeeProportion = feesPaid * closeProportion;
+        const totalFeesPaid = openingFeeProportion + closingFee;
 
         const tradeData = {
           user_address: address.toLowerCase(),
@@ -264,6 +277,8 @@ function PositionCard({
           notional: closedSize * (currentPrice || entryPrice),
           tx_hash: hash,
           pnl: closedPnL,
+          funding_earned: closedFundingEarned,
+          fees_paid: totalFeesPaid,
         };
 
         try {
@@ -290,6 +305,9 @@ function PositionCard({
     isLong,
     entryPrice,
     currentPrice,
+    fundingEarned,
+    feesPaid,
+    feeBps,
   ]);
 
   useEffect(() => {
