@@ -25,33 +25,6 @@ const DEPLOYED_MARKETS = [
     description:
       "Trade the price of H100 GPU hourly rental rates. Index price: $3.79/hour from real-time market oracles.",
   },
-  {
-    name: "ETH-PERP-V2",
-    displayName: "H100 GPU",
-    fullName: "H100 GPU Hourly Rate Perpetual",
-    type: "Perpetual",
-    baseAsset: "GPU-HOURS",
-    quoteAsset: "USDC",
-    vammAddress: SEPOLIA_CONTRACTS.vammProxy,
-    marketId: MARKET_IDS["ETH-PERP-V2"], // Alias for H100-PERP
-    status: "Active",
-    isDefault: true,
-    description:
-      "Trade the price of H100 GPU hourly rental rates. Index price: $3.79/hour.",
-  },
-  {
-    name: "ETH-PERP",
-    displayName: "Test Market [DEPRECATED]",
-    fullName: "Test Market (Deprecated)",
-    type: "Perpetual",
-    baseAsset: "ETH",
-    quoteAsset: "USDC",
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyOld, // Old vAMM
-    marketId: MARKET_IDS["ETH-PERP"],
-    status: "Deprecated",
-    isDefault: false,
-    description: "Deprecated test market",
-  },
 ];
 
 /**
