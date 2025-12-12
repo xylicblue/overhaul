@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-const ParticleNetwork = () => {
+const ParticleNetwork = ({ className = "fixed inset-0 z-0 pointer-events-none opacity-40" }) => {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -19,8 +19,9 @@ const ParticleNetwork = () => {
     resize();
 
     window.addEventListener("mousemove", (e) => {
-      mouse.x = e.x;
-      mouse.y = e.y;
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
     });
 
     class Particle {
@@ -112,7 +113,7 @@ const ParticleNetwork = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0 pointer-events-none opacity-40"
+      className={className}
     />
   );
 };

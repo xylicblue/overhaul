@@ -18,81 +18,12 @@ import whatIsItVisual from "./assets/ai.png";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import ceoPortrait from "./assets/gabe.jpg";
 import ProfileDropdown from "./dropdown";
+import NetworkMesh from "./components/NetworkMesh";
+import SpotlightCard from "./components/SpotlightCard";
 
-// --- Background Effects Component (Optimized for Mobile) ---
-const BackgroundEffects = () => {
-  const [isMobile, setIsMobile] = useState(false);
+import ParticleNetwork from "./components/ParticleNetwork";
+import AuroraBackground from "./components/AuroraBackground";
 
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  // Simplified background for mobile - no animations, reduced blur
-  if (isMobile) {
-    return (
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[300px] h-[300px] bg-indigo-900/20 rounded-full blur-[60px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[300px] h-[300px] bg-blue-900/20 rounded-full blur-[60px]" />
-      </div>
-    );
-  }
-
-  // Full animated background for desktop
-  return (
-    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-      {/* Orb 1: Deep Indigo */}
-      <motion.div
-        animate={{
-          x: [0, 100, -50, 0],
-          y: [0, -50, 50, 0],
-          scale: [1, 1.2, 0.9, 1],
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-        className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-[120px] mix-blend-screen"
-      />
-      {/* Orb 2: Dark Slate/Blue */}
-      <motion.div
-        animate={{
-          x: [0, -70, 30, 0],
-          y: [0, 80, -40, 0],
-          scale: [1, 1.1, 0.9, 1],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: "linear",
-          delay: 2,
-        }}
-        className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[100px] mix-blend-screen"
-      />
-      {/* Orb 3: Subtle Purple */}
-      <motion.div
-        animate={{
-          x: [0, 50, -50, 0],
-          y: [0, -30, 30, 0],
-          scale: [1, 1.3, 0.8, 1],
-        }}
-        transition={{
-          duration: 30,
-          repeat: Infinity,
-          ease: "linear",
-          delay: 5,
-        }}
-        className="absolute bottom-[-10%] left-[20%] w-[700px] h-[700px] bg-slate-800/10 rounded-full blur-[140px] mix-blend-screen"
-      />
-
-      {/* Grid Overlay - Darker */}
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 brightness-100 contrast-150 mix-blend-overlay"></div>
-    </div>
-  );
-};
 
 const whyNowCardsData = [
   {
@@ -299,7 +230,8 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-200 font-sans selection:bg-indigo-500/30 relative overflow-hidden">
-      <BackgroundEffects />
+
+
       {session && <Web3AuthHandler />}
 
       {/* Navbar */}
@@ -317,9 +249,6 @@ const LandingPage = () => {
               alt="Byte Strike"
               className="h-9 w-auto transition-transform group-hover:scale-105 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]"
             />
-            {/* <span className="font-bold text-xl tracking-tight text-white group-hover:text-indigo-400 transition-colors">
-              ByteStrike
-            </span> */}
           </Routerlink>
 
           {/* Desktop Nav */}
@@ -502,7 +431,8 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+      <AuroraBackground className="min-h-screen pt-20 overflow-hidden relative">
+        <ParticleNetwork className="absolute inset-0 z-0 pointer-events-none opacity-40" />
         <motion.div
           style={isMobile ? {} : { y: heroY, opacity: heroOpacity }}
           className="container mx-auto px-6 relative z-10 text-center"
@@ -579,7 +509,9 @@ const LandingPage = () => {
             />
           </svg>
         </motion.div>
-      </section>
+      </AuroraBackground>
+
+
 
       {/* Price Index Chart */}
       <section className="py-12 relative z-10">
@@ -591,7 +523,7 @@ const LandingPage = () => {
       </section>
 
       {/* What We Do */}
-      <AnimatedSection id="what-we-do" className="py-32 relative z-10">
+      <AnimatedSection id="what-we-do" className="py-20 relative z-10">
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <motion.div
@@ -625,20 +557,15 @@ const LandingPage = () => {
               transition={{ duration: 0.8 }}
               className="relative group"
             >
-              <div className="absolute inset-0 bg-gradient-to-tr from-blue-600 to-purple-600 blur-[60px] opacity-40 group-hover:opacity-60 transition-opacity duration-500 rounded-full"></div>
-              <img
-                src={whatIsItVisual}
-                alt="Visual"
-                loading="lazy"
-                className="relative z-10 w-full rounded-2xl border border-white/10 shadow-2xl transform group-hover:scale-[1.02] transition-transform duration-500"
-              />
+
+              <NetworkMesh />
             </motion.div>
           </div>
         </div>
       </AnimatedSection>
 
-      {/* Why Now */}
-      <section id="why-it-matters" className="py-32 relative z-10">
+      {/* Why Now - Bento Grid */}
+      <section id="why-it-matters" className="py-20 relative z-10">
         <div className="container mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
@@ -655,67 +582,31 @@ const LandingPage = () => {
             {whyNowCardsData.map((card, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
-                className="group relative p-1 rounded-2xl bg-gradient-to-b from-white/5 to-transparent hover:from-indigo-500/30 hover:to-purple-500/30 transition-all duration-500"
+                transition={{ delay: index * 0.1, duration: 0.5 }}
+                className="h-full"
               >
-                <div
-                  className="bg-[#0B1120]/80 backdrop-blur-xl h-full p-8 rounded-xl relative overflow-hidden"
-                  onClick={() =>
-                    setExpandedCardIndex(
-                      expandedCardIndex === index ? null : index
-                    )
-                  }
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-indigo-500/20 transition-colors"></div>
-
-                  <div className="w-14 h-14 bg-black/50 rounded-xl border border-white/10 flex items-center justify-center text-indigo-400 mb-6 group-hover:scale-110 group-hover:border-indigo-500/50 group-hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300 relative z-10">
-                    {card.icon}
+                <SpotlightCard className="h-full flex flex-col">
+                  <div className="mb-auto">
+                    <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-indigo-400 mb-6">
+                      {card.icon}
+                    </div>
+                    <h3 className="text-xl font-bold mb-3 text-white">
+                      {card.title}
+                    </h3>
+                    <p className="text-slate-400 leading-relaxed text-sm">
+                      {card.summary}
+                    </p>
                   </div>
-
-                  <h3 className="text-xl font-bold mb-4 group-hover:text-indigo-400 transition-colors">
-                    {card.title}
-                  </h3>
-                  <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                    {card.summary}
-                  </p>
-
-                  <AnimatePresence>
-                    {expandedCardIndex === index && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <p className="text-slate-300 text-sm border-t border-white/10 pt-4 mt-2">
-                          {card.details}
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  <button className="text-indigo-400 text-sm font-medium flex items-center gap-1 mt-4 group-hover:translate-x-1 transition-transform">
-                    {expandedCardIndex === index ? "Show Less" : "Learn More"}
-                    <svg
-                      className={`w-4 h-4 transition-transform ${
-                        expandedCardIndex === index ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-                </div>
+                  
+                  <div className="mt-6 pt-6 border-t border-white/5">
+                    <p className="text-xs text-slate-500">
+                      {card.details}
+                    </p>
+                  </div>
+                </SpotlightCard>
               </motion.div>
             ))}
           </div>
@@ -723,11 +614,11 @@ const LandingPage = () => {
       </section>
 
       {/* Contact Form */}
-      <section id="contact" className="py-32 relative z-10">
+      <section id="contact" className="py-20 relative z-10">
         <div className="container mx-auto px-6 max-w-4xl">
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-900 blur-[100px] opacity-20"></div>
-            <div className="bg-[#0B1120]/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-10 md:p-16 shadow-2xl relative z-10">
+
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 md:p-16 shadow-2xl relative z-10">
               <div className="text-center mb-12">
                 <h2 className="text-4xl font-bold mb-4">Contact</h2>
                 <p className="text-slate-300 text-lg">
@@ -747,7 +638,7 @@ const LandingPage = () => {
                       type="text"
                       name="name"
                       required
-                      className="w-full bg-black/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300"
                       value={formData.name}
                       onChange={handleFormChange}
                     />
@@ -760,7 +651,7 @@ const LandingPage = () => {
                       type="email"
                       name="email"
                       required
-                      className="w-full bg-black/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300"
                       value={formData.email}
                       onChange={handleFormChange}
                     />
@@ -773,7 +664,7 @@ const LandingPage = () => {
                   <input
                     type="text"
                     name="role"
-                    className="w-full bg-black/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300"
                     value={formData.role}
                     onChange={handleFormChange}
                   />
@@ -785,7 +676,7 @@ const LandingPage = () => {
                   <textarea
                     name="interest"
                     rows="4"
-                    className="w-full bg-black/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300 resize-none"
                     value={formData.interest}
                     onChange={handleFormChange}
                   ></textarea>
@@ -794,7 +685,7 @@ const LandingPage = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full md:w-auto min-w-[200px] px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-700 hover:from-indigo-500 hover:to-blue-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full md:w-auto min-w-[200px] px-8 py-4 bg-white hover:bg-slate-200 text-black font-bold rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? "Submitting..." : "Stay Informed"}
                   </button>
@@ -805,27 +696,22 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Team / About */}
-      <section id="about" className="py-32 relative z-10">
+      {/* About Us */}
+      <section id="about" className="py-20 relative z-10">
         <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center gap-16 max-w-6xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, rotate: -3 }}
-              whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-              viewport={{ once: true }}
-              className="w-full md:w-1/3 relative"
-            >
-              <div className="absolute inset-0 bg-indigo-500/20 blur-3xl -rotate-6 rounded-3xl"></div>
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-indigo-600 blur-[50px] opacity-20 transition-opacity duration-500 rounded-full"></div>
               <img
                 src={ceoPortrait}
                 alt="Gabe Jaffe"
                 loading="lazy"
-                className="relative z-10 w-full rounded-2xl border border-white/10 shadow-2xl"
+                className="relative z-10 w-full max-w-md mx-auto rounded-2xl border border-white/10 shadow-2xl transition-all duration-500"
               />
-            </motion.div>
-            <div className="w-full md:w-2/3">
-              <h2 className="text-4xl font-bold mb-2">Meet Our Founder</h2>
-              <h3 className="text-2xl text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 mb-8 font-bold">
+            </div>
+            <div>
+              <h2 className="text-4xl font-bold mb-8">About Us</h2>
+              <h3 className="text-2xl text-indigo-400 font-bold mb-4">
                 Gabe Jaffe, Founder & CEO
               </h3>
               <p className="text-slate-300 leading-relaxed mb-8 text-lg">

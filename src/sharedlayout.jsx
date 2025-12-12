@@ -14,7 +14,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-slate-950 border-b border-slate-800 flex items-center px-4 justify-between backdrop-blur-md bg-slate-950/90">
+    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-[#050505] border-b border-zinc-800 flex items-center px-4 justify-between backdrop-blur-md bg-[#050505]/90">
       {/* Logo & Nav */}
       <div className="flex items-center gap-8">
         <Link to="/" className="flex items-center gap-3 group">
@@ -34,7 +34,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             to="/trade"
             className={({ isActive }) =>
               `transition-colors ${
-                isActive ? "text-blue-400" : "text-slate-400 hover:text-white"
+                isActive ? "text-blue-400" : "text-zinc-400 hover:text-white"
               }`
             }
           >
@@ -44,7 +44,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             to="/portfolio"
             className={({ isActive }) =>
               `transition-colors ${
-                isActive ? "text-blue-400" : "text-slate-400 hover:text-white"
+                isActive ? "text-blue-400" : "text-zinc-400 hover:text-white"
               }`
             }
           >
@@ -54,7 +54,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             to="/guide"
             className={({ isActive }) =>
               `transition-colors ${
-                isActive ? "text-blue-400" : "text-slate-400 hover:text-white"
+                isActive ? "text-blue-400" : "text-zinc-400 hover:text-white"
               }`
             }
           >
@@ -81,7 +81,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             <div className="flex items-center gap-3">
               <Link
                 to="/login"
-                className="text-sm font-medium text-slate-400 hover:text-white transition-colors"
+                className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
               >
                 Log In
               </Link>
@@ -97,7 +97,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
 
         {/* Mobile Menu Toggle */}
         <button
-          className="md:hidden text-slate-400 hover:text-white"
+          className="md:hidden text-zinc-400 hover:text-white"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -106,7 +106,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
 
       {/* Mobile Menu Dropdown */}
       {isMenuOpen && (
-        <div className="absolute top-14 left-0 right-0 bg-slate-900 border-b border-slate-800 p-4 flex flex-col gap-4 md:hidden shadow-xl">
+        <div className="absolute top-14 left-0 right-0 bg-[#0A0A0A] border-b border-zinc-800 p-4 flex flex-col gap-4 md:hidden shadow-xl">
           <div className="flex justify-center pb-2">
             <HeaderWallet />
           </div>
@@ -114,7 +114,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             to="/trade"
             className={({ isActive }) =>
               `text-sm font-medium ${
-                isActive ? "text-blue-400" : "text-slate-400"
+                isActive ? "text-blue-400" : "text-zinc-400"
               }`
             }
             onClick={() => setIsMenuOpen(false)}
@@ -125,7 +125,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             to="/portfolio"
             className={({ isActive }) =>
               `text-sm font-medium ${
-                isActive ? "text-blue-400" : "text-slate-400"
+                isActive ? "text-blue-400" : "text-zinc-400"
               }`
             }
             onClick={() => setIsMenuOpen(false)}
@@ -136,14 +136,14 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             to="/guide"
             className={({ isActive }) =>
               `text-sm font-medium ${
-                isActive ? "text-blue-400" : "text-slate-400"
+                isActive ? "text-blue-400" : "text-zinc-400"
               }`
             }
             onClick={() => setIsMenuOpen(false)}
           >
             Guide
           </NavLink>
-          <div className="h-px bg-slate-800 my-2"></div>
+          <div className="h-px bg-zinc-800 my-2"></div>
           {session && profile ? (
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
@@ -156,7 +156,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
                   <span className="font-bold text-white">
                     {profile.username || "User"}
                   </span>
-                  <span className="text-xs text-slate-400 truncate max-w-[150px]">
+                  <span className="text-xs text-zinc-400 truncate max-w-[150px]">
                     {session.user.email}
                   </span>
                 </div>
@@ -164,7 +164,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
 
               <Link
                 to="/settings"
-                className="flex items-center gap-2 text-slate-300 hover:text-white p-2"
+                className="flex items-center gap-2 text-zinc-300 hover:text-white p-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <svg
@@ -198,7 +198,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             <div className="flex flex-col gap-3">
               <Link
                 to="/login"
-                className="text-sm font-medium text-slate-400"
+                className="text-sm font-medium text-zinc-400"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Log In
@@ -272,7 +272,7 @@ const SharedLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#050505] text-zinc-200 flex flex-col font-sans">
       {session && <Web3AuthHandler />}
       <AppHeader
         session={session}

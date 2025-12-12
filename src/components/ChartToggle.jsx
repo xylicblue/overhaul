@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PriceIndexChart from "../chart";
-import VAMMChart from "./VAMMChart";
+import AdvancedChart from "./AdvancedChart";
 
 const ChartToggle = ({ selectedMarket }) => {
   const [activeChart, setActiveChart] = useState("vamm"); // 'vamm' or 'index'
@@ -21,13 +21,13 @@ const ChartToggle = ({ selectedMarket }) => {
   return (
     <div className="flex flex-col h-full">
       {/* Toggle Buttons */}
-      <div className="flex items-center gap-2 p-2 border-b border-slate-800 bg-slate-900/50">
-        <div className="flex bg-slate-950 rounded-lg p-1">
+      <div className="flex items-center gap-2 p-2 border-b border-zinc-800 bg-[#0A0A0A]/50">
+        <div className="flex bg-[#050505] rounded-lg p-1">
           <button
             className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
               activeChart === "vamm"
-                ? "bg-slate-800 text-white shadow-sm"
-                : "text-slate-500 hover:text-slate-300"
+                ? "bg-zinc-800 text-white shadow-sm"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
             onClick={() => setActiveChart("vamm")}
           >
@@ -36,8 +36,8 @@ const ChartToggle = ({ selectedMarket }) => {
           <button
             className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
               activeChart === "index"
-                ? "bg-slate-800 text-white shadow-sm"
-                : "text-slate-500 hover:text-slate-300"
+                ? "bg-zinc-800 text-white shadow-sm"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
             onClick={() => setActiveChart("index")}
           >
@@ -49,7 +49,7 @@ const ChartToggle = ({ selectedMarket }) => {
       {/* Chart Display */}
       <div className="flex-1 relative min-h-0">
         {activeChart === "vamm" ? (
-          <VAMMChart market={marketName} />
+          <AdvancedChart market={marketName} />
         ) : (
           <PriceIndexChart />
         )}

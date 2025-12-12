@@ -71,7 +71,7 @@ const PositionRow = ({ pos }) => {
   const netPnL = tradingPnL + fundingEarned - feesPaid;
 
   return (
-    <tr className="hover:bg-slate-800/30 transition-colors">
+    <tr className="hover:bg-zinc-800/30 transition-colors">
       <td className="px-6 py-4 font-medium text-white">{pos.marketName}</td>
       <td className="px-6 py-4">
         <span
@@ -89,13 +89,13 @@ const PositionRow = ({ pos }) => {
           {isLong ? "Long" : "Short"}
         </span>
       </td>
-      <td className="px-6 py-4 text-right font-mono text-slate-300">
+      <td className="px-6 py-4 text-right font-mono text-zinc-300">
         {absSize.toFixed(4)}
       </td>
-      <td className="px-6 py-4 text-right font-mono text-slate-300">
+      <td className="px-6 py-4 text-right font-mono text-zinc-300">
         ${entryPrice.toFixed(2)}
       </td>
-      <td className="px-6 py-4 text-right font-mono text-slate-300">
+      <td className="px-6 py-4 text-right font-mono text-zinc-300">
         ${parseFloat(pos.margin).toFixed(2)}
       </td>
       <td
@@ -117,14 +117,14 @@ const PortfolioHeader = ({
 }) => (
   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
     <div>
-      <span className="text-slate-400 text-sm font-medium">Welcome back,</span>
+      <span className="text-zinc-400 text-sm font-medium">Welcome back,</span>
       <h1 className="text-3xl font-bold text-white mt-1 tracking-tight">
         {username?.toUpperCase() || "TRADER"}
       </h1>
     </div>
     <div className="flex gap-4 w-full md:w-auto">
-      <div className="flex-1 md:flex-none bg-slate-900/50 border border-slate-800 rounded-xl p-4 backdrop-blur-sm">
-        <div className="flex items-center gap-2 text-slate-400 text-xs font-medium mb-1">
+      <div className="flex-1 md:flex-none bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-4 backdrop-blur-sm">
+        <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium mb-1">
           <HiOutlineWallet className="w-4 h-4" />
           <span>Total Value</span>
         </div>
@@ -136,8 +136,8 @@ const PortfolioHeader = ({
           })}
         </span>
       </div>
-      <div className="flex-1 md:flex-none bg-slate-900/50 border border-slate-800 rounded-xl p-4 backdrop-blur-sm">
-        <div className="flex items-center gap-2 text-slate-400 text-xs font-medium mb-1">
+      <div className="flex-1 md:flex-none bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-4 backdrop-blur-sm">
+        <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium mb-1">
           {realizedPnl >= 0 ? (
             <HiArrowTrendingUp className="w-4 h-4 text-green-400" />
           ) : (
@@ -165,12 +165,12 @@ const PortfolioHeader = ({
 );
 
 const IconSummaryCard = ({ icon, label, value }) => (
-  <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex items-center gap-4 hover:border-slate-700 transition-colors backdrop-blur-sm group">
-    <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-white group-hover:bg-slate-700 transition-colors">
+  <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-5 flex items-center gap-4 hover:border-zinc-700 transition-colors backdrop-blur-sm group">
+    <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:bg-zinc-700 transition-colors">
       <div className="text-xl">{icon}</div>
     </div>
     <div>
-      <div className="text-slate-400 text-xs font-medium mb-0.5">{label}</div>
+      <div className="text-zinc-400 text-xs font-medium mb-0.5">{label}</div>
       <div className="text-lg font-mono font-bold text-white">
         $
         {value.toLocaleString(undefined, {
@@ -203,12 +203,12 @@ const AccountSummary = ({ availableMargin, totalCollateral, buyingPower }) => (
 );
 
 const HistoryTabs = ({ activeTab, setActiveTab }) => (
-  <div className="flex gap-1 bg-slate-900/50 p-1 rounded-lg border border-slate-800 w-fit mb-6">
+  <div className="flex gap-1 bg-[#0A0A0A]/50 p-1 rounded-lg border border-zinc-800 w-fit mb-6">
     <button
       className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
         activeTab === "positions"
-          ? "bg-slate-800 text-white shadow-sm"
-          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+          ? "bg-zinc-800 text-white shadow-sm"
+          : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
       }`}
       onClick={() => setActiveTab("positions")}
     >
@@ -218,8 +218,8 @@ const HistoryTabs = ({ activeTab, setActiveTab }) => (
     <button
       className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
         activeTab === "trades"
-          ? "bg-slate-800 text-white shadow-sm"
-          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+          ? "bg-zinc-800 text-white shadow-sm"
+          : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
       }`}
       onClick={() => setActiveTab("trades")}
     >
@@ -308,17 +308,17 @@ const PortfolioPage = () => {
     switch (activeTab) {
       case "positions":
         return (
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm">
+          <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl overflow-hidden backdrop-blur-sm">
             {positionsLoading ? (
-              <div className="p-12 text-center text-slate-500 text-sm">
+              <div className="p-12 text-center text-zinc-500 text-sm">
                 Loading positions...
               </div>
             ) : positions.length === 0 ? (
               <div className="p-12 text-center flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-slate-800/50 flex items-center justify-center text-slate-600">
+                <div className="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-600">
                   <HiOutlineRectangleStack className="w-6 h-6" />
                 </div>
-                <div className="text-slate-400 text-sm">
+                <div className="text-zinc-400 text-sm">
                   No open positions found
                 </div>
               </div>
@@ -326,7 +326,7 @@ const PortfolioPage = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-800 bg-slate-900/50 text-slate-400 font-medium">
+                    <tr className="border-b border-zinc-800 bg-[#0A0A0A]/50 text-zinc-400 font-medium">
                       <th className="px-6 py-4">Market</th>
                       <th className="px-6 py-4">Side</th>
                       <th className="px-6 py-4 text-right">Size</th>
@@ -335,7 +335,7 @@ const PortfolioPage = () => {
                       <th className="px-6 py-4 text-right">Unrealized P&L</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
+                  <tbody className="divide-y divide-zinc-800/50">
                     {positions.map((pos) => (
                       <PositionRow key={pos.marketId} pos={pos} />
                     ))}
@@ -347,17 +347,17 @@ const PortfolioPage = () => {
         );
       case "trades":
         return (
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm">
+          <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl overflow-hidden backdrop-blur-sm">
             {tradesLoading ? (
-              <div className="p-12 text-center text-slate-500 text-sm">
+              <div className="p-12 text-center text-zinc-500 text-sm">
                 Loading trade history...
               </div>
             ) : tradeHistory.length === 0 ? (
               <div className="p-12 text-center flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-slate-800/50 flex items-center justify-center text-slate-600">
+                <div className="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-600">
                   <HiOutlineArrowsRightLeft className="w-6 h-6" />
                 </div>
-                <div className="text-slate-400 text-sm">
+                <div className="text-zinc-400 text-sm">
                   No trade history available
                 </div>
               </div>
@@ -365,7 +365,7 @@ const PortfolioPage = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-800 bg-slate-900/50 text-slate-400 font-medium">
+                    <tr className="border-b border-zinc-800 bg-[#0A0A0A]/50 text-zinc-400 font-medium">
                       <th className="px-6 py-4">Date</th>
                       <th className="px-6 py-4">Market</th>
                       <th className="px-6 py-4">Side</th>
@@ -377,7 +377,7 @@ const PortfolioPage = () => {
                       <th className="px-6 py-4 text-right">Tx Hash</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
+                  <tbody className="divide-y divide-zinc-800/50">
                     {tradeHistory.map((trade, index) => {
                       const hasPnL =
                         trade.pnl !== null && trade.pnl !== undefined;
@@ -403,9 +403,9 @@ const PortfolioPage = () => {
                       return (
                         <tr
                           key={trade.id || index}
-                          className="hover:bg-slate-800/30 transition-colors"
+                          className="hover:bg-zinc-800/30 transition-colors"
                         >
-                          <td className="px-6 py-4 text-slate-400 text-xs">
+                          <td className="px-6 py-4 text-zinc-400 text-xs">
                             {new Date(trade.created_at).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 font-medium text-white">
@@ -427,10 +427,10 @@ const PortfolioPage = () => {
                               {trade.side}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right font-mono text-slate-300">
+                          <td className="px-6 py-4 text-right font-mono text-zinc-300">
                             {parseFloat(trade.size).toFixed(4)}
                           </td>
-                          <td className="px-6 py-4 text-right font-mono text-slate-300">
+                          <td className="px-6 py-4 text-right font-mono text-zinc-300">
                             ${parseFloat(trade.price).toFixed(2)}
                           </td>
                           <td
@@ -519,13 +519,13 @@ const PortfolioPage = () => {
 
   if (!isConnected) {
     return (
-      <main className="min-h-screen bg-slate-950 pt-24 pb-12 px-4 flex items-center justify-center">
+      <main className="min-h-screen bg-[#050505] pt-24 pb-12 px-4 flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto border border-slate-800">
-            <HiOutlineWallet className="w-8 h-8 text-slate-500" />
+          <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto border border-zinc-800">
+            <HiOutlineWallet className="w-8 h-8 text-zinc-500" />
           </div>
           <h2 className="text-xl font-bold text-white">Connect Wallet</h2>
-          <p className="text-slate-400 text-sm max-w-xs mx-auto">
+          <p className="text-zinc-400 text-sm max-w-xs mx-auto">
             Please connect your wallet to view your portfolio, positions, and
             trade history.
           </p>
@@ -535,7 +535,7 @@ const PortfolioPage = () => {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 pt-24 pb-12 px-4 md:px-8 lg:px-12">
+    <main className="min-h-screen bg-[#050505] pt-24 pb-12 px-4 md:px-8 lg:px-12">
       <div className="max-w-7xl mx-auto">
         <PortfolioHeader
           username={profile?.username}

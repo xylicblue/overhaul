@@ -4,6 +4,8 @@ import LoginPage from "./login";
 import SignupPage from "./signup";
 import AboutPage from "./about";
 import CreateUsernamePage from "./welcome";
+import ForgotPasswordPage from "./ForgotPassword";
+import ResetPasswordPage from "./ResetPassword";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import TradingPage from "./tradingpage";
@@ -79,6 +81,11 @@ function App() {
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
+                <Route
+                  path="/forgot-password"
+                  element={<ForgotPasswordPage />}
+                />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/welcome" element={<CreateUsernamePage />} />
                 <Route element={<SharedLayout />}>
                   <Route path="/trade" element={<TradingPage />} />

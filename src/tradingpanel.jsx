@@ -53,7 +53,7 @@ const InfoTooltip = ({ title, description }) => {
       {isHovered &&
         ReactDOM.createPortal(
           <div
-            className="fixed z-50 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-xs text-slate-300 pointer-events-none"
+            className="fixed z-50 w-64 p-3 bg-[#0A0A0A] border border-zinc-700 rounded-lg shadow-xl text-xs text-zinc-300 pointer-events-none"
             style={{ top: `${position.top}px`, left: `${position.left}px` }}
           >
             <div className="font-semibold text-white mb-1">{title}</div>
@@ -155,13 +155,13 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   if (!selectedMarket)
     return (
-      <div className="flex items-center justify-center h-full text-slate-500 text-xs">
+      <div className="flex items-center justify-center h-full text-zinc-500 text-xs">
         Select Market
       </div>
     );
   if (isLoading)
     return (
-      <div className="flex items-center justify-center h-full text-slate-500 text-xs">
+      <div className="flex items-center justify-center h-full text-zinc-500 text-xs">
         Loading...
       </div>
     );
@@ -208,14 +208,14 @@ export const TradingPanel = ({ selectedMarket }) => {
   const marginRequired = notionalValue / leverage;
 
   return (
-    <div className="flex flex-col h-full bg-slate-950">
+    <div className="flex flex-col h-full bg-[#050505]">
       {/* Header Tabs */}
-      <div className="flex border-b border-slate-800">
+      <div className="flex border-b border-zinc-800">
         <button
           className={`flex-1 py-3 text-sm font-bold transition-all ${
             side === "Buy"
               ? "text-green-400 border-b-2 border-green-400 bg-green-400/5"
-              : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
+              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
           }`}
           onClick={() => setSide("Buy")}
         >
@@ -225,7 +225,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           className={`flex-1 py-3 text-sm font-bold transition-all ${
             side === "Sell"
               ? "text-red-400 border-b-2 border-red-400 bg-red-400/5"
-              : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
+              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
           }`}
           onClick={() => setSide("Sell")}
         >
@@ -240,16 +240,16 @@ export const TradingPanel = ({ selectedMarket }) => {
           <MintUSDC />
         </div>
 
-        <Separator className="bg-slate-800/50" />
+        <Separator className="bg-zinc-800/50" />
 
         {/* Order Type */}
-        <div className="flex gap-4 text-xs font-medium text-slate-400 pb-2 border-b border-slate-800/50">
+        <div className="flex gap-4 text-xs font-medium text-zinc-400 pb-2 border-b border-zinc-800/50">
           <button className="text-white">Market</button>
         </div>
 
         {/* Size Input */}
         <div className="space-y-1.5">
-          <div className="flex justify-between text-[10px] text-slate-400">
+          <div className="flex justify-between text-[10px] text-zinc-400">
             <span>Size</span>
             <span>
               Max:{" "}
@@ -264,11 +264,11 @@ export const TradingPanel = ({ selectedMarket }) => {
             <input
               type="number"
               placeholder="0.00"
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-3 pr-12 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder-slate-600 font-mono"
+              className="w-full bg-[#0A0A0A] border border-zinc-800 rounded-lg pl-3 pr-12 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder-zinc-600 font-mono"
               value={size}
               onChange={(e) => setSize(e.target.value)}
             />
-            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 text-xs font-bold">
+            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-500 text-xs font-bold">
               {market.baseAsset}
             </span>
           </div>
@@ -278,7 +278,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               <button
                 key={p}
                 onClick={() => handleSizeButtonClick(p)}
-                className="py-1 text-[10px] font-medium bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded border border-slate-800 transition-colors"
+                className="py-1 text-[10px] font-medium bg-[#0A0A0A] hover:bg-zinc-800 text-zinc-400 hover:text-white rounded border border-zinc-800 transition-colors"
               >
                 {p}%
               </button>
@@ -288,7 +288,7 @@ export const TradingPanel = ({ selectedMarket }) => {
 
         {/* Price Input */}
         <div className="space-y-1.5">
-          <div className="flex justify-between text-[10px] text-slate-400">
+          <div className="flex justify-between text-[10px] text-zinc-400">
             <span>Price</span>
             <span
               className="text-blue-400 cursor-pointer"
@@ -301,11 +301,11 @@ export const TradingPanel = ({ selectedMarket }) => {
             <input
               type="number"
               placeholder="Market Price"
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-3 pr-12 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder-slate-600 font-mono"
+              className="w-full bg-[#0A0A0A] border border-zinc-800 rounded-lg pl-3 pr-12 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder-zinc-600 font-mono"
               value={priceLimit}
               onChange={(e) => setPriceLimit(e.target.value)}
             />
-            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 text-xs">
+            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-500 text-xs">
               USDC
             </span>
           </div>
@@ -314,8 +314,8 @@ export const TradingPanel = ({ selectedMarket }) => {
         {/* Leverage Slider */}
         <div className="space-y-3 pt-2">
           <div className="flex justify-between items-center">
-            <span className="text-xs text-slate-400 font-medium">Leverage</span>
-            <span className="text-xs font-bold text-white bg-slate-800 px-2 py-0.5 rounded">
+            <span className="text-xs text-zinc-400 font-medium">Leverage</span>
+            <span className="text-xs font-bold text-white bg-zinc-800 px-2 py-0.5 rounded">
               {leverage}x
             </span>
           </div>
@@ -326,9 +326,9 @@ export const TradingPanel = ({ selectedMarket }) => {
             step="1"
             value={leverage}
             onChange={(e) => setLeverage(parseInt(e.target.value))}
-            className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
           />
-          <div className="flex justify-between text-[10px] text-slate-600 font-mono">
+          <div className="flex justify-between text-[10px] text-zinc-600 font-mono">
             <span>1x</span>
             <span>3x</span>
             <span>5x</span>
@@ -338,29 +338,29 @@ export const TradingPanel = ({ selectedMarket }) => {
         </div>
 
         {/* Order Summary */}
-        <Card className="bg-slate-900/30 border-slate-800/50">
+        <Card className="bg-[#0A0A0A]/30 border-zinc-800/50">
           <CardContent className="p-3 space-y-2">
             <div className="flex items-center gap-2 mb-2">
-              <Target size={12} className="text-slate-400" />
-              <span className="text-xs text-slate-400 font-medium">
+              <Target size={12} className="text-zinc-400" />
+              <span className="text-xs text-zinc-400 font-medium">
                 Order Summary
               </span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-500">Notional Value</span>
-              <span className="text-slate-300 font-mono">
+              <span className="text-zinc-500">Notional Value</span>
+              <span className="text-zinc-300 font-mono">
                 ${notionalValue.toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-500">Est. Fees (0.1%)</span>
-              <span className="text-slate-300 font-mono">
+              <span className="text-zinc-500">Est. Fees (0.1%)</span>
+              <span className="text-zinc-300 font-mono">
                 ${fees.toFixed(2)}
               </span>
             </div>
-            <Separator className="bg-slate-800/50" />
+            <Separator className="bg-zinc-800/50" />
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400 font-medium">
+              <span className="text-zinc-400 font-medium">
                 Margin Required
               </span>
               <span className="text-white font-bold font-mono">
@@ -371,17 +371,17 @@ export const TradingPanel = ({ selectedMarket }) => {
         </Card>
 
         {/* Risk Metrics */}
-        <Card className="bg-slate-900/30 border-slate-800/50">
+        <Card className="bg-[#0A0A0A]/30 border-zinc-800/50">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-4">
               <ShieldCheck size={16} className="text-blue-400" />
-              <span className="text-sm text-slate-300 font-semibold">
+              <span className="text-sm text-zinc-300 font-semibold">
                 Risk Parameters
               </span>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
-                <span className="text-xs text-slate-500 mb-1 flex items-center gap-1.5">
+              <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
+                <span className="text-xs text-zinc-500 mb-1 flex items-center gap-1.5">
                   IMR
                   <InfoTooltip
                     title="Initial Margin Requirement"
@@ -394,8 +394,8 @@ export const TradingPanel = ({ selectedMarket }) => {
                     : "10.0%"}
                 </Badge>
               </div>
-              <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
-                <span className="text-xs text-slate-500 mb-1 flex items-center gap-1.5">
+              <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
+                <span className="text-xs text-zinc-500 mb-1 flex items-center gap-1.5">
                   MMR
                   <InfoTooltip
                     title="Maintenance Margin Requirement"
@@ -408,8 +408,8 @@ export const TradingPanel = ({ selectedMarket }) => {
                     : "5.0%"}
                 </Badge>
               </div>
-              <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
-                <span className="text-xs text-slate-500 mb-1 flex items-center gap-1.5">
+              <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
+                <span className="text-xs text-zinc-500 mb-1 flex items-center gap-1.5">
                   Liq. Pen
                   <InfoTooltip
                     title="Liquidation Penalty"
@@ -428,7 +428,7 @@ export const TradingPanel = ({ selectedMarket }) => {
       </div>
 
       {/* Submit Button (Fixed at Bottom) */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950">
+      <div className="p-4 border-t border-zinc-800 bg-[#050505]">
         <button
           className={`w-full py-3.5 rounded-lg font-bold text-white text-sm shadow-lg transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
             side === "Buy"

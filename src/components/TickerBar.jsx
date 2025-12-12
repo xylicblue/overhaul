@@ -33,7 +33,7 @@ const InfoTooltip = ({ title, description }) => {
   return (
     <>
       <div
-        className="inline-flex text-slate-500 hover:text-slate-300 cursor-help transition-colors ml-1"
+        className="inline-flex text-zinc-500 hover:text-zinc-300 cursor-help transition-colors ml-1"
         ref={wrapperRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setIsHovered(false)}
@@ -43,7 +43,7 @@ const InfoTooltip = ({ title, description }) => {
       {isHovered &&
         ReactDOM.createPortal(
           <div
-            className="fixed z-[100] w-56 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-xs text-slate-300 pointer-events-none"
+            className="fixed z-[100] w-56 p-3 bg-[#0A0A0A] border border-zinc-800 rounded-lg shadow-xl text-xs text-zinc-300 pointer-events-none"
             style={{ top: `${position.top}px`, left: `${position.left}px` }}
           >
             <div className="font-semibold text-white mb-1">{title}</div>
@@ -103,11 +103,11 @@ const TickerBar = () => {
   const changeIsPositive = marketData?.change24hValue >= 0;
 
   return (
-    <div className="h-12 bg-slate-950 border-b border-slate-800 flex items-center px-4 gap-4 md:gap-6 shrink-0 overflow-x-auto no-scrollbar">
+    <div className="h-12 bg-[#050505] border-b border-zinc-800 flex items-center px-4 gap-4 md:gap-6 shrink-0 overflow-x-auto no-scrollbar">
       {/* Market Selector */}
       <div className="relative shrink-0" ref={dropdownRef}>
         <button
-          className="flex items-center gap-2 hover:bg-slate-900 px-2 py-1 rounded transition-colors"
+          className="flex items-center gap-2 hover:bg-zinc-900 px-2 py-1 rounded transition-colors"
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         >
           <div className="flex flex-col items-start">
@@ -115,24 +115,24 @@ const TickerBar = () => {
               <span className="font-bold text-base md:text-lg text-white whitespace-nowrap">
                 {marketData?.displayName || marketName}
               </span>
-              <span className="text-[10px] text-slate-500 bg-slate-900 px-1 rounded border border-slate-800 hidden sm:inline-block">
+              <span className="text-[10px] text-zinc-500 bg-zinc-900 px-1 rounded border border-zinc-800 hidden sm:inline-block">
                 PERP
               </span>
-              <ChevronDown size={14} className="text-slate-500" />
+              <ChevronDown size={14} className="text-zinc-500" />
             </div>
           </div>
         </button>
 
         {/* Dropdown Menu */}
         {isDropdownOpen && (
-          <div className="absolute top-full left-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
-            <div className="p-2 border-b border-slate-800">
+          <div className="absolute top-full left-0 mt-2 w-64 bg-[#0A0A0A] border border-zinc-800 rounded-lg shadow-xl z-50 overflow-hidden">
+            <div className="p-2 border-b border-zinc-800">
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-500 w-3 h-3" />
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-zinc-500 w-3 h-3" />
                 <input
                   type="text"
                   placeholder="Search markets..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded pl-7 pr-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-[#050505] border border-zinc-800 rounded pl-7 pr-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
@@ -143,10 +143,10 @@ const TickerBar = () => {
               {filteredMarkets.map((market) => (
                 <button
                   key={market.name}
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-800 flex justify-between items-center ${
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-zinc-800 flex justify-between items-center ${
                     market.name === marketName
                       ? "bg-blue-900/20 text-blue-400"
-                      : "text-slate-300"
+                      : "text-zinc-300"
                   }`}
                   onClick={() => {
                     selectMarket(market.name);
@@ -182,7 +182,7 @@ const TickerBar = () => {
           >
             ${marketData?.price || "0.00"}
           </span>
-          <span className="text-[10px] text-slate-500 flex items-center whitespace-nowrap">
+          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
             Mark Price
             <InfoTooltip
               title="Mark Price ($/hour)"
@@ -204,7 +204,7 @@ const TickerBar = () => {
             )}
             {marketData?.change24h || "0.00%"}
           </span>
-          <span className="text-[10px] text-slate-500 flex items-center whitespace-nowrap">
+          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
             24h Change
             <InfoTooltip
               title="24h Change"
@@ -214,10 +214,10 @@ const TickerBar = () => {
         </div>
 
         <div className="flex flex-col shrink-0">
-          <span className="text-xs font-medium text-slate-200 font-mono whitespace-nowrap">
+          <span className="text-xs font-medium text-zinc-200 font-mono whitespace-nowrap">
             ${marketData?.indexPrice || "0.00"}
           </span>
-          <span className="text-[10px] text-slate-500 flex items-center whitespace-nowrap">
+          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
             Index Price
             <InfoTooltip
               title="Index Price (Oracle)"
@@ -230,7 +230,7 @@ const TickerBar = () => {
           <span className="text-xs font-medium text-yellow-500 font-mono whitespace-nowrap">
             {marketData?.fundingRate || "0.0000%"}
           </span>
-          <span className="text-[10px] text-slate-500 flex items-center whitespace-nowrap">
+          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
             Funding Rate
             <InfoTooltip
               title="Funding Rate"
@@ -243,7 +243,7 @@ const TickerBar = () => {
           <span className="text-xs font-medium text-blue-400 font-mono whitespace-nowrap">
             {marketFee}
           </span>
-          <span className="text-[10px] text-slate-500 flex items-center whitespace-nowrap">
+          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
             Market Fee
             <InfoTooltip
               title="Trading Fee"
@@ -253,10 +253,10 @@ const TickerBar = () => {
         </div>
 
         <div className="flex flex-col shrink-0">
-          <span className="text-xs font-medium text-slate-200 font-mono whitespace-nowrap">
+          <span className="text-xs font-medium text-zinc-200 font-mono whitespace-nowrap">
             {marketData?.volume24h || "$24.5M"}
           </span>
-          <span className="text-[10px] text-slate-500 flex items-center whitespace-nowrap">
+          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
             24h Volume
             <InfoTooltip
               title="24h Volume"
