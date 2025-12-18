@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Chart from "react-apexcharts";
 import { supabase } from "./creatclient";
 
-const PriceIndexChart = () => {
+const PriceIndexChart = ({ market = "H100-PERP" }) => {
   const [loading, setLoading] = useState(true);
   const [currentPrice, setCurrentPrice] = useState(null);
   const [priceChange, setPriceChange] = useState(null);
@@ -10,26 +10,90 @@ const PriceIndexChart = () => {
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [priceChangePercent, setPriceChangePercent] = useState(null);
   const [timeRange, setTimeRange] = useState("24h");
-  
+
   const isPriceUp = priceChange !== null && priceChange >= 0;
+
+  // Market configuration: display names and database tables
+  const marketConfig = {
+    "H100-PERP": {
+      displayName: "H100 GPU",
+      tableName: "price_data",  // Existing H100 table
+      fallbackTable: null,
+    },
+    "H100-HyperScalers-PERP": {
+      displayName: "H100 HyperScalers",
+      tableName: "h100_hyperscalers_perp_prices",
+      fallbackTable: null,
+    },
+    "H100-non-HyperScalers-PERP": {
+      displayName: "H100 non-HyperScalers",
+      tableName: "h100_non_hyperscalers_perp_prices",
+      fallbackTable: null,
+    },
+  };
+
+  const config = marketConfig[market] || {
+    displayName: market,
+    tableName: "price_data",
+    fallbackTable: null,
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        let query = supabase.from("price_data").select("price, timestamp");
+        let data = null;
+        let error = null;
 
+        // Calculate time range
+        let hoursAgo = null;
         if (timeRange !== "max") {
-          let hoursAgo;
           if (timeRange === "15d") hoursAgo = 15 * 24;
           else if (timeRange === "5d") hoursAgo = 5 * 24;
           else hoursAgo = 24;
+        }
 
+        // Strategy 1: Try market-specific table (primary source)
+        let query = supabase
+          .from(config.tableName)
+          .select("price, timestamp");
+
+        if (hoursAgo !== null) {
           const startTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
           query = query.gte("timestamp", startTime);
         }
 
-        const { data, error } = await query.order("timestamp", { ascending: true });
+        const result = await query.order("timestamp", { ascending: true });
+
+        if (!result.error && result.data && result.data.length >= 2) {
+          data = result.data;
+          console.log(`Loaded ${data.length} records from ${config.tableName}`);
+        } else if (result.error) {
+          error = result.error;
+        }
+
+        // Strategy 2: Try fallback table (for backward compatibility)
+        if ((!data || data.length < 2) && config.fallbackTable) {
+          console.log(`No data in ${config.tableName}, trying fallback table ${config.fallbackTable}...`);
+
+          let fallbackQuery = supabase
+            .from(config.fallbackTable)
+            .select("price, timestamp");
+
+          if (hoursAgo !== null) {
+            const startTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
+            fallbackQuery = fallbackQuery.gte("timestamp", startTime);
+          }
+
+          const fallbackResult = await fallbackQuery.order("timestamp", { ascending: true });
+
+          if (!fallbackResult.error && fallbackResult.data && fallbackResult.data.length >= 2) {
+            data = fallbackResult.data;
+            console.log(`Loaded ${data.length} records from fallback table ${config.fallbackTable}`);
+          } else if (fallbackResult.error) {
+            error = fallbackResult.error;
+          }
+        }
 
         if (error) throw error;
         if (!data || data.length < 2) throw new Error("Not enough historical data.");
@@ -52,7 +116,7 @@ const PriceIndexChart = () => {
         }));
         setChartData(formattedChartData);
       } catch (error) {
-        console.error("Error fetching price data:", error.message);
+        console.error("Error fetching oracle price data:", error.message);
         setCurrentPrice(null);
         setHasEnoughData(false);
       } finally {
@@ -61,7 +125,47 @@ const PriceIndexChart = () => {
     };
 
     fetchData();
-  }, [timeRange]);
+
+    // Subscribe to real-time updates for market-specific table
+    const subscription = supabase
+      .channel(`oracle_price_${market}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: config.tableName,
+        },
+        (payload) => {
+          if (payload.new.price) {
+            setCurrentPrice(parseFloat(payload.new.price));
+          }
+        }
+      );
+
+    // Add fallback table subscription if exists
+    if (config.fallbackTable) {
+      subscription.on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: config.fallbackTable,
+        },
+        (payload) => {
+          if (payload.new.price) {
+            setCurrentPrice(parseFloat(payload.new.price));
+          }
+        }
+      );
+    }
+
+    subscription.subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [timeRange, market, config.tableName, config.fallbackTable]);
 
   const chartOptions = {
     chart: {
@@ -133,8 +237,8 @@ const PriceIndexChart = () => {
       <div className="flex items-start justify-between p-4 border-b border-slate-800/50">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-sm font-medium text-slate-400">ByteStrike H-100 Index</h2>
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">SPOT</span>
+            <h2 className="text-sm font-medium text-slate-400">{config.displayName} Index Price</h2>
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">ORACLE</span>
           </div>
           <div className="flex items-baseline gap-3">
             <h1 className="text-2xl font-bold text-white tracking-tight">

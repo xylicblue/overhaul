@@ -18,11 +18,22 @@ import {
 } from "lucide-react";
 import { supabase } from "../creatclient";
 
-export function PositionPanel() {
+export function PositionPanel({ selectedMarket = null }) {
   const { address, isConnected } = useAccount();
-  const { positions, isLoading, error } = useAllPositions();
+  const { positions: allPositions, isLoading, error } = useAllPositions();
   const [closingPosition, setClosingPosition] = useState(null);
   const [closeSize, setCloseSize] = useState("");
+
+  // Get market ID from selected market
+  const marketName = typeof selectedMarket === "string"
+    ? selectedMarket
+    : selectedMarket?.name || null;
+  const selectedMarketId = marketName ? MARKET_IDS[marketName] : null;
+
+  // Filter positions by selected market if a market is selected
+  const positions = selectedMarketId && allPositions
+    ? allPositions.filter(pos => pos.marketId.toLowerCase() === selectedMarketId.toLowerCase())
+    : allPositions;
 
   if (!isConnected) {
     return (
@@ -85,6 +96,14 @@ export function PositionPanel() {
     );
   }
 
+  // Market display name for UI
+  const marketDisplayNames = {
+    "H100-PERP": "H100 GPU",
+    "H100-HyperScalers-PERP": "H100 HyperScalers",
+    "H100-non-HyperScalers-PERP": "H100 non-HyperScalers",
+  };
+  const displayMarketName = marketName ? marketDisplayNames[marketName] || marketName : "All Markets";
+
   if (!positions || positions.length === 0) {
     return (
       <div className="flex flex-col h-full bg-slate-950/50 backdrop-blur-sm">
@@ -92,6 +111,9 @@ export function PositionPanel() {
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Activity size={16} className="text-blue-400" />
             Positions
+            {marketName && (
+              <span className="text-[10px] text-zinc-500 font-normal">• {displayMarketName}</span>
+            )}
           </h3>
           <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
             0
@@ -103,7 +125,10 @@ export function PositionPanel() {
           </div>
           <p className="text-slate-300 font-medium mb-1">No Open Positions</p>
           <span className="text-xs text-slate-500 max-w-[200px]">
-            Open a position in the market to see it tracked here.
+            {marketName
+              ? `Open a position in ${displayMarketName} to see it tracked here.`
+              : "Open a position in the market to see it tracked here."
+            }
           </span>
         </div>
       </div>
@@ -116,6 +141,9 @@ export function PositionPanel() {
         <h3 className="text-sm font-bold text-white flex items-center gap-2">
           <Activity size={16} className="text-blue-400" />
           Positions
+          {marketName && (
+            <span className="text-[10px] text-zinc-500 font-normal">• {displayMarketName}</span>
+          )}
         </h3>
         <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.2)]">
           {positions.length} Active

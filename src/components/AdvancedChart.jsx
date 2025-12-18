@@ -33,7 +33,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 
-const AdvancedChart = ({ market = "H100-GPU-PERP" }) => {
+const AdvancedChart = ({ market = "H100-PERP" }) => {
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(null);
@@ -165,20 +165,36 @@ const AdvancedChart = ({ market = "H100-GPU-PERP" }) => {
         else if (timeRange === "7d") minutesAgo = 7 * 24 * 60;
         else minutesAgo = 7 * 24 * 60;
 
-        let query = supabase
-          .from("vamm_price_history")
-          .select("price, twap, timestamp")
-          .eq("market", market)
-          .order("timestamp", { ascending: true });
+        // Try both old and new market naming schemes
+        const marketNames = [market, "H100-GPU-PERP"];
+        let data = null;
+        let error = null;
 
-        if (minutesAgo !== null) {
-          const startTime = new Date(
-            Date.now() - minutesAgo * 60 * 1000
-          ).toISOString();
-          query = query.gte("timestamp", startTime);
+        for (const marketName of marketNames) {
+          let query = supabase
+            .from("vamm_price_history")
+            .select("price, twap, timestamp")
+            .eq("market", marketName)
+            .order("timestamp", { ascending: true });
+
+          if (minutesAgo !== null) {
+            const startTime = new Date(
+              Date.now() - minutesAgo * 60 * 1000
+            ).toISOString();
+            query = query.gte("timestamp", startTime);
+          }
+
+          const result = await query;
+
+          if (!result.error && result.data && result.data.length >= 2) {
+            data = result.data;
+            error = null;
+            break;
+          } else if (result.error) {
+            error = result.error;
+          }
         }
 
-        const { data, error } = await query;
         if (error) throw error;
         if (!data || data.length < 2) throw new Error("Not enough data");
 
@@ -209,8 +225,9 @@ const AdvancedChart = ({ market = "H100-GPU-PERP" }) => {
 
     fetchData();
 
+    // Subscribe to real-time updates
     const subscription = supabase
-      .channel("vamm_price_changes")
+      .channel(`vamm_advanced_${market}`)
       .on(
         "postgres_changes",
         {
@@ -220,6 +237,20 @@ const AdvancedChart = ({ market = "H100-GPU-PERP" }) => {
           filter: `market=eq.${market}`,
         },
         (payload) => setCurrentPrice(parseFloat(payload.new.price))
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "vamm_price_history",
+          filter: `market=eq.H100-GPU-PERP`,
+        },
+        (payload) => {
+          if (market === "H100-PERP") {
+            setCurrentPrice(parseFloat(payload.new.price));
+          }
+        }
       )
       .subscribe();
 

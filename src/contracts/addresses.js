@@ -1,6 +1,6 @@
 // ByteStrike Contract Addresses on Sepolia Testnet
 // Chain ID: 11155111
-// Latest Update: 2025-01-21 (ClearingHouse V3 - Decimal Fix Complete)
+// Latest Update: 2025-12-16 (Added HyperScalers & non-HyperScalers markets)
 
 export const SEPOLIA_CONTRACTS = {
   // Core Protocol Contracts
@@ -11,7 +11,9 @@ export const SEPOLIA_CONTRACTS = {
   collateralVault: '0x86A10164eB8F55EA6765185aFcbF5e073b249Dd2', // New vault (clean - only mUSDC)
 
   // vAMMs
-  vammProxy: '0xF7210ccC245323258CC15e0Ca094eBbe2DC2CD85', // ⭐ ACTIVE: H100-PERP vAMM ($3.79/hour, IMR 10%, MMR 5%)
+  vammProxy: '0xF7210ccC245323258CC15e0Ca094eBbe2DC2CD85', // H100-PERP vAMM ($3.79/hour)
+  vammProxyHyperscalers: '0xFE1df531084Dcf0Fe379854823bC5d402932Af99', // H100-HyperScalers-PERP vAMM ($4.20/hour)
+  vammProxyNonHyperscalers: '0x19574B8C91717389231DA5b0579564d6F81a79B0', // H100-non-HyperScalers-PERP vAMM ($2.95/hour)
   vammImpl: '0xd64175cE957F089bA7fb3EBdA5B17f268DE01190', // vAMM implementation (latest)
   vammProxyOld: '0xF8908F7B4a1AaaD69bF0667FA83f85D3d0052739', // Old vAMM (deprecated)
 
@@ -19,10 +21,16 @@ export const SEPOLIA_CONTRACTS = {
   insuranceFund: '0x3C1085dF918a38A95F84945E6705CC857b664074', // Active, funded
   feeRouter: '0xa75839A6D2Bb2f47FE98dc81EC47eaD01D4A2c1F', // Active
 
-  // Oracles
-  indexOracle: '0x3cA2Da03e4b6dB8fe5a24c22Cf5EB2A34B59cbad', // ⭐ ACTIVE: H100 GPU rental price oracle ($3.79/hour)
+  // Oracles - New MultiAssetOracle Infrastructure
+  multiAssetOracle: '0xB44d652354d12Ac56b83112c6ece1fa2ccEfc683', // Shared oracle for all GPU markets
+  h100OracleAdapter: '0xc3AB908634253b961bC61Aa0A846F3fc05e271D8', // Adapter for H100-PERP
+  hyperscalersOracleAdapter: '0x41Fa5925b709936D533e5E1a47dd8d4C64E7C77B', // Adapter for H100-HyperScalers-PERP
+  nonHyperscalersOracleAdapter: '0xE6A1d2B4DC450C50ce00fc12FBbAf362c8B0EdFD', // Adapter for H100-non-HyperScalers-PERP
+
+  // Oracles - Legacy (will be deprecated after migration)
+  indexOracle: '0x3cA2Da03e4b6dB8fe5a24c22Cf5EB2A34B59cbad', // Legacy: H100 GPU rental price oracle
   oracle: '0x3cA2Da03e4b6dB8fe5a24c22Cf5EB2A34B59cbad', // Alias for index oracle
-  collateralOracle: '0x7d1cc77Cb9C0a30a9aBB3d052A5542aB5E254c9c', // ⭐ ACTIVE: USDC price oracle for CollateralVault ($1.00)
+  collateralOracle: '0x7d1cc77Cb9C0a30a9aBB3d052A5542aB5E254c9c', // USDC price oracle for CollateralVault ($1.00)
 
   // Deprecated oracles (for reference)
   simpleETHOracle: '0x5d57118594a8b1C3Aa3dbA1f0A18a6744f531096', // Deprecated
@@ -36,9 +44,18 @@ export const SEPOLIA_CONTRACTS = {
 
 // Market IDs (keccak256 of market parameters)
 export const MARKET_IDS = {
-  'H100-PERP': '0x2bc0c3f3ef82289c7da8a9335c83ea4f2b5b8bd62b67c4f4e0dba00b304c2937', // ⭐ ACTIVE: H100 GPU perpetual ($3.79/hour, IMR 10%, MMR 5%)
+  'H100-PERP': '0x2bc0c3f3ef82289c7da8a9335c83ea4f2b5b8bd62b67c4f4e0dba00b304c2937', // H100 GPU perpetual ($3.79/hour)
+  'H100-HyperScalers-PERP': '0xf4aa47cc83b0d01511ca8025a996421dda6fbab1764466da4b0de6408d3db2e2', // H100 HyperScalers ($4.20/hour)
+  'H100-non-HyperScalers-PERP': '0x9d2d658888da74a10ac9263fc14dcac4a834dd53e8edf664b4cc3b2b4a23f214', // H100 non-HyperScalers ($2.95/hour)
   'ETH-PERP-V2': '0x385badc5603eb47056a6bdcd6ac81a50df49d7a4e8a7451405e580bd12087a28', // Deprecated
   'ETH-PERP': '0x352291f10e3a0d4a9f7beb3b623eac0b06f735c95170f956bc68b2f8b504a35d', // Deprecated test market
+};
+
+// Asset IDs for MultiAssetOracle (for bot integration)
+export const ASSET_IDS = {
+  'H100_HOURLY': '0x82af7da7090d6235dbc9f8cfccfb82eee2e9cb33d50be18eabf66c158261796a', // keccak256("H100_HOURLY")
+  'H100_HYPERSCALERS_HOURLY': '0x4907d2c1e61b87a99a260f8529c3c4f9e2374edae1f5ab1464a8e79d0f2c26de', // keccak256("H100_HYPERSCALERS_HOURLY")
+  'H100_NON_HYPERSCALERS_HOURLY': '0xd6e43f59d2c94773a52e2c20f09762901247d1aaf2090d0b99e85c55c9833626', // keccak256("H100_NON_HYPERSCALERS_HOURLY")
 };
 
 // Default market to use in the frontend
@@ -77,18 +94,52 @@ export const MARKETS = {
     id: MARKET_IDS['H100-PERP'],
     name: 'H100-PERP',
     displayName: 'H100 GPU Perpetual',
-    baseAsset: 'GPU-HOURS', // Trading H100 GPU compute hours
-    quoteAsset: 'USDC',     // Collateral in USDC
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
     vamm: SEPOLIA_CONTRACTS.vammProxy,
-    oracle: SEPOLIA_CONTRACTS.indexOracle, // H100 rental price oracle
-    indexPrice: 3.79, // Current H100 GPU rental rate ($/hour)
-    feeBps: 10, // 0.1% trading fee
-    imrBps: 1000, // 10% Initial Margin Requirement
-    mmrBps: 500, // 5% Maintenance Margin Requirement
-    liquidationPenaltyBps: 250, // 2.5% Liquidation Penalty
-    penaltyCap: 1000, // $1000 max penalty
+    oracle: SEPOLIA_CONTRACTS.h100OracleAdapter || SEPOLIA_CONTRACTS.indexOracle, // Uses new adapter after migration
+    indexPrice: 3.79,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
     active: true,
-    description: 'Perpetual futures on H100 GPU hourly rental rates with 10x max leverage',
+    description: 'Perpetual futures on H100 GPU hourly rental rates (all providers) with 10x max leverage',
+  },
+  'H100-HyperScalers-PERP': {
+    id: MARKET_IDS['H100-HyperScalers-PERP'],
+    name: 'H100-HyperScalers-PERP',
+    displayName: 'H100 HyperScalers GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyHyperscalers,
+    oracle: SEPOLIA_CONTRACTS.hyperscalersOracleAdapter,
+    indexPrice: 4.202163309021113,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on H100 GPU hourly rental rates from HyperScalers (AWS, GCP, Azure) with 10x max leverage',
+  },
+  'H100-non-HyperScalers-PERP': {
+    id: MARKET_IDS['H100-non-HyperScalers-PERP'],
+    name: 'H100-non-HyperScalers-PERP',
+    displayName: 'H100 non-HyperScalers GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers,
+    oracle: SEPOLIA_CONTRACTS.nonHyperscalersOracleAdapter,
+    indexPrice: 2.94624309275419,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on H100 GPU hourly rental rates from non-HyperScalers (Lambda, CoreWeave, etc.) with 10x max leverage',
   },
 };
 

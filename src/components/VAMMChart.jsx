@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Chart from "react-apexcharts";
 import { supabase } from "../creatclient";
 
-const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
+const VAMMChart = ({ market = "H100-PERP" }) => {
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(null);
@@ -23,21 +23,36 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
         else if (timeRange === "7d") minutesAgo = 7 * 24 * 60;
         else minutesAgo = 7 * 24 * 60; // Default to 7d
 
-        let query = supabase
-          .from("vamm_price_history")
-          .select("price, twap, timestamp")
-          .eq("market", market)
-          .order("timestamp", { ascending: true });
+        // Try both old and new market naming schemes
+        const marketNames = [market, "H100-GPU-PERP"]; // Try new name first, then old name
+        let data = null;
+        let error = null;
 
-        // Only apply time filter if not "max"
-        if (minutesAgo !== null) {
-          const startTime = new Date(
-            Date.now() - minutesAgo * 60 * 1000
-          ).toISOString();
-          query = query.gte("timestamp", startTime);
+        for (const marketName of marketNames) {
+          let query = supabase
+            .from("vamm_price_history")
+            .select("price, twap, timestamp")
+            .eq("market", marketName)
+            .order("timestamp", { ascending: true });
+
+          // Only apply time filter if not "max"
+          if (minutesAgo !== null) {
+            const startTime = new Date(
+              Date.now() - minutesAgo * 60 * 1000
+            ).toISOString();
+            query = query.gte("timestamp", startTime);
+          }
+
+          const result = await query;
+
+          if (!result.error && result.data && result.data.length >= 2) {
+            data = result.data;
+            error = null;
+            break; // Found data, stop trying
+          } else if (result.error) {
+            error = result.error;
+          }
         }
-
-        const { data, error } = await query;
 
         if (error) throw error;
         if (!data || data.length < 2) throw new Error("Not enough data");
@@ -69,8 +84,9 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
 
     fetchData();
 
+    // Subscribe to real-time updates for both old and new market names
     const subscription = supabase
-      .channel("vamm_price_changes")
+      .channel(`vamm_price_changes_${market}`)
       .on(
         "postgres_changes",
         {
@@ -80,6 +96,20 @@ const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
           filter: `market=eq.${market}`,
         },
         (payload) => setCurrentPrice(parseFloat(payload.new.price))
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "vamm_price_history",
+          filter: `market=eq.H100-GPU-PERP`, // Legacy compatibility
+        },
+        (payload) => {
+          if (market === "H100-PERP") {
+            setCurrentPrice(parseFloat(payload.new.price));
+          }
+        }
       )
       .subscribe();
 

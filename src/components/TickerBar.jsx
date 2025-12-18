@@ -58,6 +58,7 @@ const InfoTooltip = ({ title, description }) => {
 const TickerBar = () => {
   const { selectedMarket, selectMarket } = useMarket();
   const { markets } = useMarketsData();
+
   const marketName =
     typeof selectedMarket === "string"
       ? selectedMarket
@@ -140,33 +141,37 @@ const TickerBar = () => {
               </div>
             </div>
             <div className="max-h-64 overflow-y-auto custom-scrollbar">
-              {filteredMarkets.map((market) => (
-                <button
-                  key={market.name}
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-zinc-800 flex justify-between items-center ${
-                    market.name === marketName
-                      ? "bg-blue-900/20 text-blue-400"
-                      : "text-zinc-300"
-                  }`}
-                  onClick={() => {
-                    selectMarket(market.name);
-                    setIsDropdownOpen(false);
-                  }}
-                >
-                  <span className="font-medium">
-                    {market.displayName || market.name}
-                  </span>
-                  <span
-                    className={
-                      market.change24hValue >= 0
-                        ? "text-green-400"
-                        : "text-red-400"
-                    }
+              {filteredMarkets.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-zinc-500">No markets found</div>
+              ) : (
+                filteredMarkets.map((market) => (
+                  <button
+                    key={market.name}
+                    className={`w-full text-left px-3 py-2 text-xs hover:bg-zinc-800 flex justify-between items-center ${
+                      market.name === marketName
+                        ? "bg-blue-900/20 text-blue-400"
+                        : "text-zinc-300"
+                    }`}
+                    onClick={() => {
+                      selectMarket(market.name);
+                      setIsDropdownOpen(false);
+                    }}
                   >
-                    ${market.markPrice || market.oraclePrice}
-                  </span>
-                </button>
-              ))}
+                    <span className="font-medium text-white">
+                      {market.displayName || market.name}
+                    </span>
+                    <span
+                      className={
+                        market.change24h >= 0
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }
+                    >
+                      ${market.markPrice?.toFixed(2) || market.oraclePrice?.toFixed(2) || '0.00'}
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         )}

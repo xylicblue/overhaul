@@ -5,18 +5,11 @@ import AdvancedChart from "./AdvancedChart";
 const ChartToggle = ({ selectedMarket }) => {
   const [activeChart, setActiveChart] = useState("vamm"); // 'vamm' or 'index'
 
-  // Get market name for vAMM chart - map frontend names to database names
-  const frontendMarket =
+  // Get market name - use directly as stored in database
+  const marketName =
     typeof selectedMarket === "string"
       ? selectedMarket
       : selectedMarket?.name || "H100-PERP";
-
-  // Map frontend market names to database market names
-  const marketNameMap = {
-    "H100-PERP": "H100-GPU-PERP",
-    "ETH-PERP-V2": "H100-GPU-PERP", // Same vAMM
-  };
-  const marketName = marketNameMap[frontendMarket] || "H100-GPU-PERP";
 
   return (
     <div className="flex flex-col h-full">
@@ -51,7 +44,7 @@ const ChartToggle = ({ selectedMarket }) => {
         {activeChart === "vamm" ? (
           <AdvancedChart market={marketName} />
         ) : (
-          <PriceIndexChart />
+          <PriceIndexChart market={marketName} />
         )}
       </div>
     </div>
