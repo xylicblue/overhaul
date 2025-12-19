@@ -72,7 +72,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   const [leverage, setLeverage] = useState(1);
   const { address } = useAccount();
 
-  const marketId = MARKET_IDS[selectedMarket] || MARKET_IDS["H100-PERP"];
+  const marketId = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
   const { accountValue } = useAccountValue();
   const { totalCollateralValue } = useVaultBalance();
   const { riskParams } = useMarketRiskParams(marketId);
