@@ -148,7 +148,38 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   useEffect(() => {
     if (tradeError) {
-      toast.error("Trade failed: " + tradeError.message, { id: "trade" });
+      // Extract user-friendly error message
+      const getErrorMessage = (error) => {
+        const errorMsg = error.message.toLowerCase();
+        
+        // User rejected/denied transaction
+        if (errorMsg.includes('user rejected') || errorMsg.includes('user denied')) {
+          return 'Transaction cancelled';
+        }
+        
+        // Insufficient funds
+        if (errorMsg.includes('insufficient')) {
+          return 'Insufficient funds';
+        }
+        
+        // Network issues
+        if (errorMsg.includes('network')) {
+          return 'Network error - please try again';
+        }
+        
+        // Gas estimation failed
+        if (errorMsg.includes('gas')) {
+          return 'Transaction may fail - check parameters';
+        }
+        
+        // Default: Extract first sentence or first 100 chars
+        const firstSentence = error.message.split('\n')[0];
+        return firstSentence.length > 80 
+          ? firstSentence.substring(0, 80) + '...' 
+          : firstSentence;
+      };
+      
+      toast.error(getErrorMessage(tradeError), { id: "trade" });
       resetTrade();
     }
   }, [tradeError, resetTrade]);

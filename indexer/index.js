@@ -55,6 +55,23 @@ const MARKETS = [
     name: 'H100-PERP',
     displayName: 'H100 GPU',
     vammAddress: CONFIG.contracts.vammProxy,
+    tableName: 'price_data',
+    active: true,
+  },
+  {
+    id: '0xf4aa47cc83b0d01511ca8025a996421dda6fbab1764466da4b0de6408d3db2e2', // H100-HyperScalers-PERP
+    name: 'H100-HyperScalers-PERP',
+    displayName: 'H100 HyperScalers',
+    vammAddress: '0xFE1df531084Dcf0Fe379854823bC5d402932Af99',
+    tableName: 'h100_hyperscalers_perp_prices',
+    active: true,
+  },
+  {
+    id: '0x9d2d658888da74a10ac9263fc14dcac4a834dd53e8edf664b4cc3b2b4a23f214', // H100-non-HyperScalers-PERP
+    name: 'H100-non-HyperScalers-PERP',
+    displayName: 'H100 non-HyperScalers',
+    vammAddress: '0x19574B8C91717389231DA5b0579564d6F81a79B0',
+    tableName: 'h100_non_hyperscalers_perp_prices',
     active: true,
   },
   {
@@ -62,6 +79,8 @@ const MARKETS = [
     name: 'ETH-PERP-V2',
     displayName: 'H100 GPU',
     vammAddress: CONFIG.contracts.vammProxy,
+    // Alias to H100-PERP data
+    tableName: 'price_data',
     active: true,
   },
   {
@@ -164,6 +183,9 @@ async function getOraclePrice() {
 // ==================== DATABASE FUNCTIONS ====================
 
 async function storePriceSnapshot(market, markPrice, oraclePrice, blockNumber) {
+  const timestamp = new Date().toISOString();
+
+  // 1. Write to generic price_snapshots table
   const { error } = await supabase
     .from('price_snapshots')
     .insert({
@@ -173,15 +195,48 @@ async function storePriceSnapshot(market, markPrice, oraclePrice, blockNumber) {
       mark_price: markPrice,
       oracle_price: oraclePrice,
       block_number: blockNumber,
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp,
     });
 
   if (error) {
     console.error('Error storing price snapshot:', error.message);
-    return false;
   }
 
-  console.log(`📸 ${market.name}: $${markPrice.toFixed(2)}`);
+  // 2. Write to market-specific table if configured (for PriceIndexChart - ORACLE PRICES)
+  if (market.tableName) {
+    // Skip aliases from writing to the same table twice in the same loop run
+    if (market.name !== 'ETH-PERP-V2') {
+        const { error: specificError } = await supabase
+        .from(market.tableName)
+        .insert({
+            price: oraclePrice, // IMPORTANT: These tables are for INDEX/ORACLE prices, not vAMM mark prices
+            timestamp: timestamp,
+        });
+
+        if (specificError) {
+             console.error(`Error storing to ${market.tableName}:`, specificError.message);
+        } else {
+            console.log(`📸 ${market.name} -> ${market.tableName}: $${oraclePrice.toFixed(2)}`);
+        }
+    }
+  }
+
+  // 3. Write to vamm_price_history (unified table for AdvancedChart)
+  const { error: vammError } = await supabase
+    .from('vamm_price_history')
+    .insert({
+      market: market.name,
+      price: markPrice,
+      twap: markPrice, // Use markPrice as TWAP fallback
+      timestamp: timestamp,
+    });
+
+  if (vammError) {
+    console.error(`Error storing to vamm_price_history:`, vammError.message);
+  } else {
+    console.log(`📊 ${market.name} -> vamm_price_history: $${markPrice.toFixed(2)}`);
+  }
+
   return true;
 }
 

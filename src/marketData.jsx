@@ -19,6 +19,7 @@ const DEPLOYED_MARKETS = [
     baseAsset: "GPU-HOURS", // What you're trading: GPU compute hours
     quoteAsset: "USDC", // What you pay with: Stablecoin
     vammAddress: SEPOLIA_CONTRACTS.vammProxy, // vAMM with $3.79/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.indexOracle, // Legacy oracle (working)
     marketId: MARKET_IDS["H100-PERP"],
     status: "Active",
     isDefault: true,
@@ -33,6 +34,7 @@ const DEPLOYED_MARKETS = [
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",
     vammAddress: SEPOLIA_CONTRACTS.vammProxyHyperscalers, // vAMM with $4.20/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.hyperscalersOracleAdapter, // Oracle adapter for HyperScalers
     marketId: MARKET_IDS["H100-HyperScalers-PERP"],
     status: "Active",
     isDefault: false,
@@ -47,6 +49,7 @@ const DEPLOYED_MARKETS = [
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",
     vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, // vAMM with $2.95/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.nonHyperscalersOracleAdapter, // Oracle adapter for non-HyperScalers
     marketId: MARKET_IDS["H100-non-HyperScalers-PERP"],
     status: "Active",
     isDefault: false,
@@ -268,7 +271,7 @@ export const useMarketRealTimeData = (marketName) => {
 
   // Also fetch Oracle price to calculate funding rate premium
   const { price: oraclePrice, isLoading: oracleLoading } = useOraclePrice(
-    SEPOLIA_CONTRACTS.oracle,
+    market.oracleAddress || SEPOLIA_CONTRACTS.h100OracleAdapter, // Use market-specific oracle adapter
     10000
   );
 

@@ -33,15 +33,15 @@ import {
   TrendingDown,
 } from "lucide-react";
 
-const AdvancedChart = ({ market = "H100-PERP" }) => {
+const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
-  const [currentPrice, setCurrentPrice] = useState(null);
+  const [currentPrice, setCurrentPrice] = useState(initialPrice);
   const [priceChange, setPriceChange] = useState(null);
   const [priceChangePercent, setPriceChangePercent] = useState(null);
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [timeRange, setTimeRange] = useState("7d");
-  const [chartType, setChartType] = useState("candlestick");
+  const [chartType, setChartType] = useState("line");
   const [selectedTool, setSelectedTool] = useState("cursor");
   const [showChartTypeMenu, setShowChartTypeMenu] = useState(false);
   const [drawings, setDrawings] = useState([]); // Stores annotations
@@ -154,6 +154,13 @@ const AdvancedChart = ({ market = "H100-PERP" }) => {
     { id: "bar", name: "Bars", icon: BarChart2 },
   ];
 
+  // Update current price when initialPrice changes (e.g. from parent real-time hook)
+  useEffect(() => {
+    if (initialPrice !== null && !hasEnoughData) {
+      setCurrentPrice(initialPrice);
+    }
+  }, [initialPrice, hasEnoughData]);
+
   // --- Data Fetching ---
   useEffect(() => {
     const fetchData = async () => {
@@ -165,8 +172,14 @@ const AdvancedChart = ({ market = "H100-PERP" }) => {
         else if (timeRange === "7d") minutesAgo = 7 * 24 * 60;
         else minutesAgo = 7 * 24 * 60;
 
-        // Try both old and new market naming schemes
-        const marketNames = [market, "H100-GPU-PERP"];
+        // Determine market names to query based on selected market
+        let marketNames = [market];
+        
+        // Only allow fallback for the default H100-PERP market which has historical data under "H100-GPU-PERP"
+        if (market === "H100-PERP") {
+          marketNames.push("H100-GPU-PERP");
+        }
+
         let data = null;
         let error = null;
 
@@ -216,7 +229,12 @@ const AdvancedChart = ({ market = "H100-PERP" }) => {
         setChartData(candleData);
       } catch (error) {
         console.error("Error fetching vAMM data:", error.message);
-        setCurrentPrice(null);
+        // Fallback to initialPrice if available
+        if (initialPrice !== null) {
+          setCurrentPrice(initialPrice);
+        } else {
+          setCurrentPrice(null);
+        }
         setHasEnoughData(false);
       } finally {
         setLoading(false);

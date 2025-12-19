@@ -33,12 +33,12 @@ const InfoTooltip = ({ title, description }) => {
   return (
     <>
       <div
-        className="inline-flex text-zinc-500 hover:text-zinc-300 cursor-help transition-colors ml-1"
+        className="inline-flex text-zinc-400 hover:text-white cursor-help transition-colors ml-1.5"
         ref={wrapperRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <Info size={10} />
+        <Info size={14} />
       </div>
       {isHovered &&
         ReactDOM.createPortal(
@@ -67,7 +67,10 @@ const TickerBar = () => {
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
+  const portalRef = useRef(null);
 
   // Fetch market config for fee display
   const marketId = MARKET_IDS[marketName] || MARKET_IDS["H100-PERP"];
@@ -86,13 +89,20 @@ const TickerBar = () => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      // Check if click is outside both the button area and the portal dropdown
+      const isOutsideButton = dropdownRef.current && !dropdownRef.current.contains(event.target);
+      const isOutsidePortal = portalRef.current && !portalRef.current.contains(event.target);
+      
+      if (isOutsideButton && isOutsidePortal) {
         setIsDropdownOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    
+    if (isDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isDropdownOpen]);
 
   const filteredMarkets = markets.filter(
     (m) =>
@@ -108,14 +118,33 @@ const TickerBar = () => {
       {/* Market Selector */}
       <div className="relative shrink-0" ref={dropdownRef}>
         <button
+          ref={buttonRef}
           className="flex items-center gap-2 hover:bg-zinc-900 px-2 py-1 rounded transition-colors"
-          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          onClick={() => {
+            if (!isDropdownOpen && buttonRef.current) {
+              const rect = buttonRef.current.getBoundingClientRect();
+              setDropdownPosition({ top: rect.bottom + 8, left: rect.left });
+            }
+            setIsDropdownOpen(!isDropdownOpen);
+          }}
         >
           <div className="flex flex-col items-start">
             <div className="flex items-center gap-2">
               <span className="font-bold text-base md:text-lg text-white whitespace-nowrap">
                 {marketData?.displayName || marketName}
               </span>
+              <div onClick={(e) => e.stopPropagation()}>
+                <InfoTooltip
+                  title={marketData?.displayName || marketName}
+                  description={
+                    {
+                      "H100-PERP": "Combined market tracking H100 GPU prices from both HyperScalers (large mass-market providers) and Non-HyperScalers (independent providers).",
+                      "H100-HyperScalers-PERP": "H100 prices from HyperScalers - the massive cloud providers with the majority market share (e.g., AWS, Google Cloud, Azure, CoreWeave).",
+                      "H100-non-HyperScalers-PERP": "H100 prices from Non-HyperScalers - smaller, independent, or specialized GPU cloud providers.",
+                    }[marketName] || "GPU Compute Market"
+                  }
+                />
+              </div>
               <span className="text-[10px] text-zinc-500 bg-zinc-900 px-1 rounded border border-zinc-800 hidden sm:inline-block">
                 PERP
               </span>
@@ -124,57 +153,63 @@ const TickerBar = () => {
           </div>
         </button>
 
-        {/* Dropdown Menu */}
-        {isDropdownOpen && (
-          <div className="absolute top-full left-0 mt-2 w-64 bg-[#0A0A0A] border border-zinc-800 rounded-lg shadow-xl z-50 overflow-hidden">
-            <div className="p-2 border-b border-zinc-800">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-zinc-500 w-3 h-3" />
-                <input
-                  type="text"
-                  placeholder="Search markets..."
-                  className="w-full bg-[#050505] border border-zinc-800 rounded pl-7 pr-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  autoFocus
-                />
+        {/* Dropdown Menu - Rendered via Portal */}
+        {isDropdownOpen &&
+          ReactDOM.createPortal(
+            <div
+              className="fixed w-64 bg-[#0A0A0A] border border-zinc-800 rounded-lg shadow-xl z-[9999] overflow-hidden"
+              style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+              ref={portalRef}
+            >
+              <div className="p-2 border-b border-zinc-800">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-zinc-500 w-3 h-3" />
+                  <input
+                    type="text"
+                    placeholder="Search markets..."
+                    className="w-full bg-[#050505] border border-zinc-800 rounded pl-7 pr-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    autoFocus
+                  />
+                </div>
               </div>
-            </div>
-            <div className="max-h-64 overflow-y-auto custom-scrollbar">
-              {filteredMarkets.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-zinc-500">No markets found</div>
-              ) : (
-                filteredMarkets.map((market) => (
-                  <button
-                    key={market.name}
-                    className={`w-full text-left px-3 py-2 text-xs hover:bg-zinc-800 flex justify-between items-center ${
-                      market.name === marketName
-                        ? "bg-blue-900/20 text-blue-400"
-                        : "text-zinc-300"
-                    }`}
-                    onClick={() => {
-                      selectMarket(market.name);
-                      setIsDropdownOpen(false);
-                    }}
-                  >
-                    <span className="font-medium text-white">
-                      {market.displayName || market.name}
-                    </span>
-                    <span
-                      className={
-                        market.change24h >= 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      }
+              <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                {filteredMarkets.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-zinc-500">No markets found</div>
+                ) : (
+                  filteredMarkets.map((market) => (
+                    <button
+                      key={market.name}
+                      className={`w-full text-left px-3 py-2 text-xs hover:bg-zinc-800 flex justify-between items-center ${
+                        market.name === marketName
+                          ? "bg-blue-900/20 text-blue-400"
+                          : "text-zinc-300"
+                      }`}
+                      onClick={() => {
+                        selectMarket(market.name);
+                        setIsDropdownOpen(false);
+                      }}
                     >
-                      ${market.markPrice?.toFixed(2) || market.oraclePrice?.toFixed(2) || '0.00'}
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+                      <span className="font-medium text-white">
+                        {market.displayName || market.name}
+                      </span>
+                      <span
+                        className={
+                          market.change24h >= 0
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }
+                      >
+                        ${market.markPrice?.toFixed(2) || market.oraclePrice?.toFixed(2) || '0.00'}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>,
+            document.body
+          )}
       </div>
 
       {/* Ticker Stats */}

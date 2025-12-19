@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import PriceIndexChart from "../chart";
 import AdvancedChart from "./AdvancedChart";
+import { useMarketRealTimeData } from "../marketData";
 
 const ChartToggle = ({ selectedMarket }) => {
   const [activeChart, setActiveChart] = useState("vamm"); // 'vamm' or 'index'
@@ -10,6 +11,12 @@ const ChartToggle = ({ selectedMarket }) => {
     typeof selectedMarket === "string"
       ? selectedMarket
       : selectedMarket?.name || "H100-PERP";
+
+  // Fetch real-time data to pass as fallback/initial value to charts
+  const { data: realTimeData } = useMarketRealTimeData(marketName);
+  
+  const liveMarkPrice = realTimeData?.markPriceRaw;
+  const liveIndexPrice = realTimeData?.oraclePriceRaw;
 
   return (
     <div className="flex flex-col h-full">
@@ -42,9 +49,15 @@ const ChartToggle = ({ selectedMarket }) => {
       {/* Chart Display */}
       <div className="flex-1 relative min-h-0">
         {activeChart === "vamm" ? (
-          <AdvancedChart market={marketName} />
+          <AdvancedChart 
+            market={marketName} 
+            initialPrice={liveMarkPrice ? parseFloat(liveMarkPrice) : null} 
+          />
         ) : (
-          <PriceIndexChart market={marketName} />
+          <PriceIndexChart 
+            market={marketName} 
+            initialPrice={liveIndexPrice ? parseFloat(liveIndexPrice) : null}
+          />
         )}
       </div>
     </div>

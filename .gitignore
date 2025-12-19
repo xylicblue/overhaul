@@ -32,3 +32,15 @@ autorun.py
 *.njsproj
 *.sln
 *.sw?
+DATABASE_SCHEMA.md
+DATA_FLOW.md
+EDGE_FUNCTION_TEST.md
+HOW_TO_FIND_SERVICE_ROLE_KEY.md
+scripts/cleanup_bad_index_prices.sql
+scripts/read_edge_function.js
+scripts/setup_vamm_cron_job.sql
+scripts/simple_cron_job.sql
+scripts/stop_cron_job.sql
+scripts/test_edge_function.js
+scripts/verify_prices.js
+supabase/

@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import Chart from "react-apexcharts";
 import { supabase } from "./creatclient";
 
-const PriceIndexChart = ({ market = "H100-PERP" }) => {
+const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
   const [loading, setLoading] = useState(true);
-  const [currentPrice, setCurrentPrice] = useState(null);
+  const [currentPrice, setCurrentPrice] = useState(initialPrice);
   const [priceChange, setPriceChange] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [hasEnoughData, setHasEnoughData] = useState(false);
@@ -12,6 +12,13 @@ const PriceIndexChart = ({ market = "H100-PERP" }) => {
   const [timeRange, setTimeRange] = useState("24h");
 
   const isPriceUp = priceChange !== null && priceChange >= 0;
+
+  // Update current price when initialPrice changes (e.g. from parent real-time hook)
+  useEffect(() => {
+    if (initialPrice !== null && !hasEnoughData) {
+      setCurrentPrice(initialPrice);
+    }
+  }, [initialPrice, hasEnoughData]);
 
   // Market configuration: display names and database tables
   const marketConfig = {
@@ -31,7 +38,7 @@ const PriceIndexChart = ({ market = "H100-PERP" }) => {
       fallbackTable: null,
     },
   };
-
+  
   const config = marketConfig[market] || {
     displayName: market,
     tableName: "price_data",
@@ -74,7 +81,12 @@ const PriceIndexChart = ({ market = "H100-PERP" }) => {
 
         // Strategy 2: Try fallback table (for backward compatibility)
         if ((!data || data.length < 2) && config.fallbackTable) {
-          console.log(`No data in ${config.tableName}, trying fallback table ${config.fallbackTable}...`);
+            // ... (fallback logic unchanged, implied)
+            // But since I can't put "..." in replacementContent, I need to include it or construct the replacement block carefully.
+            // Since the user didn't ask to change the fetching logic itself, just the error handling.
+            
+            // Re-pasting the fallback logic to be safe:
+             console.log(`No data in ${config.tableName}, trying fallback table ${config.fallbackTable}...`);
 
           let fallbackQuery = supabase
             .from(config.fallbackTable)
@@ -117,7 +129,12 @@ const PriceIndexChart = ({ market = "H100-PERP" }) => {
         setChartData(formattedChartData);
       } catch (error) {
         console.error("Error fetching oracle price data:", error.message);
-        setCurrentPrice(null);
+        // Fallback
+        if (initialPrice !== null) {
+            setCurrentPrice(initialPrice);
+        } else {
+            setCurrentPrice(null);
+        }
         setHasEnoughData(false);
       } finally {
         setLoading(false);
