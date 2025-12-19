@@ -1,22 +1,22 @@
 import React, { useState } from "react";
 import PriceIndexChart from "../chart";
 import AdvancedChart from "./AdvancedChart";
+import { useMarketRealTimeData } from "../marketData";
 
 const ChartToggle = ({ selectedMarket }) => {
   const [activeChart, setActiveChart] = useState("vamm"); // 'vamm' or 'index'
 
-  // Get market name for vAMM chart - map frontend names to database names
-  const frontendMarket =
+  // Get market name - use directly as stored in database
+  const marketName =
     typeof selectedMarket === "string"
       ? selectedMarket
       : selectedMarket?.name || "H100-PERP";
 
-  // Map frontend market names to database market names
-  const marketNameMap = {
-    "H100-PERP": "H100-GPU-PERP",
-    "ETH-PERP-V2": "H100-GPU-PERP", // Same vAMM
-  };
-  const marketName = marketNameMap[frontendMarket] || "H100-GPU-PERP";
+  // Fetch real-time data to pass as fallback/initial value to charts
+  const { data: realTimeData } = useMarketRealTimeData(marketName);
+  
+  const liveMarkPrice = realTimeData?.markPriceRaw;
+  const liveIndexPrice = realTimeData?.oraclePriceRaw;
 
   return (
     <div className="flex flex-col h-full">
@@ -49,9 +49,15 @@ const ChartToggle = ({ selectedMarket }) => {
       {/* Chart Display */}
       <div className="flex-1 relative min-h-0">
         {activeChart === "vamm" ? (
-          <AdvancedChart market={marketName} />
+          <AdvancedChart 
+            market={marketName} 
+            initialPrice={liveMarkPrice ? parseFloat(liveMarkPrice) : null} 
+          />
         ) : (
-          <PriceIndexChart />
+          <PriceIndexChart 
+            market={marketName} 
+            initialPrice={liveIndexPrice ? parseFloat(liveIndexPrice) : null}
+          />
         )}
       </div>
     </div>

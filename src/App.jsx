@@ -13,6 +13,7 @@ import PortfolioPage from "./portfolio";
 import GuidePage from "./guidepage";
 import SettingsPage from "./settings";
 import SharedLayout from "./sharedlayout";
+import { DebugMarkets } from "./debug-markets";
 import "@rainbow-me/rainbowkit/styles.css";
 import "./App.css";
 
@@ -87,6 +88,7 @@ function App() {
                 />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/welcome" element={<CreateUsernamePage />} />
+                <Route path="/debug-markets" element={<DebugMarkets />} />
                 <Route element={<SharedLayout />}>
                   <Route path="/trade" element={<TradingPage />} />
                   <Route path="/portfolio" element={<PortfolioPage />} />

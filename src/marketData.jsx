@@ -19,15 +19,46 @@ const DEPLOYED_MARKETS = [
     baseAsset: "GPU-HOURS", // What you're trading: GPU compute hours
     quoteAsset: "USDC", // What you pay with: Stablecoin
     vammAddress: SEPOLIA_CONTRACTS.vammProxy, // vAMM with $3.79/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.indexOracle, // Legacy oracle (working)
     marketId: MARKET_IDS["H100-PERP"],
     status: "Active",
     isDefault: true,
     description:
-      "Trade the price of H100 GPU hourly rental rates. Index price: $3.79/hour from real-time market oracles.",
+      "Trade the price of H100 GPU hourly rental rates (all providers). Index price: $3.79/hour from real-time market oracles.",
+  },
+  {
+    name: "H100-HyperScalers-PERP",
+    displayName: "H100 HyperScalers",
+    fullName: "H100 HyperScalers GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyHyperscalers, // vAMM with $4.20/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.hyperscalersOracleAdapter, // Oracle adapter for HyperScalers
+    marketId: MARKET_IDS["H100-HyperScalers-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade H100 GPU hourly rental rates from HyperScalers (AWS, GCP, Azure). Index price: $4.20/hour.",
+  },
+  {
+    name: "H100-non-HyperScalers-PERP",
+    displayName: "H100 non-HyperScalers",
+    fullName: "H100 non-HyperScalers GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, // vAMM with $2.95/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.nonHyperscalersOracleAdapter, // Oracle adapter for non-HyperScalers
+    marketId: MARKET_IDS["H100-non-HyperScalers-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade H100 GPU hourly rental rates from non-HyperScalers (Lambda, CoreWeave, etc.). Index price: $2.95/hour.",
   },
   {
     name: "ETH-PERP-V2",
-    displayName: "H100 GPU",
+    displayName: "H100 GPU (Alias)",
     fullName: "H100 GPU Hourly Rate Perpetual",
     type: "Perpetual",
     baseAsset: "GPU-HOURS",
@@ -35,9 +66,9 @@ const DEPLOYED_MARKETS = [
     vammAddress: SEPOLIA_CONTRACTS.vammProxy,
     marketId: MARKET_IDS["ETH-PERP-V2"], // Alias for H100-PERP
     status: "Active",
-    isDefault: true,
+    isDefault: false,
     description:
-      "Trade the price of H100 GPU hourly rental rates. Index price: $3.79/hour.",
+      "Alias for H100-PERP market.",
   },
   {
     name: "ETH-PERP",
@@ -64,14 +95,26 @@ export const useMarketsData = () => {
     error: null,
   });
 
-  // Fetch real mark price from new vAMM (updates every 5s)
+  // Fetch mark prices from all active vAMMs (updates every 5s)
   const {
-    price: markPriceNew,
-    isLoading: priceLoadingNew,
-    error: errorNew,
+    price: markPriceH100,
+    isLoading: priceLoadingH100,
+    error: errorH100,
   } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxy, 5000);
 
-  // Fetch mark price from old vAMM
+  const {
+    price: markPriceHyperscalers,
+    isLoading: priceLoadingHyperscalers,
+    error: errorHyperscalers,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyHyperscalers, 5000);
+
+  const {
+    price: markPriceNonHyperscalers,
+    isLoading: priceLoadingNonHyperscalers,
+    error: errorNonHyperscalers,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, 5000);
+
+  // Fetch mark price from old vAMM (deprecated)
   const {
     price: markPriceOld,
     isLoading: priceLoadingOld,
@@ -81,34 +124,66 @@ export const useMarketsData = () => {
   useEffect(() => {
     // Log for debugging
     console.log("useMarketsData:", {
-      new: { markPriceNew, priceLoadingNew, errorNew },
+      h100: { markPriceH100, priceLoadingH100, errorH100 },
+      hyperscalers: { markPriceHyperscalers, priceLoadingHyperscalers, errorHyperscalers },
+      nonHyperscalers: { markPriceNonHyperscalers, priceLoadingNonHyperscalers, errorNonHyperscalers },
       old: { markPriceOld, priceLoadingOld, errorOld },
     });
 
-    if (!priceLoadingNew && !priceLoadingOld) {
+    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingOld) {
       const markets = [];
 
-      // Add new market (ByteStrike-H100)
-      if (markPriceNew && !errorNew) {
+      // Add H100-PERP market (all providers)
+      if (markPriceH100 && !errorH100) {
         markets.push({
-          name: "ETH-PERP-V2",
-          displayName: "ByteStrike-H100",
+          name: "H100-PERP",
+          displayName: "H100 GPU",
           fullName: "H100 GPU Hourly Rate",
           type: "Perpetual",
-          markPrice: parseFloat(markPriceNew),
+          markPrice: parseFloat(markPriceH100),
           change24h: 0, // TODO: Calculate from historical data or events
           vammAddress: SEPOLIA_CONTRACTS.vammProxy,
-          marketId: MARKET_IDS["ETH-PERP-V2"],
+          marketId: MARKET_IDS["H100-PERP"],
           status: "Active",
         });
       }
 
-      // Add old market (ByteStrike-H100 OLD)
+      // Add H100-HyperScalers-PERP market
+      if (markPriceHyperscalers && !errorHyperscalers) {
+        markets.push({
+          name: "H100-HyperScalers-PERP",
+          displayName: "H100 HyperScalers",
+          fullName: "H100 HyperScalers GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceHyperscalers),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyHyperscalers,
+          marketId: MARKET_IDS["H100-HyperScalers-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add H100-non-HyperScalers-PERP market
+      if (markPriceNonHyperscalers && !errorNonHyperscalers) {
+        markets.push({
+          name: "H100-non-HyperScalers-PERP",
+          displayName: "H100 non-HyperScalers",
+          fullName: "H100 non-HyperScalers GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceNonHyperscalers),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers,
+          marketId: MARKET_IDS["H100-non-HyperScalers-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add deprecated market
       if (markPriceOld && !errorOld) {
         markets.push({
           name: "ETH-PERP",
-          displayName: "ByteStrike-H100 [OLD]",
-          fullName: "H100 GPU Hourly Rate (Deprecated)",
+          displayName: "Test Market [OLD]",
+          fullName: "Test Market (Deprecated)",
           type: "Perpetual",
           markPrice: parseFloat(markPriceOld),
           change24h: 0,
@@ -121,16 +196,22 @@ export const useMarketsData = () => {
       if (markets.length > 0) {
         setData({ markets, isLoading: false, error: null });
       } else {
-        const error = errorNew || errorOld || "No markets available";
+        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorOld || "No markets available";
         setData({ markets: [], isLoading: false, error });
       }
     }
   }, [
-    markPriceNew,
+    markPriceH100,
+    markPriceHyperscalers,
+    markPriceNonHyperscalers,
     markPriceOld,
-    priceLoadingNew,
+    priceLoadingH100,
+    priceLoadingHyperscalers,
+    priceLoadingNonHyperscalers,
     priceLoadingOld,
-    errorNew,
+    errorH100,
+    errorHyperscalers,
+    errorNonHyperscalers,
     errorOld,
   ]);
 
@@ -190,7 +271,7 @@ export const useMarketRealTimeData = (marketName) => {
 
   // Also fetch Oracle price to calculate funding rate premium
   const { price: oraclePrice, isLoading: oracleLoading } = useOraclePrice(
-    SEPOLIA_CONTRACTS.oracle,
+    market.oracleAddress || SEPOLIA_CONTRACTS.h100OracleAdapter, // Use market-specific oracle adapter
     10000
   );
 
