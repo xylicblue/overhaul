@@ -47,7 +47,9 @@ const InfoTooltip = ({ title, description }) => {
             style={{ top: `${position.top}px`, left: `${position.left}px` }}
           >
             <div className="font-semibold text-white mb-1">{title}</div>
-            <div className="leading-relaxed">{description}</div>
+            <div className="leading-relaxed">
+              {typeof description === 'string' ? description : description}
+            </div>
           </div>,
           document.body
         )}
@@ -137,11 +139,34 @@ const TickerBar = () => {
                 <InfoTooltip
                   title={marketData?.displayName || marketName}
                   description={
-                    {
-                      "H100-PERP": "Combined market tracking H100 GPU prices from both HyperScalers (large mass-market providers) and Non-HyperScalers (independent providers).",
-                      "H100-HyperScalers-PERP": "H100 prices from HyperScalers - the massive cloud providers with the majority market share (e.g., AWS, Google Cloud, Azure, CoreWeave).",
-                      "H100-non-HyperScalers-PERP": "H100 prices from Non-HyperScalers - smaller, independent, or specialized GPU cloud providers.",
-                    }[marketName] || "GPU Compute Market"
+                    marketName === "H100-HyperScalers-PERP" ? (
+                      <div>
+                        H100 prices from HyperScalers - the massive cloud providers with the majority market share:
+                        <ul className="mt-1.5 ml-2 space-y-0.5">
+                          <li className="flex items-start">
+                            <span className="text-blue-400 mr-1.5">•</span>
+                            <span>AWS</span>
+                          </li>
+                          <li className="flex items-start">
+                            <span className="text-blue-400 mr-1.5">•</span>
+                            <span>Google Cloud</span>
+                          </li>
+                          <li className="flex items-start">
+                            <span className="text-blue-400 mr-1.5">•</span>
+                            <span>Azure</span>
+                          </li>
+                          <li className="flex items-start">
+                            <span className="text-blue-400 mr-1.5">•</span>
+                            <span>CoreWeave</span>
+                          </li>
+                        </ul>
+                      </div>
+                    ) : (
+                      {
+                        "H100-PERP": "Combined market tracking H100 GPU prices from both HyperScalers (large mass-market providers) and Non-HyperScalers (independent providers).",
+                        "H100-non-HyperScalers-PERP": "H100 prices from Non-HyperScalers - smaller, independent, or specialized GPU cloud providers.",
+                      }[marketName] || "GPU Compute Market"
+                    )
                   }
                 />
               </div>
