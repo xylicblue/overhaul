@@ -267,7 +267,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
   return (
     <div className="flex flex-col h-full w-full bg-slate-950/50">
       {/* Header */}
-      <div className="flex items-start justify-between p-4 border-b border-slate-800/50">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between p-4 gap-4 sm:gap-0 border-b border-slate-800/50">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h2 className="text-sm font-medium text-slate-400">{config.displayName} Index Price</h2>
@@ -287,18 +287,18 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
         </div>
 
         {/* Time Range Toggles */}
-        <div className="flex bg-slate-900 rounded-lg p-0.5 border border-slate-800">
+        <div className="flex bg-slate-900 rounded-lg p-0.5 border border-slate-800 self-start sm:self-auto w-full sm:w-auto overflow-x-auto no-scrollbar justify-between sm:justify-start">
           {["24h", "5d", "15d", "max"].map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
-              className={`px-3 py-1 text-[10px] font-bold uppercase rounded transition-all ${
+              className={`flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold uppercase rounded transition-all whitespace-nowrap ${
                 timeRange === range
                   ? "bg-slate-700 text-white shadow-sm"
                   : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
               }`}
             >
-              {range}
+              {range.toUpperCase()}
             </button>
           ))}
         </div>
