@@ -38,6 +38,13 @@ const MARKET_POSITION_CONFIG = [
     baseAssetSymbol: "GPU-HRS",
   },
   {
+    key: "B200-PERP",
+    marketId: MARKET_IDS["B200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyB200, // ⭐ B200 vAMM ($7.15/hour)
+    displayName: "B200 GPU ($7.15/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
     key: "ETH-PERP",
     marketId: MARKET_IDS["ETH-PERP"],
     vammAddress: SEPOLIA_CONTRACTS.vammProxyOld, // Deprecated test market
