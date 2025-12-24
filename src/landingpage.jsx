@@ -137,6 +137,7 @@ const LandingPage = () => {
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 500], [0, 150]);
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
+  const [selectedMarket, setSelectedMarket] = useState("H100-PERP"); // Market selection for index chart
 
   // Mobile detection for performance optimization
   useEffect(() => {
@@ -516,8 +517,70 @@ const LandingPage = () => {
       {/* Price Index Chart */}
       <section className="py-12 relative z-10">
         <div className="container mx-auto px-6">
-          <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl p-2 shadow-2xl h-[600px]">
-            <PriceIndexChart />
+          <div className="flex flex-col items-center">
+            
+            {/* Minimalist Floating Nav */}
+            <div className="mb-12 relative z-20">
+              <div className="flex flex-wrap justify-center items-center gap-1 p-1.5 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
+                {[
+                  { name: "H100-PERP", label: "H100 GPU" },
+                  { name: "B200-PERP", label: "B200 GPU" },
+                  { name: "H100-HyperScalers-PERP", label: "Hyperscalers" },
+                  { name: "H100-non-HyperScalers-PERP", label: "Specialized" },
+                ].map((market) => (
+                  <button
+                    key={market.name}
+                    onClick={() => setSelectedMarket(market.name)}
+                    className={`relative px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
+                      selectedMarket === market.name ? "text-white" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {selectedMarket === market.name && (
+                      <motion.div
+                        layoutId="minimalNav"
+                        className="absolute inset-0 bg-white/10 rounded-full shadow-inner border border-white/5"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                    <span className="relative z-10">{market.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Seamless Chart Container */}
+            <div className="w-full max-w-5xl h-[500px] relative group perspective-1000">
+               {/* Ambient Glow */}
+               <div className="absolute -inset-10 bg-gradient-to-tr from-indigo-500/10 via-purple-500/5 to-blue-500/10 rounded-[50px] blur-3xl opacity-50 group-hover:opacity-75 transition-opacity duration-1000" />
+               
+               <div className="relative w-full h-full bg-black/40 backdrop-blur-sm border border-white/5 rounded-[40px] p-8 shadow-2xl transition-transform duration-700 hover:scale-[1.01]">
+                 <div className="absolute top-8 left-8 z-10">
+                    <motion.div
+                      key={selectedMarket}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex flex-col gap-1"
+                    >
+                      <h3 className="text-3xl font-bold text-white tracking-tight">
+                        {
+                          selectedMarket === "H100-PERP" ? "NVIDIA H100" :
+                          selectedMarket === "B200-PERP" ? "NVIDIA Blackwell B200" :
+                          selectedMarket === "H100-HyperScalers-PERP" ? "Hyperscaler Aggregate" : "Specialized Cloud"
+                        }
+                      </h3>
+                      <p className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" />
+                        Real-Time Index Price
+                      </p>
+                    </motion.div>
+                 </div>
+                 
+                 {/* Chart with extra padding for the header */}
+                 <div className="pt-16 h-full">
+                    <PriceIndexChart market={selectedMarket} />
+                 </div>
+               </div>
+            </div>
           </div>
         </div>
       </section>
