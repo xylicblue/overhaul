@@ -31,6 +31,15 @@ const AVAILABLE_MARKETS = {
     marketId: MARKET_IDS['H100-non-HyperScalers-PERP'],
     description: "H100 GPU rental rates from non-HyperScalers (Lambda, CoreWeave, etc.)",
   },
+  "B200-PERP": {
+    name: "B200-PERP",
+    displayName: "B200 GPU ($7.15/hr)",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    marketId: MARKET_IDS['B200-PERP'],
+    description: "B200 GPU hourly rental rate perpetual futures",
+  },
   "ETH-PERP-V2": {
     name: "ETH-PERP-V2",
     displayName: "H100 GPU ($3.79/hr)",
