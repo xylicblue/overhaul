@@ -26,16 +26,25 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       displayName: "H100 GPU",
       tableName: "price_data",  // Existing H100 table
       fallbackTable: null,
+      priceField: "price", // Field name for price in the table
     },
     "H100-HyperScalers-PERP": {
       displayName: "H100 HyperScalers",
       tableName: "h100_hyperscalers_perp_prices",
       fallbackTable: null,
+      priceField: "price",
     },
     "H100-non-HyperScalers-PERP": {
       displayName: "H100 non-HyperScalers",
       tableName: "h100_non_hyperscalers_perp_prices",
       fallbackTable: null,
+      priceField: "price",
+    },
+    "B200-PERP": {
+      displayName: "B200 GPU",
+      tableName: "b200_index_prices",
+      fallbackTable: null,
+      priceField: "index_price", // B200 uses index_price field
     },
   };
   
@@ -43,6 +52,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     displayName: market,
     tableName: "price_data",
     fallbackTable: null,
+    priceField: "price",
   };
 
   useEffect(() => {
@@ -63,7 +73,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
         // Strategy 1: Try market-specific table (primary source)
         let query = supabase
           .from(config.tableName)
-          .select("price, timestamp");
+          .select(`${config.priceField}, timestamp`);
 
         if (hoursAgo !== null) {
           const startTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
@@ -73,7 +83,11 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
         const result = await query.order("timestamp", { ascending: true });
 
         if (!result.error && result.data && result.data.length >= 2) {
-          data = result.data;
+          // Transform data to standard format (normalize price field)
+          data = result.data.map(record => ({
+            price: record[config.priceField] || record.price,
+            timestamp: record.timestamp
+          }));
           console.log(`Loaded ${data.length} records from ${config.tableName}`);
         } else if (result.error) {
           error = result.error;
@@ -154,8 +168,9 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
           table: config.tableName,
         },
         (payload) => {
-          if (payload.new.price) {
-            setCurrentPrice(parseFloat(payload.new.price));
+          const priceValue = payload.new[config.priceField] || payload.new.price;
+          if (priceValue) {
+            setCurrentPrice(parseFloat(priceValue));
           }
         }
       );
@@ -170,8 +185,9 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
           table: config.fallbackTable,
         },
         (payload) => {
-          if (payload.new.price) {
-            setCurrentPrice(parseFloat(payload.new.price));
+          const priceValue = payload.new[config.priceField] || payload.new.price;
+          if (priceValue) {
+            setCurrentPrice(parseFloat(priceValue));
           }
         }
       );

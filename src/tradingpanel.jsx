@@ -137,6 +137,32 @@ export const TradingPanel = ({ selectedMarket }) => {
         } catch (err) {
           console.warn("Error saving trade:", err);
         }
+
+        // Also save vAMM price to vamm_price_history for chart display
+        const saveVAMMPrice = async () => {
+          const vammPriceData = {
+            market: market.name, // e.g., "B200-PERP", "H100-PERP"
+            price: parseFloat(market.markPriceRaw) || parseFloat(market.price) || 0,
+            twap: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
+            timestamp: new Date().toISOString(),
+          };
+
+          try {
+            const { error: vammError } = await supabase
+              .from("vamm_price_history")
+              .insert([vammPriceData]);
+
+            if (vammError) {
+              console.warn("Error saving vAMM price:", vammError.message);
+            } else {
+              console.log("vAMM price saved:", vammPriceData);
+            }
+          } catch (err) {
+            console.warn("Error saving vAMM price:", err);
+          }
+        };
+
+        await saveVAMMPrice();
       };
 
       saveTrade();

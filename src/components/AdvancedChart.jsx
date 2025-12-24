@@ -172,16 +172,16 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
         else if (timeRange === "7d") minutesAgo = 7 * 24 * 60;
         else minutesAgo = 7 * 24 * 60;
 
-        // Determine market names to query based on selected market
+        let data = null;
+        let error = null;
+
+        // All markets (including B200) use vamm_price_history
         let marketNames = [market];
         
         // Only allow fallback for the default H100-PERP market which has historical data under "H100-GPU-PERP"
         if (market === "H100-PERP") {
           marketNames.push("H100-GPU-PERP");
         }
-
-        let data = null;
-        let error = null;
 
         for (const marketName of marketNames) {
           let query = supabase
@@ -243,7 +243,7 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
 
     fetchData();
 
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates for all markets (including B200)
     const subscription = supabase
       .channel(`vamm_advanced_${market}`)
       .on(
