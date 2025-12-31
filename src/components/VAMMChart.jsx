@@ -237,7 +237,7 @@ const VAMMChart = ({ market = "H100-PERP" }) => {
             {hasEnoughData && priceChange !== null && (
               <div
                 className={`flex items-center text-xs font-medium ${
-                  isPriceUp ? "text-green-400" : "text-red-400"
+                  isPriceUp ? "text-emerald-400" : "text-red-400"
                 }`}
               >
                 <span>

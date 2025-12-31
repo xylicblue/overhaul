@@ -99,8 +99,7 @@ export function PositionPanel({ selectedMarket = null }) {
   // Market display name for UI
   const marketDisplayNames = {
     "H100-PERP": "H100 GPU",
-    "H100-HyperScalers-PERP": "H100 HyperScalers",
-    "H100-non-HyperScalers-PERP": "H100 non-HyperScalers",
+    "H100-non-HyperScalers-PERP": "Neocloud",
   };
   const displayMarketName = marketName ? marketDisplayNames[marketName] || marketName : "All Markets";
 
@@ -357,14 +356,14 @@ function PositionCard({
       transition={{ duration: 0.2 }}
       className={`relative rounded-xl border overflow-hidden transition-all duration-300 group ${
         isLong
-          ? "bg-gradient-to-br from-green-900/10 to-slate-900/50 border-green-500/20 hover:border-green-500/40 hover:shadow-[0_0_20px_rgba(34,197,94,0.1)]"
+          ? "bg-gradient-to-br from-green-900/10 to-slate-900/50 border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-[0_0_20px_rgba(34,197,94,0.1)]"
           : "bg-gradient-to-br from-red-900/10 to-slate-900/50 border-red-500/20 hover:border-red-500/40 hover:shadow-[0_0_20px_rgba(239,68,68,0.1)]"
       }`}
     >
       {/* Background Glow */}
       <div
         className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20 pointer-events-none ${
-          isLong ? "bg-green-500" : "bg-red-500"
+          isLong ? "bg-emerald-500" : "bg-red-500"
         }`}
       ></div>
 
@@ -375,7 +374,7 @@ function PositionCard({
             <div
               className={`p-2 rounded-lg ${
                 isLong
-                  ? "bg-green-500/10 text-green-400"
+                  ? "bg-emerald-500/10 text-emerald-400"
                   : "bg-red-500/10 text-red-400"
               }`}
             >
@@ -388,7 +387,7 @@ function PositionCard({
               <div className="flex items-center gap-2 mt-0.5">
                 <span
                   className={`text-[10px] font-bold uppercase tracking-wider ${
-                    isLong ? "text-green-400" : "text-red-400"
+                    isLong ? "text-emerald-400" : "text-red-400"
                   }`}
                 >
                   {isLong ? "Long" : "Short"}
@@ -405,7 +404,7 @@ function PositionCard({
             <div
               className={`font-mono font-bold text-base ${
                 isProfitable
-                  ? "text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.3)]"
+                  ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.3)]"
                   : "text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]"
               }`}
             >
@@ -428,7 +427,7 @@ function PositionCard({
             <span className="text-slate-400">Trading P&L</span>
             <span
               className={`font-mono font-semibold ${
-                currentPnL >= 0 ? "text-green-400" : "text-red-400"
+                currentPnL >= 0 ? "text-emerald-400" : "text-red-400"
               }`}
             >
               {currentPnL >= 0 ? "+" : ""}${currentPnL.toFixed(2)}
@@ -440,7 +439,7 @@ function PositionCard({
             </span>
             <span
               className={`font-mono font-semibold ${
-                fundingEarned >= 0 ? "text-green-400" : "text-red-400"
+                fundingEarned >= 0 ? "text-emerald-400" : "text-red-400"
               }`}
             >
               {fundingEarned >= 0 ? "+" : ""}${fundingEarned.toFixed(2)}
@@ -457,7 +456,7 @@ function PositionCard({
             <span
               className={`font-mono font-bold ${
                 currentPnL + fundingEarned - feesPaid >= 0
-                  ? "text-green-400"
+                  ? "text-emerald-400"
                   : "text-red-400"
               }`}
             >

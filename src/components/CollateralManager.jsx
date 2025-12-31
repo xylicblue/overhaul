@@ -219,14 +219,14 @@ export function CollateralManager() {
         <Card className="bg-gradient-to-br from-green-950/30 to-slate-950 border-green-700/30">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 rounded-lg bg-green-500/10">
-                <Shield size={12} className="text-green-400" />
+              <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                <Shield size={12} className="text-emerald-400" />
               </div>
               <span className="text-[10px] text-slate-400 font-medium">
                 Deposited
               </span>
             </div>
-            <div className="text-lg font-bold text-green-400 font-mono">
+            <div className="text-lg font-bold text-emerald-400 font-mono">
               {vaultBalanceNum.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -244,11 +244,11 @@ export function CollateralManager() {
             <div className="flex items-center gap-2">
               <div
                 className={`p-1 rounded-full ${
-                  allowanceNum > 0 ? "bg-green-500/20" : "bg-slate-700/50"
+                  allowanceNum > 0 ? "bg-emerald-500/20" : "bg-slate-700/50"
                 }`}
               >
                 {allowanceNum > 0 ? (
-                  <CheckCircle2 size={12} className="text-green-400" />
+                  <CheckCircle2 size={12} className="text-emerald-400" />
                 ) : (
                   <AlertCircle size={12} className="text-slate-500" />
                 )}
@@ -269,7 +269,7 @@ export function CollateralManager() {
               <Progress
                 value={Math.min(allowanceNum, walletBalanceNum)}
                 max={walletBalanceNum}
-                indicatorClassName="bg-gradient-to-r from-green-600 to-green-400"
+                indicatorClassName="bg-gradient-to-r from-emerald-600 to-emerald-400"
               />
               <div className="text-[10px] text-slate-600 mt-1 text-right">
                 {(
@@ -299,7 +299,7 @@ export function CollateralManager() {
                 onClick={() => setIsDepositing(true)}
                 className={`px-3 py-1 text-[10px] rounded-md font-medium transition-all ${
                   isDepositing
-                    ? "bg-green-600/20 text-green-400 border border-green-500/30"
+                    ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30"
                     : "text-slate-500 hover:text-slate-300"
                 }`}
               >
@@ -387,7 +387,7 @@ export function CollateralManager() {
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${
                   !needsApproval && amount
                     ? isDepositing
-                      ? "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white shadow-lg shadow-green-900/20"
+                      ? "bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-900/20"
                       : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white shadow-lg shadow-red-900/20"
                     : "bg-slate-800 text-slate-500 border border-slate-700"
                 }`}

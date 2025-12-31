@@ -38,7 +38,7 @@ const ComputeTicker = () => {
                 <div
                   className={`flex items-center gap-1 text-xs font-medium ${
                     item.trend === "up"
-                      ? "text-green-400"
+                      ? "text-emerald-400"
                       : item.trend === "down"
                       ? "text-red-400"
                       : "text-slate-400"

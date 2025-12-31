@@ -887,7 +887,7 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
               {hasEnoughData && priceChange !== null && (
                 <span
                   className={`text-xs font-bold ${
-                    isPriceUp ? "text-green-400" : "text-red-400"
+                    isPriceUp ? "text-emerald-400" : "text-red-400"
                   }`}
                 >
                   {isPriceUp ? "+" : ""}

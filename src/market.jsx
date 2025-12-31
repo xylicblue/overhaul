@@ -145,13 +145,13 @@ export const Markets = () => {
                   </td>
                   <td className="px-3 py-2 text-right">
                     <span className={`font-mono text-xs font-medium transition-colors ${
-                      priceChange === 'up' ? 'text-green-400' : priceChange === 'down' ? 'text-red-400' : 'text-slate-200'
+                      priceChange === 'up' ? 'text-emerald-400' : priceChange === 'down' ? 'text-red-400' : 'text-slate-200'
                     }`}>
                       ${formatPrice(market.markPrice || market.oraclePrice)}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <span className={`text-[10px] font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                    <span className={`text-[10px] font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                       {formatPercent(market.change24h)}
                     </span>
                   </td>

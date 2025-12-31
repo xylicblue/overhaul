@@ -24,25 +24,11 @@ const MARKET_POSITION_CONFIG = [
     baseAssetSymbol: "GPU-HRS",
   },
   {
-    key: "H100-HyperScalers-PERP",
-    marketId: MARKET_IDS["H100-HyperScalers-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyHyperscalers, // ⭐ HyperScalers vAMM ($4.20/hour)
-    displayName: "H100 HyperScalers ($4.20/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
     key: "H100-non-HyperScalers-PERP",
     marketId: MARKET_IDS["H100-non-HyperScalers-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, // ⭐ non-HyperScalers vAMM ($2.95/hour)
-    displayName: "H100 non-HyperScalers ($2.95/hr)",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, // ⭐ Neocloud vAMM ($2.95/hour)
+    displayName: "Neocloud ($2.95/hr)",
     baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "ETH-PERP",
-    marketId: MARKET_IDS["ETH-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyOld, // Deprecated test market
-    displayName: "Test Market (Deprecated)",
-    baseAssetSymbol: "ETH",
   },
 ];
 

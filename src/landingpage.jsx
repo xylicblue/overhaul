@@ -520,18 +520,17 @@ const LandingPage = () => {
           <div className="flex flex-col items-center">
             
             {/* Minimalist Floating Nav */}
-            <div className="mb-8 md:mb-12 relative z-20 w-full px-4">
-              <div className="flex flex-wrap justify-center items-center gap-2 p-1.5 rounded-[2rem] bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] max-w-full overflow-x-auto no-scrollbar">
+            <div className="mb-8 md:mb-12 relative z-20 flex justify-center">
+              <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
                 {[
                   { name: "H100-PERP", label: "H100 GPU" },
                   { name: "B200-PERP", label: "B200 GPU" },
-                  { name: "H100-HyperScalers-PERP", label: "Hyperscalers" },
-                  { name: "H100-non-HyperScalers-PERP", label: "Specialized" },
+                  { name: "H100-non-HyperScalers-PERP", label: "Neocloud" },
                 ].map((market) => (
                   <button
                     key={market.name}
                     onClick={() => setSelectedMarket(market.name)}
-                    className={`relative px-4 py-2 md:px-6 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
+                    className={`relative px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap ${
                       selectedMarket === market.name ? "text-white" : "text-slate-400 hover:text-white"
                     }`}
                   >
@@ -564,8 +563,7 @@ const LandingPage = () => {
                       <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight">
                         {
                           selectedMarket === "H100-PERP" ? "NVIDIA H100" :
-                          selectedMarket === "B200-PERP" ? "NVIDIA Blackwell B200" :
-                          selectedMarket === "H100-HyperScalers-PERP" ? "Hyperscaler Aggregate" : "Specialized Cloud"
+                          selectedMarket === "B200-PERP" ? "NVIDIA Blackwell B200" : "Neocloud H100"
                         }
                       </h3>
                       <p className="text-xs md:text-sm font-medium text-slate-400 flex items-center gap-2">
@@ -585,47 +583,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* What We Do */}
-      <AnimatedSection id="what-we-do" className="py-20 relative z-10">
-        <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.8 }}
-            >
-              <h2 className="text-4xl md:text-5xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-                What Is a Compute Futures Exchange?
-              </h2>
-              <p className="text-slate-300 text-lg leading-relaxed mb-8">
-                We are envisioning a regulated marketplace where compute
-                capacity itself becomes a tradable commodity. This platform
-                would enable participants to buy or sell standardized contracts
-                for future compute delivery, like GPU hours or cloud capacity,
-                at prices locked in today.
-              </p>
-              <div className="pl-6 border-l-4 border-indigo-500 bg-indigo-500/5 py-4 pr-4 rounded-r-xl">
-                <p className="text-slate-400 italic text-lg">
-                  "Think of it like the established futures markets for energy
-                  or agriculture. We're applying that same powerful financial
-                  model to the foundational resource of the 21st century."
-                </p>
-              </div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
-              whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.8 }}
-              className="relative group"
-            >
-
-              <NetworkMesh />
-            </motion.div>
-          </div>
-        </div>
-      </AnimatedSection>
 
       {/* Why Now - Bento Grid */}
       <section id="why-it-matters" className="py-20 relative z-10">

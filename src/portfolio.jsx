@@ -77,7 +77,7 @@ const PositionRow = ({ pos }) => {
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
             isLong
-              ? "bg-green-500/10 text-green-400 border border-green-500/20"
+              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
               : "bg-red-500/10 text-red-400 border border-red-500/20"
           }`}
         >
@@ -100,7 +100,7 @@ const PositionRow = ({ pos }) => {
       </td>
       <td
         className={`px-6 py-4 text-right font-mono font-bold ${
-          netPnL >= 0 ? "text-green-400" : "text-red-400"
+          netPnL >= 0 ? "text-emerald-400" : "text-red-400"
         }`}
       >
         {netPnL >= 0 ? "+" : ""}${netPnL.toFixed(2)}
@@ -139,7 +139,7 @@ const PortfolioHeader = ({
       <div className="flex-1 md:flex-none bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-4 backdrop-blur-sm">
         <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium mb-1">
           {realizedPnl >= 0 ? (
-            <HiArrowTrendingUp className="w-4 h-4 text-green-400" />
+            <HiArrowTrendingUp className="w-4 h-4 text-emerald-400" />
           ) : (
             <HiArrowTrendingDown className="w-4 h-4 text-red-400" />
           )}
@@ -147,7 +147,7 @@ const PortfolioHeader = ({
         </div>
         <div
           className={`flex items-baseline gap-2 font-mono font-bold ${
-            realizedPnl >= 0 ? "text-green-400" : "text-red-400"
+            realizedPnl >= 0 ? "text-emerald-400" : "text-red-400"
           }`}
         >
           <span className="text-xl">
@@ -415,7 +415,7 @@ const PortfolioPage = () => {
                             <span
                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
                                 trade.side === "Long"
-                                  ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                   : "bg-red-500/10 text-red-400 border border-red-500/20"
                               }`}
                             >
@@ -437,7 +437,7 @@ const PortfolioPage = () => {
                             className={`px-6 py-4 text-right font-mono font-bold ${
                               hasPnL
                                 ? isPnLPositive
-                                  ? "text-green-400"
+                                  ? "text-emerald-400"
                                   : "text-red-400"
                                 : "text-slate-500"
                             }`}
@@ -452,7 +452,7 @@ const PortfolioPage = () => {
                             className={`px-6 py-4 text-right font-mono ${
                               hasFunding
                                 ? isFundingPositive
-                                  ? "text-green-400"
+                                  ? "text-emerald-400"
                                   : "text-red-400"
                                 : "text-slate-500"
                             }`}

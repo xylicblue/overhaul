@@ -117,11 +117,11 @@ const TickerBar = () => {
 
   return (
     <div className="h-12 bg-[#050505] border-b border-zinc-800 flex items-center px-4 gap-4 md:gap-6 shrink-0 overflow-x-auto no-scrollbar">
-      {/* Market Selector */}
+      {/* Change Market Button */}
       <div className="relative shrink-0" ref={dropdownRef}>
         <button
           ref={buttonRef}
-          className="flex items-center gap-2 hover:bg-zinc-900 px-2 py-1 rounded transition-colors"
+          className="group flex items-center gap-2 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 px-3 py-1.5 rounded-full transition-all duration-200 border border-blue-500/30 hover:border-blue-400/50 shadow-sm hover:shadow-[0_0_12px_rgba(59,130,246,0.3)]"
           onClick={() => {
             if (!isDropdownOpen && buttonRef.current) {
               const rect = buttonRef.current.getBoundingClientRect();
@@ -130,52 +130,8 @@ const TickerBar = () => {
             setIsDropdownOpen(!isDropdownOpen);
           }}
         >
-          <div className="flex flex-col items-start">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-base md:text-lg text-white whitespace-nowrap">
-                {marketData?.displayName || marketName}
-              </span>
-              <div onClick={(e) => e.stopPropagation()}>
-                <InfoTooltip
-                  title={marketData?.displayName || marketName}
-                  description={
-                    marketName === "H100-HyperScalers-PERP" ? (
-                      <div>
-                        H100 prices from HyperScalers - the massive cloud providers with the majority market share:
-                        <ul className="mt-1.5 ml-2 space-y-0.5">
-                          <li className="flex items-start">
-                            <span className="text-blue-400 mr-1.5">•</span>
-                            <span>AWS</span>
-                          </li>
-                          <li className="flex items-start">
-                            <span className="text-blue-400 mr-1.5">•</span>
-                            <span>Google Cloud</span>
-                          </li>
-                          <li className="flex items-start">
-                            <span className="text-blue-400 mr-1.5">•</span>
-                            <span>Azure</span>
-                          </li>
-                          <li className="flex items-start">
-                            <span className="text-blue-400 mr-1.5">•</span>
-                            <span>CoreWeave</span>
-                          </li>
-                        </ul>
-                      </div>
-                    ) : (
-                      {
-                        "H100-PERP": "Combined market tracking H100 GPU prices from both HyperScalers (large mass-market providers) and Non-HyperScalers (independent providers).",
-                        "H100-non-HyperScalers-PERP": "H100 prices from Non-HyperScalers - smaller, independent, or specialized GPU cloud providers.",
-                      }[marketName] || "GPU Compute Market"
-                    )
-                  }
-                />
-              </div>
-              <span className="text-[10px] text-zinc-500 bg-zinc-900 px-1 rounded border border-zinc-800 hidden sm:inline-block">
-                PERP
-              </span>
-              <ChevronDown size={14} className="text-zinc-500" />
-            </div>
-          </div>
+          <span className="text-xs font-semibold text-blue-400 group-hover:text-blue-300">Switch</span>
+          <ChevronDown size={12} className={`text-blue-400 group-hover:text-blue-300 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {/* Dropdown Menu - Rendered via Portal */}
@@ -222,7 +178,7 @@ const TickerBar = () => {
                       <span
                         className={
                           market.change24h >= 0
-                            ? "text-green-400"
+                            ? "text-emerald-400"
                             : "text-red-400"
                         }
                       >
@@ -237,12 +193,34 @@ const TickerBar = () => {
           )}
       </div>
 
+      {/* Market Name (Static) */}
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="font-bold text-base md:text-lg text-white whitespace-nowrap">
+          {marketData?.displayName || marketName}
+        </span>
+        <div onClick={(e) => e.stopPropagation()}>
+          <InfoTooltip
+            title={marketData?.displayName || marketName}
+            description={
+              {
+                "H100-PERP": "Combined market tracking H100 GPU prices from all providers.",
+                "H100-non-HyperScalers-PERP": "H100 prices from Neocloud providers - specialized GPU cloud providers like Lambda, CoreWeave, Vultr, etc.",
+                "B200-PERP": "Next-generation NVIDIA Blackwell B200 GPU prices from specialized providers.",
+              }[marketName] || "GPU Compute Market"
+            }
+          />
+        </div>
+        <span className="text-[10px] text-zinc-500 bg-zinc-900 px-1 rounded border border-zinc-800 hidden sm:inline-block">
+          PERP
+        </span>
+      </div>
+
       {/* Ticker Stats */}
-      <div className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar flex-1">
+      <div className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar">
         <div className="flex flex-col shrink-0">
           <span
             className={`text-base md:text-lg font-mono font-bold whitespace-nowrap ${
-              changeIsPositive ? "text-green-400" : "text-red-400"
+              changeIsPositive ? "text-emerald-400" : "text-red-400"
             }`}
           >
             ${marketData?.price || "0.00"}
@@ -259,7 +237,7 @@ const TickerBar = () => {
         <div className="flex flex-col shrink-0">
           <span
             className={`text-xs font-medium flex items-center gap-1 whitespace-nowrap ${
-              changeIsPositive ? "text-green-400" : "text-red-400"
+              changeIsPositive ? "text-emerald-400" : "text-red-400"
             }`}
           >
             {changeIsPositive ? (

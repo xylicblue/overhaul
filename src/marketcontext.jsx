@@ -13,23 +13,15 @@ const AVAILABLE_MARKETS = {
     marketId: MARKET_IDS['H100-PERP'],
     description: "H100 GPU hourly rental rate perpetual futures (all providers)",
   },
-  "H100-HyperScalers-PERP": {
-    name: "H100-HyperScalers-PERP",
-    displayName: "H100 HyperScalers ($4.20/hr)",
-    type: "Perpetual",
-    baseAsset: "GPU-HOURS",
-    quoteAsset: "USDC",
-    marketId: MARKET_IDS['H100-HyperScalers-PERP'],
-    description: "H100 GPU rental rates from HyperScalers (AWS, GCP, Azure)",
-  },
+
   "H100-non-HyperScalers-PERP": {
     name: "H100-non-HyperScalers-PERP",
-    displayName: "H100 non-HyperScalers ($2.95/hr)",
+    displayName: "Neocloud ($2.95/hr)",
     type: "Perpetual",
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",
     marketId: MARKET_IDS['H100-non-HyperScalers-PERP'],
-    description: "H100 GPU rental rates from non-HyperScalers (Lambda, CoreWeave, etc.)",
+    description: "H100 GPU rental rates from Neocloud providers (Lambda, CoreWeave, etc.)",
   },
   "B200-PERP": {
     name: "B200-PERP",
@@ -47,16 +39,6 @@ const AVAILABLE_MARKETS = {
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",
     marketId: MARKET_IDS['ETH-PERP-V2'], // Alias for H100-PERP
-    description: "Alias for H100-PERP market",
-  },
-  "ETH-PERP": {
-    name: "ETH-PERP",
-    displayName: "Test Market (Deprecated)",
-    type: "Perpetual",
-    baseAsset: "ETH",
-    quoteAsset: "USDC",
-    marketId: MARKET_IDS['ETH-PERP'],
-    description: "Deprecated test market",
   },
 };
 

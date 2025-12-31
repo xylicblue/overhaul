@@ -28,14 +28,8 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       fallbackTable: null,
       priceField: "price", // Field name for price in the table
     },
-    "H100-HyperScalers-PERP": {
-      displayName: "H100 HyperScalers",
-      tableName: "h100_hyperscalers_perp_prices",
-      fallbackTable: null,
-      priceField: "price",
-    },
     "H100-non-HyperScalers-PERP": {
-      displayName: "H100 non-HyperScalers",
+      displayName: "Neocloud",
       tableName: "h100_non_hyperscalers_perp_prices",
       fallbackTable: null,
       priceField: "price",
@@ -271,14 +265,13 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h2 className="text-sm font-medium text-slate-400">{config.displayName} Index Price</h2>
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">ORACLE</span>
           </div>
           <div className="flex items-baseline gap-3">
             <h1 className="text-2xl font-bold text-white tracking-tight">
               {loading ? "..." : typeof currentPrice === "number" ? `$${currentPrice.toFixed(2)}` : "N/A"}
             </h1>
             {hasEnoughData && priceChange !== null && (
-              <div className={`flex items-center text-xs font-medium ${isPriceUp ? "text-green-400" : "text-red-400"}`}>
+              <div className={`flex items-center text-xs font-medium ${isPriceUp ? "text-emerald-400" : "text-red-400"}`}>
                 <span>{isPriceUp ? "+" : ""}{priceChange.toFixed(2)}</span>
                 <span className="ml-1">({isPriceUp ? "+" : ""}{priceChangePercent.toFixed(2)}%)</span>
               </div>

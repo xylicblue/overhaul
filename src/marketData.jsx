@@ -26,35 +26,21 @@ const DEPLOYED_MARKETS = [
     description:
       "Trade the price of H100 GPU hourly rental rates (all providers). Index price: $3.79/hour from real-time market oracles.",
   },
-  {
-    name: "H100-HyperScalers-PERP",
-    displayName: "H100 HyperScalers",
-    fullName: "H100 HyperScalers GPU Hourly Rate Perpetual",
-    type: "Perpetual",
-    baseAsset: "GPU-HOURS",
-    quoteAsset: "USDC",
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyHyperscalers, // vAMM with $4.20/hour oracle
-    oracleAddress: SEPOLIA_CONTRACTS.hyperscalersOracleAdapter, // Oracle adapter for HyperScalers
-    marketId: MARKET_IDS["H100-HyperScalers-PERP"],
-    status: "Active",
-    isDefault: false,
-    description:
-      "Trade H100 GPU hourly rental rates from HyperScalers (AWS, GCP, Azure). Index price: $4.20/hour.",
-  },
+
   {
     name: "H100-non-HyperScalers-PERP",
-    displayName: "H100 non-HyperScalers",
-    fullName: "H100 non-HyperScalers GPU Hourly Rate Perpetual",
+    displayName: "Neocloud",
+    fullName: "Neocloud H100 GPU Hourly Rate Perpetual",
     type: "Perpetual",
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",
     vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, // vAMM with $2.95/hour oracle
-    oracleAddress: SEPOLIA_CONTRACTS.nonHyperscalersOracleAdapter, // Oracle adapter for non-HyperScalers
+    oracleAddress: SEPOLIA_CONTRACTS.nonHyperscalersOracleAdapter, // Oracle adapter for Neocloud
     marketId: MARKET_IDS["H100-non-HyperScalers-PERP"],
     status: "Active",
     isDefault: false,
     description:
-      "Trade H100 GPU hourly rental rates from non-HyperScalers (Lambda, CoreWeave, etc.). Index price: $2.95/hour.",
+      "Trade H100 GPU hourly rental rates from Neocloud providers (Lambda, CoreWeave, etc.). Index price: $2.95/hour.",
   },
   {
     name: "B200-PERP",
@@ -85,19 +71,7 @@ const DEPLOYED_MARKETS = [
     description:
       "Alias for H100-PERP market.",
   },
-  {
-    name: "ETH-PERP",
-    displayName: "Test Market [DEPRECATED]",
-    fullName: "Test Market (Deprecated)",
-    type: "Perpetual",
-    baseAsset: "ETH",
-    quoteAsset: "USDC",
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyOld, // Old vAMM
-    marketId: MARKET_IDS["ETH-PERP"],
-    status: "Deprecated",
-    isDefault: false,
-    description: "Deprecated test market",
-  },
+
 ];
 
 /**
@@ -170,27 +144,14 @@ export const useMarketsData = () => {
         });
       }
 
-      // Add H100-HyperScalers-PERP market
-      if (markPriceHyperscalers && !errorHyperscalers) {
-        markets.push({
-          name: "H100-HyperScalers-PERP",
-          displayName: "H100 HyperScalers",
-          fullName: "H100 HyperScalers GPU Hourly Rate",
-          type: "Perpetual",
-          markPrice: parseFloat(markPriceHyperscalers),
-          change24h: 0,
-          vammAddress: SEPOLIA_CONTRACTS.vammProxyHyperscalers,
-          marketId: MARKET_IDS["H100-HyperScalers-PERP"],
-          status: "Active",
-        });
-      }
 
-      // Add H100-non-HyperScalers-PERP market
+
+      // Add Neocloud (H100-non-HyperScalers-PERP) market
       if (markPriceNonHyperscalers && !errorNonHyperscalers) {
         markets.push({
           name: "H100-non-HyperScalers-PERP",
-          displayName: "H100 non-HyperScalers",
-          fullName: "H100 non-HyperScalers GPU Hourly Rate",
+          displayName: "Neocloud",
+          fullName: "Neocloud H100 GPU Hourly Rate",
           type: "Perpetual",
           markPrice: parseFloat(markPriceNonHyperscalers),
           change24h: 0,
@@ -215,20 +176,7 @@ export const useMarketsData = () => {
         });
       }
 
-      // Add deprecated market
-      if (markPriceOld && !errorOld) {
-        markets.push({
-          name: "ETH-PERP",
-          displayName: "Test Market [OLD]",
-          fullName: "Test Market (Deprecated)",
-          type: "Perpetual",
-          markPrice: parseFloat(markPriceOld),
-          change24h: 0,
-          vammAddress: SEPOLIA_CONTRACTS.vammProxyOld,
-          marketId: MARKET_IDS["ETH-PERP"],
-          status: "Deprecated",
-        });
-      }
+
 
       if (markets.length > 0) {
         setData({ markets, isLoading: false, error: null });
