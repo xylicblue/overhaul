@@ -267,11 +267,11 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
             <h2 className="text-sm font-medium text-slate-400">{config.displayName} Index Price</h2>
           </div>
           <div className="flex items-baseline gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight">
+            <h1 className="text-2xl font-bold text-white tracking-tight font-mono">
               {loading ? "..." : typeof currentPrice === "number" ? `$${currentPrice.toFixed(2)}` : "N/A"}
             </h1>
             {hasEnoughData && priceChange !== null && (
-              <div className={`flex items-center text-xs font-medium ${isPriceUp ? "text-emerald-400" : "text-red-400"}`}>
+              <div className={`flex items-center text-xs font-medium font-mono ${isPriceUp ? "text-emerald-400" : "text-red-400"}`}>
                 <span>{isPriceUp ? "+" : ""}{priceChange.toFixed(2)}</span>
                 <span className="ml-1">({isPriceUp ? "+" : ""}{priceChangePercent.toFixed(2)}%)</span>
               </div>

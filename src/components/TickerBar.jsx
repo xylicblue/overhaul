@@ -236,7 +236,7 @@ const TickerBar = () => {
 
         <div className="flex flex-col shrink-0">
           <span
-            className={`text-xs font-medium flex items-center gap-1 whitespace-nowrap ${
+            className={`text-xs font-medium font-mono flex items-center gap-1 whitespace-nowrap ${
               changeIsPositive ? "text-emerald-400" : "text-red-400"
             }`}
           >

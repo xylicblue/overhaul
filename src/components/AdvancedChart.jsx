@@ -877,7 +877,7 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
               </span>
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="text-xl font-bold text-white tracking-tight">
+              <span className="text-xl font-bold text-white tracking-tight font-mono">
                 {loading
                   ? "..."
                   : currentPrice !== null
@@ -886,7 +886,7 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
               </span>
               {hasEnoughData && priceChange !== null && (
                 <span
-                  className={`text-xs font-bold ${
+                  className={`text-xs font-bold font-mono ${
                     isPriceUp ? "text-emerald-400" : "text-red-400"
                   }`}
                 >

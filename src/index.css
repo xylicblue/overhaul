@@ -2,6 +2,13 @@
 
 @layer base {
 
+    /* Default body font */
+    body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
     h1,
     h2,
     h3,
@@ -9,6 +16,28 @@
     h5,
     h6 {
         @apply font-bold tracking-tight;
+    }
+
+    /* Mono font for all prices and numbers */
+    .font-mono {
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+        font-feature-settings: 'tnum' on, 'lnum' on;
+        /* Tabular figures for alignment */
+    }
+}
+
+@layer utilities {
+
+    /* Price-specific styling */
+    .price {
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        font-feature-settings: 'tnum' on, 'lnum' on;
+        letter-spacing: -0.02em;
+    }
+
+    /* Tight tracking for compact displays */
+    .tracking-tighter {
+        letter-spacing: -0.05em;
     }
 }
 
