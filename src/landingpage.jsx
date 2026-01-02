@@ -515,140 +515,151 @@ const LandingPage = () => {
         <div className="container mx-auto px-6">
           <div className="flex flex-col items-center">
             
-            {/* Minimalist Floating Nav */}
-            <div className="mb-8 md:mb-12 relative z-20 flex justify-center">
-              <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-                {[
-                  { name: "H100-PERP", label: "H100 GPU hours" },
-                  { name: "B200-PERP", label: "B200 GPU hours" },
-                  { name: "H100-non-HyperScalers-PERP", label: "Neocloud hours" },
-                ].map((market) => (
-                  <button
-                    key={market.name}
-                    onClick={() => setSelectedMarket(market.name)}
-                    className={`relative px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap ${
-                      selectedMarket === market.name ? "text-white" : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    {selectedMarket === market.name && (
-                      <motion.div
-                        layoutId="minimalNav"
-                        className="absolute inset-0 bg-white/10 rounded-full shadow-inner border border-white/5"
-                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                      />
-                    )}
-                    <span className="relative z-10">{market.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Seamless Chart Container */}
-            <div className="w-full max-w-5xl h-[400px] md:h-[500px] relative group perspective-1000 px-4 md:px-0">
-               {/* Ambient Glow */}
-               <div className="absolute -inset-4 md:-inset-10 bg-gradient-to-tr from-indigo-500/10 via-purple-500/5 to-blue-500/10 rounded-[30px] md:rounded-[50px] blur-2xl md:blur-3xl opacity-50 group-hover:opacity-75 transition-opacity duration-1000" />
-               
-               <div className="relative w-full h-full bg-black/40 backdrop-blur-sm border border-white/5 rounded-[30px] md:rounded-[40px] p-4 md:p-8 shadow-2xl transition-transform duration-700 hover:scale-[1.01]">
-                 <div className="absolute top-6 left-6 md:top-8 md:left-8 z-10">
-                    <motion.div
-                      key={selectedMarket}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex flex-col gap-1"
-                    >
-                      <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight">
-                        {
-                          selectedMarket === "H100-PERP" ? "NVIDIA H100" :
-                          selectedMarket === "B200-PERP" ? "NVIDIA Blackwell B200" : "Neocloud H100"
-                        }
-                      </h3>
-                      <p className="text-xs md:text-sm font-medium text-slate-400 flex items-center gap-2">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" />
-                        Real-Time Index Price
-                      </p>
-                    </motion.div>
-                 </div>
-                 
-                 {/* Chart with extra padding for the header */}
-                 <div className="pt-16 md:pt-16 h-full w-full overflow-hidden">
-                    <PriceIndexChart market={selectedMarket} />
-                 </div>
-               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      {/* Why Now - Bento Grid */}
-      <section id="why-it-matters" className="py-20 relative z-10">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-serif font-medium mb-6 text-white">
-              Why Now? The Inevitable Shift
-            </h2>
-            <p className="text-slate-400 max-w-2xl mx-auto text-lg">
-              Compute is the new oil. The market needs sophisticated financial
-              tools to manage the explosive growth and volatility of AI
-              infrastructure.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {whyNowCardsData.map((card, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
-                className="h-[360px]" 
-              >
-                <div className="h-full group relative rounded-[2rem] overflow-hidden border border-white/10 bg-white/[0.02] backdrop-blur-xl hover:bg-white/[0.05] transition-colors duration-500 hover:shadow-[0_0_40px_rgba(79,70,229,0.1)] hover:border-white/20">
-                  {/* Subtle Gradient Glow */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-transparent to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-in-out"></div>
-                  
-                  {/* Info Icon - Visual Cue for Interaction */}
-                  <div className="absolute top-4 right-4 z-20 group/info">
-                      <div className="w-8 h-8 rounded-full bg-white/5 backdrop-blur-md flex items-center justify-center border border-white/10 cursor-help hover:bg-white/10 transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-indigo-300/70">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-                        </svg>
+                  {/* Minimalist Floating Nav - Horizontal Scroll on Mobile */}
+                  <div className="mb-8 md:mb-12 relative z-20 flex justify-center w-full">
+                    <div className="w-full overflow-x-auto pb-4 md:pb-0 px-4 flex justify-start md:justify-center scrollbar-hide">
+                      <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] mx-auto whitespace-nowrap min-w-max">
+                        {[
+                          { name: "H100-PERP", label: "H100 GPU hours" },
+                          { name: "B200-PERP", label: "B200 GPU hours" },
+                          { name: "H100-non-HyperScalers-PERP", label: "Neocloud hours" },
+                        ].map((market) => (
+                          <button
+                            key={market.name}
+                            onClick={() => setSelectedMarket(market.name)}
+                            className={`relative px-4 md:px-5 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-300 ${
+                              selectedMarket === market.name ? "text-white" : "text-slate-400 hover:text-white"
+                            }`}
+                          >
+                            {selectedMarket === market.name && (
+                              <motion.div
+                                layoutId="minimalNav"
+                                className="absolute inset-0 bg-white/10 rounded-full shadow-inner border border-white/5"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                              />
+                            )}
+                            <span className="relative z-10">{market.label}</span>
+                          </button>
+                        ))}
                       </div>
-                      
-                      {/* Tooltip */}
-                      <div className="absolute top-10 right-0 w-max max-w-[150px] bg-black/90 backdrop-blur-xl px-3 py-2 rounded-lg border border-white/10 opacity-0 group-hover/info:opacity-100 transition-opacity pointer-events-none transform translate-y-1 group-hover/info:translate-y-0 duration-200">
-                        <p className="text-[10px] text-center text-indigo-100 font-medium tracking-wide">
-                          Hover to Reveal
-                        </p>
-                      </div>
-                  </div>
-                  
-                  {/* Header: Icon + Title - Centered by default, moves up on hover */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-full px-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:top-12 group-hover:-translate-y-0">
-                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-indigo-300 mb-6 shadow-lg shadow-black/20 group-hover:mb-4 group-hover:w-12 group-hover:h-12 group-hover:rounded-xl group-hover:scale-90 transition-all duration-500">
-                      {React.cloneElement(card.icon, { className: "w-8 h-8 group-hover:w-6 group-hover:h-6 transition-all duration-500" })}
-                    </div>
-                    <h3 className="text-2xl font-serif font-medium text-white text-center transition-all duration-500">
-                      {card.title}
-                    </h3>
-                  </div>
-
-                  {/* Hidden Text Revealed on Hover - Centered */}
-                  <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center text-center opacity-0 translate-y-8 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-100 ease-out">
-                     <p className="text-slate-300 text-sm leading-relaxed mb-6 max-w-[90%]">
-                      {card.summary}
-                    </p>
-                     <div className="w-full pt-4 border-t border-white/10">
-                        <p className="text-indigo-200/60 text-xs italic font-medium tracking-wide">
-                          {card.details}
-                        </p>
                     </div>
                   </div>
 
+                  {/* Seamless Chart Container */}
+                  <div className="w-full max-w-5xl h-[400px] md:h-[500px] relative group perspective-1000 px-4 md:px-0">
+                     {/* Ambient Glow */}
+                     <div className="absolute -inset-4 md:-inset-10 bg-gradient-to-tr from-indigo-500/10 via-purple-500/5 to-blue-500/10 rounded-[30px] md:rounded-[50px] blur-2xl md:blur-3xl opacity-50 group-hover:opacity-75 transition-opacity duration-1000" />
+                     
+                     <div className="relative w-full h-full bg-black/40 backdrop-blur-sm border border-white/5 rounded-[30px] md:rounded-[40px] p-4 md:p-8 shadow-2xl transition-transform duration-700 hover:scale-[1.01]">
+                       <div className="absolute top-6 left-6 md:top-8 md:left-8 z-10">
+                          <motion.div
+                            key={selectedMarket}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex flex-col gap-1"
+                          >
+                            <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight">
+                              {
+                                selectedMarket === "H100-PERP" ? "NVIDIA H100" :
+                                selectedMarket === "B200-PERP" ? "NVIDIA Blackwell B200" : "Neocloud H100"
+                              }
+                            </h3>
+                            <p className="text-xs md:text-sm font-medium text-slate-400 flex items-center gap-2">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" />
+                              Real-Time Index Price
+                            </p>
+                          </motion.div>
+                       </div>
+                       
+                       {/* Chart with extra padding for the header */}
+                       <div className="pt-16 md:pt-16 h-full w-full overflow-hidden">
+                          <PriceIndexChart market={selectedMarket} />
+                       </div>
+                     </div>
+                  </div>
                 </div>
-              </motion.div>
-            ))}
+              </div>
+            </section>
+
+
+            {/* Why Now - Bento Grid */}
+            <section id="why-it-matters" className="py-20 relative z-10">
+              <div className="container mx-auto px-6">
+                <div className="text-center mb-20">
+                  <h2 className="text-4xl md:text-5xl font-serif font-medium mb-6 text-white">
+                    Why Now? The Inevitable Shift
+                  </h2>
+                  <p className="text-slate-400 max-w-2xl mx-auto text-lg">
+                    Compute is the new oil. The market needs sophisticated financial
+                    tools to manage the explosive growth and volatility of AI
+                    infrastructure.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  {whyNowCardsData.map((card, index) => {
+                     // Add simple state management inline for click handling
+                     const [isClicked, setIsClicked] = React.useState(false);
+                     
+                     return (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: index * 0.1, duration: 0.5 }}
+                        className="h-[360px]" 
+                      >
+                        <div 
+                          onClick={() => setIsClicked(!isClicked)}
+                          className={`h-full group relative rounded-[2rem] overflow-hidden border border-white/10 bg-white/[0.02] backdrop-blur-xl hover:bg-white/[0.05] transition-colors duration-500 hover:shadow-[0_0_40px_rgba(79,70,229,0.1)] hover:border-white/20 ${isClicked ? 'bg-white/[0.05] shadow-[0_0_40px_rgba(79,70,229,0.1)] border-white/20' : ''}`}
+                        >
+                          {/* Subtle Gradient Glow - Shown on Hover OR Click */}
+                          <div className={`absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-transparent to-purple-500/20 transition-opacity duration-700 ease-in-out ${isClicked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}></div>
+                          
+                          {/* Info Icon - Visual Cue for Interaction */}
+                          <div className="absolute top-4 right-4 z-20 group/info">
+                              <div className="w-8 h-8 rounded-full bg-white/5 backdrop-blur-md flex items-center justify-center border border-white/10 cursor-help hover:bg-white/10 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-indigo-300/70">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                                </svg>
+                              </div>
+                              
+                              {/* Tooltip */}
+                              <div className="absolute top-10 right-0 w-max max-w-[150px] bg-black/90 backdrop-blur-xl px-3 py-2 rounded-lg border border-white/10 opacity-0 group-hover/info:opacity-100 transition-opacity pointer-events-none transform translate-y-1 group-hover/info:translate-y-0 duration-200">
+                                <p className="text-[10px] text-center text-indigo-100 font-medium tracking-wide">
+                                  {/* Change text based on device via simple CSS logic or just generic text */}
+                                  Hover to Reveal
+                                </p>
+                              </div>
+                          </div>
+                          
+                          {/* Header: Icon + Title - Centered by default, moves up on Hover OR Click */}
+                          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-full px-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isClicked ? 'top-12 -translate-y-0' : 'group-hover:top-12 group-hover:-translate-y-0'}`}>
+                            <div className={`w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-indigo-300 mb-6 shadow-lg shadow-black/20 transition-all duration-500 ${isClicked ? 'mb-4 w-12 h-12 rounded-xl scale-90' : 'group-hover:mb-4 group-hover:w-12 group-hover:h-12 group-hover:rounded-xl group-hover:scale-90'}`}>
+                              {React.cloneElement(card.icon, { className: `w-8 h-8 transition-all duration-500 ${isClicked ? 'w-6 h-6' : 'group-hover:w-6 group-hover:h-6'}` })}
+                            </div>
+                            <h3 className="text-2xl font-serif font-medium text-white text-center transition-all duration-500">
+                              {card.title}
+                            </h3>
+                          </div>
+
+                          {/* Hidden Text Revealed on Hover OR Click - Centered */}
+                          <div className={`absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center text-center transition-all duration-500 delay-100 ease-out ${isClicked ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 group-hover:opacity-100 group-hover:translate-y-0'}`}>
+                             <p className="text-slate-300 text-sm leading-relaxed mb-6 max-w-[90%]">
+                              {card.summary}
+                            </p>
+                             <div className="w-full pt-4 border-t border-white/10">
+                                <p className="text-indigo-200/60 text-xs italic font-medium tracking-wide">
+                                  {card.details}
+                                </p>
+                            </div>
+                          </div>
+
+                        </div>
+                      </motion.div>
+                    );
+                  })}
           </div>
         </div>
       </section>
