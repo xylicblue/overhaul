@@ -35,6 +35,10 @@
         letter-spacing: -0.02em;
     }
 
+    .font-serif {
+        font-family: 'Playfair Display', serif;
+    }
+
     /* Tight tracking for compact displays */
     .tracking-tighter {
         letter-spacing: -0.05em;

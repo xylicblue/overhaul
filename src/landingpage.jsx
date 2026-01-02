@@ -18,9 +18,6 @@ import whatIsItVisual from "./assets/ai.png";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import ceoPortrait from "./assets/gabe.jpg";
 import ProfileDropdown from "./dropdown";
-import NetworkMesh from "./components/NetworkMesh";
-import SpotlightCard from "./components/SpotlightCard";
-
 import ParticleNetwork from "./components/ParticleNetwork";
 import AuroraBackground from "./components/AuroraBackground";
 
@@ -232,7 +229,6 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-[#050505] text-slate-200 font-sans selection:bg-indigo-500/30 relative overflow-hidden">
 
-
       {session && <Web3AuthHandler />}
 
       {/* Navbar */}
@@ -301,10 +297,10 @@ const LandingPage = () => {
                 </Routerlink>
                 <Routerlink
                   to="/signup"
-                  className="relative px-5 py-2.5 rounded-full bg-white text-black text-xs font-bold uppercase tracking-wide shadow-lg shadow-white/10 hover:shadow-white/20 hover:scale-105 transition-all duration-300 overflow-hidden group"
-                >
-                  <span className="relative z-10">Sign Up</span>
-                  <div className="absolute inset-0 bg-slate-200 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  className="group relative rounded-3xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-md hover:bg-white/10 transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.05)] hover:-translate-y-1"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <span className="relative z-10 px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white">Sign Up</span>
                 </Routerlink>
               </div>
             )}
@@ -399,7 +395,7 @@ const LandingPage = () => {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
-                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l-.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
                         <circle cx="12" cy="12" r="3"></circle>
                       </svg>
                       Settings
@@ -523,9 +519,9 @@ const LandingPage = () => {
             <div className="mb-8 md:mb-12 relative z-20 flex justify-center">
               <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
                 {[
-                  { name: "H100-PERP", label: "H100 GPU" },
-                  { name: "B200-PERP", label: "B200 GPU" },
-                  { name: "H100-non-HyperScalers-PERP", label: "Neocloud" },
+                  { name: "H100-PERP", label: "H100 GPU hours" },
+                  { name: "B200-PERP", label: "B200 GPU hours" },
+                  { name: "H100-non-HyperScalers-PERP", label: "Neocloud hours" },
                 ].map((market) => (
                   <button
                     key={market.name}
@@ -588,7 +584,7 @@ const LandingPage = () => {
       <section id="why-it-matters" className="py-20 relative z-10">
         <div className="container mx-auto px-6">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            <h2 className="text-4xl md:text-5xl font-serif font-medium mb-6 text-white">
               Why Now? The Inevitable Shift
             </h2>
             <p className="text-slate-400 max-w-2xl mx-auto text-lg">
@@ -606,112 +602,154 @@ const LandingPage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1, duration: 0.5 }}
-                className="h-full"
+                className="h-[360px]" 
               >
-                <SpotlightCard className="h-full flex flex-col">
-                  <div className="mb-auto">
-                    <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-indigo-400 mb-6">
-                      {card.icon}
-                    </div>
-                    <h3 className="text-xl font-bold mb-3 text-white">
-                      {card.title}
-                    </h3>
-                    <p className="text-slate-400 leading-relaxed text-sm">
-                      {card.summary}
-                    </p>
+                <div className="h-full group relative rounded-[2rem] overflow-hidden border border-white/10 bg-white/[0.02] backdrop-blur-xl hover:bg-white/[0.05] transition-colors duration-500 hover:shadow-[0_0_40px_rgba(79,70,229,0.1)] hover:border-white/20">
+                  {/* Subtle Gradient Glow */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-transparent to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-in-out"></div>
+                  
+                  {/* Info Icon - Visual Cue for Interaction */}
+                  <div className="absolute top-4 right-4 z-20 group/info">
+                      <div className="w-8 h-8 rounded-full bg-white/5 backdrop-blur-md flex items-center justify-center border border-white/10 cursor-help hover:bg-white/10 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-indigo-300/70">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                        </svg>
+                      </div>
+                      
+                      {/* Tooltip */}
+                      <div className="absolute top-10 right-0 w-max max-w-[150px] bg-black/90 backdrop-blur-xl px-3 py-2 rounded-lg border border-white/10 opacity-0 group-hover/info:opacity-100 transition-opacity pointer-events-none transform translate-y-1 group-hover/info:translate-y-0 duration-200">
+                        <p className="text-[10px] text-center text-indigo-100 font-medium tracking-wide">
+                          Hover to Reveal
+                        </p>
+                      </div>
                   </div>
                   
-                  <div className="mt-6 pt-6 border-t border-white/5">
-                    <p className="text-xs text-slate-500">
-                      {card.details}
-                    </p>
+                  {/* Header: Icon + Title - Centered by default, moves up on hover */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-full px-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:top-12 group-hover:-translate-y-0">
+                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-indigo-300 mb-6 shadow-lg shadow-black/20 group-hover:mb-4 group-hover:w-12 group-hover:h-12 group-hover:rounded-xl group-hover:scale-90 transition-all duration-500">
+                      {React.cloneElement(card.icon, { className: "w-8 h-8 group-hover:w-6 group-hover:h-6 transition-all duration-500" })}
+                    </div>
+                    <h3 className="text-2xl font-serif font-medium text-white text-center transition-all duration-500">
+                      {card.title}
+                    </h3>
                   </div>
-                </SpotlightCard>
+
+                  {/* Hidden Text Revealed on Hover - Centered */}
+                  <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center text-center opacity-0 translate-y-8 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-100 ease-out">
+                     <p className="text-slate-300 text-sm leading-relaxed mb-6 max-w-[90%]">
+                      {card.summary}
+                    </p>
+                     <div className="w-full pt-4 border-t border-white/10">
+                        <p className="text-indigo-200/60 text-xs italic font-medium tracking-wide">
+                          {card.details}
+                        </p>
+                    </div>
+                  </div>
+
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Contact Form */}
-      <section id="contact" className="py-20 relative z-10">
+      {/* Contact Form - Minimalist Redesign */}
+      <section id="contact" className="py-32 relative z-10">
         <div className="container mx-auto px-6 max-w-4xl">
+          
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-serif text-white tracking-tight mb-6">Contact</h2>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto font-light leading-relaxed">
+              We are conducting market discovery. If you are a potential
+              user, supplier, or infrastructure operator, we invite you to
+              share your interest.
+            </p>
+          </div>
+
           <div className="relative">
-
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 md:p-16 shadow-2xl relative z-10">
-              <div className="text-center mb-12">
-                <h2 className="text-4xl font-bold mb-4">Contact</h2>
-                <p className="text-slate-300 text-lg">
-                  We are conducting market discovery. If you are a potential
-                  user, supplier, or infrastructure operator, we invite you to
-                  share your interest.
-                </p>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="group">
-                    <label className="block text-xs font-bold text-indigo-400 mb-2 uppercase tracking-wider group-focus-within:text-indigo-300 transition-colors">
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      required
-                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300"
-                      value={formData.name}
-                      onChange={handleFormChange}
-                    />
-                  </div>
-                  <div className="group">
-                    <label className="block text-xs font-bold text-indigo-400 mb-2 uppercase tracking-wider group-focus-within:text-indigo-300 transition-colors">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      required
-                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300"
-                      value={formData.email}
-                      onChange={handleFormChange}
-                    />
-                  </div>
-                </div>
-                <div className="group">
-                  <label className="block text-xs font-bold text-indigo-400 mb-2 uppercase tracking-wider group-focus-within:text-indigo-300 transition-colors">
-                    Industry / Role (Optional)
-                  </label>
+            {/* Removed heavy container, keeping it open and integrated */}
+            <form onSubmit={handleSubmit} className="space-y-10">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="group relative">
                   <input
                     type="text"
-                    name="role"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300"
-                    value={formData.role}
+                    name="name"
+                    required
+                    placeholder=" "
+                    className="peer w-full bg-transparent border-b border-white/20 py-4 text-white placeholder-transparent focus:outline-none focus:border-indigo-500 transition-all duration-300"
+                    value={formData.name}
                     onChange={handleFormChange}
                   />
-                </div>
-                <div className="group">
-                  <label className="block text-xs font-bold text-indigo-400 mb-2 uppercase tracking-wider group-focus-within:text-indigo-300 transition-colors">
-                    What interests you? (Optional)
+                  <label className="absolute left-0 top-4 text-slate-500 text-sm transition-all duration-300 peer-placeholder-shown:text-base peer-placeholder-shown:top-4 peer-focus:-top-6 peer-focus:text-xs peer-focus:text-indigo-400 peer-valid:-top-6 peer-valid:text-xs peer-valid:text-indigo-400 cursor-text pointer-events-none uppercase tracking-wider font-medium">
+                    Name
                   </label>
-                  <textarea
-                    name="interest"
-                    rows="4"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300 resize-none"
-                    value={formData.interest}
+                </div>
+                
+                <div className="group relative">
+                   <input
+                    type="email"
+                    name="email"
+                    required
+                    placeholder=" "
+                    className="peer w-full bg-transparent border-b border-white/20 py-4 text-white placeholder-transparent focus:outline-none focus:border-indigo-500 transition-all duration-300"
+                    value={formData.email}
                     onChange={handleFormChange}
-                  ></textarea>
+                  />
+                  <label className="absolute left-0 top-4 text-slate-500 text-sm transition-all duration-300 peer-placeholder-shown:text-base peer-placeholder-shown:top-4 peer-focus:-top-6 peer-focus:text-xs peer-focus:text-indigo-400 peer-valid:-top-6 peer-valid:text-xs peer-valid:text-indigo-400 cursor-text pointer-events-none uppercase tracking-wider font-medium">
+                    Email
+                  </label>
                 </div>
-                <div className="text-center pt-4">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full md:w-auto min-w-[200px] px-8 py-4 bg-white hover:bg-slate-200 text-black font-bold rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                 <div className="group relative">
+                    <input
+                      type="text"
+                      name="role"
+                      placeholder=" "
+                      className="peer w-full bg-transparent border-b border-white/20 py-4 text-white placeholder-transparent focus:outline-none focus:border-indigo-500 transition-all duration-300"
+                      value={formData.role}
+                      onChange={handleFormChange}
+                    />
+                    <label className="absolute left-0 top-4 text-slate-500 text-sm transition-all duration-300 peer-placeholder-shown:text-base peer-placeholder-shown:top-4 peer-focus:-top-6 peer-focus:text-xs peer-focus:text-indigo-400 peer-valid:-top-6 peer-valid:text-xs peer-valid:text-indigo-400 cursor-text pointer-events-none uppercase tracking-wider font-medium">
+                      Role / Industry
+                    </label>
+                 </div>
+                 
+                 <div className="group relative">
+                    <input
+                      type="text"
+                      name="interest"
+                      placeholder=" "
+                      className="peer w-full bg-transparent border-b border-white/20 py-4 text-white placeholder-transparent focus:outline-none focus:border-indigo-500 transition-all duration-300"
+                      value={formData.interest}
+                      onChange={handleFormChange}
+                    />
+                    <label className="absolute left-0 top-4 text-slate-500 text-sm transition-all duration-300 peer-placeholder-shown:text-base peer-placeholder-shown:top-4 peer-focus:-top-6 peer-focus:text-xs peer-focus:text-indigo-400 peer-valid:-top-6 peer-valid:text-xs peer-valid:text-indigo-400 cursor-text pointer-events-none uppercase tracking-wider font-medium">
+                      Interest (Optional)
+                    </label>
+                 </div>
+              </div>
+
+              <div className="text-center pt-8">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="group relative inline-flex items-center gap-3 px-8 py-4 bg-white text-black font-medium tracking-wide text-sm uppercase rounded-full overflow-hidden hover:bg-neutral-200 transition-colors disabled:opacity-50"
+                >
+                  <span className="relative z-10">{isSubmitting ? "Sending..." : "Request Access"}</span>
+                  <svg 
+                    className="w-4 h-4 relative z-10 transform group-hover:translate-x-1 transition-transform duration-300" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
                   >
-                    {isSubmitting ? "Submitting..." : "Stay Informed"}
-                  </button>
-                </div>
-              </form>
-            </div>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
+                  </svg>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </section>
@@ -719,87 +757,93 @@ const LandingPage = () => {
       {/* About Us */}
       <section id="about" className="py-20 relative z-10">
         <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <div className="relative group">
-              <div className="absolute inset-0 bg-indigo-600 blur-[50px] opacity-20 transition-opacity duration-500 rounded-full"></div>
-              <img
-                src={ceoPortrait}
-                alt="Gabe Jaffe"
-                loading="lazy"
-                className="relative z-10 w-full max-w-md mx-auto rounded-2xl border border-white/10 shadow-2xl transition-all duration-500"
-              />
-            </div>
-            <div>
-              <h2 className="text-4xl font-bold mb-8">About Us</h2>
-              <h3 className="text-2xl text-indigo-400 font-bold mb-4">
-                Gabe Jaffe, Founder & CEO
-              </h3>
-              <p className="text-slate-300 leading-relaxed mb-8 text-lg">
-                Gabe Jaffe is a Sophomore student at the McDonough School of
-                Business at Georgetown University. At the age of 15, he founded
-                his first company, Teen Hampton and Teen NYC, a digital platform
-                for teenage tutors, sports instructors, and babysitters, that
-                has housed more than 100 workers and served more than 1,000
-                clients. As Gabe scaled the business, he appeared on{" "}
-                <a
-                  href="https://www.youtube.com/watch?v=MJko_jIdZxk"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
-                >
-                  Good Day New York
-                </a>
-                ,{" "}
-                <a
-                  href="https://www.foxnews.com/video/6307767277112"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
-                >
-                  Fox National News
-                </a>
-                ,{" "}
-                <a
-                  href="https://www.youtube.com/watch?v=stkR3mEhIAQ"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
-                >
-                  CBS Inside Edition
-                </a>
-                , and more to discuss his accomplishments. Now, he is working to
-                build the foundations of a futures market for compute as a
-                commodity to accelerate AI learning and market growth.
-              </p>
-              <blockquote className="border-l-4 border-indigo-500 pl-6 italic text-slate-400 mb-10 text-xl font-light">
-                "We stand at a pivotal moment where computational power is the
-                most critical resource on the planet. Our mission is to build
-                the tools that will power the next century of innovation with
-                stability and foresight."
-              </blockquote>
-              <div className="flex items-center gap-3 text-sm text-slate-400 border-t border-white/10 pt-6">
-                <span className="font-semibold text-white">Contact:</span>
-                <a
-                  href="mailto:gabe.jaffe@bytestrike.com"
-                  className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-2 group"
-                >
-                  gabejaffe@byte-strike.com
-                  <svg
-                    className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M14 5l7 7m0 0l-7 7m7-7H3"
+          
+          {/* Sophisticated Ambient Glows - Moved to Section Level */}
+          <div className="absolute top-1/2 right-0 w-[800px] h-[800px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none -translate-y-1/2 translate-x-1/2 animate-pulse-slow"></div>
+          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[100px] pointer-events-none -translate-x-1/2 translate-y-1/2"></div>
+
+          <div className="grid md:grid-cols-12 gap-10 lg:gap-16 items-center relative z-10">
+              
+              {/* Image Section - Matte Frame Effect */}
+              <div className="md:col-span-5 relative group perspective-1000 flex flex-col justify-center">
+                <div className="relative p-2 rounded-[2rem] bg-gradient-to-b from-white/10 to-white/5 border border-white/5 shadow-2xl max-w-[400px] mx-auto w-full">
+                   <div className="relative rounded-[1.5rem] overflow-hidden aspect-square max-h-[400px]">
+                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 opacity-60"></div>
+                     <img
+                      src={ceoPortrait}
+                      alt="Gabe Jaffe"
+                      loading="lazy"
+                      className="w-full h-full object-cover grayscale-[10%] group-hover:grayscale-0 transition-all duration-1000 ease-out scale-100 group-hover:scale-105"
                     />
-                  </svg>
-                </a>
+                    
+                    {/* Floating Name Badge - Glass Effect */}
+                    <div className="absolute bottom-5 left-5 z-20 overflow-hidden rounded-xl">
+                       <div className="bg-white/10 backdrop-blur-md border border-white/10 px-5 py-3">
+                         <p className="text-white text-lg font-serif tracking-wide">
+                           Gabe Jaffe
+                         </p>
+                         <p className="text-[10px] font-sans text-indigo-200 uppercase tracking-[0.2em] mt-1 border-t border-white/20 pt-1 inline-block">
+                           Founder & CEO
+                         </p>
+                       </div>
+                    </div>
+                   </div>
+                </div>
               </div>
-            </div>
+
+              {/* Bio Section */}
+              <div className="md:col-span-7 space-y-8">
+                <div>
+                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-4">
+                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                     <span className="text-indigo-200 text-[10px] font-bold uppercase tracking-[0.2em]">Vision & Leadership</span>
+                   </div>
+                  <h2 className="text-4xl md:text-6xl font-serif text-white tracking-tight leading-[1.1]">
+                    About Us
+                  </h2>
+                </div>
+
+                <div className="space-y-4 text-base md:text-lg text-slate-300 font-light leading-relaxed">
+                  <p>
+                    <span className="text-white">Gabe Jaffe</span> is a Sophomore student at the <span className="text-white border-b border-indigo-500/30 pb-0.5 transition-colors hover:border-indigo-400">McDonough School of Business</span> at Georgetown University. At the age of 15, he founded his first company, <span className="text-white">Teen Hampton</span> and <span className="text-white">Teen NYC</span>, a digital platform for teenage tutors, sports instructors, and babysitters, that has housed more than 100 workers and served more than 1,000 clients.
+                  </p>
+                  
+                  <p>
+                    As Gabe scaled the business, he appeared on 
+                    <a href="https://www.youtube.com/watch?v=MJko_jIdZxk" target="_blank" rel="noopener noreferrer" className="text-white mx-1.5 hover:text-indigo-300 transition-colors border-b border-indigo-500/30 hover:border-indigo-400">Good Day New York</a>, 
+                    <a href="https://www.foxnews.com/video/6307767277112" target="_blank" rel="noopener noreferrer" className="text-white mx-1.5 hover:text-indigo-300 transition-colors border-b border-indigo-500/30 hover:border-indigo-400">Fox National News</a>, 
+                    <a href="https://www.youtube.com/watch?v=stkR3mEhIAQ" target="_blank" rel="noopener noreferrer" className="text-white mx-1.5 hover:text-indigo-300 transition-colors border-b border-indigo-500/30 hover:border-indigo-400">CBS Inside Edition</a>, and more to discuss his accomplishments.
+                  </p>
+
+                  <p>
+                   Now, he is working to build the foundations of a futures market for compute as a commodity to accelerate AI learning and market growth.
+                  </p>
+                </div>
+
+                {/* Refined Blockquote */}
+                <div className="relative py-2">
+                   <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-600 rounded-full opacity-50"></div>
+                   <blockquote className="pl-8 text-lg md:text-xl font-serif italic text-white/90 leading-relaxed relative">
+                      <svg className="absolute -top-4 -left-2 w-6 h-6 text-indigo-500/30 transform -scale-x-100" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21L14.017 18C14.017 16.896 14.321 16.064 14.929 15.504C15.539 14.944 16.367 14.494 17.413 14.154L16.273 11.234C15.221 11.63 14.321 12.036 13.573 12.452C12.827 12.868 12.063 13.528 11.281 14.432V9.07201C11.839 8.24001 12.871 7.42801 14.377 6.63601L13.141 4.54801C10.741 5.92801 8.92701 7.62001 7.70101 9.62401C6.47501 11.628 5.86301 13.754 5.86301 16.002C5.86301 18.25 6.42501 19.942 7.54901 21.078C8.67301 22.214 10.169 22.782 12.037 22.782C12.883 22.782 13.543 22.188 14.017 21ZM26.965 21L26.965 18C26.965 16.896 27.269 16.064 27.877 15.504C28.487 14.944 29.317 14.494 30.363 14.154L29.223 11.234C28.169 11.63 27.269 12.036 26.523 12.452C25.777 12.868 25.011 13.528 24.229 14.432V9.07201C24.787 8.24001 25.821 7.42801 27.327 6.63601L26.091 4.54801C23.691 5.92801 21.875 7.62001 20.649 9.62401C19.423 11.628 18.811 13.754 18.811 16.002C18.811 18.25 19.373 19.942 20.499 21.078C21.623 22.214 23.119 22.782 24.987 22.782C25.833 22.782 26.493 22.188 26.965 21Z"/></svg>
+                      "We stand at a pivotal moment where computational power is the most critical resource on the planet. Our mission is to build the tools that will power the next century of innovation."
+                   </blockquote>
+                </div>
+
+                <div className="flex items-center gap-6 pt-6 border-t border-white/5">
+                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                      </svg>
+                   </div>
+                   <div>
+                      <p className="text-[10px] text-indigo-300 uppercase tracking-widest font-bold mb-1">Get in Touch</p>
+                      <a href="mailto:gabe.jaffe@bytestrike.com" className="text-lg text-white hover:text-indigo-300 transition-colors font-serif">
+                        gabejaffe@byte-strike.com
+                      </a>
+                   </div>
+                </div>
+
+              </div>
           </div>
         </div>
       </section>
