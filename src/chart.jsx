@@ -40,6 +40,12 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       fallbackTable: null,
       priceField: "index_price", // B200 uses index_price field
     },
+    "H200-PERP": {
+      displayName: "H200 GPU",
+      tableName: "h200_index_prices",
+      fallbackTable: null,
+      priceField: "index_price", // H200 uses index_price field (from push_to_supabase.py)
+    },
   };
   
   const config = marketConfig[market] || {
@@ -206,9 +212,18 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     },
     theme: { mode: "dark" },
     stroke: {
-      curve: "smooth",
+      curve: "straight",
       width: 2,
       colors: ["#3b82f6"], // blue-500
+    },
+    markers: {
+      size: 3,
+      colors: ["#3b82f6"],
+      strokeColors: "#0f172a",
+      strokeWidth: 1,
+      hover: {
+        size: 5,
+      },
     },
     fill: {
       type: "gradient",

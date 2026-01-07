@@ -321,7 +321,33 @@ function PositionCard({
         }
       };
 
+      // Save vAMM price to vamm_price_history for chart display (all markets including H200)
+      const saveVAMMPrice = async () => {
+        const marketName = position.marketName || position.marketKey || "H100-PERP";
+        const vammPriceData = {
+          market: marketName,
+          price: currentPrice || entryPrice,
+          twap: currentPrice || entryPrice, // Use current price as TWAP approximation
+          timestamp: new Date().toISOString(),
+        };
+
+        try {
+          const { error: vammError } = await supabase
+            .from("vamm_price_history")
+            .insert([vammPriceData]);
+
+          if (vammError) {
+            console.warn("Error saving vAMM price:", vammError.message);
+          } else {
+            console.log("vAMM price saved on position close:", vammPriceData);
+          }
+        } catch (err) {
+          console.warn("Error saving vAMM price:", err);
+        }
+      };
+
       saveCloseTrade();
+      saveVAMMPrice();
     }
   }, [
     isSuccess,

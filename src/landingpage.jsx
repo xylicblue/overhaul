@@ -244,7 +244,7 @@ const LandingPage = () => {
             <img
               src={logoImage}
               alt="Byte Strike"
-              className="h-9 w-auto transition-transform group-hover:scale-105 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+              className="h-7 w-auto transition-transform group-hover:scale-105 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]"
             />
           </Routerlink>
 
@@ -521,8 +521,9 @@ const LandingPage = () => {
                       <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] mx-auto whitespace-nowrap min-w-max">
                         {[
                           { name: "H100-PERP", label: "H100 GPU hours" },
+                          { name: "H200-PERP", label: "H200 GPU hours" },
                           { name: "B200-PERP", label: "B200 GPU hours" },
-                          { name: "H100-non-HyperScalers-PERP", label: "Neocloud hours" },
+                          { name: "H100-non-HyperScalers-PERP", label: "Neocloud H100 hours" },
                         ].map((market) => (
                           <button
                             key={market.name}
@@ -561,6 +562,7 @@ const LandingPage = () => {
                             <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight">
                               {
                                 selectedMarket === "H100-PERP" ? "NVIDIA H100" :
+                                selectedMarket === "H200-PERP" ? "NVIDIA H200" :
                                 selectedMarket === "B200-PERP" ? "NVIDIA Blackwell B200" : "Neocloud H100"
                               }
                             </h3>
