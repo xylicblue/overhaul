@@ -4,7 +4,7 @@ import { TradingDashboard } from "./tradingdash";
 import { MarketProvider } from "./marketcontext";
 import NetworkGuard from "./components/NetworkGuard";
 import WelcomeModal from "./components/WelcomeModal";
-import { X, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 const TradingPage = () => {
   const [showWelcome, setShowWelcome] = useState(false);

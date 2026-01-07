@@ -44,3 +44,5 @@ scripts/stop_cron_job.sql
 scripts/test_edge_function.js
 scripts/verify_prices.js
 supabase/
+b200.md
+h100.md

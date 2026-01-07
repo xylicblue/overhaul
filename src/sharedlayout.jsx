@@ -60,6 +60,32 @@ const AppHeader = ({ session, profile, handleLogout }) => {
           >
             Guide
           </NavLink>
+          
+          {/* Docs Dropdown */}
+          <div className="relative group">
+            <button className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+              Docs
+              <svg className="w-3 h-3 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-700 rounded-lg shadow-xl overflow-hidden min-w-[160px]">
+                <Link
+                  to="/methodology/h100"
+                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border-b border-zinc-700/50"
+                >
+                  H100 Methodology
+                </Link>
+                <Link
+                  to="/methodology/b200"
+                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  B200 Methodology
+                </Link>
+              </div>
+            </div>
+          </div>
         </nav>
       </div>
 
@@ -143,6 +169,21 @@ const AppHeader = ({ session, profile, handleLogout }) => {
           >
             Guide
           </NavLink>
+          <div className="text-zinc-500 text-xs uppercase tracking-wider mt-2">Documentation</div>
+          <Link
+            to="/methodology/h100"
+            className="text-sm text-zinc-400 hover:text-white"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            H100 Methodology
+          </Link>
+          <Link
+            to="/methodology/b200"
+            className="text-sm text-zinc-400 hover:text-white"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            B200 Methodology
+          </Link>
           <div className="h-px bg-zinc-800 my-2"></div>
           {session && profile ? (
             <div className="flex flex-col gap-4">

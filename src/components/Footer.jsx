@@ -74,6 +74,28 @@ const Footer = () => {
             </div>
 
             <div>
+              <h4 className="font-semibold text-white mb-4">Documentation</h4>
+              <ul className="space-y-3 text-sm text-zinc-400">
+                <li>
+                  <Routerlink
+                    to="/methodology/h100"
+                    className="hover:text-blue-400 transition-colors"
+                  >
+                    H100 Methodology
+                  </Routerlink>
+                </li>
+                <li>
+                  <Routerlink
+                    to="/methodology/b200"
+                    className="hover:text-blue-400 transition-colors"
+                  >
+                    B200 Methodology
+                  </Routerlink>
+                </li>
+              </ul>
+            </div>
+
+            <div>
               <h4 className="font-semibold text-white mb-4">Connect</h4>
               <div className="flex gap-4">
                 <a
