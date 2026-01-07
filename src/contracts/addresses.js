@@ -15,6 +15,7 @@ export const SEPOLIA_CONTRACTS = {
   vammProxyHyperscalers: '0xFE1df531084Dcf0Fe379854823bC5d402932Af99', // H100-HyperScalers-PERP vAMM ($4.20/hour)
   vammProxyNonHyperscalers: '0x19574B8C91717389231DA5b0579564d6F81a79B0', // H100-non-HyperScalers-PERP vAMM ($2.95/hour)
   vammProxyB200: '0xaE8F8a5BE8eFdaa18e7135F7e467a8965d7209e1', // B200-PERP vAMM ($7.15/hour)
+  vammProxyH200: '0x58dE5e38F6F927a59166B65a4D8beb425180b5E1', // H200-PERP vAMM ($3.53/hour)
   vammImpl: '0xd64175cE957F089bA7fb3EBdA5B17f268DE01190', // vAMM implementation (latest)
   vammProxyOld: '0xF8908F7B4a1AaaD69bF0667FA83f85D3d0052739', // Old vAMM (deprecated)
 
@@ -28,6 +29,7 @@ export const SEPOLIA_CONTRACTS = {
   hyperscalersOracleAdapter: '0x41Fa5925b709936D533e5E1a47dd8d4C64E7C77B', // Adapter for H100-HyperScalers-PERP
   nonHyperscalersOracleAdapter: '0xE6A1d2B4DC450C50ce00fc12FBbAf362c8B0EdFD', // Adapter for H100-non-HyperScalers-PERP
   b200OracleAdapter: '0xb2Ba756BaC4a1365cA81145E7CFF3b456d24D584', // Adapter for B200-PERP
+  h200OracleAdapter: '0x9e399C811A2a4761Ec43e3D38367c9Bb9eEDdEc7', // Adapter for H200-PERP
 
   // Oracles - Legacy (will be deprecated after migration)
   indexOracle: '0x3cA2Da03e4b6dB8fe5a24c22Cf5EB2A34B59cbad', // Legacy: H100 GPU rental price oracle
@@ -50,6 +52,7 @@ export const MARKET_IDS = {
   'H100-HyperScalers-PERP': '0xf4aa47cc83b0d01511ca8025a996421dda6fbab1764466da4b0de6408d3db2e2', // H100 HyperScalers ($4.20/hour)
   'H100-non-HyperScalers-PERP': '0x9d2d658888da74a10ac9263fc14dcac4a834dd53e8edf664b4cc3b2b4a23f214', // H100 non-HyperScalers ($2.95/hour)
   'B200-PERP': '0xb4be6bdaf765a9dc45759a99c834b32d12825dce59bc28052946c1f1267a999b', // B200 GPU perpetual ($7.15/hour)
+  'H200-PERP': '0x3b9736717eab3427f776c56345a626690c13be77aa87cb6858bf92d50ad0c998', // H200 GPU perpetual ($3.53/hour)
   'ETH-PERP-V2': '0x385badc5603eb47056a6bdcd6ac81a50df49d7a4e8a7451405e580bd12087a28', // Deprecated
   'ETH-PERP': '0x352291f10e3a0d4a9f7beb3b623eac0b06f735c95170f956bc68b2f8b504a35d', // Deprecated test market
 };
@@ -60,6 +63,7 @@ export const ASSET_IDS = {
   'H100_HYPERSCALERS_HOURLY': '0x4907d2c1e61b87a99a260f8529c3c4f9e2374edae1f5ab1464a8e79d0f2c26de', // keccak256("H100_HYPERSCALERS_HOURLY")
   'H100_NON_HYPERSCALERS_HOURLY': '0xd6e43f59d2c94773a52e2c20f09762901247d1aaf2090d0b99e85c55c9833626', // keccak256("H100_NON_HYPERSCALERS_HOURLY")
   'B200_HOURLY': '0xc087ecb79f2df80d1dbf828d80ca18ff0b385e5806b3ec42da93e23eb0136348', // keccak256("B200_HOURLY")
+  'H200_HOURLY': '0x4d8595569ab5d2563e4c149c5de961d0e0732cd0560020b3474d281189c2571e', // keccak256("H200_HOURLY")
 };
 
 // Default market to use in the frontend
@@ -161,6 +165,23 @@ export const MARKETS = {
     penaltyCap: 1000,
     active: true,
     description: 'Perpetual futures on B200 GPU hourly rental rates with 10x max leverage',
+  },
+  'H200-PERP': {
+    id: MARKET_IDS['H200-PERP'],
+    name: 'H200-PERP',
+    displayName: 'H200 GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyH200,
+    oracle: SEPOLIA_CONTRACTS.h200OracleAdapter,
+    indexPrice: 3.53,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on H200 GPU hourly rental rates with 10x max leverage',
   },
 };
 

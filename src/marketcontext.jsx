@@ -32,6 +32,15 @@ const AVAILABLE_MARKETS = {
     marketId: MARKET_IDS['B200-PERP'],
     description: "B200 GPU hourly rental rate perpetual futures",
   },
+  "H200-PERP": {
+    name: "H200-PERP",
+    displayName: "H200 GPU ($3.53/hr)",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    marketId: MARKET_IDS['H200-PERP'],
+    description: "H200 GPU hourly rental rate perpetual futures",
+  },
   "ETH-PERP-V2": {
     name: "ETH-PERP-V2",
     displayName: "H100 GPU ($3.79/hr)",

@@ -58,6 +58,21 @@ const DEPLOYED_MARKETS = [
       "Trade B200 GPU hourly rental rates. Index price: $7.15/hour.",
   },
   {
+    name: "H200-PERP",
+    displayName: "H200 GPU",
+    fullName: "H200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyH200, // vAMM with $3.53/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.h200OracleAdapter, // Oracle adapter for H200
+    marketId: MARKET_IDS["H200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade H200 GPU hourly rental rates. Index price: $3.53/hour.",
+  },
+  {
     name: "ETH-PERP-V2",
     displayName: "H100 GPU (Alias)",
     fullName: "H100 GPU Hourly Rate Perpetual",
@@ -109,6 +124,12 @@ export const useMarketsData = () => {
     error: errorB200,
   } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyB200, 5000);
 
+  const {
+    price: markPriceH200,
+    isLoading: priceLoadingH200,
+    error: errorH200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyH200, 5000);
+
   // Fetch mark price from old vAMM (deprecated)
   const {
     price: markPriceOld,
@@ -123,10 +144,11 @@ export const useMarketsData = () => {
       hyperscalers: { markPriceHyperscalers, priceLoadingHyperscalers, errorHyperscalers },
       nonHyperscalers: { markPriceNonHyperscalers, priceLoadingNonHyperscalers, errorNonHyperscalers },
       b200: { markPriceB200, priceLoadingB200, errorB200 },
+      h200: { markPriceH200, priceLoadingH200, errorH200 },
       old: { markPriceOld, priceLoadingOld, errorOld },
     });
 
-    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingOld) {
+    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingH200 && !priceLoadingOld) {
       const markets = [];
 
       // Add H100-PERP market (all providers)
@@ -176,12 +198,25 @@ export const useMarketsData = () => {
         });
       }
 
-
+      // Add H200-PERP market
+      if (markPriceH200 && !errorH200) {
+        markets.push({
+          name: "H200-PERP",
+          displayName: "H200 GPU",
+          fullName: "H200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceH200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyH200,
+          marketId: MARKET_IDS["H200-PERP"],
+          status: "Active",
+        });
+      }
 
       if (markets.length > 0) {
         setData({ markets, isLoading: false, error: null });
       } else {
-        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorOld || "No markets available";
+        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorH200 || errorOld || "No markets available";
         setData({ markets: [], isLoading: false, error });
       }
     }
@@ -190,16 +225,19 @@ export const useMarketsData = () => {
     markPriceHyperscalers,
     markPriceNonHyperscalers,
     markPriceB200,
+    markPriceH200,
     markPriceOld,
     priceLoadingH100,
     priceLoadingHyperscalers,
     priceLoadingNonHyperscalers,
     priceLoadingB200,
+    priceLoadingH200,
     priceLoadingOld,
     errorH100,
     errorHyperscalers,
     errorNonHyperscalers,
     errorB200,
+    errorH200,
     errorOld,
   ]);
 
