@@ -520,10 +520,10 @@ const LandingPage = () => {
                     <div className="w-full overflow-x-auto pb-4 md:pb-0 px-4 flex justify-start md:justify-center scrollbar-hide">
                       <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] mx-auto whitespace-nowrap min-w-max">
                         {[
-                          { name: "H100-PERP", label: "H100 GPU hours" },
-                          { name: "H200-PERP", label: "H200 GPU hours" },
-                          { name: "B200-PERP", label: "B200 GPU hours" },
-                          { name: "H100-non-HyperScalers-PERP", label: "Neocloud H100 hours" },
+                          { name: "H100-PERP", label: "H100 GPU HOURS" },
+                          { name: "H200-PERP", label: "H200 GPU HOURS" },
+                          { name: "B200-PERP", label: "B200 GPU HOURS" },
+                          { name: "H100-non-HyperScalers-PERP", label: "NEOCLOUD H100 HOURS" },
                         ].map((market) => (
                           <button
                             key={market.name}

@@ -217,13 +217,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       colors: ["#3b82f6"], // blue-500
     },
     markers: {
-      size: 3,
-      colors: ["#3b82f6"],
-      strokeColors: "#0f172a",
-      strokeWidth: 1,
-      hover: {
-        size: 5,
-      },
+      size: 0,
     },
     fill: {
       type: "gradient",
