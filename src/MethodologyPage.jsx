@@ -563,60 +563,151 @@ const MethodologyPage = () => {
 
   // Render markdown-like content
   const renderContent = (text) => {
-    return text.split("\n\n").map((paragraph, i) => {
-      // Headers
+    // Helper to process bold text
+    const processBold = (str) => {
+      return str.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-medium">$1</strong>');
+    };
+
+    // Split by double newlines but also handle header+bullet combinations
+    const paragraphs = text.split("\n\n");
+    const elements = [];
+    
+    paragraphs.forEach((paragraph, i) => {
+      // Handle paragraphs that start with header but contain more content
       if (paragraph.startsWith("### ")) {
-        return (
-          <h4 key={i} className="text-lg font-semibold text-white mt-8 mb-4">
-            {paragraph.replace("### ", "")}
+        const lines = paragraph.split("\n");
+        const headerLine = lines[0];
+        const remainingLines = lines.slice(1).join("\n");
+        
+        // Add the header
+        elements.push(
+          <h4 key={`h-${i}`} className="text-lg font-semibold text-white mt-8 mb-4">
+            {headerLine.replace("### ", "")}
           </h4>
         );
+        
+        // Process remaining content if any
+        if (remainingLines.trim()) {
+          // Check if remaining is bullets
+          if (remainingLines.includes("- ")) {
+            const bulletLines = remainingLines.split("\n").filter(l => l.startsWith("- "));
+            elements.push(
+              <ul key={`ul-${i}`} className="space-y-2">
+                {bulletLines.map((bullet, j) => (
+                  <li key={j} className="flex items-start gap-3 text-slate-400">
+                    <span className="text-indigo-400 mt-1.5 flex-shrink-0">•</span>
+                    <span 
+                      className="flex-1"
+                      dangerouslySetInnerHTML={{ 
+                        __html: processBold(bullet.replace("- ", ""))
+                      }} 
+                    />
+                  </li>
+                ))}
+              </ul>
+            );
+          } else {
+            // Regular text after header
+            elements.push(
+              <p 
+                key={`p-${i}`}
+                className="text-slate-400 leading-relaxed mb-4"
+                dangerouslySetInnerHTML={{ __html: processBold(remainingLines) }}
+              />
+            );
+          }
+        }
+        return;
       }
       
       // Code blocks
-      if (paragraph.startsWith("```")) {
-        const code = paragraph.replace(/```/g, "").trim();
-        return (
+      if (paragraph.startsWith("```") || paragraph.startsWith("\\`\\`\\`")) {
+        const code = paragraph.replace(/```/g, "").replace(/\\`\\`\\`/g, "").trim();
+        elements.push(
           <pre key={i} className="bg-slate-900/80 border border-slate-700 rounded-lg p-4 my-6 overflow-x-auto">
             <code className="text-sm text-indigo-300 font-mono">{code}</code>
           </pre>
         );
+        return;
       }
       
-      // Bullet points
-      if (paragraph.includes("\n- ")) {
+      // Numbered lists (1., 2., 3., etc.)
+      if (/^\d+\.\s/.test(paragraph) || paragraph.includes("\n1.") || paragraph.includes("\n2.")) {
         const lines = paragraph.split("\n");
-        const title = lines[0].startsWith("- ") ? null : lines[0];
+        const numberedLines = lines.filter(l => /^\d+\.\s/.test(l.trim()));
+        const introLine = lines[0] && !/^\d+\.\s/.test(lines[0].trim()) ? lines[0] : null;
+        
+        if (numberedLines.length > 0) {
+          elements.push(
+            <div key={i} className="my-4">
+              {introLine && (
+                <p 
+                  className="text-slate-300 mb-3"
+                  dangerouslySetInnerHTML={{ __html: processBold(introLine) }}
+                />
+              )}
+              <ol className="space-y-3">
+                {numberedLines.map((line, j) => {
+                  const content = line.replace(/^\d+\.\s*/, '').trim();
+                  return (
+                    <li key={j} className="flex items-start gap-3 text-slate-400">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-medium flex items-center justify-center mt-0.5">
+                        {j + 1}
+                      </span>
+                      <span 
+                        className="flex-1"
+                        dangerouslySetInnerHTML={{ __html: processBold(content) }} 
+                      />
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          );
+          return;
+        }
+      }
+      
+      // Bullet points with newlines
+      if (paragraph.includes("\n- ") || paragraph.startsWith("- ")) {
+        const lines = paragraph.split("\n");
+        const title = lines[0] && !lines[0].startsWith("- ") ? lines[0] : null;
         const bullets = lines.filter(l => l.startsWith("- "));
-        return (
+        elements.push(
           <div key={i} className="my-4">
-            {title && <p className="text-slate-300 mb-2">{title}</p>}
+            {title && (
+              <p 
+                className="text-slate-300 mb-3"
+                dangerouslySetInnerHTML={{ __html: processBold(title) }}
+              />
+            )}
             <ul className="space-y-2">
               {bullets.map((bullet, j) => (
                 <li key={j} className="flex items-start gap-3 text-slate-400">
-                  <span className="text-indigo-400 mt-1.5">•</span>
-                  <span dangerouslySetInnerHTML={{ 
-                    __html: bullet.replace("- ", "")
-                      .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-medium">$1</strong>')
-                  }} />
+                  <span className="text-indigo-400 mt-1.5 flex-shrink-0">•</span>
+                  <span 
+                    className="flex-1"
+                    dangerouslySetInnerHTML={{ __html: processBold(bullet.replace("- ", "")) }} 
+                  />
                 </li>
               ))}
             </ul>
           </div>
         );
+        return;
       }
 
       // Regular paragraph with bold text support
-      return (
+      elements.push(
         <p 
           key={i} 
           className="text-slate-400 leading-relaxed mb-4"
-          dangerouslySetInnerHTML={{ 
-            __html: paragraph.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-medium">$1</strong>')
-          }}
+          dangerouslySetInnerHTML={{ __html: processBold(paragraph) }}
         />
       );
     });
+    
+    return elements;
   };
 
   return (
