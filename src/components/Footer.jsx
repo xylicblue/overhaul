@@ -30,7 +30,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="max-w-xs">
             <div className="flex items-center gap-3 mb-4">
-              <img src={logoImage} alt="Byte Strike" className="h-8 w-auto" />
+              <img src={logoImage} alt="Byte Strike" className="h-7 w-auto" />
               <span className="font-bold text-xl text-white tracking-tight">
                 ByteStrike
               </span>

@@ -21,7 +21,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
           <img
             src={logoImage}
             alt="ByteStrike"
-            className="h-8 w-auto group-hover:scale-105 transition-transform"
+            className="h-7 w-auto group-hover:scale-105 transition-transform"
           />
           {/* <span className="text-lg font-bold text-white tracking-tight group-hover:text-blue-400 transition-colors hidden sm:block">
             ByteStrike

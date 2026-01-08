@@ -141,8 +141,8 @@ Derived from linear regression analysis of hardware-price correlations across NV
         content: `A two-tiered weighting model ensures the index accurately reflects market structure:
 
 ### Tier 1: Categorical Weighting
-- **Hyperscalers:** Assigned majority total weight reflecting dominant market position and revenue concentration
-- **Non-Hyperscalers:** Assigned remaining weight for specialized/regional providers
+- **Hyperscalers:** Assigned 65% of total weight, reflecting their dominant market position, infrastructure scale, and revenue concentration
+- **Non-Hyperscalers:** Assigned 35% of total weight for specialized AI infrastructure providers and regional operators
 
 ### Tier 2: Revenue-Proportional Weighting
 - Within each category, providers are weighted proportionally by H100-specific revenue
@@ -154,14 +154,7 @@ Derived from linear regression analysis of hardware-price correlations across NV
       {
         id: "discount-adjustment",
         title: "Hyperscaler Discount Adjustment",
-        content: `The final price for hyperscalers is not the public list price, but a blended effective price reflecting the mix of retail and discounted enterprise sales:
-
-### Blended Price Formula
-
-\`\`\`
-Effective_Price = (Public_Price × (1 - Discount_Rate)) × Volume_Discounted_Pct
-                + (Public_Price) × (1 - Volume_Discounted_Pct)
-\`\`\`
+        content: `The final price for hyperscalers is not the public list price, but a blended effective price reflecting the mix of retail and discounted enterprise sales.
 
 ### Discount Rate Sources
 - Publicly documented committed use discount (CUD) and reserved instance (RI) structures
@@ -387,9 +380,11 @@ Specialized and regional cloud compute providers including:
       {
         id: "weighting-model",
         title: "Weighting Model",
-        content: `### Tier 1: Categorical Weighting
-- **Hyperscalers:** Majority total weight reflecting dominant market position
-- **Non-Hyperscalers:** Remaining weight for specialized/regional providers
+        content: `A two-tiered weighting model ensures the index accurately reflects market structure:
+
+### Tier 1: Categorical Weighting
+- **Hyperscalers:** Assigned 65% of total weight, reflecting their dominant market position and infrastructure scale
+- **Non-Hyperscalers:** Assigned 35% of total weight for specialized AI infrastructure providers and regional operators
 
 ### Tier 2: Revenue-Proportional Weighting
 - Providers weighted proportionally by quarterly GPU-specific revenue
@@ -399,12 +394,7 @@ Specialized and regional cloud compute providers including:
       {
         id: "discount-adjustment",
         title: "Hyperscaler Discount Adjustment",
-        content: `### Blended Price Formula
-
-\`\`\`
-Effective_Price = (Public_Price × (1 - Discount_Rate)) × Volume_Discounted_Pct
-                + (Public_Price) × (1 - Volume_Discounted_Pct)
-\`\`\`
+        content: `The final price for hyperscalers is not the public list price, but a blended effective price reflecting the mix of retail and discounted enterprise sales.
 
 ### Discount Rate Sources
 - Publicly documented CUD structures
@@ -595,7 +585,7 @@ const MethodologyPage = () => {
               <ul key={`ul-${i}`} className="space-y-2">
                 {bulletLines.map((bullet, j) => (
                   <li key={j} className="flex items-start gap-3 text-slate-400">
-                    <span className="text-indigo-400 mt-1.5 flex-shrink-0">•</span>
+                    <span className="text-indigo-400 flex-shrink-0 leading-relaxed">•</span>
                     <span 
                       className="flex-1"
                       dangerouslySetInnerHTML={{ 
@@ -684,7 +674,7 @@ const MethodologyPage = () => {
             <ul className="space-y-2">
               {bullets.map((bullet, j) => (
                 <li key={j} className="flex items-start gap-3 text-slate-400">
-                  <span className="text-indigo-400 mt-1.5 flex-shrink-0">•</span>
+                  <span className="text-indigo-400 flex-shrink-0 leading-relaxed">•</span>
                   <span 
                     className="flex-1"
                     dangerouslySetInnerHTML={{ __html: processBold(bullet.replace("- ", "")) }} 
