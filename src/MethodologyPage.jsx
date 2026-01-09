@@ -277,7 +277,7 @@ In the event that a provider's pricing data cannot be retrieved due to temporary
 - Historical versions maintained for reproducibility
 
 ### Update Frequency
-- Index calculated on regular schedule (currently twice daily)
+- Index calculated on a regular schedule
 - Methodology reviewed quarterly
 - Discount parameters updated as market data becomes available
 - Emergency updates for material market changes
@@ -288,17 +288,6 @@ In the event that a provider's pricing data cannot be retrieved due to temporary
 - Assumptions clearly stated
 - Historical parameters maintained for reproducibility
 - Blockchain publication for immutable record`
-      },
-      {
-        id: "conclusion",
-        title: "Conclusion",
-        content: `This methodology establishes a rigorous, transparent, and reproducible framework for calculating a trusted benchmark price for H100 GPU compute. 
-
-By addressing the fundamental market inefficiency of opaque pricing through systematic data collection, performance normalization, revenue-weighted aggregation, and discount-adjusted pricing models, the H100 Compute Index provides the essential infrastructure for market efficiency, risk management, and financial product development.
-
-The methodology draws from proven commodity market practices while addressing the unique characteristics of the GPU compute market, including performance heterogeneity across hardware variants and the substantial gap between public list prices and negotiated enterprise rates.
-
-Through continuous refinement of discount parameters, expansion of the provider universe, and rigorous quality assurance protocols, the index will evolve to maintain accuracy and representativeness as the market matures.`
       }
     ]
   },
@@ -482,15 +471,6 @@ Timestamp and publish to database for time-series tracking. Publish to blockchai
 - Infrastructure financing projections
 - GPU asset valuation
 - Market sizing and analysis`
-      },
-      {
-        id: "conclusion",
-        title: "Conclusion",
-        content: `This methodology establishes a rigorous, transparent, and reproducible framework for calculating a trusted benchmark price for B200 GPU compute.
-
-By addressing the fundamental market inefficiency of opaque pricing through systematic data collection, revenue-weighted aggregation, and discount-adjusted pricing models, the B200 Compute Index provides the essential infrastructure for market efficiency, risk management, and financial product development.
-
-The methodology draws from proven commodity market practices while adapting to the unique characteristics of the nascent B200 market. Through continuous refinement, the index will evolve to maintain accuracy as the market matures.`
       }
     ]
   }
