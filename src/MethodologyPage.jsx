@@ -65,7 +65,7 @@ Large-scale cloud service providers characterized by:
 - Dominant market share
 - Pricing models that bifurcate between public list prices and private enterprise contracts
 
-### Non-Hyperscalers (Non-HS)
+### Neoclouds
 
 Specialized and regional cloud compute providers including:
 - Specialized AI infrastructure providers
@@ -142,7 +142,7 @@ Derived from linear regression analysis of hardware-price correlations across NV
 
 ### Tier 1: Categorical Weighting
 - **Hyperscalers:** Assigned 65% of total weight, reflecting their dominant market position, infrastructure scale, and revenue concentration
-- **Non-Hyperscalers:** Assigned 35% of total weight for specialized AI infrastructure providers and regional operators
+- **Neoclouds:** Assigned 35% of total weight for specialized AI infrastructure providers and regional operators
 
 ### Tier 2: Revenue-Proportional Weighting
 - Within each category, providers are weighted proportionally by H100-specific revenue
@@ -337,7 +337,7 @@ Large-scale cloud service providers characterized by:
 - Multi-region availability
 - Significant market revenue concentration
 
-### Non-Hyperscalers (Non-HS)
+### Neoclouds
 
 Specialized and regional cloud compute providers including:
 - Specialized AI infrastructure providers
@@ -373,7 +373,7 @@ Specialized and regional cloud compute providers including:
 
 ### Tier 1: Categorical Weighting
 - **Hyperscalers:** Assigned 65% of total weight, reflecting their dominant market position and infrastructure scale
-- **Non-Hyperscalers:** Assigned 35% of total weight for specialized AI infrastructure providers and regional operators
+- **Neoclouds:** Assigned 35% of total weight for specialized AI infrastructure providers and regional operators
 
 ### Tier 2: Revenue-Proportional Weighting
 - Providers weighted proportionally by quarterly GPU-specific revenue
