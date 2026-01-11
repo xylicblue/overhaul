@@ -61,10 +61,10 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             Guide
           </NavLink>
           
-          {/* Docs Dropdown */}
+          {/* Index Methodology Dropdown */}
           <div className="relative group">
             <button className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-              Docs
+              Index Methodology
               <svg className="w-3 h-3 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>

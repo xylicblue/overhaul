@@ -9,7 +9,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
   const [chartData, setChartData] = useState([]);
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [priceChangePercent, setPriceChangePercent] = useState(null);
-  const [timeRange, setTimeRange] = useState("24h");
+  const [timeRange, setTimeRange] = useState("3d");
 
   const isPriceUp = priceChange !== null && priceChange >= 0;
 
@@ -67,6 +67,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
         if (timeRange !== "max") {
           if (timeRange === "15d") hoursAgo = 15 * 24;
           else if (timeRange === "5d") hoursAgo = 5 * 24;
+          else if (timeRange === "3d") hoursAgo = 3 * 24;
           else hoursAgo = 24;
         }
 
@@ -290,7 +291,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
 
         {/* Time Range Toggles */}
         <div className="flex bg-slate-900 rounded-lg p-0.5 border border-slate-800 self-start sm:self-auto w-full sm:w-auto overflow-x-auto no-scrollbar justify-between sm:justify-start">
-          {["24h", "5d", "15d", "max"].map((range) => (
+          {["24h", "3d", "5d", "15d", "max"].map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}

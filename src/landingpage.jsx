@@ -273,10 +273,10 @@ const LandingPage = () => {
               );
             })}
             
-            {/* Docs Dropdown */}
+            {/* Index Methodology Dropdown */}
             <div className="relative group">
               <button className="text-sm font-medium text-slate-300 hover:text-white transition-colors cursor-pointer hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] flex items-center gap-1">
-                Docs
+                Index Methodology
                 <svg className="w-3 h-3 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -498,11 +498,11 @@ const LandingPage = () => {
               </Link>
               <Routerlink
                 to="/trade"
-                className="relative group px-8 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold text-lg backdrop-blur-md hover:bg-white/10 hover:border-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                className="relative group px-8 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-lg shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:shadow-[0_0_40px_rgba(99,102,241,0.6)] hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-indigo-400/30"
               >
-                Trade
+                <span className="relative z-10">Trade Now</span>
                 <svg
-                  className="w-5 h-5 group-hover:translate-x-1 transition-transform"
+                  className="w-5 h-5 group-hover:translate-x-1 transition-transform relative z-10"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -514,6 +514,7 @@ const LandingPage = () => {
                     d="M13 7l5 5m0 0l-5 5m5-5H6"
                   />
                 </svg>
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity" />
               </Routerlink>
             </div>
           </motion.div>
