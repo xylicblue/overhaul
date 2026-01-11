@@ -46,6 +46,35 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       fallbackTable: null,
       priceField: "index_price", // H200 uses index_price field (from push_to_supabase.py)
     },
+    // Provider-specific H200 markets - query b200_provider_prices with provider filter
+    "ORACLE-H200-PERP": {
+      displayName: "Oracle H200",
+      tableName: "b200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "Oracle", // Filter by provider_name
+    },
+    "AWS-H200-PERP": {
+      displayName: "AWS H200",
+      tableName: "b200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "AWS", // Filter by provider_name
+    },
+    "COREWEAVE-H200-PERP": {
+      displayName: "CoreWeave H200",
+      tableName: "b200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "CoreWeave", // Filter by provider_name
+    },
+    "GCP-H200-PERP": {
+      displayName: "GCP H200",
+      tableName: "b200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "Google Cloud", // Filter by provider_name (stored as "Google Cloud" in DB)
+    },
   };
   
   const config = marketConfig[market] || {
@@ -76,6 +105,11 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
           .from(config.tableName)
           .select(`${config.priceField}, timestamp`);
 
+        // Apply provider filter for provider-specific markets
+        if (config.providerFilter) {
+          query = query.eq("provider_name", config.providerFilter);
+        }
+
         if (hoursAgo !== null) {
           const startTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
           query = query.gte("timestamp", startTime);
@@ -89,7 +123,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
             price: record[config.priceField] || record.price,
             timestamp: record.timestamp
           }));
-          console.log(`Loaded ${data.length} records from ${config.tableName}`);
+          console.log(`Loaded ${data.length} records from ${config.tableName}${config.providerFilter ? ` (provider: ${config.providerFilter})` : ''}`);
         } else if (result.error) {
           error = result.error;
         }
