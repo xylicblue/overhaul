@@ -549,15 +549,17 @@ const LandingPage = () => {
         <div className="container mx-auto px-6">
           <div className="flex flex-col items-center">
             
-                  {/* Minimalist Floating Nav - Horizontal Scroll on Mobile */}
-                  <div className="mb-8 md:mb-12 relative z-20 flex justify-center w-full">
-                    <div className="w-full overflow-x-auto pb-4 md:pb-0 px-4 flex justify-start md:justify-center scrollbar-hide">
-                      <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] mx-auto whitespace-nowrap min-w-max">
+                  {/* Unified Market Selector - Fixed Width Scrollable */}
+                  <div className="mb-8 md:mb-12 relative z-20 flex justify-center w-full px-4">
+                    <div className="max-w-3xl w-full rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] overflow-hidden">
+                      <div className="overflow-x-auto scrollbar-hide">
+                        <div className="inline-flex items-center gap-1 p-1 whitespace-nowrap min-w-max">
+                        {/* GPU Index Markets */}
                         {[
                           { name: "H100-PERP", label: "H100 GPU HOURS" },
                           { name: "H200-PERP", label: "H200 GPU HOURS" },
                           { name: "B200-PERP", label: "B200 GPU HOURS" },
-                          { name: "H100-non-HyperScalers-PERP", label: "NEOCLOUD H100 HOURS" },
+                          { name: "H100-non-HyperScalers-PERP", label: "Neocloud GPU HOURS" },
                         ].map((market) => (
                           <button
                             key={market.name}
@@ -576,6 +578,35 @@ const LandingPage = () => {
                             <span className="relative z-10">{market.label}</span>
                           </button>
                         ))}
+                        
+                        {/* Divider */}
+                        <div className="w-px h-5 bg-white/10 mx-1" />
+                        
+                        {/* B200 Provider Markets */}
+                        {[
+                          { name: "ORACLE-B200-PERP", label: "Oracle GPU HOURS" },
+                          { name: "AWS-B200-PERP", label: "AWS GPU HOURS" },
+                          { name: "COREWEAVE-B200-PERP", label: "CoreWeave GPU HOURS" },
+                          { name: "GCP-B200-PERP", label: "GCP GPU HOURS" },
+                        ].map((market) => (
+                          <button
+                            key={market.name}
+                            onClick={() => setSelectedMarket(market.name)}
+                            className={`relative px-4 md:px-5 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-300 ${
+                              selectedMarket === market.name ? "text-white" : "text-slate-400 hover:text-white"
+                            }`}
+                          >
+                            {selectedMarket === market.name && (
+                              <motion.div
+                                layoutId="minimalNav"
+                                className="absolute inset-0 bg-white/10 rounded-full shadow-inner border border-white/5"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                              />
+                            )}
+                            <span className="relative z-10">{market.label}</span>
+                          </button>
+                        ))}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -594,11 +625,16 @@ const LandingPage = () => {
                             className="flex flex-col gap-1"
                           >
                             <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight">
-                              {
-                                selectedMarket === "H100-PERP" ? "NVIDIA H100" :
-                                selectedMarket === "H200-PERP" ? "NVIDIA H200" :
-                                selectedMarket === "B200-PERP" ? "NVIDIA Blackwell B200" : "Neocloud H100"
-                              }
+                              {{
+                                "H100-PERP": "NVIDIA H100",
+                                "H200-PERP": "NVIDIA H200",
+                                "B200-PERP": "NVIDIA Blackwell B200",
+                                "H100-non-HyperScalers-PERP": "Neocloud H100",
+                                "ORACLE-B200-PERP": "Oracle Cloud B200",
+                                "AWS-B200-PERP": "AWS B200",
+                                "COREWEAVE-B200-PERP": "CoreWeave B200",
+                                "GCP-B200-PERP": "Google Cloud B200",
+                              }[selectedMarket] || "GPU Index"}
                             </h3>
                             <p className="text-xs md:text-sm font-medium text-slate-400 flex items-center gap-2">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" />
