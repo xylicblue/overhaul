@@ -73,64 +73,64 @@ const DEPLOYED_MARKETS = [
       "Trade H200 GPU hourly rental rates. Index price: $3.53/hour.",
   },
   {
-    name: "ORACLE-H200-PERP",
-    displayName: "Oracle H200",
-    fullName: "Oracle Cloud H200 GPU Hourly Rate Perpetual",
+    name: "ORACLE-B200-PERP",
+    displayName: "Oracle B200",
+    fullName: "Oracle Cloud B200 GPU Hourly Rate Perpetual",
     type: "Perpetual",
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleH200,
-    oracleAddress: SEPOLIA_CONTRACTS.oracleH200OracleAdapter,
-    marketId: MARKET_IDS["ORACLE-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleB200,
+    oracleAddress: SEPOLIA_CONTRACTS.oracleB200OracleAdapter,
+    marketId: MARKET_IDS["ORACLE-B200-PERP"],
     status: "Active",
     isDefault: false,
     description:
-      "Trade Oracle Cloud H200 GPU hourly rental rates. Index price: $6.47/hour.",
+      "Trade Oracle Cloud B200 GPU hourly rental rates. Index price: $6.47/hour.",
   },
   {
-    name: "AWS-H200-PERP",
-    displayName: "AWS H200",
-    fullName: "AWS H200 GPU Hourly Rate Perpetual",
+    name: "AWS-B200-PERP",
+    displayName: "AWS B200",
+    fullName: "AWS B200 GPU Hourly Rate Perpetual",
     type: "Perpetual",
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH200,
-    oracleAddress: SEPOLIA_CONTRACTS.awsH200OracleAdapter,
-    marketId: MARKET_IDS["AWS-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSB200,
+    oracleAddress: SEPOLIA_CONTRACTS.awsB200OracleAdapter,
+    marketId: MARKET_IDS["AWS-B200-PERP"],
     status: "Active",
     isDefault: false,
     description:
-      "Trade AWS H200 GPU hourly rental rates. Index price: $4.04/hour.",
+      "Trade AWS B200 GPU hourly rental rates. Index price: $4.04/hour.",
   },
   {
-    name: "COREWEAVE-H200-PERP",
-    displayName: "CoreWeave H200",
-    fullName: "CoreWeave H200 GPU Hourly Rate Perpetual",
+    name: "COREWEAVE-B200-PERP",
+    displayName: "CoreWeave B200",
+    fullName: "CoreWeave B200 GPU Hourly Rate Perpetual",
     type: "Perpetual",
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200,
-    oracleAddress: SEPOLIA_CONTRACTS.coreweaveH200OracleAdapter,
-    marketId: MARKET_IDS["COREWEAVE-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveB200,
+    oracleAddress: SEPOLIA_CONTRACTS.coreweaveB200OracleAdapter,
+    marketId: MARKET_IDS["COREWEAVE-B200-PERP"],
     status: "Active",
     isDefault: false,
     description:
-      "Trade CoreWeave H200 GPU hourly rental rates. Index price: $14.53/hour.",
+      "Trade CoreWeave B200 GPU hourly rental rates. Index price: $14.53/hour.",
   },
   {
-    name: "GCP-H200-PERP",
-    displayName: "GCP H200",
-    fullName: "Google Cloud H200 GPU Hourly Rate Perpetual",
+    name: "GCP-B200-PERP",
+    displayName: "GCP B200",
+    fullName: "Google Cloud B200 GPU Hourly Rate Perpetual",
     type: "Perpetual",
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH200,
-    oracleAddress: SEPOLIA_CONTRACTS.gcpH200OracleAdapter,
-    marketId: MARKET_IDS["GCP-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPB200,
+    oracleAddress: SEPOLIA_CONTRACTS.gcpB200OracleAdapter,
+    marketId: MARKET_IDS["GCP-B200-PERP"],
     status: "Active",
     isDefault: false,
     description:
-      "Trade Google Cloud H200 GPU hourly rental rates. Index price: $6.60/hour.",
+      "Trade Google Cloud B200 GPU hourly rental rates. Index price: $6.60/hour.",
   },
   {
     name: "ETH-PERP-V2",
@@ -190,30 +190,30 @@ export const useMarketsData = () => {
     error: errorH200,
   } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyH200, 5000);
 
-  // Fetch mark prices for H200 provider-specific markets
+  // Fetch mark prices for B200 provider-specific markets
   const {
-    price: markPriceOracleH200,
-    isLoading: priceLoadingOracleH200,
-    error: errorOracleH200,
-  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyOracleH200, 5000);
+    price: markPriceOracleB200,
+    isLoading: priceLoadingOracleB200,
+    error: errorOracleB200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyOracleB200, 5000);
 
   const {
-    price: markPriceAWSH200,
-    isLoading: priceLoadingAWSH200,
-    error: errorAWSH200,
-  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAWSH200, 5000);
+    price: markPriceAWSB200,
+    isLoading: priceLoadingAWSB200,
+    error: errorAWSB200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAWSB200, 5000);
 
   const {
-    price: markPriceCoreWeaveH200,
-    isLoading: priceLoadingCoreWeaveH200,
-    error: errorCoreWeaveH200,
-  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200, 5000);
+    price: markPriceCoreWeaveB200,
+    isLoading: priceLoadingCoreWeaveB200,
+    error: errorCoreWeaveB200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyCoreWeaveB200, 5000);
 
   const {
-    price: markPriceGCPH200,
-    isLoading: priceLoadingGCPH200,
-    error: errorGCPH200,
-  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyGCPH200, 5000);
+    price: markPriceGCPB200,
+    isLoading: priceLoadingGCPB200,
+    error: errorGCPB200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyGCPB200, 5000);
 
   // Fetch mark price from old vAMM (deprecated)
   const {
@@ -230,14 +230,14 @@ export const useMarketsData = () => {
       nonHyperscalers: { markPriceNonHyperscalers, priceLoadingNonHyperscalers, errorNonHyperscalers },
       b200: { markPriceB200, priceLoadingB200, errorB200 },
       h200: { markPriceH200, priceLoadingH200, errorH200 },
-      oracleH200: { markPriceOracleH200, priceLoadingOracleH200, errorOracleH200 },
-      awsH200: { markPriceAWSH200, priceLoadingAWSH200, errorAWSH200 },
-      coreweaveH200: { markPriceCoreWeaveH200, priceLoadingCoreWeaveH200, errorCoreWeaveH200 },
-      gcpH200: { markPriceGCPH200, priceLoadingGCPH200, errorGCPH200 },
+      oracleB200: { markPriceOracleB200, priceLoadingOracleB200, errorOracleB200 },
+      awsB200: { markPriceAWSB200, priceLoadingAWSB200, errorAWSB200 },
+      coreweaveB200: { markPriceCoreWeaveB200, priceLoadingCoreWeaveB200, errorCoreWeaveB200 },
+      gcpB200: { markPriceGCPB200, priceLoadingGCPB200, errorGCPB200 },
       old: { markPriceOld, priceLoadingOld, errorOld },
     });
 
-    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingH200 && !priceLoadingOracleH200 && !priceLoadingAWSH200 && !priceLoadingCoreWeaveH200 && !priceLoadingGCPH200 && !priceLoadingOld) {
+    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingH200 && !priceLoadingOracleB200 && !priceLoadingAWSB200 && !priceLoadingCoreWeaveB200 && !priceLoadingGCPB200 && !priceLoadingOld) {
       const markets = [];
 
       // Add H100-PERP market (all providers)
@@ -302,62 +302,62 @@ export const useMarketsData = () => {
         });
       }
 
-      // Add Oracle H200 market
-      if (markPriceOracleH200 && !errorOracleH200) {
+      // Add Oracle B200 market
+      if (markPriceOracleB200 && !errorOracleB200) {
         markets.push({
-          name: "ORACLE-H200-PERP",
-          displayName: "Oracle H200",
-          fullName: "Oracle Cloud H200 GPU Hourly Rate",
+          name: "ORACLE-B200-PERP",
+          displayName: "Oracle B200",
+          fullName: "Oracle Cloud B200 GPU Hourly Rate",
           type: "Perpetual",
-          markPrice: parseFloat(markPriceOracleH200),
+          markPrice: parseFloat(markPriceOracleB200),
           change24h: 0,
-          vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleH200,
-          marketId: MARKET_IDS["ORACLE-H200-PERP"],
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleB200,
+          marketId: MARKET_IDS["ORACLE-B200-PERP"],
           status: "Active",
         });
       }
 
-      // Add AWS H200 market
-      if (markPriceAWSH200 && !errorAWSH200) {
+      // Add AWS B200 market
+      if (markPriceAWSB200 && !errorAWSB200) {
         markets.push({
-          name: "AWS-H200-PERP",
-          displayName: "AWS H200",
-          fullName: "AWS H200 GPU Hourly Rate",
+          name: "AWS-B200-PERP",
+          displayName: "AWS B200",
+          fullName: "AWS B200 GPU Hourly Rate",
           type: "Perpetual",
-          markPrice: parseFloat(markPriceAWSH200),
+          markPrice: parseFloat(markPriceAWSB200),
           change24h: 0,
-          vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH200,
-          marketId: MARKET_IDS["AWS-H200-PERP"],
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSB200,
+          marketId: MARKET_IDS["AWS-B200-PERP"],
           status: "Active",
         });
       }
 
-      // Add CoreWeave H200 market
-      if (markPriceCoreWeaveH200 && !errorCoreWeaveH200) {
+      // Add CoreWeave B200 market
+      if (markPriceCoreWeaveB200 && !errorCoreWeaveB200) {
         markets.push({
-          name: "COREWEAVE-H200-PERP",
-          displayName: "CoreWeave H200",
-          fullName: "CoreWeave H200 GPU Hourly Rate",
+          name: "COREWEAVE-B200-PERP",
+          displayName: "CoreWeave B200",
+          fullName: "CoreWeave B200 GPU Hourly Rate",
           type: "Perpetual",
-          markPrice: parseFloat(markPriceCoreWeaveH200),
+          markPrice: parseFloat(markPriceCoreWeaveB200),
           change24h: 0,
-          vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200,
-          marketId: MARKET_IDS["COREWEAVE-H200-PERP"],
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveB200,
+          marketId: MARKET_IDS["COREWEAVE-B200-PERP"],
           status: "Active",
         });
       }
 
-      // Add GCP H200 market
-      if (markPriceGCPH200 && !errorGCPH200) {
+      // Add GCP B200 market
+      if (markPriceGCPB200 && !errorGCPB200) {
         markets.push({
-          name: "GCP-H200-PERP",
-          displayName: "GCP H200",
-          fullName: "Google Cloud H200 GPU Hourly Rate",
+          name: "GCP-B200-PERP",
+          displayName: "GCP B200",
+          fullName: "Google Cloud B200 GPU Hourly Rate",
           type: "Perpetual",
-          markPrice: parseFloat(markPriceGCPH200),
+          markPrice: parseFloat(markPriceGCPB200),
           change24h: 0,
-          vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH200,
-          marketId: MARKET_IDS["GCP-H200-PERP"],
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPB200,
+          marketId: MARKET_IDS["GCP-B200-PERP"],
           status: "Active",
         });
       }
@@ -365,7 +365,7 @@ export const useMarketsData = () => {
       if (markets.length > 0) {
         setData({ markets, isLoading: false, error: null });
       } else {
-        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorH200 || errorOracleH200 || errorAWSH200 || errorCoreWeaveH200 || errorGCPH200 || errorOld || "No markets available";
+        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorH200 || errorOracleB200 || errorAWSB200 || errorCoreWeaveB200 || errorGCPB200 || errorOld || "No markets available";
         setData({ markets: [], isLoading: false, error });
       }
     }
@@ -375,30 +375,30 @@ export const useMarketsData = () => {
     markPriceNonHyperscalers,
     markPriceB200,
     markPriceH200,
-    markPriceOracleH200,
-    markPriceAWSH200,
-    markPriceCoreWeaveH200,
-    markPriceGCPH200,
+    markPriceOracleB200,
+    markPriceAWSB200,
+    markPriceCoreWeaveB200,
+    markPriceGCPB200,
     markPriceOld,
     priceLoadingH100,
     priceLoadingHyperscalers,
     priceLoadingNonHyperscalers,
     priceLoadingB200,
     priceLoadingH200,
-    priceLoadingOracleH200,
-    priceLoadingAWSH200,
-    priceLoadingCoreWeaveH200,
-    priceLoadingGCPH200,
+    priceLoadingOracleB200,
+    priceLoadingAWSB200,
+    priceLoadingCoreWeaveB200,
+    priceLoadingGCPB200,
     priceLoadingOld,
     errorH100,
     errorHyperscalers,
     errorNonHyperscalers,
     errorB200,
     errorH200,
-    errorOracleH200,
-    errorAWSH200,
-    errorCoreWeaveH200,
-    errorGCPH200,
+    errorOracleB200,
+    errorAWSB200,
+    errorCoreWeaveB200,
+    errorGCPB200,
     errorOld,
   ]);
 

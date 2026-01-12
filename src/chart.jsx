@@ -46,30 +46,30 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       fallbackTable: null,
       priceField: "index_price", // H200 uses index_price field (from push_to_supabase.py)
     },
-    // Provider-specific H200 markets - query b200_provider_prices with provider filter
-    "ORACLE-H200-PERP": {
-      displayName: "Oracle H200",
+    // Provider-specific B200 markets - query b200_provider_prices with provider filter
+    "ORACLE-B200-PERP": {
+      displayName: "Oracle B200",
       tableName: "b200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
       providerFilter: "Oracle", // Filter by provider_name
     },
-    "AWS-H200-PERP": {
-      displayName: "AWS H200",
+    "AWS-B200-PERP": {
+      displayName: "AWS B200",
       tableName: "b200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
       providerFilter: "AWS", // Filter by provider_name
     },
-    "COREWEAVE-H200-PERP": {
-      displayName: "CoreWeave H200",
+    "COREWEAVE-B200-PERP": {
+      displayName: "CoreWeave B200",
       tableName: "b200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
       providerFilter: "CoreWeave", // Filter by provider_name
     },
-    "GCP-H200-PERP": {
-      displayName: "GCP H200",
+    "GCP-B200-PERP": {
+      displayName: "GCP B200",
       tableName: "b200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
