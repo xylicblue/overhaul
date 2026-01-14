@@ -45,6 +45,42 @@ const MARKET_POSITION_CONFIG = [
     displayName: "H200 GPU ($3.53/hr)",
     baseAssetSymbol: "GPU-HRS",
   },
+  // H200 Provider-Specific Markets
+  {
+    key: "ORACLE-H200-PERP",
+    marketId: MARKET_IDS["ORACLE-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleH200,
+    displayName: "Oracle H200 ($2.92/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "AWS-H200-PERP",
+    marketId: MARKET_IDS["AWS-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH200,
+    displayName: "AWS H200 ($2.65/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "COREWEAVE-H200-PERP",
+    marketId: MARKET_IDS["COREWEAVE-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200,
+    displayName: "CoreWeave H200 ($2.57/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "GCP-H200-PERP",
+    marketId: MARKET_IDS["GCP-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH200,
+    displayName: "GCP H200 ($4.55/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "AZURE-H200-PERP",
+    marketId: MARKET_IDS["AZURE-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH200,
+    displayName: "Azure H200 ($5.05/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
   {
     key: "ETH-PERP",
     marketId: MARKET_IDS["ETH-PERP"],

@@ -23,6 +23,13 @@ export const SEPOLIA_CONTRACTS = {
   vammProxyCoreWeaveB200: '0x377eA108a74466815b91943A0E924c10fe65Bc7D', // COREWEAVE-B200-PERP vAMM ($14.53/hour)
   vammProxyGCPB200: '0xb0e3d0F571d8F9a8FDDd477A0A09e1A232Ce7eC1', // GCP-B200-PERP vAMM ($6.60/hour)
 
+  // H200 Provider-Specific vAMMs
+  vammProxyOracleH200: '0x4bBA5dc77E1968681421F494048884b5933aF3c0', // ORACLE-H200-PERP vAMM ($2.92/hour)
+  vammProxyAWSH200: '0x34C0673fA279CE7b7Ca964f7E6e6904efc3eBC56', // AWS-H200-PERP vAMM ($2.65/hour)
+  vammProxyCoreWeaveH200: '0xc4BfB9f43aBFadbdD31b7CDa8fc7479b688b1452', // COREWEAVE-H200-PERP vAMM ($2.57/hour)
+  vammProxyGCPH200: '0xb6e84d44C984564014dd2Ae4B8A9a3D32694AF02', // GCP-H200-PERP vAMM ($4.55/hour)
+  vammProxyAzureH200: '0xEA15809884A8f2281017E7047d7d123268529FA2', // AZURE-H200-PERP vAMM ($5.05/hour)
+
   vammImpl: '0xd64175cE957F089bA7fb3EBdA5B17f268DE01190', // vAMM implementation (latest)
   vammProxyOld: '0xF8908F7B4a1AaaD69bF0667FA83f85D3d0052739', // Old vAMM (deprecated)
 
@@ -43,6 +50,13 @@ export const SEPOLIA_CONTRACTS = {
   awsB200OracleAdapter: '0x627Cc930F049D3796a7752F31fD753dE47739f52', // Adapter for AWS-B200-PERP
   coreweaveB200OracleAdapter: '0x70Ca6c1459e8C1E40bb22735fdF0235dE679D7d0', // Adapter for COREWEAVE-B200-PERP
   gcpB200OracleAdapter: '0x1A894706568D427c6d7aBB11956B97f718e9c5c5', // Adapter for GCP-B200-PERP
+
+  // H200 Provider-Specific Oracle Adapters
+  oracleH200OracleAdapter: '0x4E3C71676e618e16175b52C9F4F7854105f21AE4', // Adapter for ORACLE-H200-PERP
+  awsH200OracleAdapter: '0x649aa2edF7eB0eAd304F67D94c7CeE44bEA427ce', // Adapter for AWS-H200-PERP
+  coreweaveH200OracleAdapter: '0x4A6Ee766Ec7e3b1d95Fc7c0945847A2C42215C54', // Adapter for COREWEAVE-H200-PERP
+  gcpH200OracleAdapter: '0xaAF9bC42aEac437B16667122699cf97b093c4e4a', // Adapter for GCP-H200-PERP
+  azureH200OracleAdapter: '0xFE8D7FC9304B06161992c78351723CFE44d86258', // Adapter for AZURE-H200-PERP
 
   // Oracles - Legacy (will be deprecated after migration)
   indexOracle: '0x3cA2Da03e4b6dB8fe5a24c22Cf5EB2A34B59cbad', // Legacy: H100 GPU rental price oracle
@@ -73,6 +87,13 @@ export const MARKET_IDS = {
   'COREWEAVE-B200-PERP': '0x05b98a16e85afdd21369f8dde4ae197e2b445f37445b0e382ebcfdd10b711306', // CoreWeave B200 ($14.53/hour)
   'GCP-B200-PERP': '0xd0394d4ba76fe79cd0b954eb8e205df0cc4f08fb654dc916f5728d31c19f9305', // Google Cloud B200 ($6.60/hour)
 
+  // H200 Provider-Specific Markets
+  'ORACLE-H200-PERP': '0x61f05fafb6842941c9a7d6839378de32d97a2de181b4db0e276b8d2093b61866', // Oracle Cloud H200 ($2.92/hour)
+  'AWS-H200-PERP': '0x12aa394c59dbf446e7ba1d3ab66f4629761c27d0dbacf484da0f4b205260c8fc', // AWS H200 ($2.65/hour)
+  'COREWEAVE-H200-PERP': '0xf8444beb26f5f34e8d5ec6c988b1023100cd68287fa48066b54e428188ffa447', // CoreWeave H200 ($2.57/hour)
+  'GCP-H200-PERP': '0xb654d9eedc69b55e0fe883d03cae37d13fdacc319a5a1f507bb33875e0e14201', // Google Cloud H200 ($4.55/hour)
+  'AZURE-H200-PERP': '0xc845b4b5cdd753d1ad772bc105e5c4ddddff19c3da674c69da5c9f1a810bb872', // Azure H200 ($5.05/hour)
+
   'ETH-PERP-V2': '0x385badc5603eb47056a6bdcd6ac81a50df49d7a4e8a7451405e580bd12087a28', // Deprecated
   'ETH-PERP': '0x352291f10e3a0d4a9f7beb3b623eac0b06f735c95170f956bc68b2f8b504a35d', // Deprecated test market
 };
@@ -90,6 +111,13 @@ export const ASSET_IDS = {
   'AWS_B200_HOURLY': '0xaea03c0d396f0037b42610d8306208c650a1390eba181b60426a65fb244e4b96', // keccak256("AWS_B200_HOURLY")
   'COREWEAVE_B200_HOURLY': '0x67a96f399341b1228769fdb687640ca37844b30f83f09a6de6e06888876a29d1', // keccak256("COREWEAVE_B200_HOURLY")
   'GCP_B200_HOURLY': '0xe54dd81ff75d2b3f55dc0203f393dda742a93a45a42f8c7e726fd47d639dfd27', // keccak256("GCP_B200_HOURLY")
+
+  // H200 Provider-Specific Asset IDs
+  'ORACLE_H200_HOURLY': '0x5d5f627ba6daf1427a1559c3200cbe7ebf105d0df0ec1610c6b89d54a314bf51', // keccak256("ORACLE_H200_HOUR")
+  'AWS_H200_HOURLY': '0xb377854a672b5274c99b24e7fe27d9661c60c8b697ca4f974208162655716b3e', // keccak256("AWS_H200_HOUR")
+  'COREWEAVE_H200_HOURLY': '0xa05f2ef65a5f11da36153346f35e9cdb554962e858a95c7f79075cd3a4c6ddfd', // keccak256("COREWEAVE_H200_HOUR")
+  'GCP_H200_HOURLY': '0x0ba2d87db04ca970c41ab4334516ce12e74356d71ee96e228fb1ba5d519aaaf4', // keccak256("GCP_H200_HOUR")
+  'AZURE_H200_HOURLY': '0x12b283ae476f0251b7a6eaa8d414a3260644e167d9253ef1e72d49e2c8291e61', // keccak256("AZURE_H200_HOUR")
 };
 
 // Default market to use in the frontend
@@ -276,6 +304,91 @@ export const MARKETS = {
     penaltyCap: 1000,
     active: true,
     description: 'Perpetual futures on Google Cloud B200 GPU hourly rental rates with 10x max leverage',
+  },
+  'ORACLE-H200-PERP': {
+    id: MARKET_IDS['ORACLE-H200-PERP'],
+    name: 'ORACLE-H200-PERP',
+    displayName: 'Oracle Cloud H200 GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyOracleH200,
+    oracle: SEPOLIA_CONTRACTS.oracleH200OracleAdapter,
+    indexPrice: 2.92,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on Oracle Cloud H200 GPU hourly rental rates with 10x max leverage',
+  },
+  'AWS-H200-PERP': {
+    id: MARKET_IDS['AWS-H200-PERP'],
+    name: 'AWS-H200-PERP',
+    displayName: 'AWS H200 GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyAWSH200,
+    oracle: SEPOLIA_CONTRACTS.awsH200OracleAdapter,
+    indexPrice: 2.65,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on AWS H200 GPU hourly rental rates with 10x max leverage',
+  },
+  'COREWEAVE-H200-PERP': {
+    id: MARKET_IDS['COREWEAVE-H200-PERP'],
+    name: 'COREWEAVE-H200-PERP',
+    displayName: 'CoreWeave H200 GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200,
+    oracle: SEPOLIA_CONTRACTS.coreweaveH200OracleAdapter,
+    indexPrice: 2.57,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on CoreWeave H200 GPU hourly rental rates with 10x max leverage',
+  },
+  'GCP-H200-PERP': {
+    id: MARKET_IDS['GCP-H200-PERP'],
+    name: 'GCP-H200-PERP',
+    displayName: 'Google Cloud H200 GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyGCPH200,
+    oracle: SEPOLIA_CONTRACTS.gcpH200OracleAdapter,
+    indexPrice: 4.55,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on Google Cloud H200 GPU hourly rental rates with 10x max leverage',
+  },
+  'AZURE-H200-PERP': {
+    id: MARKET_IDS['AZURE-H200-PERP'],
+    name: 'AZURE-H200-PERP',
+    displayName: 'Azure H200 GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyAzureH200,
+    oracle: SEPOLIA_CONTRACTS.azureH200OracleAdapter,
+    indexPrice: 5.05,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on Azure H200 GPU hourly rental rates with 10x max leverage',
   },
 };
 
