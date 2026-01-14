@@ -75,6 +75,42 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       priceField: "effective_price",
       providerFilter: "Google Cloud", // Filter by provider_name (stored as "Google Cloud" in DB)
     },
+    // Provider-specific H200 markets - query h200_provider_prices with provider filter
+    "ORACLE-H200-PERP": {
+      displayName: "Oracle H200",
+      tableName: "h200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "Oracle", // Filter by provider_name
+    },
+    "AWS-H200-PERP": {
+      displayName: "AWS H200",
+      tableName: "h200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "AWS", // Filter by provider_name
+    },
+    "COREWEAVE-H200-PERP": {
+      displayName: "CoreWeave H200",
+      tableName: "h200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "CoreWeave", // Filter by provider_name
+    },
+    "GCP-H200-PERP": {
+      displayName: "GCP H200",
+      tableName: "h200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "Google Cloud", // Filter by provider_name (stored as "Google Cloud" in DB)
+    },
+    "AZURE-H200-PERP": {
+      displayName: "Azure H200",
+      tableName: "h200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "Azure", // Filter by provider_name
+    },
   };
   
   const config = marketConfig[market] || {
