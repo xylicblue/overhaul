@@ -10,6 +10,9 @@ import { useMarkPrice, useFundingRate } from "./hooks/useVAMM";
 import { useReadContract } from "wagmi";
 import { SEPOLIA_CONTRACTS } from "./contracts/addresses";
 import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
+import PageTransition from "./components/PageTransition";
+import EmptyState from "./components/EmptyState";
+import { TableSkeleton } from "./components/Skeleton";
 import "./portfolio.css";
 
 import {
@@ -314,14 +317,14 @@ const PortfolioPage = () => {
                 Loading positions...
               </div>
             ) : positions.length === 0 ? (
-              <div className="p-12 text-center flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-600">
-                  <HiOutlineRectangleStack className="w-6 h-6" />
-                </div>
-                <div className="text-zinc-400 text-sm">
-                  No open positions found
-                </div>
-              </div>
+              <EmptyState
+                type="positions"
+                title="No Open Positions"
+                description="You don't have any active positions yet. Start trading to build your portfolio."
+                actionLabel="Go to Trade"
+                actionHref="/trade"
+                tips={[]}
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -353,14 +356,14 @@ const PortfolioPage = () => {
                 Loading trade history...
               </div>
             ) : tradeHistory.length === 0 ? (
-              <div className="p-12 text-center flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-600">
-                  <HiOutlineArrowsRightLeft className="w-6 h-6" />
-                </div>
-                <div className="text-zinc-400 text-sm">
-                  No trade history available
-                </div>
-              </div>
+              <EmptyState
+                type="trades"
+                title="No Trade History"
+                description="Your trading activity will appear here once you make your first trade."
+                actionLabel="Start Trading"
+                actionHref="/trade"
+                tips={[]}
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -519,23 +522,20 @@ const PortfolioPage = () => {
 
   if (!isConnected) {
     return (
-      <main className="min-h-screen bg-[#050505] pt-24 pb-12 px-4 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto border border-zinc-800">
-            <HiOutlineWallet className="w-8 h-8 text-zinc-500" />
-          </div>
-          <h2 className="text-xl font-bold text-white">Connect Wallet</h2>
-          <p className="text-zinc-400 text-sm max-w-xs mx-auto">
-            Please connect your wallet to view your portfolio, positions, and
-            trade history.
-          </p>
-        </div>
-      </main>
+      <PageTransition className="min-h-screen bg-[#050505] pt-24 pb-12 px-4 flex items-center justify-center">
+        <EmptyState
+          type="wallet"
+          title="Connect Your Wallet"
+          description="Connect your wallet to access your portfolio, view open positions, and track your trading history."
+          secondaryActionLabel="Learn More"
+          secondaryActionHref="/guide"
+        />
+      </PageTransition>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#050505] pt-24 pb-12 px-4 md:px-8 lg:px-12">
+    <PageTransition className="min-h-screen bg-[#050505] pt-24 pb-12 px-4 md:px-8 lg:px-12">
       <div className="max-w-7xl mx-auto">
         <PortfolioHeader
           username={profile?.username}
@@ -553,7 +553,7 @@ const PortfolioPage = () => {
           {renderContent()}
         </div>
       </div>
-    </main>
+    </PageTransition>
   );
 };
 

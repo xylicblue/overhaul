@@ -40,7 +40,13 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
   const [priceChange, setPriceChange] = useState(null);
   const [priceChangePercent, setPriceChangePercent] = useState(null);
   const [hasEnoughData, setHasEnoughData] = useState(false);
-  const [timeRange, setTimeRange] = useState("7d");
+  
+  // Persist time range selection to localStorage (separate key for mark price chart)
+  const [timeRange, setTimeRange] = useState(() => {
+    const saved = localStorage.getItem("mark_chart_time_range");
+    return saved || "7d";
+  });
+  
   const [chartType, setChartType] = useState("line");
   const [selectedTool, setSelectedTool] = useState("cursor");
   const [showChartTypeMenu, setShowChartTypeMenu] = useState(false);
@@ -48,6 +54,11 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
   const [magnetMode, setMagnetMode] = useState(false);
   const [lockedDrawings, setLockedDrawings] = useState(false);
   const [showDrawings, setShowDrawings] = useState(true);
+
+  // Save time range to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem("mark_chart_time_range", timeRange);
+  }, [timeRange]);
   const [expandedToolGroup, setExpandedToolGroup] = useState(null);
   const [submenuPosition, setSubmenuPosition] = useState({ top: 0, left: 0 });
   

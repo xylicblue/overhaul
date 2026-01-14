@@ -4,6 +4,7 @@ import { TradingDashboard } from "./tradingdash";
 import { MarketProvider } from "./marketcontext";
 import NetworkGuard from "./components/NetworkGuard";
 import WelcomeModal from "./components/WelcomeModal";
+import PageTransition from "./components/PageTransition";
 import { AlertTriangle, X } from "lucide-react";
 
 const TradingPage = () => {
@@ -27,7 +28,7 @@ const TradingPage = () => {
   };
 
   return (
-    <main className="flex flex-col h-full overflow-hidden relative">
+    <PageTransition className="flex flex-col h-full overflow-hidden relative">
       {/* Sleek Testnet Banner - Dismissible */}
       {showBanner && (
         <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border-b border-blue-500/20 px-4 py-1.5 flex items-center justify-center backdrop-blur-sm z-40 relative">
@@ -62,7 +63,7 @@ const TradingPage = () => {
       >
         <span>?</span> Help
       </button>
-    </main>
+    </PageTransition>
   );
 };
 

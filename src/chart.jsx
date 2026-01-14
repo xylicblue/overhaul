@@ -9,7 +9,17 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
   const [chartData, setChartData] = useState([]);
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [priceChangePercent, setPriceChangePercent] = useState(null);
-  const [timeRange, setTimeRange] = useState("3d");
+  
+  // Persist time range selection to localStorage
+  const [timeRange, setTimeRange] = useState(() => {
+    const saved = localStorage.getItem("chart_time_range");
+    return saved || "3d";
+  });
+
+  // Save time range to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem("chart_time_range", timeRange);
+  }, [timeRange]);
 
   const isPriceUp = priceChange !== null && priceChange >= 0;
 
@@ -332,8 +342,71 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     tooltip: {
       theme: "dark",
       style: { fontSize: "12px" },
-      x: { format: "MMM dd, HH:mm" },
-      y: { formatter: (val) => `$${val.toFixed(3)}` },
+      custom: function({ series, seriesIndex, dataPointIndex, w }) {
+        const value = series[seriesIndex][dataPointIndex];
+        const timestamp = w.globals.seriesX[seriesIndex][dataPointIndex];
+        const date = new Date(timestamp);
+        
+        // Format date nicely
+        const formattedDate = date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          year: 'numeric'
+        });
+        const formattedTime = date.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true
+        });
+        
+        return `
+          <div style="
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(59, 130, 246, 0.1);
+            min-width: 140px;
+          ">
+            <div style="
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              margin-bottom: 8px;
+              padding-bottom: 8px;
+              border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            ">
+              <div style="
+                width: 8px;
+                height: 8px;
+                background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+                border-radius: 50%;
+                box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+              "></div>
+              <span style="
+                font-size: 11px;
+                color: #94a3b8;
+                font-weight: 500;
+                letter-spacing: 0.5px;
+              ">${formattedDate}</span>
+            </div>
+            <div style="
+              font-size: 20px;
+              font-weight: 700;
+              color: #ffffff;
+              font-family: 'SF Mono', 'Fira Code', monospace;
+              letter-spacing: -0.5px;
+              margin-bottom: 4px;
+            ">$${value.toFixed(3)}</div>
+            <div style="
+              font-size: 10px;
+              color: #64748b;
+              font-weight: 500;
+            ">${formattedTime}</div>
+          </div>
+        `;
+      },
       marker: { show: false },
     },
   };

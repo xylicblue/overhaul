@@ -7,6 +7,8 @@ import { useMarkPrice, useFundingRate } from "../hooks/useVAMM";
 import { SEPOLIA_CONTRACTS, MARKET_IDS } from "../contracts/addresses";
 import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
 import { motion, AnimatePresence } from "framer-motion";
+import ConfirmationModal from "./ConfirmationModal";
+import EmptyState, { CompactEmptyState } from "./EmptyState";
 import {
   Wallet,
   TrendingUp,
@@ -15,6 +17,7 @@ import {
   AlertCircle,
   ArrowRight,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 import { supabase } from "../creatclient";
 
@@ -44,16 +47,12 @@ export function PositionPanel({ selectedMarket = null }) {
             Positions
           </h3>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-6 text-center">
-          <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mb-4 shadow-inner border border-white/5">
-            <Wallet size={24} className="text-slate-600" />
-          </div>
-          <p className="text-slate-300 font-medium mb-1">
-            Wallet Not Connected
-          </p>
-          <span className="text-xs text-slate-500 max-w-[200px]">
-            Connect your wallet to view your active positions and performance.
-          </span>
+        <div className="flex-1 flex items-center justify-center">
+          <CompactEmptyState
+            icon={Wallet}
+            title="Connect Wallet"
+            description="Connect your wallet to view and manage your positions."
+          />
         </div>
       </div>
     );
@@ -87,10 +86,14 @@ export function PositionPanel({ selectedMarket = null }) {
             Positions
           </h3>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center text-red-400 p-6 text-center">
-          <AlertCircle size={32} className="mb-3 opacity-80" />
-          <p className="text-sm font-medium">Error loading positions</p>
-          <span className="text-xs opacity-70 mt-1">{error.message}</span>
+        <div className="flex-1 flex items-center justify-center">
+          <CompactEmptyState
+            icon={AlertCircle}
+            title="Error Loading Positions"
+            description={error.message || "Something went wrong. Please try again."}
+            actionLabel="Retry"
+            onAction={() => window.location.reload()}
+          />
         </div>
       </div>
     );
@@ -118,17 +121,15 @@ export function PositionPanel({ selectedMarket = null }) {
             0
           </span>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-6 text-center">
-          <div className="w-16 h-16 bg-slate-900/50 rounded-full flex items-center justify-center mb-4 border border-dashed border-slate-700">
-            <TrendingUp size={24} className="text-slate-700" />
-          </div>
-          <p className="text-slate-300 font-medium mb-1">No Open Positions</p>
-          <span className="text-xs text-slate-500 max-w-[200px]">
-            {marketName
+        <div className="flex-1 flex items-center justify-center">
+          <CompactEmptyState
+            icon={TrendingUp}
+            title="No Open Positions"
+            description={marketName
               ? `Open a position in ${displayMarketName} to see it tracked here.`
-              : "Open a position in the market to see it tracked here."
+              : "Open a position to see it tracked here."
             }
-          </span>
+          />
         </div>
       </div>
     );
@@ -235,8 +236,11 @@ function PositionCard({
   const { address } = useAccount();
   const handledTxHashRef = useRef(null);
   const closedSizeRef = useRef(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingCloseAmount, setPendingCloseAmount] = useState(null);
 
-  const handleClose = (closeAmount) => {
+  // Called when user clicks 'Confirm Close' - shows confirmation modal
+  const initiateClose = (closeAmount) => {
     if (!closeAmount || parseFloat(closeAmount) <= 0) {
       toast.error("Please enter a valid size to close");
       return;
@@ -249,6 +253,12 @@ function PositionCard({
       return;
     }
 
+    setPendingCloseAmount(closeAmount);
+    setShowConfirmModal(true);
+  };
+
+  // Called after modal confirmation
+  const handleClose = (closeAmount) => {
     try {
       // Store the close size for P&L calculation
       closedSizeRef.current = parseFloat(closeAmount);
@@ -256,6 +266,8 @@ function PositionCard({
       toast.loading("Closing position...", { id: "close" });
       setClosingPosition(null);
       setCloseSize("");
+      setShowConfirmModal(false);
+      setPendingCloseAmount(null);
     } catch (error) {
       console.error("Close position error:", error);
       toast.error("Failed to close position: " + error.message, {
@@ -569,7 +581,7 @@ function PositionCard({
 
             <button
               className="w-full py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-md transition-all shadow-lg shadow-red-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => handleClose(closeSize)}
+              onClick={() => initiateClose(closeSize)}
               disabled={isPending}
             >
               {isPending ? (
@@ -597,6 +609,40 @@ function PositionCard({
           </motion.div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => {
+          setShowConfirmModal(false);
+          setPendingCloseAmount(null);
+        }}
+        onConfirm={() => handleClose(pendingCloseAmount)}
+        title="Close Position"
+        message={`Are you sure you want to close ${pendingCloseAmount || 0} GPU-HOURS of your ${isLong ? 'Long' : 'Short'} position?`}
+        confirmText="Close Position"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isPending}
+        details={
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Market</span>
+              <span className="text-white font-medium">{position.displayName || position.marketKey}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Size to Close</span>
+              <span className="text-white font-mono">{pendingCloseAmount} GPU-HRS</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Estimated P&L</span>
+              <span className={`font-mono font-semibold ${currentPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {currentPnL >= 0 ? '+' : ''}${((currentPnL / absSize) * parseFloat(pendingCloseAmount || 0)).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        }
+      />
     </motion.div>
   );
 }

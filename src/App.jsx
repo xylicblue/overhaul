@@ -69,11 +69,54 @@ function App() {
             <div className="App">
               <Toaster
                 position="top-right"
+                gutter={12}
+                containerStyle={{
+                  top: 20,
+                  right: 20,
+                }}
                 toastOptions={{
+                  // Base styles for all toasts
                   style: {
-                    background: "#333",
-                    color: "#fff",
-                    border: "1px solid #555",
+                    background: 'rgba(15, 15, 20, 0.95)',
+                    backdropFilter: 'blur(20px)',
+                    color: '#f1f5f9',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '12px',
+                    padding: '14px 18px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                    maxWidth: '380px',
+                  },
+                  duration: 4000,
+                  // Success toast styles
+                  success: {
+                    style: {
+                      background: 'linear-gradient(135deg, rgba(15, 15, 20, 0.95) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                    },
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#0f0f14',
+                    },
+                  },
+                  // Error toast styles
+                  error: {
+                    style: {
+                      background: 'linear-gradient(135deg, rgba(15, 15, 20, 0.95) 0%, rgba(239, 68, 68, 0.1) 100%)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                    },
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#0f0f14',
+                    },
+                  },
+                  // Loading toast styles
+                  loading: {
+                    style: {
+                      background: 'linear-gradient(135deg, rgba(15, 15, 20, 0.95) 0%, rgba(99, 102, 241, 0.1) 100%)',
+                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                    },
                   },
                 }}
               />

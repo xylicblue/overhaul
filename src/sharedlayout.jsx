@@ -1,6 +1,7 @@
 // src/SharedLayout.js
 import React, { useState, useEffect } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useDisconnect } from "wagmi";
 import { supabase } from "./creatclient";
 import Web3AuthHandler from "./web3auth";
 import ProfileDropdown from "./dropdown";
@@ -91,9 +92,9 @@ const AppHeader = ({ session, profile, handleLogout }) => {
 
       {/* Right Side: Auth & Mobile Menu */}
       <div className="flex items-center gap-4">
-        {/* Wallet Status (Visible on Desktop) */}
+        {/* Wallet Status (Visible on Desktop, only when logged in) */}
         <div className="hidden lg:block">
-          <HeaderWallet />
+          {session && <HeaderWallet />}
         </div>
 
         <div className="hidden md:block">
@@ -134,7 +135,7 @@ const AppHeader = ({ session, profile, handleLogout }) => {
       {isMenuOpen && (
         <div className="absolute top-14 left-0 right-0 bg-[#0A0A0A] border-b border-zinc-800 p-4 flex flex-col gap-4 md:hidden shadow-xl">
           <div className="flex justify-center pb-2">
-            <HeaderWallet />
+            {session && <HeaderWallet />}
           </div>
           <NavLink
             to="/trade"
@@ -263,6 +264,7 @@ const SharedLayout = () => {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const navigate = useNavigate();
+  const { disconnect } = useDisconnect();
 
   useEffect(() => {
     supabase.auth
@@ -308,6 +310,7 @@ const SharedLayout = () => {
   }, [session]);
 
   const handleLogout = async () => {
+    disconnect(); // Disconnect wallet first
     await supabase.auth.signOut();
     navigate("/");
   };
