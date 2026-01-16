@@ -210,7 +210,8 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
 
           const result = await query;
 
-          if (!result.error && result.data && result.data.length >= 2) {
+          // Accept data with at least 1 point (for new markets)
+          if (!result.error && result.data && result.data.length >= 1) {
             data = result.data;
             error = null;
             break;
@@ -220,7 +221,7 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
         }
 
         if (error) throw error;
-        if (!data || data.length < 2) throw new Error("Not enough data");
+        if (!data || data.length < 1) throw new Error("Not enough data");
 
         setHasEnoughData(true);
 
@@ -760,6 +761,7 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
       },
       yaxis: {
         opposite: true,
+        tickAmount: 4, // Equal spacing between y-axis labels
         labels: {
           style: { colors: "#71717a", fontSize: "11px" }, // zinc-500
           formatter: (val) => `$${val?.toFixed(2) || "0.00"}`,

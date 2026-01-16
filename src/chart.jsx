@@ -334,6 +334,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     },
     yaxis: {
       opposite: true,
+      tickAmount: 4, // Equal spacing between y-axis labels
       labels: {
         style: { colors: "#94a3b8", fontSize: "11px" },
         formatter: (val) => `$${val.toFixed(2)}`,

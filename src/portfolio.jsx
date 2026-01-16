@@ -13,6 +13,7 @@ import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
 import PageTransition from "./components/PageTransition";
 import EmptyState from "./components/EmptyState";
 import { TableSkeleton } from "./components/Skeleton";
+import PnLChart from "./components/PnLChart";
 import "./portfolio.css";
 
 import {
@@ -442,14 +443,16 @@ const PortfolioPage = () => {
                                 ? isPnLPositive
                                   ? "text-emerald-400"
                                   : "text-red-400"
-                                : "text-slate-500"
+                                : ""
                             }`}
                           >
-                            {hasPnL
-                              ? `${isPnLPositive ? "+" : ""}$${pnlValue.toFixed(
-                                  2
-                                )}`
-                              : "—"}
+                            {hasPnL ? (
+                              `${isPnLPositive ? "+" : ""}$${pnlValue.toFixed(2)}`
+                            ) : (
+                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-zinc-500 bg-zinc-800/50 rounded">
+                                OPEN
+                              </span>
+                            )}
                           </td>
                           <td
                             className={`px-6 py-4 text-right font-mono ${
@@ -457,17 +460,15 @@ const PortfolioPage = () => {
                                 ? isFundingPositive
                                   ? "text-emerald-400"
                                   : "text-red-400"
-                                : "text-slate-500"
+                                : "text-zinc-600"
                             }`}
                           >
                             {hasFunding
-                              ? `${
-                                  isFundingPositive ? "+" : ""
-                                }$${fundingValue.toFixed(2)}`
-                              : "—"}
+                              ? `${isFundingPositive ? "+" : ""}$${fundingValue.toFixed(2)}`
+                              : "·"}
                           </td>
-                          <td className="px-6 py-4 text-right font-mono text-red-400">
-                            {hasFees ? `-$${feesValue.toFixed(2)}` : "—"}
+                          <td className={`px-6 py-4 text-right font-mono ${hasFees ? "text-red-400" : "text-zinc-600"}`}>
+                            {hasFees ? `-$${feesValue.toFixed(2)}` : "·"}
                           </td>
                           <td className="px-6 py-4 text-right">
                             <a
@@ -535,7 +536,7 @@ const PortfolioPage = () => {
   }
 
   return (
-    <PageTransition className="min-h-screen bg-[#050505] pt-24 pb-12 px-4 md:px-8 lg:px-12">
+    <PageTransition className="min-h-screen bg-[#050505] pt-16 pb-12 px-4 md:px-8 lg:px-12">
       <div className="max-w-7xl mx-auto">
         <PortfolioHeader
           username={profile?.username}
@@ -551,6 +552,9 @@ const PortfolioPage = () => {
         <div className="space-y-6">
           <HistoryTabs activeTab={activeTab} setActiveTab={setActiveTab} />
           {renderContent()}
+        </div>
+        <div className="mt-6">
+          <PnLChart tradeHistory={tradeHistory} />
         </div>
       </div>
     </PageTransition>

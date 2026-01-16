@@ -23,8 +23,11 @@ const VAMMChart = ({ market = "H100-PERP" }) => {
         else if (timeRange === "7d") minutesAgo = 7 * 24 * 60;
         else minutesAgo = 7 * 24 * 60; // Default to 7d
 
-        // Try both old and new market naming schemes
-        const marketNames = [market, "H100-GPU-PERP"]; // Try new name first, then old name
+        // For H100 markets, try both old and new naming schemes
+        // For other markets (B200, H200), just use the direct market name
+        const marketNames = market === "H100-PERP" || market === "H100-GPU-PERP" 
+          ? [market, "H100-GPU-PERP", "H100-PERP"] 
+          : [market];
         let data = null;
         let error = null;
 
@@ -45,7 +48,8 @@ const VAMMChart = ({ market = "H100-PERP" }) => {
 
           const result = await query;
 
-          if (!result.error && result.data && result.data.length >= 2) {
+          // Accept data with at least 1 point (for new markets)
+          if (!result.error && result.data && result.data.length >= 1) {
             data = result.data;
             error = null;
             break; // Found data, stop trying
@@ -55,7 +59,7 @@ const VAMMChart = ({ market = "H100-PERP" }) => {
         }
 
         if (error) throw error;
-        if (!data || data.length < 2) throw new Error("Not enough data");
+        if (!data || data.length < 1) throw new Error("Not enough data");
 
         setHasEnoughData(true);
 
@@ -201,6 +205,7 @@ const VAMMChart = ({ market = "H100-PERP" }) => {
     },
     yaxis: {
       opposite: true,
+      tickAmount: 4, // Equal spacing between y-axis labels
       labels: {
         style: { colors: "#94a3b8", fontSize: "11px" },
         formatter: (val) => `$${val.toFixed(2)}`,

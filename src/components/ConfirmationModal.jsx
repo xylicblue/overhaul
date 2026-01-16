@@ -1,10 +1,11 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
 
 /**
  * Reusable Confirmation Modal Component
- * Used for critical actions like closing positions, withdrawing collateral, etc.
+ * Clean, professional design with subtle animations
  */
 const ConfirmationModal = ({
   isOpen,
@@ -16,7 +17,7 @@ const ConfirmationModal = ({
   cancelText = "Cancel",
   variant = "warning", // 'warning' | 'danger' | 'info'
   isLoading = false,
-  details = null, // Optional additional details to show
+  details = null,
 }) => {
   const variants = {
     warning: {
@@ -38,7 +39,7 @@ const ConfirmationModal = ({
 
   const style = variants[variant] || variants.warning;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -54,13 +55,13 @@ const ConfirmationModal = ({
 
           {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-full max-w-md px-4"
           >
-            <div className="w-full max-w-md bg-[#0A0A0F] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="w-full bg-[#0A0A0F] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
               {/* Header */}
               <div className="relative px-6 pt-6 pb-4">
                 <button
@@ -116,7 +117,8 @@ const ConfirmationModal = ({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 

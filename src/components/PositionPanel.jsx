@@ -385,6 +385,8 @@ function PositionCard({
   }, [closeError]);
 
   const isClosing = closingPosition === position.marketId;
+  const [showDetails, setShowDetails] = useState(false);
+  const netPnL = currentPnL + fundingEarned - feesPaid;
 
   return (
     <motion.div
@@ -392,221 +394,179 @@ function PositionCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className={`relative rounded-xl border overflow-hidden transition-all duration-300 group ${
+      className={`relative rounded-xl border overflow-hidden transition-all duration-300 ${
         isLong
-          ? "bg-gradient-to-br from-green-900/10 to-slate-900/50 border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-[0_0_20px_rgba(34,197,94,0.1)]"
-          : "bg-gradient-to-br from-red-900/10 to-slate-900/50 border-red-500/20 hover:border-red-500/40 hover:shadow-[0_0_20px_rgba(239,68,68,0.1)]"
+          ? "bg-gradient-to-br from-green-900/10 to-slate-900/50 border-emerald-500/20 hover:border-emerald-500/30"
+          : "bg-gradient-to-br from-red-900/10 to-slate-900/50 border-red-500/20 hover:border-red-500/30"
       }`}
     >
-      {/* Background Glow */}
-      <div
-        className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20 pointer-events-none ${
-          isLong ? "bg-emerald-500" : "bg-red-500"
-        }`}
-      ></div>
-
-      <div className="p-4 relative z-10">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-3">
+      <div className="p-3 relative z-10">
+        {/* Header Row */}
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex items-center gap-2">
             <div
-              className={`p-2 rounded-lg ${
+              className={`p-1.5 rounded-lg ${
                 isLong
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "bg-red-500/10 text-red-400"
               }`}
             >
-              {isLong ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+              {isLong ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
             </div>
             <div>
-              <div className="font-bold text-white text-sm tracking-wide">
-                {position.marketName}
-              </div>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-white text-sm">
+                  {position.marketName?.replace("-PERP", "")}
+                </span>
                 <span
-                  className={`text-[10px] font-bold uppercase tracking-wider ${
-                    isLong ? "text-emerald-400" : "text-red-400"
+                  className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                    isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
                   }`}
                 >
                   {isLong ? "Long" : "Short"}
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">|</span>
-                <span className="text-[10px] text-slate-300 font-mono">
-                  {absSize.toFixed(4)} Size
-                </span>
+              </div>
+              <div className="text-xs text-slate-400 font-mono">
+                {absSize.toFixed(2)} GPU-HRS @ ${entryPrice.toFixed(2)}
               </div>
             </div>
           </div>
 
+          {/* P&L on Right */}
           <div className="text-right">
             <div
               className={`font-mono font-bold text-base ${
-                isProfitable
-                  ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.3)]"
-                  : "text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]"
+                netPnL >= 0 ? "text-emerald-400" : "text-red-400"
               }`}
             >
-              {isProfitable ? "+" : ""}${currentPnL.toFixed(2)}
+              {netPnL >= 0 ? "+" : ""}${netPnL.toFixed(2)}
             </div>
             <div
               className={`text-xs font-medium ${
-                isProfitable ? "text-green-500/70" : "text-red-500/70"
+                isProfitable ? "text-emerald-500/70" : "text-red-500/70"
               }`}
             >
-              Trading P&L {isProfitable ? "+" : ""}
-              {pnlPercent.toFixed(2)}%
+              {isProfitable ? "+" : ""}{pnlPercent.toFixed(1)}%
             </div>
           </div>
         </div>
 
-        {/* P&L Breakdown */}
-        <div className="mb-3 bg-slate-950/30 rounded-lg p-3 border border-white/5 space-y-2">
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Trading P&L</span>
-            <span
-              className={`font-mono font-semibold ${
-                currentPnL >= 0 ? "text-emerald-400" : "text-red-400"
-              }`}
-            >
-              {currentPnL >= 0 ? "+" : ""}${currentPnL.toFixed(2)}
-            </span>
+        {/* Quick Stats Row */}
+        <div className="flex items-center justify-between text-xs mb-3 py-2 px-3 bg-slate-950/40 rounded-lg">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">Mark:</span>
+              <span className="text-white font-mono">${currentPrice > 0 ? currentPrice.toFixed(2) : "..."}</span>
+            </div>
+            <div className="w-px h-3 bg-slate-700"></div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">P&L:</span>
+              <span className={`font-mono font-semibold ${netPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                {netPnL >= 0 ? "+" : ""}${netPnL.toFixed(2)}
+              </span>
+            </div>
+            <div className="w-px h-3 bg-slate-700"></div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">Notional:</span>
+              <span className="text-white font-mono">${openNotional.toFixed(0)}</span>
+            </div>
+            <div className="w-px h-3 bg-slate-700"></div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">Margin:</span>
+              <span className="text-white font-mono">${margin.toFixed(0)}</span>
+            </div>
           </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">
-              Funding {fundingEarned >= 0 ? "Received" : "Paid"}
-            </span>
-            <span
-              className={`font-mono font-semibold ${
-                fundingEarned >= 0 ? "text-emerald-400" : "text-red-400"
-              }`}
-            >
-              {fundingEarned >= 0 ? "+" : ""}${fundingEarned.toFixed(2)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Fees Paid</span>
-            <span className="text-red-400/80 font-mono font-semibold">
-              -${feesPaid.toFixed(2)}
-            </span>
-          </div>
-          <div className="border-t border-white/5 pt-2 flex justify-between items-center text-xs">
-            <span className="text-white font-semibold">Net P&L</span>
-            <span
-              className={`font-mono font-bold ${
-                currentPnL + fundingEarned - feesPaid >= 0
-                  ? "text-emerald-400"
-                  : "text-red-400"
-              }`}
-            >
-              {currentPnL + fundingEarned - feesPaid >= 0 ? "+" : ""}$
-              {(currentPnL + fundingEarned - feesPaid).toFixed(2)}
-            </span>
-          </div>
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors ml-2 shrink-0"
+          >
+            {showDetails ? "Hide" : "Details"}
+          </button>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mb-4 bg-slate-950/30 rounded-lg p-3 border border-white/5">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Entry Price</span>
-            <span className="text-slate-200 font-mono">
-              ${entryPrice.toFixed(2)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Mark Price</span>
-            <span className="text-slate-200 font-mono">
-              ${currentPrice > 0 ? currentPrice.toFixed(2) : "..."}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Notional</span>
-            <span className="text-slate-200 font-mono">
-              ${openNotional.toFixed(2)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Margin</span>
-            <span className="text-slate-200 font-mono">
-              ${margin.toFixed(2)}
-            </span>
-          </div>
-        </div>
+        {/* Expandable Details */}
+        <AnimatePresence>
+          {showDetails && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-3 overflow-hidden"
+            >
+              <div className="bg-slate-950/40 rounded-lg p-3 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Trading P&L</span>
+                  <span className={`font-mono ${currentPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {currentPnL >= 0 ? "+" : ""}${currentPnL.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Funding {fundingEarned >= 0 ? "Received" : "Paid"}</span>
+                  <span className={`font-mono ${fundingEarned >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {fundingEarned >= 0 ? "+" : ""}${fundingEarned.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Fees Paid</span>
+                  <span className="text-red-400/80 font-mono">-${feesPaid.toFixed(2)}</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Action Button */}
+        {/* Close Position Button - Prominent */}
         {!isClosing ? (
           <button
-            className="w-full py-2 bg-slate-800/50 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition-all border border-white/5 hover:border-white/10 flex items-center justify-center gap-2 group/btn"
+            className="w-full py-2 mt-1 flex items-center justify-center gap-2 text-xs font-medium text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-red-600 rounded-lg transition-all border border-zinc-700/50 hover:border-red-500"
             onClick={() => setClosingPosition(position.marketId)}
           >
+            <X size={14} />
             Close Position
-            <ArrowRight
-              size={12}
-              className="opacity-0 group-hover/btn:opacity-100 group-hover/btn:translate-x-1 transition-all"
-            />
           </button>
         ) : (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            className="bg-slate-900/80 rounded-lg p-3 border border-white/10"
-          >
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-white">Close Amount</span>
+          <div className="mt-1 space-y-2">
+            {/* Quick % buttons row */}
+            <div className="flex gap-1.5">
+              {[25, 50, 75, 100].map((pct) => (
+                <button
+                  key={pct}
+                  className={`flex-1 py-1 text-[10px] font-bold rounded transition-all ${
+                    closeSize === (absSize * pct / 100).toFixed(2)
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700/50"
+                  }`}
+                  onClick={() => setCloseSize((absSize * pct / 100).toFixed(2))}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+            {/* Input + Buttons row */}
+            <div className="flex gap-2">
+              <input
+                type="number"
+                placeholder="Size..."
+                value={closeSize}
+                onChange={(e) => setCloseSize(e.target.value)}
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                step="0.01"
+              />
+              <button
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-50"
+                onClick={() => initiateClose(closeSize)}
+                disabled={isPending || !closeSize}
+              >
+                {isPending ? "..." : "Close"}
+              </button>
               <button
                 onClick={() => setClosingPosition(null)}
-                className="text-slate-500 hover:text-white transition-colors"
+                className="px-2 py-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
               >
                 <X size={14} />
               </button>
             </div>
-
-            <div className="flex gap-2 mb-3">
-              <div className="relative flex-1">
-                <input
-                  type="number"
-                  placeholder="Amount"
-                  value={closeSize}
-                  onChange={(e) => setCloseSize(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  step="0.0001"
-                />
-                <button
-                  className="absolute right-1 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-slate-800 text-blue-400 text-[10px] font-bold rounded hover:bg-slate-700 transition-colors"
-                  onClick={() => setCloseSize(absSize.toString())}
-                >
-                  MAX
-                </button>
-              </div>
-            </div>
-
-            <button
-              className="w-full py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-md transition-all shadow-lg shadow-red-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => initiateClose(closeSize)}
-              disabled={isPending}
-            >
-              {isPending ? (
-                <>
-                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Closing...
-                </>
-              ) : (
-                "Confirm Close"
-              )}
-            </button>
-
-            {hash && (
-              <div className="text-center mt-2">
-                <a
-                  href={`https://sepolia.etherscan.io/tx/${hash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-1"
-                >
-                  View Transaction <ArrowRight size={10} />
-                </a>
-              </div>
-            )}
-          </motion.div>
+          </div>
         )}
       </div>
 

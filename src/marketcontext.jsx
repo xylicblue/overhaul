@@ -142,8 +142,14 @@ const MarketContext = createContext();
 // 2. Create the Provider component
 export const MarketProvider = ({ children }) => {
   // State to hold the currently selected market
-  // Default to ETH-PERP-V2 (the new $3.75 market)
-  const [selectedMarket, setSelectedMarket] = useState(DEFAULT_MARKET);
+  // Initialize from localStorage if available, otherwise use default
+  const [selectedMarket, setSelectedMarket] = useState(() => {
+    const savedMarketName = localStorage.getItem("selected_market");
+    if (savedMarketName && AVAILABLE_MARKETS[savedMarketName]) {
+      return AVAILABLE_MARKETS[savedMarketName];
+    }
+    return DEFAULT_MARKET;
+  });
 
   // Function to change the market
   // Supports both ETH-PERP-V2 and ETH-PERP
@@ -152,6 +158,8 @@ export const MarketProvider = ({ children }) => {
     
     if (market) {
       setSelectedMarket(market);
+      // Persist to localStorage
+      localStorage.setItem("selected_market", marketName);
       console.log("Market selected:", market);
     } else {
       console.warn(`Market ${marketName} not found. Available markets:`, Object.keys(AVAILABLE_MARKETS));

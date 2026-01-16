@@ -836,7 +836,7 @@ const LandingPage = () => {
                     value={formData.email}
                     onChange={handleFormChange}
                   />
-                  <label className="absolute left-0 top-4 text-slate-500 text-sm transition-all duration-300 peer-placeholder-shown:text-base peer-placeholder-shown:top-4 peer-focus:-top-6 peer-focus:text-xs peer-focus:text-indigo-400 peer-valid:-top-6 peer-valid:text-xs peer-valid:text-indigo-400 cursor-text pointer-events-none uppercase tracking-wider font-medium">
+                  <label className="absolute left-0 top-4 text-slate-500 text-sm transition-all duration-300 peer-placeholder-shown:text-base peer-placeholder-shown:top-4 peer-focus:-top-6 peer-focus:text-xs peer-focus:text-indigo-400 peer-[:not(:placeholder-shown)]:-top-6 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-indigo-400 cursor-text pointer-events-none uppercase tracking-wider font-medium">
                     Email
                   </label>
                 </div>
