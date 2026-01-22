@@ -208,6 +208,52 @@ const DEPLOYED_MARKETS = [
     description:
       "Trade Azure H200 GPU hourly rental rates. Index price: $5.05/hour.",
   },
+  // H100 Provider-Specific Markets
+  {
+    name: "AWS-H100-PERP",
+    displayName: "AWS H100",
+    fullName: "AWS H100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH100,
+    oracleAddress: SEPOLIA_CONTRACTS.awsH100OracleAdapter,
+    marketId: MARKET_IDS["AWS-H100-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade AWS H100 GPU hourly rental rates. Index price: $3.85/hour.",
+  },
+  {
+    name: "AZURE-H100-PERP",
+    displayName: "Azure H100",
+    fullName: "Azure H100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH100,
+    oracleAddress: SEPOLIA_CONTRACTS.azureH100OracleAdapter,
+    marketId: MARKET_IDS["AZURE-H100-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade Azure H100 GPU hourly rental rates. Index price: $2.12/hour.",
+  },
+  {
+    name: "GCP-H100-PERP",
+    displayName: "GCP H100",
+    fullName: "Google Cloud H100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH100,
+    oracleAddress: SEPOLIA_CONTRACTS.gcpH100OracleAdapter,
+    marketId: MARKET_IDS["GCP-H100-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade Google Cloud H100 GPU hourly rental rates. Index price: $3.88/hour.",
+  },
   {
     name: "ETH-PERP-V2",
     displayName: "H100 GPU (Alias)",
@@ -322,6 +368,25 @@ export const useMarketsData = () => {
     error: errorAzureH200,
   } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAzureH200, 5000);
 
+  // Fetch mark prices for H100 provider-specific markets
+  const {
+    price: markPriceAWSH100,
+    isLoading: priceLoadingAWSH100,
+    error: errorAWSH100,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAWSH100, 5000);
+
+  const {
+    price: markPriceAzureH100,
+    isLoading: priceLoadingAzureH100,
+    error: errorAzureH100,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAzureH100, 5000);
+
+  const {
+    price: markPriceGCPH100,
+    isLoading: priceLoadingGCPH100,
+    error: errorGCPH100,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyGCPH100, 5000);
+
   // Fetch mark price from old vAMM (deprecated)
   const {
     price: markPriceOld,
@@ -346,10 +411,13 @@ export const useMarketsData = () => {
       coreweaveH200: { markPriceCoreWeaveH200, priceLoadingCoreWeaveH200, errorCoreWeaveH200 },
       gcpH200: { markPriceGCPH200, priceLoadingGCPH200, errorGCPH200 },
       azureH200: { markPriceAzureH200, priceLoadingAzureH200, errorAzureH200 },
+      awsH100: { markPriceAWSH100, priceLoadingAWSH100, errorAWSH100 },
+      azureH100: { markPriceAzureH100, priceLoadingAzureH100, errorAzureH100 },
+      gcpH100: { markPriceGCPH100, priceLoadingGCPH100, errorGCPH100 },
       old: { markPriceOld, priceLoadingOld, errorOld },
     });
 
-    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingH200 && !priceLoadingOracleB200 && !priceLoadingAWSB200 && !priceLoadingCoreWeaveB200 && !priceLoadingGCPB200 && !priceLoadingOracleH200 && !priceLoadingAWSH200 && !priceLoadingCoreWeaveH200 && !priceLoadingGCPH200 && !priceLoadingAzureH200 && !priceLoadingOld) {
+    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingH200 && !priceLoadingOracleB200 && !priceLoadingAWSB200 && !priceLoadingCoreWeaveB200 && !priceLoadingGCPB200 && !priceLoadingOracleH200 && !priceLoadingAWSH200 && !priceLoadingCoreWeaveH200 && !priceLoadingGCPH200 && !priceLoadingAzureH200 && !priceLoadingAWSH100 && !priceLoadingAzureH100 && !priceLoadingGCPH100 && !priceLoadingOld) {
       const markets = [];
 
       // Add H100-PERP market (all providers)
@@ -549,10 +617,55 @@ export const useMarketsData = () => {
         });
       }
 
+      // Add AWS H100 market
+      if (markPriceAWSH100 && !errorAWSH100) {
+        markets.push({
+          name: "AWS-H100-PERP",
+          displayName: "AWS H100",
+          fullName: "AWS H100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceAWSH100),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH100,
+          marketId: MARKET_IDS["AWS-H100-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add Azure H100 market
+      if (markPriceAzureH100 && !errorAzureH100) {
+        markets.push({
+          name: "AZURE-H100-PERP",
+          displayName: "Azure H100",
+          fullName: "Azure H100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceAzureH100),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH100,
+          marketId: MARKET_IDS["AZURE-H100-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add GCP H100 market
+      if (markPriceGCPH100 && !errorGCPH100) {
+        markets.push({
+          name: "GCP-H100-PERP",
+          displayName: "GCP H100",
+          fullName: "Google Cloud H100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceGCPH100),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH100,
+          marketId: MARKET_IDS["GCP-H100-PERP"],
+          status: "Active",
+        });
+      }
+
       if (markets.length > 0) {
         setData({ markets, isLoading: false, error: null });
       } else {
-        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorH200 || errorOracleB200 || errorAWSB200 || errorCoreWeaveB200 || errorGCPB200 || errorOracleH200 || errorAWSH200 || errorCoreWeaveH200 || errorGCPH200 || errorAzureH200 || errorOld || "No markets available";
+        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorH200 || errorOracleB200 || errorAWSB200 || errorCoreWeaveB200 || errorGCPB200 || errorOracleH200 || errorAWSH200 || errorCoreWeaveH200 || errorGCPH200 || errorAzureH200 || errorAWSH100 || errorAzureH100 || errorGCPH100 || errorOld || "No markets available";
         setData({ markets: [], isLoading: false, error });
       }
     }
@@ -571,6 +684,9 @@ export const useMarketsData = () => {
     markPriceCoreWeaveH200,
     markPriceGCPH200,
     markPriceAzureH200,
+    markPriceAWSH100,
+    markPriceAzureH100,
+    markPriceGCPH100,
     markPriceOld,
     priceLoadingH100,
     priceLoadingHyperscalers,
@@ -586,6 +702,9 @@ export const useMarketsData = () => {
     priceLoadingCoreWeaveH200,
     priceLoadingGCPH200,
     priceLoadingAzureH200,
+    priceLoadingAWSH100,
+    priceLoadingAzureH100,
+    priceLoadingGCPH100,
     priceLoadingOld,
     errorH100,
     errorHyperscalers,
@@ -601,6 +720,9 @@ export const useMarketsData = () => {
     errorCoreWeaveH200,
     errorGCPH200,
     errorAzureH200,
+    errorAWSH100,
+    errorAzureH100,
+    errorGCPH100,
     errorOld,
   ]);
 

@@ -81,6 +81,28 @@ const MARKET_POSITION_CONFIG = [
     displayName: "Azure H200 ($5.05/hr)",
     baseAssetSymbol: "GPU-HRS",
   },
+  // H100 Provider-Specific Markets
+  {
+    key: "AWS-H100-PERP",
+    marketId: MARKET_IDS["AWS-H100-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH100,
+    displayName: "AWS H100 ($3.85/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "AZURE-H100-PERP",
+    marketId: MARKET_IDS["AZURE-H100-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH100,
+    displayName: "Azure H100 ($2.12/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "GCP-H100-PERP",
+    marketId: MARKET_IDS["GCP-H100-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH100,
+    displayName: "GCP H100 ($3.88/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
   {
     key: "ETH-PERP",
     marketId: MARKET_IDS["ETH-PERP"],
