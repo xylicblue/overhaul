@@ -241,6 +241,7 @@ const PortfolioPage = () => {
   const [activeTab, setActiveTab] = useState("positions");
   const [tradeHistory, setTradeHistory] = useState([]);
   const [tradesLoading, setTradesLoading] = useState(false);
+  const [tradeTimeFilter, setTradeTimeFilter] = useState("all");
 
   // Get wallet connection and blockchain data
   const { address, isConnected } = useAccount();
@@ -366,6 +367,28 @@ const PortfolioPage = () => {
                 tips={[]}
               />
             ) : (
+              <>
+                {/* Time Filter Buttons */}
+                <div className="flex gap-2 p-4 border-b border-zinc-800">
+                  {[
+                    { id: "all", label: "All Time" },
+                    { id: "30d", label: "30 Days" },
+                    { id: "7d", label: "7 Days" },
+                    { id: "24h", label: "24 Hours" },
+                  ].map((filter) => (
+                    <button
+                      key={filter.id}
+                      onClick={() => setTradeTimeFilter(filter.id)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                        tradeTimeFilter === filter.id
+                          ? "bg-white/10 text-white border border-zinc-600"
+                          : "bg-zinc-800/50 text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-800"
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -382,7 +405,21 @@ const PortfolioPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800/50">
-                    {tradeHistory.map((trade, index) => {
+                    {tradeHistory
+                      .filter((trade) => {
+                        if (tradeTimeFilter === "all") return true;
+                        const tradeDate = new Date(trade.created_at);
+                        const now = new Date();
+                        if (tradeTimeFilter === "24h") {
+                          return now - tradeDate <= 24 * 60 * 60 * 1000;
+                        } else if (tradeTimeFilter === "7d") {
+                          return now - tradeDate <= 7 * 24 * 60 * 60 * 1000;
+                        } else if (tradeTimeFilter === "30d") {
+                          return now - tradeDate <= 30 * 24 * 60 * 60 * 1000;
+                        }
+                        return true;
+                      })
+                      .map((trade, index) => {
                       const hasPnL =
                         trade.pnl !== null && trade.pnl !== undefined;
                       const pnlValue = hasPnL ? parseFloat(trade.pnl) : null;
@@ -487,6 +524,7 @@ const PortfolioPage = () => {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         );

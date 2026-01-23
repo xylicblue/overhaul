@@ -9,9 +9,10 @@ import Footer from "./components/Footer";
 import { HeaderWallet } from "./components/HeaderWallet";
 import { Menu, X } from "lucide-react";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
+import { useAuthModal } from "./context/AuthModalContext";
 
 // Clean, dark-themed header for the app
-const AppHeader = ({ session, profile, handleLogout }) => {
+const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -42,6 +43,16 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             Trade
           </NavLink>
           <NavLink
+            to="/markets"
+            className={({ isActive }) =>
+              `transition-colors ${
+                isActive ? "text-blue-400" : "text-zinc-400 hover:text-white"
+              }`
+            }
+          >
+            Markets
+          </NavLink>
+          <NavLink
             to="/portfolio"
             className={({ isActive }) =>
               `transition-colors ${
@@ -51,6 +62,18 @@ const AppHeader = ({ session, profile, handleLogout }) => {
           >
             Portfolio
           </NavLink>
+          {/* Leaderboard disabled temporarily
+          <NavLink
+            to="/leaderboard"
+            className={({ isActive }) =>
+              `transition-colors ${
+                isActive ? "text-blue-400" : "text-zinc-400 hover:text-white"
+              }`
+            }
+          >
+            Leaderboard
+          </NavLink>
+          */}
           <NavLink
             to="/guide"
             className={({ isActive }) =>
@@ -106,18 +129,18 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             />
           ) : (
             <div className="flex items-center gap-3">
-              <Link
-                to="/login"
+              <button
+                onClick={openLogin}
                 className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
               >
                 Log In
-              </Link>
-              <Link
-                to="/signup"
+              </button>
+              <button
+                onClick={openSignup}
                 className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-blue-900/20"
               >
                 Sign Up
-              </Link>
+              </button>
             </div>
           )}
         </div>
@@ -149,6 +172,17 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             Trade
           </NavLink>
           <NavLink
+            to="/markets"
+            className={({ isActive }) =>
+              `text-sm font-medium ${
+                isActive ? "text-blue-400" : "text-zinc-400"
+              }`
+            }
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Markets
+          </NavLink>
+          <NavLink
             to="/portfolio"
             className={({ isActive }) =>
               `text-sm font-medium ${
@@ -159,6 +193,19 @@ const AppHeader = ({ session, profile, handleLogout }) => {
           >
             Portfolio
           </NavLink>
+          {/* Leaderboard disabled temporarily
+          <NavLink
+            to="/leaderboard"
+            className={({ isActive }) =>
+              `text-sm font-medium ${
+                isActive ? "text-blue-400" : "text-zinc-400"
+              }`
+            }
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Leaderboard
+          </NavLink>
+          */}
           <NavLink
             to="/guide"
             className={({ isActive }) =>
@@ -238,20 +285,18 @@ const AppHeader = ({ session, profile, handleLogout }) => {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <Link
-                to="/login"
-                className="text-sm font-medium text-zinc-400"
-                onClick={() => setIsMenuOpen(false)}
+              <button
+                className="text-sm font-medium text-zinc-400 text-left"
+                onClick={() => { setIsMenuOpen(false); openLogin(); }}
               >
                 Log In
-              </Link>
-              <Link
-                to="/signup"
+              </button>
+              <button
                 className="px-4 py-2 bg-blue-600 text-center text-white text-sm font-bold rounded-lg"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={() => { setIsMenuOpen(false); openSignup(); }}
               >
                 Sign Up
-              </Link>
+              </button>
             </div>
           )}
         </div>
@@ -265,6 +310,7 @@ const SharedLayout = () => {
   const [profile, setProfile] = useState(null);
   const navigate = useNavigate();
   const { disconnect } = useDisconnect();
+  const { openLogin, openSignup } = useAuthModal();
 
   useEffect(() => {
     supabase.auth
@@ -322,6 +368,8 @@ const SharedLayout = () => {
         session={session}
         profile={profile}
         handleLogout={handleLogout}
+        openLogin={openLogin}
+        openSignup={openSignup}
       />
 
       {/* Main Content Area - Padded top for fixed header */}

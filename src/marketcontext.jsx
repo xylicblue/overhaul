@@ -1,5 +1,6 @@
 // src/context/MarketContext.js
-import React, { createContext, useState, useContext } from "react";
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MARKET_IDS } from "./contracts/addresses";
 
 // Markets deployed on Sepolia testnet
@@ -164,20 +165,36 @@ const AVAILABLE_MARKETS = {
 // Default to the H100 GPU market
 const DEFAULT_MARKET = AVAILABLE_MARKETS["H100-PERP"];
 
-// 1. Create the context
 const MarketContext = createContext();
+
+// ...
 
 // 2. Create the Provider component
 export const MarketProvider = ({ children }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // State to hold the currently selected market
-  // Initialize from localStorage if available, otherwise use default
+  // Initialize from URL param, then localStorage, then default
   const [selectedMarket, setSelectedMarket] = useState(() => {
+    const marketParam = searchParams.get("market");
+    if (marketParam && AVAILABLE_MARKETS[marketParam]) {
+      return AVAILABLE_MARKETS[marketParam];
+    }
+
     const savedMarketName = localStorage.getItem("selected_market");
     if (savedMarketName && AVAILABLE_MARKETS[savedMarketName]) {
       return AVAILABLE_MARKETS[savedMarketName];
     }
     return DEFAULT_MARKET;
   });
+
+  // Sync state with URL params
+  useEffect(() => {
+    const marketParam = searchParams.get("market");
+    if (marketParam && AVAILABLE_MARKETS[marketParam] && selectedMarket.name !== marketParam) {
+      setSelectedMarket(AVAILABLE_MARKETS[marketParam]);
+    }
+  }, [searchParams]); // selectedMarket omitted to avoid cycle (though safe if name check is used)
 
   // Function to change the market
   // Supports both ETH-PERP-V2 and ETH-PERP

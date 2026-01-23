@@ -10,11 +10,15 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import TradingPage from "./tradingpage";
 import PortfolioPage from "./portfolio";
+// import LeaderboardPage from "./leaderboard"; // Disabled temporarily
+import MarketsPage from "./markets";
 import GuidePage from "./guidepage";
 import SettingsPage from "./settings";
 import MethodologyPage from "./MethodologyPage";
 import SharedLayout from "./sharedlayout";
 import { DebugMarkets } from "./debug-markets";
+import { AuthModalProvider } from "./context/AuthModalContext";
+import AuthModal from "./components/AuthModal";
 import "@rainbow-me/rainbowkit/styles.css";
 import "./App.css";
 
@@ -65,7 +69,9 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider chains={chains} initialChain={sepolia}>
           {/* <GeoGatekeeper> */}
+          <AuthModalProvider>
           <Router>
+            <AuthModal />
             <div className="App">
               <Toaster
                 position="top-right"
@@ -136,7 +142,9 @@ function App() {
                 <Route path="/methodology/:gpu" element={<MethodologyPage />} />
                 <Route element={<SharedLayout />}>
                   <Route path="/trade" element={<TradingPage />} />
+                  <Route path="/markets" element={<MarketsPage />} />
                   <Route path="/portfolio" element={<PortfolioPage />} />
+                  {/* <Route path="/leaderboard" element={<LeaderboardPage />} /> */}
                   <Route path="/guide" element={<GuidePage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   {/* You can add more pages here later that need the same header/footer */}
@@ -144,6 +152,7 @@ function App() {
               </Routes>
             </div>
           </Router>
+          </AuthModalProvider>
           {/* </GeoGatekeeper> */}
         </RainbowKitProvider>
       </QueryClientProvider>

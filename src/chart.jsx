@@ -121,6 +121,28 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       priceField: "effective_price",
       providerFilter: "Azure", // Filter by provider_name
     },
+    // Provider-specific H100 markets - query h100_hyperscaler_prices with provider filter
+    "AWS-H100-PERP": {
+      displayName: "AWS H100",
+      tableName: "h100_hyperscaler_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "Amazon Web Services", // Filter by provider_name as stored in DB
+    },
+    "AZURE-H100-PERP": {
+      displayName: "Azure H100",
+      tableName: "h100_hyperscaler_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "Microsoft Azure", // Filter by provider_name as stored in DB
+    },
+    "GCP-H100-PERP": {
+      displayName: "GCP H100",
+      tableName: "h100_hyperscaler_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "Google Cloud", // Filter by provider_name (stored as "Google Cloud" in DB)
+    },
   };
   
   const config = marketConfig[market] || {

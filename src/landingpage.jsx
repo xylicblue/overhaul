@@ -20,6 +20,7 @@ import ceoPortrait from "./assets/gabe.jpg";
 import ProfileDropdown from "./dropdown";
 import ParticleNetwork from "./components/ParticleNetwork";
 import AuroraBackground from "./components/AuroraBackground";
+import { useAuthModal } from "./context/AuthModalContext";
 
 
 const whyNowCardsData = [
@@ -130,6 +131,7 @@ const LandingPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
+  const { openLogin, openSignup } = useAuthModal();
   const dropdownRef = useRef(null);
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 500], [0, 150]);
@@ -316,19 +318,19 @@ const LandingPage = () => {
               />
             ) : (
               <div className="flex items-center gap-3">
-                <Routerlink
-                  to="/login"
+                <button
+                  onClick={() => openLogin()}
                   className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
                 >
                   Login
-                </Routerlink>
-                <Routerlink
-                  to="/signup"
+                </button>
+                <button
+                  onClick={() => openSignup()}
                   className="group relative rounded-3xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-md hover:bg-white/10 transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.05)] hover:-translate-y-1"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   <span className="relative z-10 px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white">Sign Up</span>
-                </Routerlink>
+                </button>
               </div>
             )}
           </div>
@@ -444,15 +446,18 @@ const LandingPage = () => {
                   </div>
                 ) : (
                   <>
-                    <Routerlink to="/login" className="text-slate-300">
+                    <button 
+                      onClick={() => { setIsMenuOpen(false); openLogin(); }} 
+                      className="text-slate-300 text-left"
+                    >
                       Login
-                    </Routerlink>
-                    <Routerlink
-                      to="/signup"
+                    </button>
+                    <button
+                      onClick={() => { setIsMenuOpen(false); openSignup(); }}
                       className="btn-primary text-center"
                     >
                       Sign Up
-                    </Routerlink>
+                    </button>
                   </>
                 )}
               </div>
