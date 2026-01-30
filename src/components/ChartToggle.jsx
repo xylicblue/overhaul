@@ -1,94 +1,78 @@
-import React, { useState } from "react";
-import PriceIndexChart from "../chart";
-import AdvancedChart from "./AdvancedChart";
-import { useMarketRealTimeData } from "../marketData";
+import React, { useState, useMemo } from "react";
+import TradingViewChart from "./TradingViewChart";
 import { Maximize2, X } from "lucide-react";
 
 const ChartToggle = ({ selectedMarket }) => {
   const [activeChart, setActiveChart] = useState("vamm"); // 'vamm' or 'index'
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Get market name - use directly as stored in database
-  const marketName =
-    typeof selectedMarket === "string"
+  // Memoize market name to prevent unnecessary re-renders
+  const marketName = useMemo(() => {
+    return typeof selectedMarket === "string"
       ? selectedMarket
       : selectedMarket?.name || "H100-PERP";
+  }, [selectedMarket]);
 
-  // Fetch real-time data to pass as fallback/initial value to charts
-  const { data: realTimeData } = useMarketRealTimeData(marketName);
-  
-  const liveMarkPrice = realTimeData?.markPriceRaw;
-  const liveIndexPrice = realTimeData?.oraclePriceRaw;
+  // Memoize price type to prevent unnecessary re-renders
+  const priceType = useMemo(() => {
+    return activeChart === "vamm" ? "mark" : "index";
+  }, [activeChart]);
 
-  const ChartContent = ({ fullHeight = false }) => (
-    <div className={`flex flex-col ${fullHeight ? 'h-full' : 'h-full'}`}>
-      {/* Toggle Buttons */}
-      <div className="flex items-center justify-between gap-2 p-2 border-b border-zinc-800 bg-[#0A0A0A]/50">
-        <div className="flex bg-[#050505] rounded-lg p-1">
-          <button
-            className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
-              activeChart === "vamm"
-                ? "bg-zinc-800 text-white shadow-sm"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-            onClick={() => setActiveChart("vamm")}
-          >
-            Mark Price
-          </button>
-          <button
-            className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
-              activeChart === "index"
-                ? "bg-zinc-800 text-white shadow-sm"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-            onClick={() => setActiveChart("index")}
-          >
-            Index Price
-          </button>
-        </div>
-        
-        {/* Fullscreen Toggle */}
-        {!isFullscreen ? (
-          <button
-            onClick={() => setIsFullscreen(true)}
-            className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
-            title="Expand chart"
-          >
-            <Maximize2 size={16} />
-          </button>
-        ) : (
-          <button
-            onClick={() => setIsFullscreen(false)}
-            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-all"
-            title="Close"
-          >
-            <X size={20} />
-          </button>
-        )}
+  // Chart header component (shared between normal and fullscreen)
+  const ChartHeader = ({ showCloseButton = false }) => (
+    <div className="flex items-center justify-between gap-2 p-2 border-b border-zinc-800 bg-[#0A0A0A]/50">
+      <div className="flex bg-[#050505] rounded-lg p-1">
+        <button
+          className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
+            activeChart === "vamm"
+              ? "bg-zinc-800 text-white shadow-sm"
+              : "text-zinc-500 hover:text-zinc-300"
+          }`}
+          onClick={() => setActiveChart("vamm")}
+        >
+          Mark Price
+        </button>
+        <button
+          className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
+            activeChart === "index"
+              ? "bg-zinc-800 text-white shadow-sm"
+              : "text-zinc-500 hover:text-zinc-300"
+          }`}
+          onClick={() => setActiveChart("index")}
+        >
+          Index Price
+        </button>
       </div>
-
-      {/* Chart Display */}
-      <div className="flex-1 relative min-h-0">
-        {activeChart === "vamm" ? (
-          <AdvancedChart 
-            market={marketName} 
-            initialPrice={liveMarkPrice ? parseFloat(liveMarkPrice) : null} 
-          />
-        ) : (
-          <PriceIndexChart 
-            market={marketName} 
-            initialPrice={liveIndexPrice ? parseFloat(liveIndexPrice) : null}
-          />
-        )}
-      </div>
+      
+      {/* Fullscreen Toggle */}
+      {!showCloseButton ? (
+        <button
+          onClick={() => setIsFullscreen(true)}
+          className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
+          title="Expand chart"
+        >
+          <Maximize2 size={16} />
+        </button>
+      ) : (
+        <button
+          onClick={() => setIsFullscreen(false)}
+          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-all"
+          title="Close"
+        >
+          <X size={20} />
+        </button>
+      )}
     </div>
   );
 
   return (
     <>
       {/* Regular Chart View */}
-      <div className="h-full">
-        <ChartContent />
+      <div className="h-full flex flex-col overflow-hidden">
+        <ChartHeader />
+        <div className="flex-1 relative min-h-0 overflow-hidden" style={{ height: 'calc(100% - 48px)' }}>
+          <TradingViewChart market={marketName} priceType={priceType} />
+        </div>
       </div>
 
       {/* Fullscreen Modal */}
@@ -117,8 +101,11 @@ const ChartToggle = ({ selectedMarket }) => {
             </div>
             
             {/* Modal Chart Content */}
-            <div className="flex-1 min-h-0">
-              <ChartContent fullHeight />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <ChartHeader showCloseButton />
+              <div className="flex-1 relative min-h-0 overflow-hidden">
+                <TradingViewChart market={marketName} priceType={priceType} />
+              </div>
             </div>
           </div>
         </div>
@@ -128,3 +115,4 @@ const ChartToggle = ({ selectedMarket }) => {
 };
 
 export default ChartToggle;
+

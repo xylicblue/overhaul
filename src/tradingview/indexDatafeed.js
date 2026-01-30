@@ -1,0 +1,391 @@
+/**
+ * TradingView Index Price Datafeed Implementation
+ * Connects to multiple Supabase tables for index price data
+ */
+
+import { supabase } from "../creatclient";
+
+// Configuration for the datafeed
+const configurationData = {
+  supported_resolutions: ["1", "5", "15", "30", "60", "240", "D", "W", "M"],
+  exchanges: [
+    {
+      value: "ByteStrike",
+      name: "ByteStrike",
+      desc: "ByteStrike GPU Index",
+    },
+  ],
+  symbols_types: [
+    {
+      name: "GPU Index",
+      value: "index",
+    },
+  ],
+};
+
+// Market configuration for index prices - maps to correct tables and fields
+const marketConfig = {
+  // Main GPU indices
+  "H100-PERP": {
+    displayName: "H100 GPU Index",
+    tableName: "price_data",
+    priceField: "price",
+  },
+  "B200-PERP": {
+    displayName: "B200 GPU Index",
+    tableName: "b200_index_prices",
+    priceField: "index_price",
+  },
+  "H200-PERP": {
+    displayName: "H200 GPU Index",
+    tableName: "h200_index_prices",
+    priceField: "index_price",
+  },
+  "A100-PERP": {
+    displayName: "A100 GPU Index",
+    tableName: "price_data",
+    priceField: "price",
+  },
+  "H100-non-HyperScalers-PERP": {
+    displayName: "Neocloud Index",
+    tableName: "h100_non_hyperscalers_perp_prices",
+    priceField: "price",
+  },
+  
+  // Provider-specific B200 markets
+  "ORACLE-B200-PERP": {
+    displayName: "Oracle B200 Index",
+    tableName: "b200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "Oracle",
+  },
+  "AWS-B200-PERP": {
+    displayName: "AWS B200 Index",
+    tableName: "b200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "AWS",
+  },
+  "COREWEAVE-B200-PERP": {
+    displayName: "CoreWeave B200 Index",
+    tableName: "b200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "CoreWeave",
+  },
+  "GCP-B200-PERP": {
+    displayName: "GCP B200 Index",
+    tableName: "b200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "Google Cloud",
+  },
+  
+  // Provider-specific H200 markets
+  "ORACLE-H200-PERP": {
+    displayName: "Oracle H200 Index",
+    tableName: "h200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "Oracle",
+  },
+  "AWS-H200-PERP": {
+    displayName: "AWS H200 Index",
+    tableName: "h200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "AWS",
+  },
+  "COREWEAVE-H200-PERP": {
+    displayName: "CoreWeave H200 Index",
+    tableName: "h200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "CoreWeave",
+  },
+  "GCP-H200-PERP": {
+    displayName: "GCP H200 Index",
+    tableName: "h200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "Google Cloud",
+  },
+  "AZURE-H200-PERP": {
+    displayName: "Azure H200 Index",
+    tableName: "h200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "Azure",
+  },
+  
+  // Provider-specific H100 markets
+  "AWS-H100-PERP": {
+    displayName: "AWS H100 Index",
+    tableName: "h100_hyperscaler_prices",
+    priceField: "effective_price",
+    providerFilter: "Amazon Web Services",
+  },
+  "AZURE-H100-PERP": {
+    displayName: "Azure H100 Index",
+    tableName: "h100_hyperscaler_prices",
+    priceField: "effective_price",
+    providerFilter: "Microsoft Azure",
+  },
+  "GCP-H100-PERP": {
+    displayName: "GCP H100 Index",
+    tableName: "h100_hyperscaler_prices",
+    priceField: "effective_price",
+    providerFilter: "Google Cloud",
+  },
+};
+
+// Map of symbol names to their display info
+function getSymbolInfo(symbolName) {
+  const config = marketConfig[symbolName] || {
+    displayName: symbolName,
+    tableName: "price_data",
+    priceField: "price",
+  };
+
+  return {
+    name: symbolName,
+    description: config.displayName,
+    type: "index",
+    session: "24x7",
+    timezone: "Etc/UTC",
+    ticker: symbolName,
+    minmov: 1,
+    pricescale: 100,
+    has_intraday: true,
+    has_weekly_and_monthly: true,
+    supported_resolutions: configurationData.supported_resolutions,
+    volume_precision: 2,
+    data_status: "streaming",
+    _config: config, // Store config for later use
+  };
+}
+
+// Store active subscriptions
+const subscriptions = new Map();
+
+/**
+ * Convert resolution string to interval in seconds
+ */
+function resolutionToSeconds(resolution) {
+  const map = {
+    "1": 60,
+    "5": 5 * 60,
+    "15": 15 * 60,
+    "30": 30 * 60,
+    "60": 60 * 60,
+    "240": 4 * 60 * 60,
+    D: 24 * 60 * 60,
+    W: 7 * 24 * 60 * 60,
+    M: 30 * 24 * 60 * 60,
+  };
+  return map[resolution] || 60 * 60;
+}
+
+/**
+ * Convert raw price data to OHLCV bars
+ */
+function convertToBars(data, resolutionSeconds, priceField = "price") {
+  if (!data || data.length === 0) return [];
+
+  const bars = [];
+  let currentBar = null;
+  const intervalMs = resolutionSeconds * 1000;
+
+  for (const point of data) {
+    const timestamp = new Date(point.timestamp).getTime();
+    const price = parseFloat(point[priceField] || point.price);
+    const barTime = Math.floor(timestamp / intervalMs) * intervalMs;
+
+    if (!currentBar || currentBar.time !== barTime) {
+      if (currentBar) {
+        bars.push(currentBar);
+      }
+      currentBar = {
+        time: barTime,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: 1,
+      };
+    } else {
+      currentBar.high = Math.max(currentBar.high, price);
+      currentBar.low = Math.min(currentBar.low, price);
+      currentBar.close = price;
+      currentBar.volume += 1;
+    }
+  }
+
+  if (currentBar) {
+    bars.push(currentBar);
+  }
+
+  return bars;
+}
+
+/**
+ * TradingView Index Price Datafeed Implementation
+ */
+export const IndexDatafeed = {
+  onReady: (callback) => {
+    console.log("[IndexDatafeed] onReady called");
+    setTimeout(() => callback(configurationData), 0);
+  },
+
+  searchSymbols: (userInput, exchange, symbolType, onResultReadyCallback) => {
+    console.log("[IndexDatafeed] searchSymbols:", userInput);
+    const symbols = Object.keys(marketConfig)
+      .filter((symbol) => symbol.toLowerCase().includes(userInput.toLowerCase()))
+      .map((symbol) => ({
+        symbol: symbol,
+        full_name: symbol,
+        description: marketConfig[symbol].displayName,
+        exchange: "ByteStrike",
+        ticker: symbol,
+        type: "index",
+      }));
+    onResultReadyCallback(symbols);
+  },
+
+  resolveSymbol: (symbolName, onSymbolResolvedCallback, onResolveErrorCallback) => {
+    console.log("[IndexDatafeed] resolveSymbol:", symbolName);
+
+    // Handle case where symbol might have exchange prefix
+    const cleanSymbol = symbolName.includes(":") ? symbolName.split(":").pop() : symbolName;
+    
+    const symbolInfo = getSymbolInfo(cleanSymbol);
+
+    setTimeout(() => {
+      onSymbolResolvedCallback({
+        ...symbolInfo,
+        exchange: "ByteStrike",
+        listed_exchange: "ByteStrike",
+      });
+    }, 0);
+  },
+
+  getBars: async (
+    symbolInfo,
+    resolution,
+    periodParams,
+    onHistoryCallback,
+    onErrorCallback
+  ) => {
+    const { from, to, firstDataRequest } = periodParams;
+    
+    // Always lookup config from marketConfig using symbol name to ensure correct table
+    const symbolName = symbolInfo.name || symbolInfo.ticker;
+    const config = marketConfig[symbolName] || {
+      tableName: "price_data",
+      priceField: "price",
+    };
+    
+    console.log("[IndexDatafeed] getBars:", symbolName, "table:", config.tableName, "field:", config.priceField, resolution);
+
+    try {
+      // Build query with optional provider filter
+      let query = supabase
+        .from(config.tableName)
+        .select(`${config.priceField}, timestamp`)
+        .gte("timestamp", new Date(from * 1000).toISOString())
+        .lte("timestamp", new Date(to * 1000).toISOString());
+      
+      // Apply provider filter for provider-specific markets
+      if (config.providerFilter) {
+        query = query.eq("provider_name", config.providerFilter);
+        console.log("[IndexDatafeed] Filtering by provider:", config.providerFilter);
+      }
+      
+      const { data, error } = await query.order("timestamp", { ascending: true });
+
+      if (error) {
+        console.error("[IndexDatafeed] Query error:", error);
+        onErrorCallback(error.message);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        console.log("[IndexDatafeed] No data for interval from table:", config.tableName);
+        onHistoryCallback([], { noData: true });
+        return;
+      }
+
+      const resolutionSeconds = resolutionToSeconds(resolution);
+      const bars = convertToBars(data, resolutionSeconds, config.priceField);
+
+      console.log("[IndexDatafeed] Returning", bars.length, "bars from", config.tableName);
+      onHistoryCallback(bars, { noData: bars.length === 0 });
+    } catch (error) {
+      console.error("[IndexDatafeed] getBars error:", error);
+      onErrorCallback(error.message);
+    }
+  },
+
+  subscribeBars: (
+    symbolInfo,
+    resolution,
+    onRealtimeCallback,
+    subscriberUID,
+    onResetCacheNeededCallback
+  ) => {
+    // Always lookup config from marketConfig using symbol name to ensure correct table
+    const symbolName = symbolInfo.name || symbolInfo.ticker;
+    const config = marketConfig[symbolName] || {
+      tableName: "price_data",
+      priceField: "price",
+    };
+    
+    console.log("[IndexDatafeed] subscribeBars:", symbolName, "table:", config.tableName, subscriberUID);
+
+    const resolutionSeconds = resolutionToSeconds(resolution);
+    let lastBar = null;
+
+    // Subscribe to Supabase realtime
+    const channel = supabase
+      .channel(`tv_index_${subscriberUID}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: config.tableName,
+        },
+        (payload) => {
+          const price = parseFloat(payload.new[config.priceField] || payload.new.price);
+          const timestamp = new Date(payload.new.timestamp).getTime();
+          const barTime = Math.floor(timestamp / (resolutionSeconds * 1000)) * (resolutionSeconds * 1000);
+
+          if (!lastBar || lastBar.time < barTime) {
+            // New bar
+            lastBar = {
+              time: barTime,
+              open: price,
+              high: price,
+              low: price,
+              close: price,
+              volume: 1,
+            };
+          } else {
+            // Update existing bar
+            lastBar.high = Math.max(lastBar.high, price);
+            lastBar.low = Math.min(lastBar.low, price);
+            lastBar.close = price;
+            lastBar.volume += 1;
+          }
+
+          onRealtimeCallback(lastBar);
+        }
+      )
+      .subscribe();
+
+    subscriptions.set(subscriberUID, channel);
+  },
+
+  unsubscribeBars: (subscriberUID) => {
+    console.log("[IndexDatafeed] unsubscribeBars:", subscriberUID);
+    const channel = subscriptions.get(subscriberUID);
+    if (channel) {
+      channel.unsubscribe();
+      subscriptions.delete(subscriberUID);
+    }
+  },
+};
+
+export default IndexDatafeed;
