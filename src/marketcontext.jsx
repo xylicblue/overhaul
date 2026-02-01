@@ -151,6 +151,16 @@ const AVAILABLE_MARKETS = {
     marketId: MARKET_IDS['GCP-H100-PERP'],
     description: "Google Cloud H100 GPU hourly rental rate perpetual futures",
   },
+  // A100 Market
+  "A100-PERP": {
+    name: "A100-PERP",
+    displayName: "A100 GPU ($1.76/hr)",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    marketId: MARKET_IDS['A100-PERP'],
+    description: "A100 GPU hourly rental rate perpetual futures",
+  },
   "ETH-PERP-V2": {
     name: "ETH-PERP-V2",
     displayName: "H100 GPU ($3.79/hr)",
