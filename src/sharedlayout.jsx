@@ -102,6 +102,12 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
                   H100 Methodology
                 </Link>
                 <Link
+                  to="/methodology/a100"
+                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border-b border-zinc-700/50"
+                >
+                  A100 Methodology
+                </Link>
+                <Link
                   to="/methodology/b200"
                   className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"
                 >
@@ -224,6 +230,13 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
             onClick={() => setIsMenuOpen(false)}
           >
             H100 Methodology
+          </Link>
+          <Link
+            to="/methodology/a100"
+            className="text-sm text-zinc-400 hover:text-white"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            A100 Methodology
           </Link>
           <Link
             to="/methodology/b200"

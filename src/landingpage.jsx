@@ -293,6 +293,12 @@ const LandingPage = () => {
                     H100 Methodology
                   </Routerlink>
                   <Routerlink
+                    to="/methodology/a100"
+                    className="block px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 transition-colors border-b border-white/5"
+                  >
+                    A100 Methodology
+                  </Routerlink>
+                  <Routerlink
                     to="/methodology/b200"
                     className="block px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
                   >
@@ -394,6 +400,9 @@ const LandingPage = () => {
                 <div className="text-slate-500 text-xs uppercase tracking-wider mt-2">Documentation</div>
                 <Routerlink to="/methodology/h100" className="text-slate-300 hover:text-white" onClick={() => setIsMenuOpen(false)}>
                   H100 Methodology
+                </Routerlink>
+                <Routerlink to="/methodology/a100" className="text-slate-300 hover:text-white" onClick={() => setIsMenuOpen(false)}>
+                  A100 Methodology
                 </Routerlink>
                 <Routerlink to="/methodology/b200" className="text-slate-300 hover:text-white" onClick={() => setIsMenuOpen(false)}>
                   B200 Methodology
@@ -558,13 +567,13 @@ const LandingPage = () => {
                   {/* GPU Model Selector */}
                   <div className="mb-4 relative z-20 flex justify-center w-full px-4">
                     <div className="inline-flex items-center gap-2 p-1.5 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-                      {["H100", "H200", "B200"].map((model) => (
+                      {["H100", "A100", "H200", "B200"].map((model) => (
                         <button
                           key={model}
                           onClick={() => {
                             setSelectedModel(model);
                             // Auto-select first market of this model
-                            const firstMarket = model === "H100" ? "H100-PERP" : model === "H200" ? "H200-PERP" : "B200-PERP";
+                            const firstMarket = model === "H100" ? "H100-PERP" : model === "A100" ? "A100-PERP" : model === "H200" ? "H200-PERP" : "B200-PERP";
                             setSelectedMarket(firstMarket);
                           }}
                           className={`relative px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
@@ -584,9 +593,10 @@ const LandingPage = () => {
                     </div>
                   </div>
 
-                  {/* Filtered Markets Scrollbar */}
+                  {/* Filtered Markets Scrollbar - Hide for A100 since it only has one option */}
+                  {selectedModel !== "A100" && (
                   <div className="mb-8 md:mb-12 relative z-20 flex justify-center w-full px-4">
-                    <div className="inline-flex min-w-[280px] max-w-[90vw] rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] overflow-hidden">
+                    <div className="inline-flex max-w-[90vw] rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] overflow-hidden">
                       <div className="overflow-x-auto scrollbar-hide w-full">
                         <div className="inline-flex items-center gap-1 p-1 whitespace-nowrap">
                           {/* Markets filtered by selected model */}
@@ -627,6 +637,7 @@ const LandingPage = () => {
                       </div>
                     </div>
                   </div>
+                  )}
 
                   {/* Seamless Chart Container */}
                   <div className="w-full max-w-5xl h-[400px] md:h-[500px] relative group perspective-1000 px-4 md:px-0">
@@ -644,6 +655,7 @@ const LandingPage = () => {
                             <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight">
                               {{
                                 "H100-PERP": "NVIDIA H100",
+                                "A100-PERP": "NVIDIA A100",
                                 "H200-PERP": "NVIDIA H200",
                                 "B200-PERP": "NVIDIA Blackwell B200",
                                 "H100-non-HyperScalers-PERP": "Neocloud H100",
@@ -679,35 +691,24 @@ const LandingPage = () => {
                     className="w-full max-w-3xl mt-12 px-4 md:px-0"
                   >
                     <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 hover:bg-white/[0.04] transition-colors">
-                      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                              <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-                              </svg>
-                            </div>
-                            <h4 className="text-lg md:text-xl font-bold text-white">How We Calculate This Index</h4>
+                      <div className="flex flex-col items-center text-center gap-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                            </svg>
                           </div>
-                          <p className="text-sm text-slate-400 leading-relaxed">
-                            Our GPU compute indices are calculated using rigorous, transparent methodologies inspired by commodity markets. 
-                            We aggregate real-time pricing from qualified cloud providers, apply revenue-weighted adjustments, and normalize for performance equivalency.
-                          </p>
+                          <h4 className="text-lg md:text-xl font-bold text-white">How We Calculate This Index</h4>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                          <Routerlink
-                            to="/methodology/h100"
-                            className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all text-center"
-                          >
-                            H100 Methodology
-                          </Routerlink>
-                          <Routerlink
-                            to="/methodology/b200"
-                            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-medium text-white transition-all text-center shadow-lg shadow-indigo-900/20"
-                          >
-                            B200 Methodology
-                          </Routerlink>
-                        </div>
+                        <p className="text-sm text-slate-400 leading-relaxed max-w-lg">
+                          Our GPU compute indices are calculated using rigorous, transparent methodologies inspired by commodity markets. We aggregate real-time pricing from qualified cloud providers, apply revenue-weighted adjustments, and normalize for performance equivalency.
+                        </p>
+                        <Routerlink
+                          to={`/methodology/${selectedModel.toLowerCase()}`}
+                          className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-medium text-white transition-all text-center shadow-lg shadow-indigo-900/20"
+                        >
+                          {selectedModel} Methodology
+                        </Routerlink>
                       </div>
                     </div>
                   </motion.div>

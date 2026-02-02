@@ -17,7 +17,7 @@ const AVAILABLE_MARKETS = {
 
   "H100-non-HyperScalers-PERP": {
     name: "H100-non-HyperScalers-PERP",
-    displayName: "Neocloud ($2.95/hr)",
+    displayName: "H100 Neocloud ($2.95/hr)",
     type: "Perpetual",
     baseAsset: "GPU-HOURS",
     quoteAsset: "USDC",

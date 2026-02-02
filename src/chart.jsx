@@ -143,6 +143,14 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       priceField: "effective_price",
       providerFilter: "Google Cloud", // Filter by provider_name (stored as "Google Cloud" in DB)
     },
+    // A100 market
+    "A100-PERP": {
+      displayName: "A100 GPU",
+      tableName: "a100_index_prices",
+      fallbackTable: null,
+      priceField: "index_price", // A100 uses index_price field
+      timestampField: "recorded_at", // A100 uses recorded_at instead of timestamp
+    },
   };
   
   const config = marketConfig[market] || {
@@ -169,9 +177,10 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
         }
 
         // Strategy 1: Try market-specific table (primary source)
+        const timestampField = config.timestampField || "timestamp";
         let query = supabase
           .from(config.tableName)
-          .select(`${config.priceField}, timestamp`);
+          .select(`${config.priceField}, ${timestampField}`);
 
         // Apply provider filter for provider-specific markets
         if (config.providerFilter) {
@@ -180,16 +189,16 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
 
         if (hoursAgo !== null) {
           const startTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
-          query = query.gte("timestamp", startTime);
+          query = query.gte(timestampField, startTime);
         }
 
-        const result = await query.order("timestamp", { ascending: true });
+        const result = await query.order(timestampField, { ascending: true });
 
         if (!result.error && result.data && result.data.length >= 2) {
-          // Transform data to standard format (normalize price field)
+          // Transform data to standard format (normalize price field and timestamp field)
           data = result.data.map(record => ({
             price: record[config.priceField] || record.price,
-            timestamp: record.timestamp
+            timestamp: record[timestampField] || record.timestamp
           }));
           console.log(`Loaded ${data.length} records from ${config.tableName}${config.providerFilter ? ` (provider: ${config.providerFilter})` : ''}`);
         } else if (result.error) {

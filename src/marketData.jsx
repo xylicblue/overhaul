@@ -29,7 +29,7 @@ const DEPLOYED_MARKETS = [
 
   {
     name: "H100-non-HyperScalers-PERP",
-    displayName: "Neocloud",
+    displayName: "H100 Neocloud",
     fullName: "Neocloud H100 GPU Hourly Rate Perpetual",
     type: "Perpetual",
     baseAsset: "GPU-HOURS",
@@ -465,7 +465,7 @@ export const useMarketsData = () => {
       if (markPriceNonHyperscalers && !errorNonHyperscalers) {
         markets.push({
           name: "H100-non-HyperScalers-PERP",
-          displayName: "Neocloud",
+          displayName: "H100 Neocloud",
           fullName: "Neocloud H100 GPU Hourly Rate",
           type: "Perpetual",
           markPrice: parseFloat(markPriceNonHyperscalers),
@@ -702,7 +702,31 @@ export const useMarketsData = () => {
       }
 
       if (markets.length > 0) {
-        setData({ markets, isLoading: false, error: null });
+        // Sort markets: Main GPUs first (H100, A100, B200, H200), then provider-specific
+        const marketOrder = [
+          "H100-PERP",
+          "A100-PERP", 
+          "B200-PERP",
+          "H200-PERP",
+          "H100-non-HyperScalers-PERP",  // H100 Neocloud
+        ];
+        
+        const sortedMarkets = [...markets].sort((a, b) => {
+          const indexA = marketOrder.indexOf(a.name);
+          const indexB = marketOrder.indexOf(b.name);
+          
+          // If both are in the priority list, sort by their order
+          if (indexA !== -1 && indexB !== -1) {
+            return indexA - indexB;
+          }
+          // Priority list items come first
+          if (indexA !== -1) return -1;
+          if (indexB !== -1) return 1;
+          // For remaining items, sort alphabetically by displayName
+          return a.displayName.localeCompare(b.displayName);
+        });
+        
+        setData({ markets: sortedMarkets, isLoading: false, error: null });
       } else {
         const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorH200 || errorOracleB200 || errorAWSB200 || errorCoreWeaveB200 || errorGCPB200 || errorOracleH200 || errorAWSH200 || errorCoreWeaveH200 || errorGCPH200 || errorAzureH200 || errorAWSH100 || errorAzureH100 || errorGCPH100 || errorA100 || errorOld || "No markets available";
         setData({ markets: [], isLoading: false, error });

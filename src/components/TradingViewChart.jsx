@@ -45,7 +45,7 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
         // Create the TradingView widget
         const widget = new window.TradingView.widget({
           symbol: market,
-          interval: "60", // Default 1 hour
+          interval: "15", // Default 15 minutes (shows ~5 days of data)
           container: containerRef.current,
           datafeed: selectedDatafeed,
           library_path: "/charting_library/",

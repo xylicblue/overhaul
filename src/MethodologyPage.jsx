@@ -473,6 +473,281 @@ Timestamp and publish to database for time-series tracking. Publish to blockchai
 - Market sizing and analysis`
       }
     ]
+  },
+  a100: {
+    title: "A100 GPU Index Pricing Methodology",
+    subtitle: "Comprehensive Benchmark for AI Compute",
+    version: "January 2025",
+    sections: [
+      {
+        id: "executive-summary",
+        title: "Executive Summary",
+        content: `The market for high-performance AI compute has reached a pivotal stage of maturation. Once a niche resource accessible only to large technology firms and research institutions, GPU-accelerated compute is now a fundamental utility powering global economic activity. However, the market remains opaque, characterized by fragmented providers, inconsistent pricing structures, and a lack of standardized, trusted benchmarks.
+
+This document establishes a comprehensive, rigorous, and reproducible methodology for creating a standardized benchmark for A100 GPU compute. The primary output is the **A100 Compute Index Price**, a single, volume-weighted, and performance-normalized value representing the fair market price of one hour of A100-equivalent GPU compute.
+
+Drawing from established methodologies in commodity markets such as Nymex and ICE for crude oil, natural gas, and electricity futures, our approach prioritizes transparency, procedural rigor, and statistical validity.`
+      },
+      {
+        id: "scope-objectives",
+        title: "Scope and Objectives",
+        content: `### Scope
+
+The scope of this methodology is precisely defined to ensure focus, analytical integrity, and benchmark reliability:
+
+- **Asset Class:** Exclusively GPU-based cloud compute capacity
+- **Hardware Specification:** Confined to the NVIDIA A100 Tensor Core GPU and its major commercial variants
+- **Service Type:** Covers Infrastructure-as-a-Service (IaaS) offerings where customers rent raw GPU compute hours
+- **Provider Universe:** Encompasses a curated list of qualified cloud providers offering public access to A100 GPU infrastructure
+- **Geographic Scope:** Data collection encompasses providers operating globally, normalized to USD
+- **Time Unit:** Price per GPU-hour ($/GPU-Hour)
+
+### Primary Objectives
+
+- **Establish a Definitive Price Index:** Calculate and publish a single, reliable, and representative index price
+- **Ensure Reproducibility and Transparency:** Document a complete, step-by-step procedure
+- **Standardize Performance Measurement:** Create a framework for normalizing different A100 variants
+- **Support Financial Product Development:** Produce a benchmark for spot exchanges, forwards, and futures
+- **Improve Market Efficiency:** Reduce information asymmetry between buyers and sellers`
+      },
+      {
+        id: "provider-classification",
+        title: "Provider Classification",
+        content: `All qualified providers are classified into two categories:
+
+### Hyperscalers (HS)
+
+Large-scale cloud service providers characterized by:
+- Massive global data center infrastructure
+- Multi-region availability
+- Dominant market share
+- Pricing models that bifurcate between public list prices and private enterprise contracts
+
+### Neoclouds
+
+Specialized and regional cloud compute providers including:
+- Specialized AI infrastructure providers
+- Regional operators
+- Smaller cloud platforms
+
+**Rationale:** This separation addresses the profound structural differences between these groups. Hyperscalers command the vast majority of market revenue and operate pricing models with significant gaps between public and negotiated rates.`
+      },
+      {
+        id: "data-collection",
+        title: "Data Collection Framework",
+        content: `For each qualified provider, a standardized set of data points is collected:
+
+### Company Financials
+- Annual revenue estimates
+- A100-specific revenue attribution
+- Public company disclosed cloud revenue segments
+- Private company cross-validated estimates
+
+### Infrastructure Scale
+- Estimated A100 GPU count
+- Used to validate revenue figures and understand market capacity
+
+### Pricing Data
+- Public on-demand hourly prices
+- Hardware variant specifications
+- Instance configurations
+- Currency denomination
+
+### Discounting Structure (Hyperscalers Only)
+- Provider-specific discount rates from market intelligence
+- Volume share under discounted contracts vs public retail rates
+- Continuously updated as additional market data becomes available`
+      },
+      {
+        id: "data-sources",
+        title: "Data Sources and Validation",
+        content: `Data is sourced from authoritative channels prioritized as follows:
+
+1. **Official Financial Documents:** SEC filings, earnings transcripts, investor presentations, IPO prospectus documents
+2. **Official Company Disclosures:** Pricing pages, press releases, official blogs, GPU availability announcements
+3. **Business Intelligence Platforms:** Reputable third-party platforms for private company estimates
+4. **Industry Research:** Specialized AI infrastructure research and market intelligence
+5. **Automated Web Scraping:** Custom Python scrapers using BeautifulSoup4 library
+
+All data points are cross-referenced with multiple independent sources. Official company disclosures are prioritized over third-party estimates. Conservative estimation practices are employed when uncertainty exists.`
+      },
+      {
+        id: "performance-normalization",
+        title: "Performance Normalization",
+        content: `A100 GPUs are offered in multiple hardware variants with different performance characteristics. To ensure accurate price comparison, all pricing is normalized to a common performance baseline.
+
+### Baseline Model
+A100 SXM4 80GB variant designated as the performance baseline
+
+### Normalization Method
+Performance ratio calculated using weighted hardware specifications:
+- FP16 and FP64 TFLOPS (strongest price correlation)
+- CUDA Cores and Tensor Cores (general compute capability)
+- VRAM capacity (critical for large model training)
+- Memory Bandwidth (data throughput)
+- L2 Cache (latency reduction)
+
+### Application
+Variant prices divided by performance ratio to yield performance-equivalent baseline pricing
+
+### Weights
+Derived from linear regression analysis of hardware-price correlations across NVIDIA GPU product lines`
+      },
+      {
+        id: "weighting-model",
+        title: "Weighting Model",
+        content: `A two-tiered weighting model ensures the index accurately reflects market structure:
+
+### Tier 1: Categorical Weighting
+- **Hyperscalers:** Assigned 65% of total weight, reflecting their dominant market position, infrastructure scale, and revenue concentration
+- **Neoclouds:** Assigned 35% of total weight for specialized AI infrastructure providers and regional operators
+
+### Tier 2: Revenue-Proportional Weighting
+- Within each category, providers are weighted proportionally by A100-specific revenue
+- Ensures the index reflects economic gravity of each market participant
+- Prevents distortion from providers with minimal market impact
+
+**Rationale:** Revenue-based weighting reflects that providers with greater market presence have larger impact on true market pricing dynamics.`
+      },
+      {
+        id: "discount-adjustment",
+        title: "Hyperscaler Discount Adjustment",
+        content: `The final price for hyperscalers is not the public list price, but a blended effective price reflecting the mix of retail and discounted enterprise sales.
+
+### Discount Rate Sources
+- Publicly documented committed use discount (CUD) and reserved instance (RI) structures
+- Enterprise contract intelligence and procurement term analysis
+- Market research and industry surveys
+- Provider financial disclosures and revenue per GPU metrics
+- Cross-validation with market transaction data
+
+### Volume Split
+- Large majority of hyperscaler A100 volume transacted under discounted contracts
+- Remaining volume at or near public on-demand rates
+
+### Update Protocol
+- Discount rates reviewed quarterly or upon detection of significant market changes
+- Updates incorporate new enterprise contract data and market intelligence
+- All changes documented with effective dates and rationale`
+      },
+      {
+        id: "calculation-process",
+        title: "Index Calculation Process",
+        content: `### Step 1: Provider Vetting
+Identify candidate providers from market research and industry databases. Vet for confirmed A100 availability, public pricing access, and data collection compliance. Categorize as Hyperscaler or Non-Hyperscaler.
+
+### Step 2: Data Collection
+Deploy automated scrapers for pricing data extraction. Manual extraction for revenue data, discount structures, and GPU counts. All raw data logged with source, timestamp, and analyst attribution.
+
+### Step 3: Data Standardization
+Convert all pricing to USD using real-time exchange rates. Normalize variant pricing to performance-equivalent baseline. Aggregate multiple prices per provider to single representative value.
+
+### Step 4: Weight Calculation
+Calculate categorical weights (Hyperscaler/Non-Hyperscaler allocation). Calculate revenue-proportional weights within categories. Apply discount adjustments to hyperscaler pricing.
+
+### Step 5: Weighted Summation
+Multiply each provider's effective price by its weight. Sum all weighted contributions to derive final index.
+
+### Step 6: Validation and Publication
+Compare against historical values, median, and simple average. Verify weight sums and calculation integrity. Timestamp and publish to database and blockchain oracle. Archive all calculation artifacts.`
+      },
+      {
+        id: "contingency-protocols",
+        title: "Contingency and Fallback Protocols",
+        content: `### Provider Data Unavailability
+
+In the event that a provider's pricing data cannot be retrieved due to temporary website downtime, API failure, or other technical issues:
+
+- Weight allocated to unavailable provider is not discarded
+- Weight is proportionally redistributed across remaining providers in the same category
+- Redistribution maintains category totals (Hyperscaler/Non-Hyperscaler proportions)
+- Ensures continuity of index calculation without category-level bias
+
+### Anomaly Detection
+- Calculated prices deviating significantly from historical values trigger automatic rejection
+- System substitutes anomalous calculations with last validated price
+- Secondary validation protocol confirms whether anomaly represents error or genuine market shift
+
+### Data Quality Safeguards
+- Invalid or incomplete data excluded from calculation rather than propagated
+- Statistical outlier detection using IQR methodology
+- Hyperscaler prices protected from outlier filtering to avoid systematic bias`
+      },
+      {
+        id: "quality-assurance",
+        title: "Quality Assurance and Control",
+        content: `### Automated Validation
+- Range checks on all numeric data
+- Format validation against defined schemas
+- Timestamp consistency verification
+- Duplicate detection and removal
+- Weight sum verification
+
+### Manual Review
+- Dual analyst review of final dataset
+- Outlier investigation and documentation
+- Random sample verification of scraped data
+- Independent calculation verification
+
+### Reproducibility
+- All scripts version-controlled and publicly documented
+- Discount rates explicitly specified with effective dates
+- Parameters versioned and archived for historical reproduction
+- Dependencies pinned to specific versions
+- Complete audit trail from raw data to final index`
+      },
+      {
+        id: "applications",
+        title: "Index Applications",
+        content: `The A100 Compute Index is designed to support multiple critical market functions:
+
+### Financial Products
+- Spot exchange pricing reference
+- Forward contract pricing
+- Futures market underlying benchmark
+- Options pricing spot reference
+
+### Procurement and Planning
+- Vendor quote benchmarking
+- Budget planning and forecasting
+- Contract negotiation market context
+- Build vs. buy financial analysis
+
+### Market Analysis
+- Price discovery and transparency
+- Market trend monitoring
+- Competitive positioning analysis
+- Generation-over-generation pricing evolution
+
+### Investment and Financing
+- Infrastructure financing revenue projections
+- GPU asset valuation
+- Market sizing and analysis
+- Investment due diligence`
+      },
+      {
+        id: "governance",
+        title: "Methodology Governance",
+        content: `### Version Control
+- All methodology changes versioned and documented
+- Effective dates clearly specified
+- Rationale for changes provided
+- Historical versions maintained for reproducibility
+
+### Update Frequency
+- Index calculated on a regular schedule
+- Methodology reviewed quarterly
+- Discount parameters updated as market data becomes available
+- Emergency updates for material market changes
+
+### Transparency
+- Complete calculation procedures publicly documented
+- All data sources disclosed
+- Assumptions clearly stated
+- Historical parameters maintained for reproducibility
+- Blockchain publication for immutable record`
+      }
+    ]
   }
 };
 
@@ -487,8 +762,13 @@ const MethodologyPage = () => {
 
   // Get content based on GPU type
   const content = methodologyContent[gpu] || methodologyContent.h100;
-  const otherGpu = gpu === "b200" ? "h100" : "b200";
-  const otherGpuLabel = gpu === "b200" ? "H100" : "B200";
+  
+  // Available GPUs for navigation
+  const availableGpus = ["h100", "a100", "b200"];
+  const currentIndex = availableGpus.indexOf(gpu);
+  const nextIndex = (currentIndex + 1) % availableGpus.length;
+  const otherGpu = availableGpus[nextIndex];
+  const otherGpuLabel = otherGpu.toUpperCase();
 
   // Track scroll position for ToC highlighting
   useEffect(() => {
