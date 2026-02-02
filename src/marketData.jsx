@@ -254,6 +254,22 @@ const DEPLOYED_MARKETS = [
     description:
       "Trade Google Cloud H100 GPU hourly rental rates. Index price: $3.88/hour.",
   },
+  // A100 Market
+  {
+    name: "A100-PERP",
+    displayName: "A100 GPU",
+    fullName: "A100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyA100,
+    oracleAddress: SEPOLIA_CONTRACTS.a100OracleAdapter,
+    marketId: MARKET_IDS["A100-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade A100 GPU hourly rental rates. Index price: $1.76/hour.",
+  },
   {
     name: "ETH-PERP-V2",
     displayName: "H100 GPU (Alias)",
@@ -387,6 +403,13 @@ export const useMarketsData = () => {
     error: errorGCPH100,
   } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyGCPH100, 5000);
 
+  // Fetch mark price for A100 market
+  const {
+    price: markPriceA100,
+    isLoading: priceLoadingA100,
+    error: errorA100,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyA100, 5000);
+
   // Fetch mark price from old vAMM (deprecated)
   const {
     price: markPriceOld,
@@ -414,10 +437,11 @@ export const useMarketsData = () => {
       awsH100: { markPriceAWSH100, priceLoadingAWSH100, errorAWSH100 },
       azureH100: { markPriceAzureH100, priceLoadingAzureH100, errorAzureH100 },
       gcpH100: { markPriceGCPH100, priceLoadingGCPH100, errorGCPH100 },
+      a100: { markPriceA100, priceLoadingA100, errorA100 },
       old: { markPriceOld, priceLoadingOld, errorOld },
     });
 
-    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingH200 && !priceLoadingOracleB200 && !priceLoadingAWSB200 && !priceLoadingCoreWeaveB200 && !priceLoadingGCPB200 && !priceLoadingOracleH200 && !priceLoadingAWSH200 && !priceLoadingCoreWeaveH200 && !priceLoadingGCPH200 && !priceLoadingAzureH200 && !priceLoadingAWSH100 && !priceLoadingAzureH100 && !priceLoadingGCPH100 && !priceLoadingOld) {
+    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingH200 && !priceLoadingOracleB200 && !priceLoadingAWSB200 && !priceLoadingCoreWeaveB200 && !priceLoadingGCPB200 && !priceLoadingOracleH200 && !priceLoadingAWSH200 && !priceLoadingCoreWeaveH200 && !priceLoadingGCPH200 && !priceLoadingAzureH200 && !priceLoadingAWSH100 && !priceLoadingAzureH100 && !priceLoadingGCPH100 && !priceLoadingA100 && !priceLoadingOld) {
       const markets = [];
 
       // Add H100-PERP market (all providers)
@@ -662,10 +686,25 @@ export const useMarketsData = () => {
         });
       }
 
+      // Add A100 market
+      if (markPriceA100 && !errorA100) {
+        markets.push({
+          name: "A100-PERP",
+          displayName: "A100 GPU",
+          fullName: "A100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceA100),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyA100,
+          marketId: MARKET_IDS["A100-PERP"],
+          status: "Active",
+        });
+      }
+
       if (markets.length > 0) {
         setData({ markets, isLoading: false, error: null });
       } else {
-        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorH200 || errorOracleB200 || errorAWSB200 || errorCoreWeaveB200 || errorGCPB200 || errorOracleH200 || errorAWSH200 || errorCoreWeaveH200 || errorGCPH200 || errorAzureH200 || errorAWSH100 || errorAzureH100 || errorGCPH100 || errorOld || "No markets available";
+        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorH200 || errorOracleB200 || errorAWSB200 || errorCoreWeaveB200 || errorGCPB200 || errorOracleH200 || errorAWSH200 || errorCoreWeaveH200 || errorGCPH200 || errorAzureH200 || errorAWSH100 || errorAzureH100 || errorGCPH100 || errorA100 || errorOld || "No markets available";
         setData({ markets: [], isLoading: false, error });
       }
     }
@@ -687,6 +726,7 @@ export const useMarketsData = () => {
     markPriceAWSH100,
     markPriceAzureH100,
     markPriceGCPH100,
+    markPriceA100,
     markPriceOld,
     priceLoadingH100,
     priceLoadingHyperscalers,
@@ -705,6 +745,7 @@ export const useMarketsData = () => {
     priceLoadingAWSH100,
     priceLoadingAzureH100,
     priceLoadingGCPH100,
+    priceLoadingA100,
     priceLoadingOld,
     errorH100,
     errorHyperscalers,
@@ -723,6 +764,7 @@ export const useMarketsData = () => {
     errorAWSH100,
     errorAzureH100,
     errorGCPH100,
+    errorA100,
     errorOld,
   ]);
 

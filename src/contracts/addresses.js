@@ -1,6 +1,6 @@
 // ByteStrike Contract Addresses on Sepolia Testnet
 // Chain ID: 11155111
-// Latest Update: 2026-01-23 (Added H100 provider-specific markets: AWS, Azure, GCP)
+// Latest Update: 2026-02-02 (Added A100 GPU market at $1.76/hour)
 
 export const SEPOLIA_CONTRACTS = {
   // Core Protocol Contracts
@@ -35,6 +35,9 @@ export const SEPOLIA_CONTRACTS = {
   vammProxyAzureH100: '0xea44aB243a73ba7b3051F3624F4545F00C4DA167', // AZURE-H100-PERP vAMM ($2.12/hour)
   vammProxyGCPH100: '0xA7dB000966387C09e6A4ad2c89264bD65241398b', // GCP-H100-PERP vAMM ($3.88/hour)
 
+  // A100 vAMM
+  vammProxyA100: '0xAeb28c8BB78149E2B7FA2419728Cd1E6e0Ed5842', // A100-PERP vAMM ($1.76/hour)
+
   vammImpl: '0xd64175cE957F089bA7fb3EBdA5B17f268DE01190', // vAMM implementation (latest)
   vammProxyOld: '0xF8908F7B4a1AaaD69bF0667FA83f85D3d0052739', // Old vAMM (deprecated)
 
@@ -67,6 +70,9 @@ export const SEPOLIA_CONTRACTS = {
   awsH100OracleAdapter: '0xa0FE4343673a1d60C81cBAAa9CbdCb3D36391F11', // Adapter for AWS-H100-PERP
   azureH100OracleAdapter: '0xb9F63C8307Bb0857bB3181eF2Ef90316e3Bb2799', // Adapter for AZURE-H100-PERP
   gcpH100OracleAdapter: '0x10876222caD96dc4a0Da2D0538aFD4d50EED13Ca', // Adapter for GCP-H100-PERP
+
+  // A100 Oracle Adapter
+  a100OracleAdapter: '0xA4c7C5fC1893d79D1773B86d503657b6F5B86B35', // Adapter for A100-PERP
 
   // Oracles - Legacy (will be deprecated after migration)
   indexOracle: '0x3cA2Da03e4b6dB8fe5a24c22Cf5EB2A34B59cbad', // Legacy: H100 GPU rental price oracle
@@ -109,6 +115,9 @@ export const MARKET_IDS = {
   'AZURE-H100-PERP': '0x2492e86fcfe9b174434dfca2c27205159a34cf4e90f0ec7a1605fae91a7e7bbd', // Azure H100 ($2.12/hour)
   'GCP-H100-PERP': '0x8c78c8c17cc7712fe1b17592a2c0a7f814f8ec784de0fbb4ae6573e3457e11dd', // Google Cloud H100 ($3.88/hour)
 
+  // A100 Market
+  'A100-PERP': '0x7c611d543b87d4eecced3a16f8db373340d784390882ad3e2fd76f257a51cf55', // A100 GPU ($1.76/hour)
+
   'ETH-PERP-V2': '0x385badc5603eb47056a6bdcd6ac81a50df49d7a4e8a7451405e580bd12087a28', // Deprecated
   'ETH-PERP': '0x352291f10e3a0d4a9f7beb3b623eac0b06f735c95170f956bc68b2f8b504a35d', // Deprecated test market
 };
@@ -138,6 +147,9 @@ export const ASSET_IDS = {
   'AWS_H100_HOURLY': '0x7d262bdf6fe868e6f4fbaae8df4383382d51684d63ed56221ae3657e10f822f6', // keccak256("AWS_H100_HOURLY")
   'AZURE_H100_HOURLY': '0x9c7133267a94b0099c1cc21d1c7aef7d7daeb63a0fe81021715a9247be2e10a7', // keccak256("AZURE_H100_HOURLY")
   'GCP_H100_HOURLY': '0x80b8897ba24f84fcb99b7b482f45ae335104fa06f096a7d4718870ce143c892b', // keccak256("GCP_H100_HOURLY")
+
+  // A100 Asset ID
+  'A100_HOURLY': '0x2d2dcb773769dec98aac013f27fbeba7c0dfe1d4edf46e4d3bfee86443ac6cde', // keccak256("A100_HOURLY")
 };
 
 // Default market to use in the frontend
@@ -460,6 +472,23 @@ export const MARKETS = {
     penaltyCap: 1000,
     active: true,
     description: 'Perpetual futures on Google Cloud H100 GPU hourly rental rates with 10x max leverage',
+  },
+  'A100-PERP': {
+    id: MARKET_IDS['A100-PERP'],
+    name: 'A100-PERP',
+    displayName: 'A100 GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyA100,
+    oracle: SEPOLIA_CONTRACTS.a100OracleAdapter,
+    indexPrice: 1.76,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on A100 GPU hourly rental rates with 10x max leverage',
   },
 };
 
