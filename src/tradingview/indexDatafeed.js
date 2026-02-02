@@ -43,8 +43,9 @@ const marketConfig = {
   },
   "A100-PERP": {
     displayName: "A100 GPU Index",
-    tableName: "price_data",
-    priceField: "price",
+    tableName: "a100_index_prices",
+    priceField: "index_price",
+    timestampField: "recorded_at",
   },
   "H100-non-HyperScalers-PERP": {
     displayName: "Neocloud Index",
@@ -181,7 +182,7 @@ function resolutionToSeconds(resolution) {
 /**
  * Convert raw price data to OHLCV bars
  */
-function convertToBars(data, resolutionSeconds, priceField = "price") {
+function convertToBars(data, resolutionSeconds, priceField = "price", timestampField = "timestamp") {
   if (!data || data.length === 0) return [];
 
   const bars = [];
@@ -189,7 +190,7 @@ function convertToBars(data, resolutionSeconds, priceField = "price") {
   const intervalMs = resolutionSeconds * 1000;
 
   for (const point of data) {
-    const timestamp = new Date(point.timestamp).getTime();
+    const timestamp = new Date(point[timestampField] || point.timestamp).getTime();
     const price = parseFloat(point[priceField] || point.price);
     const barTime = Math.floor(timestamp / intervalMs) * intervalMs;
 
@@ -277,15 +278,23 @@ export const IndexDatafeed = {
       priceField: "price",
     };
     
-    console.log("[IndexDatafeed] getBars:", symbolName, "table:", config.tableName, "field:", config.priceField, resolution);
+    // Use configurable timestamp field (default to "timestamp")
+    const timestampField = config.timestampField || "timestamp";
+    
+    console.log("[IndexDatafeed] getBars:", symbolName, "table:", config.tableName, "field:", config.priceField, "timestamp:", timestampField, resolution);
 
     try {
+      // Log the query time range for debugging
+      const fromDate = new Date(from * 1000);
+      const toDate = new Date(to * 1000);
+      console.log("[IndexDatafeed] Query range:", fromDate.toISOString(), "to", toDate.toISOString());
+      
       // Build query with optional provider filter
       let query = supabase
         .from(config.tableName)
-        .select(`${config.priceField}, timestamp`)
-        .gte("timestamp", new Date(from * 1000).toISOString())
-        .lte("timestamp", new Date(to * 1000).toISOString());
+        .select(`${config.priceField}, ${timestampField}`)
+        .gte(timestampField, fromDate.toISOString())
+        .lte(timestampField, toDate.toISOString());
       
       // Apply provider filter for provider-specific markets
       if (config.providerFilter) {
@@ -293,12 +302,42 @@ export const IndexDatafeed = {
         console.log("[IndexDatafeed] Filtering by provider:", config.providerFilter);
       }
       
-      const { data, error } = await query.order("timestamp", { ascending: true });
+      let { data, error } = await query.order(timestampField, { ascending: true });
 
       if (error) {
         console.error("[IndexDatafeed] Query error:", error);
         onErrorCallback(error.message);
         return;
+      }
+
+      // If no data in requested range, try to get the most recent data available
+      if ((!data || data.length === 0) && firstDataRequest) {
+        console.log("[IndexDatafeed] No data in range, fetching most recent data...");
+        console.log("[IndexDatafeed] Fallback query params - table:", config.tableName, "select:", `${config.priceField}, ${timestampField}`);
+        
+        try {
+          const fallbackResult = await supabase
+            .from(config.tableName)
+            .select("*")  // Select all to see what columns exist
+            .order(timestampField, { ascending: false })
+            .limit(10);
+          
+          console.log("[IndexDatafeed] Fallback result:", fallbackResult);
+          
+          if (fallbackResult.error) {
+            console.error("[IndexDatafeed] Fallback query error:", fallbackResult.error);
+          } else if (fallbackResult.data && fallbackResult.data.length > 0) {
+            // Log the first record to see its structure
+            console.log("[IndexDatafeed] Sample record:", fallbackResult.data[0]);
+            // Reverse to get ascending order
+            data = fallbackResult.data.reverse();
+            console.log("[IndexDatafeed] Found", data.length, "recent records");
+          } else {
+            console.log("[IndexDatafeed] Fallback query returned empty array");
+          }
+        } catch (fallbackError) {
+          console.error("[IndexDatafeed] Fallback query exception:", fallbackError);
+        }
       }
 
       if (!data || data.length === 0) {
@@ -308,7 +347,7 @@ export const IndexDatafeed = {
       }
 
       const resolutionSeconds = resolutionToSeconds(resolution);
-      const bars = convertToBars(data, resolutionSeconds, config.priceField);
+      const bars = convertToBars(data, resolutionSeconds, config.priceField, timestampField);
 
       console.log("[IndexDatafeed] Returning", bars.length, "bars from", config.tableName);
       onHistoryCallback(bars, { noData: bars.length === 0 });
@@ -332,6 +371,9 @@ export const IndexDatafeed = {
       priceField: "price",
     };
     
+    // Use configurable timestamp field (default to "timestamp")
+    const timestampField = config.timestampField || "timestamp";
+    
     console.log("[IndexDatafeed] subscribeBars:", symbolName, "table:", config.tableName, subscriberUID);
 
     const resolutionSeconds = resolutionToSeconds(resolution);
@@ -349,7 +391,7 @@ export const IndexDatafeed = {
         },
         (payload) => {
           const price = parseFloat(payload.new[config.priceField] || payload.new.price);
-          const timestamp = new Date(payload.new.timestamp).getTime();
+          const timestamp = new Date(payload.new[timestampField] || payload.new.timestamp).getTime();
           const barTime = Math.floor(timestamp / (resolutionSeconds * 1000)) * (resolutionSeconds * 1000);
 
           if (!lastBar || lastBar.time < barTime) {
