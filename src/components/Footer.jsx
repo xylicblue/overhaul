@@ -133,6 +133,17 @@ const Footer = () => {
 
         <div className="border-t border-zinc-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-zinc-500">
           <p>© {new Date().getFullYear()} Byte Strike. All rights reserved.</p>
+          <p className="text-zinc-500">
+            Trading Charts provided by{" "}
+            <a 
+              href="https://www.tradingview.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              TradingView
+            </a>
+          </p>
           <div className="flex gap-6">
             <a href="#" className="hover:text-zinc-300 transition-colors">
               Terms of Service
