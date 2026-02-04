@@ -90,6 +90,13 @@ const symbolsInfo = {
 // Store active subscriptions
 const subscriptions = new Map();
 
+// Simple cache for historical data to avoid repeated queries
+const dataCache = new Map();
+const CACHE_TTL = 60000; // 1 minute cache TTL
+
+// Maximum bars to fetch per request (optimization - keep low for fast initial load)
+const MAX_BARS_PER_REQUEST = 500;
+
 /**
  * Convert resolution string to interval in seconds
  */
@@ -209,7 +216,28 @@ export const Datafeed = {
     onErrorCallback
   ) => {
     const { from, to, firstDataRequest } = periodParams;
-    console.log("[Datafeed] getBars:", symbolInfo.name, resolution, new Date(from * 1000), new Date(to * 1000));
+    
+    // For first request, limit time range to recent data for faster loading
+    // TradingView often requests years of data initially
+    let actualFrom = from;
+    if (firstDataRequest) {
+      // Limit initial load to last 30 days max for speed
+      const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+      actualFrom = Math.max(from, thirtyDaysAgo);
+    }
+    
+    console.log("[Datafeed] getBars:", symbolInfo.name, resolution, new Date(actualFrom * 1000), new Date(to * 1000));
+
+    // Create cache key
+    const cacheKey = `${symbolInfo.name}_${resolution}_${actualFrom}_${to}`;
+    const cachedEntry = dataCache.get(cacheKey);
+    
+    // Return cached data if valid
+    if (cachedEntry && Date.now() - cachedEntry.timestamp < CACHE_TTL) {
+      console.log("[Datafeed] Returning cached bars:", cachedEntry.bars.length);
+      onHistoryCallback(cachedEntry.bars, { noData: cachedEntry.bars.length === 0 });
+      return;
+    }
 
     try {
       // Query Supabase for historical data
@@ -223,13 +251,15 @@ export const Datafeed = {
       let data = null;
       
       for (const marketName of marketNames) {
+        // Only select necessary fields (not twap) for faster query
         const { data: queryData, error } = await supabase
           .from("vamm_price_history")
-          .select("price, twap, timestamp")
+          .select("price, timestamp")
           .eq("market", marketName)
-          .gte("timestamp", new Date(from * 1000).toISOString())
+          .gte("timestamp", new Date(actualFrom * 1000).toISOString())
           .lte("timestamp", new Date(to * 1000).toISOString())
-          .order("timestamp", { ascending: true });
+          .order("timestamp", { ascending: true })
+          .limit(MAX_BARS_PER_REQUEST);
 
         if (!error && queryData && queryData.length > 0) {
           data = queryData;
@@ -245,6 +275,15 @@ export const Datafeed = {
 
       const resolutionSeconds = resolutionToSeconds(resolution);
       const bars = convertToBars(data, resolutionSeconds);
+
+      // Cache the result
+      dataCache.set(cacheKey, { bars, timestamp: Date.now() });
+      
+      // Clean old cache entries (keep cache size manageable)
+      if (dataCache.size > 50) {
+        const oldestKey = dataCache.keys().next().value;
+        dataCache.delete(oldestKey);
+      }
 
       console.log("[Datafeed] Returning", bars.length, "bars");
       onHistoryCallback(bars, { noData: bars.length === 0 });

@@ -161,6 +161,53 @@ function getSymbolInfo(symbolName) {
 // Store active subscriptions
 const subscriptions = new Map();
 
+// Preload cache - stores all raw data for each symbol (full dataset)
+const preloadCache = new Map();
+const PRELOAD_TTL = 300000; // 5 minutes - longer TTL since this is full data
+
+// Simple cache for processed bars (by resolution)
+const barsCache = new Map();
+const BARS_CACHE_TTL = 60000; // 1 minute for processed bars
+
+// Maximum bars to return per request
+const MAX_BARS_PER_REQUEST = 500;
+
+/**
+ * Preload all data for a symbol (runs once, cached for 5 minutes)
+ */
+async function preloadSymbolData(symbolName, config) {
+  const cached = preloadCache.get(symbolName);
+  if (cached && Date.now() - cached.timestamp < PRELOAD_TTL) {
+    return cached.data;
+  }
+
+  console.log("[IndexDatafeed] Preloading data for:", symbolName);
+  const timestampField = config.timestampField || "timestamp";
+  
+  // Fetch ALL available data (no time filter - let database return everything)
+  let query = supabase
+    .from(config.tableName)
+    .select(`${config.priceField}, ${timestampField}`)
+    .order(timestampField, { ascending: true });
+  
+  if (config.providerFilter) {
+    query = query.eq("provider_name", config.providerFilter);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) {
+    console.error("[IndexDatafeed] Preload error:", error);
+    return null;
+  }
+  
+  // Store in preload cache
+  preloadCache.set(symbolName, { data, timestamp: Date.now() });
+  console.log("[IndexDatafeed] Preloaded", data?.length || 0, "records for", symbolName);
+  
+  return data;
+}
+
 /**
  * Convert resolution string to interval in seconds
  */
@@ -278,79 +325,59 @@ export const IndexDatafeed = {
       priceField: "price",
     };
     
-    // Use configurable timestamp field (default to "timestamp")
     const timestampField = config.timestampField || "timestamp";
+    console.log("[IndexDatafeed] getBars:", symbolName, resolution, firstDataRequest ? "(first request)" : "");
+
+    // Check bars cache first (processed bars by resolution)
+    const barsCacheKey = `${symbolName}_${resolution}`;
+    const cachedBars = barsCache.get(barsCacheKey);
     
-    console.log("[IndexDatafeed] getBars:", symbolName, "table:", config.tableName, "field:", config.priceField, "timestamp:", timestampField, resolution);
+    if (cachedBars && Date.now() - cachedBars.timestamp < BARS_CACHE_TTL) {
+      // For first request, return all bars up to 'to' time to fill chart from left
+      // For subsequent requests, filter by requested range
+      let filteredBars;
+      if (firstDataRequest) {
+        filteredBars = cachedBars.bars.filter(bar => bar.time <= to * 1000).slice(-MAX_BARS_PER_REQUEST);
+      } else {
+        filteredBars = cachedBars.bars.filter(bar => 
+          bar.time >= from * 1000 && bar.time <= to * 1000
+        ).slice(-MAX_BARS_PER_REQUEST);
+      }
+      
+      console.log("[IndexDatafeed] Returning", filteredBars.length, "cached bars");
+      onHistoryCallback(filteredBars, { noData: filteredBars.length === 0 });
+      return;
+    }
 
     try {
-      // Log the query time range for debugging
-      const fromDate = new Date(from * 1000);
-      const toDate = new Date(to * 1000);
-      console.log("[IndexDatafeed] Query range:", fromDate.toISOString(), "to", toDate.toISOString());
+      // Use preloaded data (fetches once, cached for 5 minutes)
+      const rawData = await preloadSymbolData(symbolName, config);
       
-      // Build query with optional provider filter
-      let query = supabase
-        .from(config.tableName)
-        .select(`${config.priceField}, ${timestampField}`)
-        .gte(timestampField, fromDate.toISOString())
-        .lte(timestampField, toDate.toISOString());
-      
-      // Apply provider filter for provider-specific markets
-      if (config.providerFilter) {
-        query = query.eq("provider_name", config.providerFilter);
-        console.log("[IndexDatafeed] Filtering by provider:", config.providerFilter);
-      }
-      
-      let { data, error } = await query.order(timestampField, { ascending: true });
-
-      if (error) {
-        console.error("[IndexDatafeed] Query error:", error);
-        onErrorCallback(error.message);
-        return;
-      }
-
-      // If no data in requested range, try to get the most recent data available
-      if ((!data || data.length === 0) && firstDataRequest) {
-        console.log("[IndexDatafeed] No data in range, fetching most recent data...");
-        console.log("[IndexDatafeed] Fallback query params - table:", config.tableName, "select:", `${config.priceField}, ${timestampField}`);
-        
-        try {
-          const fallbackResult = await supabase
-            .from(config.tableName)
-            .select("*")  // Select all to see what columns exist
-            .order(timestampField, { ascending: false })
-            .limit(10);
-          
-          console.log("[IndexDatafeed] Fallback result:", fallbackResult);
-          
-          if (fallbackResult.error) {
-            console.error("[IndexDatafeed] Fallback query error:", fallbackResult.error);
-          } else if (fallbackResult.data && fallbackResult.data.length > 0) {
-            // Log the first record to see its structure
-            console.log("[IndexDatafeed] Sample record:", fallbackResult.data[0]);
-            // Reverse to get ascending order
-            data = fallbackResult.data.reverse();
-            console.log("[IndexDatafeed] Found", data.length, "recent records");
-          } else {
-            console.log("[IndexDatafeed] Fallback query returned empty array");
-          }
-        } catch (fallbackError) {
-          console.error("[IndexDatafeed] Fallback query exception:", fallbackError);
-        }
-      }
-
-      if (!data || data.length === 0) {
-        console.log("[IndexDatafeed] No data for interval from table:", config.tableName);
+      if (!rawData || rawData.length === 0) {
+        console.log("[IndexDatafeed] No preloaded data for", symbolName);
         onHistoryCallback([], { noData: true });
         return;
       }
 
+      // Convert all data to bars for this resolution
       const resolutionSeconds = resolutionToSeconds(resolution);
-      const bars = convertToBars(data, resolutionSeconds, config.priceField, timestampField);
+      const allBars = convertToBars(rawData, resolutionSeconds, config.priceField, timestampField);
+      
+      // Cache all bars for this resolution
+      barsCache.set(barsCacheKey, { bars: allBars, timestamp: Date.now() });
+      
+      // For first request, return all bars up to 'to' time to fill chart from left
+      let filteredBars;
+      if (firstDataRequest) {
+        filteredBars = allBars.filter(bar => bar.time <= to * 1000).slice(-MAX_BARS_PER_REQUEST);
+      } else {
+        filteredBars = allBars.filter(bar => 
+          bar.time >= from * 1000 && bar.time <= to * 1000
+        ).slice(-MAX_BARS_PER_REQUEST);
+      }
 
-      console.log("[IndexDatafeed] Returning", bars.length, "bars from", config.tableName);
-      onHistoryCallback(bars, { noData: bars.length === 0 });
+      console.log("[IndexDatafeed] Returning", filteredBars.length, "bars (from", allBars.length, "total)");
+      onHistoryCallback(filteredBars, { noData: filteredBars.length === 0 });
     } catch (error) {
       console.error("[IndexDatafeed] getBars error:", error);
       onErrorCallback(error.message);

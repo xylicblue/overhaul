@@ -152,6 +152,26 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
           // Set default chart type based on priceType
           // 1 = Candles, 2 = Line
           chart.setChartType(priceType === "index" ? 2 : 1);
+          
+          // Wait for data to load, then scroll to show latest data
+          setTimeout(() => {
+            try {
+              // Scroll to show real-time data at the right edge
+              const timeScale = chart.getTimeScale();
+              timeScale.scrollToRealTime();
+              
+              // After scrolling, fit all available content
+              setTimeout(() => {
+                try {
+                  timeScale.fitContent();
+                } catch (e) {
+                  console.warn("[TradingViewChart] Could not fit content:", e);
+                }
+              }, 100);
+            } catch (e) {
+              console.warn("[TradingViewChart] Could not scroll to real time:", e);
+            }
+          }, 500);
         });
 
       } catch (err) {
@@ -161,11 +181,16 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
       }
     };
 
-    // Small delay to ensure DOM is ready
-    const timer = setTimeout(initWidget, 100);
+    // Initialize immediately if TradingView is already loaded
+    if (typeof window.TradingView !== "undefined") {
+      initWidget();
+    } else {
+      // Small delay only if library not yet loaded
+      const timer = setTimeout(initWidget, 50);
+      return () => clearTimeout(timer);
+    }
 
     return () => {
-      clearTimeout(timer);
       if (widgetRef.current) {
         try {
           widgetRef.current.remove();
