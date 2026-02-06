@@ -3,7 +3,7 @@ import TradingViewChart from "./TradingViewChart";
 import { Maximize2, X } from "lucide-react";
 
 const ChartToggle = ({ selectedMarket }) => {
-  const [activeChart, setActiveChart] = useState("vamm"); // 'vamm' or 'index'
+  const [activeChart, setActiveChart] = useState("index"); // 'vamm' or 'index' - default to index
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Memoize market name to prevent unnecessary re-renders

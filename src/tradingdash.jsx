@@ -5,10 +5,26 @@ import PositionPanel from "./components/PositionPanel";
 import TickerBar from "./components/TickerBar";
 import { useMarket } from "./marketcontext";
 import { LayoutDashboard, CandlestickChart, ArrowLeftRight } from "lucide-react";
+import { useAccount } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 export const TradingDashboard = () => {
   const { selectedMarket } = useMarket();
   const [activeMobileTab, setActiveMobileTab] = useState("chart"); // 'chart', 'trade', 'positions'
+  const { isConnected } = useAccount();
+
+  // Overlay component for reusability
+  const ConnectWalletOverlay = () => (
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm p-6 text-center">
+      <div className="bg-zinc-900/90 border border-zinc-800 p-6 rounded-xl shadow-2xl max-w-[280px]">
+        <h3 className="text-sm font-semibold text-white mb-2">Connect Wallet</h3>
+        <p className="text-xs text-zinc-400 mb-4">You need to connect your wallet to place trades.</p>
+        <div className="flex justify-center">
+          <ConnectButton />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-56px)] bg-[#050505] text-zinc-200 overflow-hidden">
@@ -33,8 +49,12 @@ export const TradingDashboard = () => {
         </div>
 
         {/* Right Side: Order Form (Fixed Width) */}
-        <div className="w-[320px] shrink-0 flex flex-col bg-[#0A0A0A]/50 backdrop-blur-sm border-l border-zinc-800">
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="w-[320px] shrink-0 flex flex-col bg-[#0A0A0A]/50 backdrop-blur-sm border-l border-zinc-800 relative">
+          
+          {/* Connect Wallet Overlay (Desktop) */}
+          {!isConnected && <ConnectWalletOverlay />}
+
+          <div className={`flex-1 overflow-y-auto custom-scrollbar ${!isConnected ? 'blur-[2px] pointer-events-none opacity-50' : ''}`}>
             <TradingPanel selectedMarket={selectedMarket} />
           </div>
         </div>
@@ -50,8 +70,13 @@ export const TradingDashboard = () => {
             </div>
           )}
           {activeMobileTab === "trade" && (
-            <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-[#050505]">
-              <TradingPanel selectedMarket={selectedMarket} />
+            <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-[#050505] relative">
+              {/* Connect Wallet Overlay (Mobile) */}
+              {!isConnected && <ConnectWalletOverlay />}
+
+              <div className={!isConnected ? 'blur-[2px] pointer-events-none opacity-50 h-full' : 'h-full'}>
+                <TradingPanel selectedMarket={selectedMarket} />
+              </div>
             </div>
           )}
           {activeMobileTab === "positions" && (
