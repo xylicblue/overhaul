@@ -24,16 +24,6 @@ const ChartToggle = ({ selectedMarket }) => {
       <div className="flex bg-[#050505] rounded-lg p-1">
         <button
           className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
-            activeChart === "vamm"
-              ? "bg-zinc-800 text-white shadow-sm"
-              : "text-zinc-500 hover:text-zinc-300"
-          }`}
-          onClick={() => setActiveChart("vamm")}
-        >
-          Mark Price
-        </button>
-        <button
-          className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
             activeChart === "index"
               ? "bg-zinc-800 text-white shadow-sm"
               : "text-zinc-500 hover:text-zinc-300"
@@ -41,6 +31,16 @@ const ChartToggle = ({ selectedMarket }) => {
           onClick={() => setActiveChart("index")}
         >
           Index Price
+        </button>
+        <button
+          className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
+            activeChart === "vamm"
+              ? "bg-zinc-800 text-white shadow-sm"
+              : "text-zinc-500 hover:text-zinc-300"
+          }`}
+          onClick={() => setActiveChart("vamm")}
+        >
+          Mark Price
         </button>
       </div>
       
