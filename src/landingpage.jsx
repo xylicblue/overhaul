@@ -300,9 +300,15 @@ const LandingPage = () => {
                   </Routerlink>
                   <Routerlink
                     to="/methodology/b200"
-                    className="block px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+                    className="block px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 transition-colors border-b border-white/5"
                   >
                     B200 Methodology
+                  </Routerlink>
+                  <Routerlink
+                    to="/methodology/t4"
+                    className="block px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    T4 Methodology
                   </Routerlink>
                 </div>
               </div>
@@ -567,13 +573,13 @@ const LandingPage = () => {
                   {/* GPU Model Selector */}
                   <div className="mb-4 relative z-20 flex justify-center w-full px-4">
                     <div className="inline-flex items-center gap-2 p-1.5 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-                      {["H100", "A100", "H200", "B200"].map((model) => (
+                      {["H100", "A100", "H200", "B200", "T4"].map((model) => (
                         <button
                           key={model}
                           onClick={() => {
                             setSelectedModel(model);
                             // Auto-select first market of this model
-                            const firstMarket = model === "H100" ? "H100-PERP" : model === "A100" ? "A100-PERP" : model === "H200" ? "H200-PERP" : "B200-PERP";
+                            const firstMarket = model === "H100" ? "H100-PERP" : model === "A100" ? "A100-PERP" : model === "H200" ? "H200-PERP" : model === "B200" ? "B200-PERP" : "T4-PERP";
                             setSelectedMarket(firstMarket);
                           }}
                           className={`relative px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
@@ -593,8 +599,8 @@ const LandingPage = () => {
                     </div>
                   </div>
 
-                  {/* Filtered Markets Scrollbar - Hide for A100 since it only has one option */}
-                  {selectedModel !== "A100" && (
+                  {/* Filtered Markets Scrollbar - Hide for A100 and T4 since they only have one option */}
+                  {selectedModel !== "A100" && selectedModel !== "T4" && (
                   <div className="mb-8 md:mb-12 relative z-20 flex justify-center w-full px-4">
                     <div className="inline-flex max-w-[90vw] rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] overflow-hidden">
                       <div className="overflow-x-auto scrollbar-hide w-full">
@@ -658,6 +664,7 @@ const LandingPage = () => {
                                 "A100-PERP": "NVIDIA A100",
                                 "H200-PERP": "NVIDIA H200",
                                 "B200-PERP": "NVIDIA Blackwell B200",
+                                "T4-PERP": "NVIDIA T4",
                                 "H100-non-HyperScalers-PERP": "Neocloud H100",
                                 "ORACLE-H200-PERP": "Oracle Cloud H200",
                                 "AWS-H200-PERP": "AWS H200",

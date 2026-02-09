@@ -109,9 +109,15 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
                 </Link>
                 <Link
                   to="/methodology/b200"
-                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"
+                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border-b border-zinc-700/50"
                 >
                   B200 Methodology
+                </Link>
+                <Link
+                  to="/methodology/t4"
+                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  T4 Methodology
                 </Link>
               </div>
             </div>

@@ -92,6 +92,22 @@ const Footer = () => {
                     B200 Methodology
                   </Routerlink>
                 </li>
+                <li>
+                  <Routerlink
+                    to="/methodology/a100"
+                    className="hover:text-blue-400 transition-colors"
+                  >
+                    A100 Methodology
+                  </Routerlink>
+                </li>
+                <li>
+                  <Routerlink
+                    to="/methodology/t4"
+                    className="hover:text-blue-400 transition-colors"
+                  >
+                    T4 Methodology
+                  </Routerlink>
+                </li>
               </ul>
             </div>
 

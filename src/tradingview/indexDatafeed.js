@@ -47,6 +47,11 @@ const marketConfig = {
     priceField: "index_price",
     timestampField: "recorded_at",
   },
+  "T4-PERP": {
+    displayName: "T4 GPU Index",
+    tableName: "t4_index_prices",
+    priceField: "index_price",
+  },
   "H100-non-HyperScalers-PERP": {
     displayName: "Neocloud Index",
     tableName: "h100_non_hyperscalers_perp_prices",
