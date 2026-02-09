@@ -103,6 +103,14 @@ const MARKET_POSITION_CONFIG = [
     displayName: "GCP H100 ($3.88/hr)",
     baseAssetSymbol: "GPU-HRS",
   },
+  // T4 Market
+  {
+    key: "T4-PERP",
+    marketId: MARKET_IDS["T4-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyT4,
+    displayName: "T4 GPU ($0.45/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
   {
     key: "ETH-PERP",
     marketId: MARKET_IDS["ETH-PERP"],

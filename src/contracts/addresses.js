@@ -38,6 +38,9 @@ export const SEPOLIA_CONTRACTS = {
   // A100 vAMM
   vammProxyA100: '0xAeb28c8BB78149E2B7FA2419728Cd1E6e0Ed5842', // A100-PERP vAMM ($1.76/hour)
 
+  // T4 vAMM
+  vammProxyT4: '0x910C730dBEd5384fbF83bf1F387609bf83E8ffDd', // T4-PERP vAMM ($0.45/hour)
+
   vammImpl: '0xd64175cE957F089bA7fb3EBdA5B17f268DE01190', // vAMM implementation (latest)
   vammProxyOld: '0xF8908F7B4a1AaaD69bF0667FA83f85D3d0052739', // Old vAMM (deprecated)
 
@@ -73,6 +76,9 @@ export const SEPOLIA_CONTRACTS = {
 
   // A100 Oracle Adapter
   a100OracleAdapter: '0xA4c7C5fC1893d79D1773B86d503657b6F5B86B35', // Adapter for A100-PERP
+
+  // T4 Oracle Adapter
+  t4OracleAdapter: '0x167Bd2040Fd061342728b1A7120b0AfBC33eb3B4', // Adapter for T4-PERP
 
   // Oracles - Legacy (will be deprecated after migration)
   indexOracle: '0x3cA2Da03e4b6dB8fe5a24c22Cf5EB2A34B59cbad', // Legacy: H100 GPU rental price oracle
@@ -118,6 +124,9 @@ export const MARKET_IDS = {
   // A100 Market
   'A100-PERP': '0x7c611d543b87d4eecced3a16f8db373340d784390882ad3e2fd76f257a51cf55', // A100 GPU ($1.76/hour)
 
+  // T4 Market
+  'T4-PERP': '0xb1bae2ea6c465ce4acb7d8a4a16a8899c9cc94ac35b5a82403875c6b2aa34f3e', // T4 GPU ($0.45/hour)
+
   'ETH-PERP-V2': '0x385badc5603eb47056a6bdcd6ac81a50df49d7a4e8a7451405e580bd12087a28', // Deprecated
   'ETH-PERP': '0x352291f10e3a0d4a9f7beb3b623eac0b06f735c95170f956bc68b2f8b504a35d', // Deprecated test market
 };
@@ -150,6 +159,9 @@ export const ASSET_IDS = {
 
   // A100 Asset ID
   'A100_HOURLY': '0x2d2dcb773769dec98aac013f27fbeba7c0dfe1d4edf46e4d3bfee86443ac6cde', // keccak256("A100_HOURLY")
+
+  // T4 Asset ID
+  'T4_HOURLY': '0x3579a517d9a62c57f1158cfdc01603549103ed87556523a42712c9fda4f8439e', // keccak256("T4_HOURLY")
 };
 
 // Default market to use in the frontend
@@ -489,6 +501,23 @@ export const MARKETS = {
     penaltyCap: 1000,
     active: true,
     description: 'Perpetual futures on A100 GPU hourly rental rates with 10x max leverage',
+  },
+  'T4-PERP': {
+    id: MARKET_IDS['T4-PERP'],
+    name: 'T4-PERP',
+    displayName: 'T4 GPU Perpetual',
+    baseAsset: 'GPU-HOURS',
+    quoteAsset: 'USDC',
+    vamm: SEPOLIA_CONTRACTS.vammProxyT4,
+    oracle: SEPOLIA_CONTRACTS.t4OracleAdapter,
+    indexPrice: 0.45,
+    feeBps: 10,
+    imrBps: 1000,
+    mmrBps: 500,
+    liquidationPenaltyBps: 250,
+    penaltyCap: 1000,
+    active: true,
+    description: 'Perpetual futures on T4 GPU hourly rental rates with 10x max leverage',
   },
 };
 
