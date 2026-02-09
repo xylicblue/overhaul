@@ -207,6 +207,7 @@ const TickerBar = () => {
                 "H100-non-HyperScalers-PERP": "H100 prices from Neocloud providers - specialized GPU cloud providers like Lambda, CoreWeave, Vultr, etc.",
                 "B200-PERP": "Next-generation NVIDIA Blackwell B200 GPU prices from specialized providers.",
                 "H200-PERP": "NVIDIA H200 GPU hourly rental rates - the latest Hopper generation with improved HBM3e memory.",
+                "T4-PERP": "NVIDIA T4 GPU hourly rental rates - cost-effective inference and light training workloads.",
               }[marketName] || "GPU Compute Market"
             }
           />

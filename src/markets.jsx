@@ -132,6 +132,16 @@ const MARKETS_CONFIG = [
     providerFilter: "Azure",
     description: "Azure H200 instance pricing",
   },
+  // T4 GPU Index
+  {
+    id: "T4-PERP",
+    name: "T4",
+    fullName: "NVIDIA T4 GPU Index",
+    category: "gpu",
+    table: "t4_index_prices",
+    priceField: "index_price",
+    description: "Weighted average T4 GPU hourly rental rate",
+  },
   // H100 Hyperscaler-specific markets
   {
     id: "AWS-H100-PERP",

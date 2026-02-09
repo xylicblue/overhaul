@@ -148,8 +148,15 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       displayName: "A100 GPU",
       tableName: "a100_index_prices",
       fallbackTable: null,
-      priceField: "index_price", // A100 uses index_price field
-      timestampField: "recorded_at", // A100 uses recorded_at instead of timestamp
+      priceField: "index_price",
+      timestampField: "recorded_at",
+    },
+    // T4 market
+    "T4-PERP": {
+      displayName: "T4 GPU",
+      tableName: "t4_index_prices",
+      fallbackTable: null,
+      priceField: "index_price",
     },
   };
   

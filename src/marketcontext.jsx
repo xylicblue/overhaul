@@ -162,6 +162,16 @@ const AVAILABLE_MARKETS = {
     marketId: MARKET_IDS['A100-PERP'],
     description: "A100 GPU hourly rental rate perpetual futures",
   },
+  // T4 Market
+  "T4-PERP": {
+    name: "T4-PERP",
+    displayName: "T4 GPU ($0.45/hr)",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    marketId: MARKET_IDS['T4-PERP'],
+    description: "T4 GPU hourly rental rate perpetual futures",
+  },
   "ETH-PERP-V2": {
     name: "ETH-PERP-V2",
     displayName: "H100 GPU ($3.79/hr)",

@@ -75,6 +75,14 @@ const MARKETS = [
     active: true,
   },
   {
+    id: '0xb1bae2ea6c465ce4acb7d8a4a16a8899c9cc94ac35b5a82403875c6b2aa34f3e', // T4-PERP
+    name: 'T4-PERP',
+    displayName: 'T4 GPU',
+    vammAddress: '0x910C730dBEd5384fbF83bf1F387609bf83E8ffDd',
+    tableName: 't4_index_prices',
+    active: true,
+  },
+  {
     id: CONFIG.marketIds['ETH-PERP-V2'],
     name: 'ETH-PERP-V2',
     displayName: 'H100 GPU',
