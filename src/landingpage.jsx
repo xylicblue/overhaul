@@ -571,79 +571,96 @@ const LandingPage = () => {
           <div className="flex flex-col items-center">
             
                   {/* GPU Model Selector */}
-                  <div className="mb-4 relative z-20 flex justify-center w-full px-4">
-                    <div className="inline-flex items-center gap-2 p-1.5 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-                      {["H100", "A100", "H200", "B200", "T4"].map((model) => (
-                        <button
-                          key={model}
-                          onClick={() => {
-                            setSelectedModel(model);
-                            // Auto-select first market of this model
-                            const firstMarket = model === "H100" ? "H100-PERP" : model === "A100" ? "A100-PERP" : model === "H200" ? "H200-PERP" : model === "B200" ? "B200-PERP" : "T4-PERP";
-                            setSelectedMarket(firstMarket);
-                          }}
-                          className={`relative px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
-                            selectedModel === model ? "text-white" : "text-slate-400 hover:text-white"
-                          }`}
-                        >
-                          {selectedModel === model && (
-                            <motion.div
-                              layoutId="modelNav"
-                              className="absolute inset-0 bg-gradient-to-r from-indigo-500/30 to-purple-500/30 rounded-full shadow-inner border border-white/10"
-                              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                            />
-                          )}
-                          <span className="relative z-10">{model} GPU HOURS</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Market Control Center */}
+                  {/* Market Control Center */}
+                  <div className="relative z-20 w-full max-w-5xl mx-auto mb-10">
+                      <div className="flex flex-col items-center gap-6 relative z-10">
+                         {/* Top Row: GPU Models - Floating Capsule */}
+                         <div className="relative group">
+                           {/* Glow effect behind the capsule */}
+                           <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/30 via-purple-500/30 to-indigo-500/30 rounded-full blur opacity-50 group-hover:opacity-100 transition duration-1000"></div>
+                           
+                           <div className="relative flex items-center p-1.5 bg-slate-950/80 backdrop-blur-2xl rounded-full border border-white/10 shadow-2xl">
+                             {["H100", "A100", "H200", "B200", "T4"].map((model) => (
+                                <button
+                                  key={model}
+                                  onClick={() => {
+                                    setSelectedModel(model);
+                                    // Auto-select first market
+                                    const firstMarket = model === "H100" ? "H100-PERP" 
+                                      : model === "A100" ? "A100-PERP" 
+                                      : model === "H200" ? "H200-PERP" 
+                                      : model === "B200" ? "B200-PERP" 
+                                      : "T4-PERP";
+                                    setSelectedMarket(firstMarket);
+                                  }}
+                                  className={`relative px-5 md:px-7 py-2.5 rounded-full text-xs md:text-sm font-bold transition-all duration-300 whitespace-nowrap ${
+                                    selectedModel === model ? "text-white" : "text-slate-400 hover:text-white"
+                                  }`}
+                                >
+                                  {selectedModel === model && (
+                                    <motion.div
+                                      layoutId="modelActive"
+                                      className="absolute inset-0 bg-white/10 rounded-full shadow-inner border border-white/5"
+                                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    />
+                                  )}
+                                  <span className="relative z-10 flex items-center gap-2">
+                                    {model}
+                                    {selectedModel === model && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]" />
+                                    )}
+                                  </span>
+                                </button>
+                             ))}
+                           </div>
+                         </div>
 
-                  {/* Filtered Markets Scrollbar - Hide for A100 and T4 since they only have one option */}
-                  {selectedModel !== "A100" && selectedModel !== "T4" && (
-                  <div className="mb-8 md:mb-12 relative z-20 flex justify-center w-full px-4">
-                    <div className="inline-flex max-w-[90vw] rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] overflow-hidden">
-                      <div className="overflow-x-auto scrollbar-hide w-full">
-                        <div className="inline-flex items-center gap-1 p-1 whitespace-nowrap">
-                          {/* Markets filtered by selected model */}
-                          {(selectedModel === "H100" ? [
-                            { name: "H100-PERP", label: "All Providers" },
-                            { name: "H100-non-HyperScalers-PERP", label: "Neocloud" },
-                          ] : selectedModel === "H200" ? [
-                            { name: "H200-PERP", label: "All Providers" },
-                            { name: "ORACLE-H200-PERP", label: "Oracle" },
-                            { name: "AWS-H200-PERP", label: "AWS" },
-                            { name: "COREWEAVE-H200-PERP", label: "CoreWeave" },
-                            { name: "GCP-H200-PERP", label: "GCP" },
-                          ] : [
-                            { name: "B200-PERP", label: "All Providers" },
-                            { name: "ORACLE-B200-PERP", label: "Oracle" },
-                            { name: "AWS-B200-PERP", label: "AWS" },
-                            { name: "COREWEAVE-B200-PERP", label: "CoreWeave" },
-                            { name: "GCP-B200-PERP", label: "GCP" },
-                          ]).map((market) => (
-                            <button
-                              key={market.name}
-                              onClick={() => setSelectedMarket(market.name)}
-                              className={`relative px-4 md:px-5 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-300 ${
-                                selectedMarket === market.name ? "text-white" : "text-slate-400 hover:text-white"
-                              }`}
-                            >
-                              {selectedMarket === market.name && (
-                                <motion.div
-                                  layoutId="minimalNav"
-                                  className="absolute inset-0 bg-white/10 rounded-full shadow-inner border border-white/5"
-                                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                />
-                              )}
-                              <span className="relative z-10">{market.label}</span>
-                            </button>
-                          ))}
-                        </div>
+                         {/* Bottom Row: Markets (Filtered) - Minimal Floating Pills */}
+                         <AnimatePresence mode="wait">
+                         {selectedModel !== "A100" && selectedModel !== "T4" && (
+                           <motion.div 
+                              key={selectedModel}
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.2 }}
+                           >
+                             <div className="flex flex-wrap justify-center gap-3">
+                               {(selectedModel === "H100" ? [
+                                    { name: "H100-PERP", label: "Global Weighted Average" },
+                                    { name: "H100-non-HyperScalers-PERP", label: "Neocloud Index" },
+                                  ] : selectedModel === "H200" ? [
+                                    { name: "H200-PERP", label: "Global Average" },
+                                    { name: "ORACLE-H200-PERP", label: "Oracle Cloud" },
+                                    { name: "AWS-H200-PERP", label: "AWS" },
+                                    { name: "COREWEAVE-H200-PERP", label: "CoreWeave" },
+                                    { name: "GCP-H200-PERP", label: "Google Cloud" },
+                                  ] : [
+                                    { name: "B200-PERP", label: "Global Average" },
+                                    { name: "ORACLE-B200-PERP", label: "Oracle Cloud" },
+                                    { name: "AWS-B200-PERP", label: "AWS" },
+                                    { name: "COREWEAVE-B200-PERP", label: "CoreWeave" },
+                                    { name: "GCP-B200-PERP", label: "Google Cloud" },
+                                  ]).map((market) => (
+                                    <button
+                                      key={market.name}
+                                      onClick={() => setSelectedMarket(market.name)}
+                                      className={`relative px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
+                                        selectedMarket === market.name 
+                                          ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 ring-1 ring-indigo-400" 
+                                          : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5"
+                                      }`}
+                                    >
+                                      {market.label}
+                                    </button>
+                                  ))}
+                             </div>
+                           </motion.div>
+                         )}
+                         </AnimatePresence>
                       </div>
-                    </div>
                   </div>
-                  )}
 
                   {/* Seamless Chart Container */}
                   <div className="w-full max-w-5xl h-[400px] md:h-[500px] relative group perspective-1000 px-4 md:px-0">
@@ -691,32 +708,53 @@ const LandingPage = () => {
                   </div>
 
                   {/* How We Calculate This Index */}
+                  {/* How We Calculate This Index - Redesigned */}
                   <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="w-full max-w-3xl mt-12 px-4 md:px-0"
+                    className="w-full max-w-4xl mx-auto mt-20 px-6 relative z-10"
                   >
-                    <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 hover:bg-white/[0.04] transition-colors">
-                      <div className="flex flex-col items-center text-center gap-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-                            </svg>
-                          </div>
-                          <h4 className="text-lg md:text-xl font-bold text-white">How We Calculate This Index</h4>
+                    <div className="flex flex-col items-center text-center">
+                      {/* Floating Icon with Glow */}
+                      <div className="relative mb-6 group">
+                        <div className="absolute -inset-4 bg-indigo-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition duration-700"></div>
+                        <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center shadow-2xl group-hover:scale-110 transition duration-500">
+                          <svg className="w-8 h-8 text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                          </svg>
                         </div>
-                        <p className="text-sm text-slate-400 leading-relaxed max-w-lg">
-                          Our GPU compute indices are calculated using rigorous, transparent methodologies inspired by commodity markets. We aggregate real-time pricing from qualified cloud providers, apply revenue-weighted adjustments, and normalize for performance equivalency.
-                        </p>
-                        <Routerlink
-                          to={`/methodology/${selectedModel.toLowerCase()}`}
-                          className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-medium text-white transition-all text-center shadow-lg shadow-indigo-900/20"
-                        >
-                          {selectedModel} Methodology
-                        </Routerlink>
                       </div>
+
+                      {/* Headline */}
+                      <h4 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-indigo-400 mb-4 tracking-tight">
+                        Transparent, Rigorous Methodology
+                      </h4>
+
+                      {/* Description */}
+                      <p className="text-slate-400 leading-relaxed max-w-2xl text-base md:text-lg mb-8 font-light">
+                        Our GPU indices are calculated using real-time pricing from qualified providers, 
+                        revenue-weighted adjustments, and performance normalization.
+                        <span className="block mt-2 text-indigo-300/60 text-sm">Benchmarks you can trust.</span>
+                      </p>
+
+                      {/* Call to Action Button */}
+                      <Routerlink
+                        to={`/methodology/${selectedModel.toLowerCase()}`}
+                        className="group relative inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-500/30 transition-all duration-300 backdrop-blur-sm"
+                      >
+                        <span className="font-medium text-slate-200 group-hover:text-white transition-colors">
+                          View {selectedModel} Methodology
+                        </span>
+                        <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                          <svg className="w-3 h-3 text-slate-300 group-hover:text-indigo-400 transition-colors transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                        
+                        {/* Subtle bottom gradient line */}
+                        <div className="absolute inset-x-4 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </Routerlink>
                     </div>
                   </motion.div>
                 </div>
