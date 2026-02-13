@@ -8,8 +8,8 @@ import { HiArrowTrendingUp, HiArrowTrendingDown, HiMagnifyingGlass } from "react
 // Market categories
 const MARKET_CATEGORIES = {
   all: "All Markets",
-  gpu: "GPU Index",
-  hyperscaler: "Hyperscaler",
+  gpu: "GPU Global Weighted Index",
+  hyperscaler: "Hyperscaler only Index",
 };
 
 // Market configuration with metadata
@@ -252,120 +252,144 @@ const MarketsPage = () => {
   useEffect(() => {
     const fetchPrices = async () => {
       setLoading(true);
+
+      // Fire ALL queries in parallel using Promise.all
+      const [priceResults, tradeHistoryResult, indexerStatsResult] = await Promise.all([
+        // 1. All market price queries in parallel
+        Promise.all(
+          MARKETS_CONFIG.map(async (market) => {
+            try {
+              const timeField = market.timeField || "created_at";
+              let query = supabase
+                .from(market.table)
+                .select(`${market.priceField}, ${timeField}`)
+                .order(timeField, { ascending: false })
+                .limit(2);
+
+              if (market.providerFilter) {
+                query = query.eq("provider_name", market.providerFilter);
+              }
+
+              const { data, error } = await query;
+
+              if (!error && data && data.length > 0) {
+                const currentPrice = parseFloat(data[0][market.priceField]);
+                const previousPrice =
+                  data.length > 1
+                    ? parseFloat(data[1][market.priceField])
+                    : currentPrice;
+
+                const change24h =
+                  previousPrice > 0
+                    ? ((currentPrice - previousPrice) / previousPrice) * 100
+                    : 0;
+
+                return {
+                  id: market.id,
+                  price: currentPrice,
+                  change24h: change24h,
+                  volume24h: 0,
+                };
+              }
+            } catch (err) {
+              console.error(`Error fetching ${market.id}:`, err);
+            }
+            return null;
+          })
+        ),
+
+        // 2. Trade history volume query (runs in parallel with everything else)
+        (async () => {
+          try {
+            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const { data: trades, error: volumeError } = await supabase
+              .from("trade_history")
+              .select("market, size, price")
+              .gt("created_at", yesterday);
+
+            if (!volumeError && trades) {
+              const volumes = {};
+              trades.forEach(trade => {
+                const vol = Math.abs(parseFloat(trade.size || 0) * parseFloat(trade.price || 0));
+                const marketId = trade.market;
+                volumes[marketId] = (volumes[marketId] || 0) + vol;
+
+                const config = MARKETS_CONFIG.find(m => m.name === marketId || m.id === marketId);
+                if (config && config.id !== marketId) {
+                  volumes[config.id] = (volumes[config.id] || 0) + vol;
+                }
+              });
+              return volumes;
+            }
+          } catch (err) {
+            console.error("Error fetching trade history volume:", err);
+          }
+          return {};
+        })(),
+
+        // 3. Indexer stats query (runs in parallel with everything else)
+        (async () => {
+          try {
+            const { data: statsData, error: statsError } = await supabase
+              .from("market_stats_24h")
+              .select("*");
+
+            if (!statsError && statsData) {
+              const stats = {};
+              statsData.forEach(stat => {
+                stats[stat.market_id] = {
+                  volume: parseFloat(stat.volume_24h_usd || 0),
+                  change: parseFloat(stat.change_24h_percent || 0)
+                };
+              });
+              return stats;
+            }
+          } catch (err) {
+            console.error("Error fetching indexer stats:", err);
+          }
+          return {};
+        })(),
+      ]);
+
+      // Assemble prices from parallel results
       const prices = {};
-
-      for (const market of MARKETS_CONFIG) {
-        try {
-          const timeField = market.timeField || "created_at";
-          let query = supabase
-            .from(market.table)
-            .select(`${market.priceField}, ${timeField}`)
-            .order(timeField, { ascending: false })
-            .limit(2);
-
-          if (market.providerFilter) {
-            query = query.eq("provider_name", market.providerFilter);
-          }
-
-          const { data, error } = await query;
-
-          if (!error && data && data.length > 0) {
-            const currentPrice = parseFloat(data[0][market.priceField]);
-            const previousPrice =
-              data.length > 1
-                ? parseFloat(data[1][market.priceField])
-                : currentPrice;
-
-            const change24h =
-              previousPrice > 0
-                ? ((currentPrice - previousPrice) / previousPrice) * 100
-                : 0;
-
-            prices[market.id] = {
-              price: currentPrice,
-              change24h: change24h,
-              volume24h: 0,
-            };
-          }
-        } catch (err) {
-          console.error(`Error fetching ${market.id}:`, err);
+      priceResults.forEach(result => {
+        if (result) {
+          prices[result.id] = {
+            price: result.price,
+            change24h: result.change24h,
+            volume24h: 0,
+          };
         }
-      }
+      });
+
+      const tradeHistoryVolumes = tradeHistoryResult || {};
+      const indexerStats = indexerStatsResult || {};
+
+      // Merge volume and stats into prices
+      Object.keys(prices).forEach(key => {
+        let vol = 0;
+
+        // Use trade_history calculation
+        if (tradeHistoryVolumes[key]) {
+          vol = tradeHistoryVolumes[key];
+        } else if (tradeHistoryVolumes[MARKETS_CONFIG.find(m => m.id === key)?.name]) {
+          vol = tradeHistoryVolumes[MARKETS_CONFIG.find(m => m.id === key)?.name];
+        }
+
+        // Override with official Indexer stats if available (matches Ticker)
+        const marketHash = MARKET_IDS[key];
+        if (marketHash && indexerStats[marketHash]) {
+          vol = indexerStats[marketHash].volume;
+          if (indexerStats[marketHash].change !== undefined && indexerStats[marketHash].change !== null) {
+            prices[key].change24h = indexerStats[marketHash].change;
+          }
+        }
+
+        prices[key].volume24h = vol;
+      });
 
       setMarketPrices(prices);
-      
-      // Fetch 24h volume from trade_history (Fallback / Real-time calc)
-      let tradeHistoryVolumes = {};
-      try {
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const { data: trades, error: volumeError } = await supabase
-          .from("trade_history")
-          .select("market, size, price")
-          .gt("created_at", yesterday);
-          
-        if (!volumeError && trades) {
-          trades.forEach(trade => {
-            const vol = Math.abs(parseFloat(trade.size || 0) * parseFloat(trade.price || 0));
-            const marketId = trade.market; 
-            tradeHistoryVolumes[marketId] = (tradeHistoryVolumes[marketId] || 0) + vol;
-            
-            const config = MARKETS_CONFIG.find(m => m.name === marketId || m.id === marketId);
-            if (config && config.id !== marketId) {
-               tradeHistoryVolumes[config.id] = (tradeHistoryVolumes[config.id] || 0) + vol;
-            }
-          });
-        }
-      } catch (err) {
-        console.error("Error fetching trade history volume:", err);
-      }
-
-      // Fetch official 24h stats from Indexer (Primary Source)
-      let indexerStats = {};
-      try {
-        const { data: statsData, error: statsError } = await supabase
-          .from("market_stats_24h")
-          .select("*");
-          
-        if (!statsError && statsData) {
-          statsData.forEach(stat => {
-            indexerStats[stat.market_id] = {
-              volume: parseFloat(stat.volume_24h_usd || 0),
-              change: parseFloat(stat.change_24h_percent || 0)
-            };
-          });
-        }
-      } catch (err) {
-         console.error("Error fetching indexer stats:", err);
-      }
-          
-      setMarketPrices(prev => {
-        const next = { ...prev };
-        Object.keys(next).forEach(key => {
-          // 1. Start with 0
-          let vol = 0;
-          
-          // 2. Use trade_history calculation
-          if (tradeHistoryVolumes[key]) {
-             vol = tradeHistoryVolumes[key];
-          } else if (tradeHistoryVolumes[MARKETS_CONFIG.find(m => m.id === key)?.name]) {
-             vol = tradeHistoryVolumes[MARKETS_CONFIG.find(m => m.id === key)?.name];
-          }
-          
-          // 3. Override with official Indexer stats if available (matches Ticker)
-          const marketHash = MARKET_IDS[key];
-          if (marketHash && indexerStats[marketHash]) {
-             vol = indexerStats[marketHash].volume;
-             // Also update 24h change if available
-             if (indexerStats[marketHash].change !== undefined && indexerStats[marketHash].change !== null) {
-                next[key].change24h = indexerStats[marketHash].change;
-             }
-          }
-          
-          next[key].volume24h = vol;
-        });
-        return next;
-      });
-      
       setLoading(false);
     };
 
@@ -409,7 +433,7 @@ const MarketsPage = () => {
             Markets
           </h1>
           <p className="text-zinc-400 mt-2">
-            Trade GPU compute futures on decentralized perpetual markets
+            Trade GPU compute futures on perpetual markets
           </p>
         </div>
 
@@ -522,7 +546,7 @@ const MarketsPage = () => {
         </div>
 
         {/* Info Section */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-6">
             <h3 className="text-lg font-bold text-white mb-2">GPU Index Markets</h3>
             <p className="text-zinc-400 text-sm">
@@ -537,7 +561,7 @@ const MarketsPage = () => {
               Perfect for hedging exposure to specific cloud platforms.
             </p>
           </div>
-        </div>
+        </div> */}
       </div>
     </PageTransition>
   );
