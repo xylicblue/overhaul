@@ -14,6 +14,7 @@ import {
 } from "react-icons/hi2";
 import { useAuthModal } from "../context/AuthModalContext";
 import logo from "../assets/ByteStrikeLogoFinal.png";
+import WalletAuthButtons from "./WalletAuthButtons";
 
 // Login Form Component
 const LoginForm = ({ onSwitchMode, onClose }) => {
@@ -204,6 +205,8 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
         Google
       </button>
 
+      <WalletAuthButtons variant="compact" onSuccess={onClose} onNewUser={() => { onClose(); navigate("/welcome"); }} />
+
       <p className="text-center text-zinc-500 text-sm pt-2">
         Don't have an account?{" "}
         <button
@@ -220,6 +223,7 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
 
 // Signup Form Component
 const SignupForm = ({ onSwitchMode, onClose }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -394,6 +398,17 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
       >
         {loading ? "Creating Account..." : "Create Account"}
       </button>
+
+      <div className="relative my-5">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-zinc-800"></div>
+        </div>
+        <div className="relative flex justify-center text-xs uppercase tracking-wider">
+          <span className="px-4 bg-[#0a0a0a] text-zinc-500">Or use wallet</span>
+        </div>
+      </div>
+
+      <WalletAuthButtons variant="compact" onSuccess={onClose} onNewUser={() => { onClose(); navigate("/welcome"); }} />
 
       <p className="text-center text-zinc-500 text-sm pt-2">
         Already have an account?{" "}

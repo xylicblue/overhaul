@@ -5,6 +5,7 @@ import { supabase } from "./creatclient";
 import toast from "react-hot-toast";
 import { HiOutlineEnvelope, HiOutlineLockClosed, HiOutlineUser, HiOutlineEye, HiOutlineEyeSlash, HiCheck } from "react-icons/hi2";
 import AuthLayout from "./components/AuthLayout";
+import WalletAuthButtons from "./components/WalletAuthButtons";
 
 const SignupPage = () => {
   const [email, setEmail] = useState("");
@@ -241,6 +242,17 @@ const SignupPage = () => {
             "Create Account"
           )}
         </button>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-zinc-800"></div>
+          </div>
+          <div className="relative flex justify-center text-xs uppercase tracking-wider">
+            <span className="px-4 bg-[#050505] text-zinc-500">Or sign up with wallet</span>
+          </div>
+        </div>
+
+        <WalletAuthButtons onSuccess={() => navigate("/")} onNewUser={() => navigate("/welcome")} />
 
         <p className="text-center text-zinc-500 text-sm pt-4">
           Already have an account?{" "}

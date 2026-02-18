@@ -30,6 +30,7 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
           </span> */}
         </Link>
 
+
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
           <NavLink
@@ -143,13 +144,13 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
             <div className="flex items-center gap-3">
               <button
                 onClick={openLogin}
-                className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+                className="text-sm text-zinc-400 hover:text-white transition-colors"
               >
-                Log In
+                Login
               </button>
               <button
                 onClick={openSignup}
-                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-blue-900/20"
+                className="px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white rounded-xl border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/[0.15] transition-all duration-300"
               >
                 Sign Up
               </button>
@@ -305,13 +306,13 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
           ) : (
             <div className="flex flex-col gap-3">
               <button
-                className="text-sm font-medium text-zinc-400 text-left"
+                className="text-sm text-zinc-400 text-left hover:text-white transition-colors"
                 onClick={() => { setIsMenuOpen(false); openLogin(); }}
               >
-                Log In
+                Login
               </button>
               <button
-                className="px-4 py-2 bg-blue-600 text-center text-white text-sm font-bold rounded-lg"
+                className="px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white rounded-xl border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/[0.15] transition-all duration-300 text-center"
                 onClick={() => { setIsMenuOpen(false); openSignup(); }}
               >
                 Sign Up

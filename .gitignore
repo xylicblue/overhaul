@@ -13,7 +13,7 @@ tsconfig.js
 components.json
 postcss.config.cjs
 jsconfig.json
-
+.WALLET_AUTH_SETUP.md
 .env
 node_modules
 aml.ts

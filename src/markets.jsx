@@ -8,8 +8,8 @@ import { HiArrowTrendingUp, HiArrowTrendingDown, HiMagnifyingGlass } from "react
 // Market categories
 const MARKET_CATEGORIES = {
   all: "All Markets",
-  gpu: "GPU Global Weighted Index",
-  hyperscaler: "Hyperscaler only Index",
+  gpu: "GPU Indices",
+  hyperscaler: "Hyperscaler",
 };
 
 // Market configuration with metadata
@@ -175,73 +175,133 @@ const MARKETS_CONFIG = [
   },
 ];
 
-// Market Row Component
-const MarketRow = ({ market, price, change24h, volume24h, onClick }) => {
+/* ═══════════════════════════════════════════════
+   Market Card Component — individual market tile
+   ═══════════════════════════════════════════════ */
+const MarketCard = ({ market, price, change24h, volume24h, onClick, index }) => {
   const isPositive = change24h >= 0;
+  const isGpu = market.category === "gpu";
 
   return (
-    <tr
+    <div
       onClick={onClick}
-      className="hover:bg-zinc-800/50 cursor-pointer transition-colors border-b border-zinc-800/50 last:border-b-0"
+      className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.12] transition-all duration-300 cursor-pointer overflow-hidden"
+      style={{ animation: `fadeSlideIn 0.4s ease-out ${index * 0.04}s both` }}
     >
-      <td className="px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div>
-            <div className="font-bold text-white">{market.name}</div>
-            <div className="text-xs text-zinc-500">{market.fullName}</div>
+      {/* Top gradient accent */}
+      <div className={`absolute top-0 left-0 right-0 h-[1px] ${isGpu
+        ? "bg-gradient-to-r from-transparent via-blue-500/40 to-transparent"
+        : "bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"
+      }`} />
+
+      <div className="p-5 md:p-6">
+        {/* Header row: name + category badge */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            {/* Icon circle */}
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+              isGpu
+                ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                : "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+            }`}>
+              {market.name.split(" ")[0].substring(0, 3)}
+            </div>
+            <div>
+              <h3 className="font-semibold text-white text-sm leading-tight">{market.name}</h3>
+              <p className="text-[11px] text-zinc-500 mt-0.5 leading-tight">{market.fullName}</p>
+            </div>
+          </div>
+          <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full ${
+            isGpu
+              ? "text-blue-400/70 bg-blue-500/[0.06]"
+              : "text-purple-400/70 bg-purple-500/[0.06]"
+          }`}>
+            {isGpu ? "Index" : "Provider"}
+          </span>
+        </div>
+
+        {/* Price */}
+        <div className="mb-3">
+          <span className="text-2xl font-bold text-white font-mono tracking-tight">
+            ${price?.toFixed(2) || "—"}
+          </span>
+          <span className="text-[11px] text-zinc-600 ml-1.5">/hr</span>
+        </div>
+
+        {/* Change + Volume row */}
+        <div className="flex items-center justify-between">
+          <div
+            className={`inline-flex items-center gap-1 text-xs font-semibold font-mono px-2 py-1 rounded-lg ${
+              isPositive
+                ? "text-emerald-400 bg-emerald-500/[0.08]"
+                : "text-red-400 bg-red-500/[0.08]"
+            }`}
+          >
+            {isPositive ? (
+              <HiArrowTrendingUp className="w-3.5 h-3.5" />
+            ) : (
+              <HiArrowTrendingDown className="w-3.5 h-3.5" />
+            )}
+            {isPositive ? "+" : ""}
+            {change24h?.toFixed(2) || "0.00"}%
+          </div>
+          <div className="text-[11px] text-zinc-500 font-mono">
+            Vol ${volume24h?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || "0"}
           </div>
         </div>
-      </td>
-      <td className="px-6 py-4 text-right">
-        <span className="font-mono font-bold text-white">
-          ${price?.toFixed(2) || "—"}
-        </span>
-      </td>
-      <td className="px-6 py-4 text-right">
-        <div
-          className={`inline-flex items-center gap-1 font-mono font-bold ${
-            isPositive ? "text-emerald-400" : "text-red-400"
-          }`}
-        >
-          {isPositive ? (
-            <HiArrowTrendingUp className="w-4 h-4" />
-          ) : (
-            <HiArrowTrendingDown className="w-4 h-4" />
-          )}
-          {isPositive ? "+" : ""}
-          {change24h?.toFixed(2) || "0.00"}%
+
+        {/* Trade button — appears on hover */}
+        <div className="mt-4 pt-4 border-t border-white/[0.04] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <Link
+            to={`/trade?market=${market.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full block text-center py-2 rounded-lg text-xs font-semibold transition-all ${
+              isGpu
+                ? "bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 border border-blue-500/20"
+                : "bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 border border-purple-500/20"
+            }`}
+          >
+            Trade {market.name} →
+          </Link>
         </div>
-      </td>
-      <td className="px-6 py-4 text-right">
-        <span className="font-mono text-zinc-400">
-          ${volume24h?.toLocaleString() || "—"}
-        </span>
-      </td>
-      <td className="px-6 py-4 text-right">
-        <Link
-          to={`/trade?market=${market.id}`}
-          onClick={(e) => e.stopPropagation()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition-all"
-        >
-          Trade
-        </Link>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 };
 
-// Stats Card Component
-const StatsCard = ({ label, value, subValue }) => (
-  <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-5 backdrop-blur-sm">
-    <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1">
-      {label}
-    </div>
-    <div className="text-2xl font-bold text-white font-mono">{value}</div>
-    {subValue && <div className="text-xs text-zinc-500 mt-1">{subValue}</div>}
-  </div>
-);
+/* ═══════════════════════════════════════════════
+   Stats Card Component — top summary cards
+   ═══════════════════════════════════════════════ */
+const StatsCard = ({ label, value, subValue, icon, accent = "blue" }) => {
+  const accentMap = {
+    blue: { border: "border-blue-500/20", icon: "text-blue-400 bg-blue-500/10", glow: "bg-blue-500/[0.04]" },
+    emerald: { border: "border-emerald-500/20", icon: "text-emerald-400 bg-emerald-500/10", glow: "bg-emerald-500/[0.04]" },
+    purple: { border: "border-purple-500/20", icon: "text-purple-400 bg-purple-500/10", glow: "bg-purple-500/[0.04]" },
+  };
+  const a = accentMap[accent];
 
-// Main Markets Page
+  return (
+    <div className={`relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 overflow-hidden`}>
+      {/* Subtle glow in corner */}
+      <div className={`absolute -top-8 -right-8 w-24 h-24 rounded-full ${a.glow} blur-xl pointer-events-none`} />
+      
+      <div className="relative">
+        <div className="flex items-center gap-3 mb-3">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${a.icon}`}>
+            {icon}
+          </div>
+          <span className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">{label}</span>
+        </div>
+        <div className="text-2xl font-bold text-white font-mono tracking-tight">{value}</div>
+        {subValue && <div className="text-[11px] text-zinc-500 mt-1">{subValue}</div>}
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════
+   Main Markets Page
+   ═══════════════════════════════════════════════ */
 const MarketsPage = () => {
   const [marketPrices, setMarketPrices] = useState({});
   const [loading, setLoading] = useState(true);
@@ -425,144 +485,152 @@ const MarketsPage = () => {
   }, [marketPrices]);
 
   return (
-    <PageTransition className="min-h-screen bg-[#050505] pt-16 pb-12 px-4 md:px-8 lg:px-12">
+    <PageTransition className="min-h-screen bg-[#0a0a0f] pt-16 pb-16 px-4 md:px-8 lg:px-12">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white tracking-tight">
+
+        {/* ─── Page Header ─── */}
+        <div className="mb-10 pt-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] text-zinc-500 font-medium uppercase tracking-widest">Live Data</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight">
             Markets
           </h1>
-          <p className="text-zinc-400 mt-2">
-            Trade GPU compute futures on perpetual markets
+          <p className="text-zinc-400 mt-3 text-base md:text-lg max-w-xl leading-relaxed">
+            Trade GPU compute futures on live perpetual markets. Real-time pricing aggregated from major cloud providers.
           </p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* ─── Stats Row ─── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
           <StatsCard
-            label="Total Markets"
+            label="Active Markets"
             value={stats.totalMarkets}
-            subValue="Active perpetual contracts"
+            subValue="Perpetual contracts"
+            accent="blue"
+            icon={
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
+              </svg>
+            }
           />
           <StatsCard
-            label="24h Change"
+            label="Avg. 24h Change"
             value={`${stats.avgChange >= 0 ? "+" : ""}${stats.avgChange.toFixed(2)}%`}
-            subValue="Average market movement"
+            subValue="Across all markets"
+            accent="emerald"
+            icon={
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22" />
+              </svg>
+            }
           />
           <StatsCard
             label="24h Volume"
-            value={`$${stats.totalVolume.toLocaleString()}`}
+            value={`$${stats.totalVolume.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
             subValue="Total trading volume"
+            accent="purple"
+            icon={
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
           />
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+        {/* ─── Search & Filters ─── */}
+        <div className="flex flex-col md:flex-row gap-4 mb-8 items-start md:items-center">
           {/* Search */}
           <div className="relative flex-1 max-w-sm">
-            <HiMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+            <HiMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <input
               type="text"
               placeholder="Search markets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-zinc-900/50 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors text-sm"
+              className="w-full pl-10 pr-4 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
             />
           </div>
 
-          {/* Category Tabs */}
-          <div className="flex gap-2">
+          {/* Category Pills */}
+          <div className="flex items-center p-1 bg-white/[0.03] rounded-full border border-white/[0.06]">
             {Object.entries(MARKET_CATEGORIES).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => setActiveCategory(key)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                className={`relative px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 whitespace-nowrap ${
                   activeCategory === key
-                    ? "bg-white/10 text-white border border-zinc-600"
-                    : "bg-zinc-800/50 text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-800"
+                    ? "text-white bg-white/[0.08] border border-white/[0.06]"
+                    : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {label}
               </button>
             ))}
           </div>
+
+          {/* Market count */}
+          <span className="text-[11px] text-zinc-600 font-mono ml-auto hidden md:block">
+            {filteredMarkets.length} market{filteredMarkets.length !== 1 ? "s" : ""}
+          </span>
         </div>
 
-        {/* Markets Table */}
-        <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl overflow-hidden backdrop-blur-sm">
-          {loading ? (
-            <div className="p-12 text-center text-zinc-500">
-              <div className="animate-pulse">Loading markets...</div>
-            </div>
-          ) : filteredMarkets.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="text-zinc-500 text-lg">No markets found</div>
-              <p className="text-zinc-600 text-sm mt-1">
-                Try adjusting your search or filter
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                      Market
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                      Price
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                      24h Change
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                      24h Volume
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMarkets.map((market, index) => (
-                    <MarketRow
-                      key={market.id}
-                      market={market}
-                      price={marketPrices[market.id]?.price}
-                      change24h={marketPrices[market.id]?.change24h}
-                      volume24h={marketPrices[market.id]?.volume24h}
-                      onClick={() =>
-                        (window.location.href = `/trade?market=${market.id}`)
-                      }
-                      style={{
-                        animation: `fadeSlideIn 0.3s ease-out ${index * 0.05}s both`,
-                      }}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Info Section */}
-        {/* <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-white mb-2">GPU Index Markets</h3>
-            <p className="text-zinc-400 text-sm">
-              Trade aggregated GPU compute pricing across multiple cloud providers.
-              Our index prices are weighted by provider market share and revenue.
-            </p>
+        {/* ─── Markets Grid ─── */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-white/[0.04] bg-white/[0.01] p-6 animate-pulse">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-zinc-800" />
+                  <div>
+                    <div className="w-16 h-3 bg-zinc-800 rounded mb-1.5" />
+                    <div className="w-24 h-2 bg-zinc-800/60 rounded" />
+                  </div>
+                </div>
+                <div className="w-20 h-6 bg-zinc-800 rounded mb-3" />
+                <div className="w-16 h-4 bg-zinc-800/60 rounded" />
+              </div>
+            ))}
           </div>
-          <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-white mb-2">Hyperscaler Markets</h3>
-            <p className="text-zinc-400 text-sm">
-              Trade individual cloud provider pricing for NVIDIA GPUs.
-              Perfect for hedging exposure to specific cloud platforms.
-            </p>
+        ) : filteredMarkets.length === 0 ? (
+          <div className="py-20 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+              <HiMagnifyingGlass className="w-7 h-7 text-zinc-600" />
+            </div>
+            <p className="text-zinc-400 text-lg font-medium">No markets found</p>
+            <p className="text-zinc-600 text-sm mt-1">Try adjusting your search or filter</p>
           </div>
-        </div> */}
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredMarkets.map((market, index) => (
+              <MarketCard
+                key={market.id}
+                market={market}
+                price={marketPrices[market.id]?.price}
+                change24h={marketPrices[market.id]?.change24h}
+                volume24h={marketPrices[market.id]?.volume24h}
+                onClick={() => (window.location.href = `/trade?market=${market.id}`)}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Keyframes for card entrance animation */}
+      <style>{`
+        @keyframes fadeSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </PageTransition>
   );
 };

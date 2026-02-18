@@ -9,6 +9,7 @@ import {
   HiOutlineEyeSlash,
 } from "react-icons/hi2";
 import AuthLayout from "./components/AuthLayout";
+import WalletAuthButtons from "./components/WalletAuthButtons";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -241,6 +242,8 @@ const LoginPage = () => {
             Google
           </span>
         </button>
+
+        <WalletAuthButtons onSuccess={() => navigate("/")} onNewUser={() => navigate("/welcome")} />
 
         <p className="text-center text-zinc-500 text-sm pt-4">
           Don't have an account?{" "}

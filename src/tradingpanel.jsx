@@ -13,494 +13,443 @@ import {
   useVaultBalance,
 } from "./hooks/useClearingHouse";
 import { MARKET_IDS } from "./contracts/addresses";
-import {
-  Info,
-  Wallet,
-  Settings,
-  TrendingUp,
-  Zap,
-  Target,
-  ShieldCheck,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { Badge } from "./components/ui/badge";
-import { Separator } from "./components/ui/separator";
+import { Info, TrendingUp, TrendingDown, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
 
-// Info Tooltip Component
+// ─────────────────────────────────────────────────────────────────────────────
+// Info Tooltip
+// ─────────────────────────────────────────────────────────────────────────────
 const InfoTooltip = ({ title, description }) => {
-  const [position, setPosition] = React.useState({ top: 0, left: 0 });
-  const [isHovered, setIsHovered] = React.useState(false);
-  const wrapperRef = React.useRef(null);
+  const [pos, setPos]         = React.useState({ top: 0, left: 0 });
+  const [hovered, setHovered] = React.useState(false);
+  const ref                   = React.useRef(null);
 
   const handleMouseEnter = () => {
-    if (wrapperRef.current) {
-      const rect = wrapperRef.current.getBoundingClientRect();
-      setPosition({ top: rect.bottom + 8, left: rect.right - 220 });
-      setIsHovered(true);
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, left: r.right - 220 });
+      setHovered(true);
     }
   };
 
   return (
     <>
-      <div
-        className="inline-flex text-blue-400 hover:text-blue-300 cursor-help transition-colors"
-        ref={wrapperRef}
+      <span
+        ref={ref}
+        className="inline-flex text-zinc-700 hover:text-zinc-500 cursor-help transition-colors"
         onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseLeave={() => setHovered(false)}
       >
-        <Info size={14} className="opacity-80 hover:opacity-100" />
-      </div>
-      {isHovered &&
-        ReactDOM.createPortal(
-          <div
-            className="fixed z-50 w-64 p-3 bg-[#0A0A0A] border border-zinc-700 rounded-lg shadow-xl text-xs text-zinc-300 pointer-events-none"
-            style={{ top: `${position.top}px`, left: `${position.left}px` }}
-          >
-            <div className="font-semibold text-white mb-1">{title}</div>
-            <div className="leading-relaxed">{description}</div>
-          </div>,
-          document.body
-        )}
+        <Info size={11} />
+      </span>
+      {hovered && ReactDOM.createPortal(
+        <div
+          className="fixed z-[200] w-56 p-3 bg-[#0e0e18] border border-zinc-700/50 rounded-xl shadow-2xl text-xs pointer-events-none"
+          style={{ top: `${pos.top}px`, left: `${pos.left}px` }}
+        >
+          <div className="font-semibold text-white mb-1">{title}</div>
+          <div className="text-zinc-400 leading-relaxed">{description}</div>
+        </div>,
+        document.body
+      )}
     </>
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Row — label / value pair used in order summary & risk params
+// ─────────────────────────────────────────────────────────────────────────────
+const Row = ({ label, value, valueClass = "text-zinc-300", tooltip }) => (
+  <div className="flex items-center justify-between py-1.5">
+    <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+      {label}
+      {tooltip && <InfoTooltip title={tooltip.title} description={tooltip.desc} />}
+    </span>
+    <span className={`text-[11px] font-mono font-semibold ${valueClass}`}>{value}</span>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Collapsible section wrapper
+// ─────────────────────────────────────────────────────────────────────────────
+const Section = ({ title, children, defaultOpen = true }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-zinc-800/60 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2.5 bg-zinc-900/30 hover:bg-zinc-900/50 transition-colors"
+      >
+        <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">{title}</span>
+        {open ? <ChevronUp size={12} className="text-zinc-600" /> : <ChevronDown size={12} className="text-zinc-600" />}
+      </button>
+      {open && <div className="bg-[#0a0a10]">{children}</div>}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TradingPanel
+// ─────────────────────────────────────────────────────────────────────────────
 export const TradingPanel = ({ selectedMarket }) => {
-  const [side, setSide] = useState("Buy");
-  const [size, setSize] = useState("");
+  const [side, setSide]             = useState("Buy");
+  const [size, setSize]             = useState("");
   const [priceLimit, setPriceLimit] = useState("");
-  const [leverage, setLeverage] = useState(1);
-  const { address } = useAccount();
+  const [leverage, setLeverage]     = useState(1);
+  const { address }                 = useAccount();
 
-  const marketId = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
-  const { accountValue } = useAccountValue();
+  const marketId                 = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
+  const { accountValue }         = useAccountValue();
   const { totalCollateralValue } = useVaultBalance();
-  const { riskParams } = useMarketRiskParams(marketId);
+  const { riskParams }           = useMarketRiskParams(marketId);
 
-  const {
-    openPosition,
-    isPending,
-    isSuccess,
-    error: tradeError,
-    hash,
-    reset: resetTrade,
-  } = useOpenPosition(marketId);
+  const { openPosition, isPending, isSuccess, error: tradeError, hash, reset: resetTrade } = useOpenPosition(marketId);
 
-  const marketName =
-    typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
+  const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
   const [handledTxHash, setHandledTxHash] = useState(null);
 
+  const isLong = side === "Buy";
+
+  // ── Calculations ──────────────────────────────────────────────────────────
+  const accountValueNum  = parseFloat(accountValue) || 0;
+  const vaultBalanceNum  = parseFloat(totalCollateralValue) || 0;
+  const effectiveBalance = accountValueNum > 0 ? accountValueNum : vaultBalanceNum;
+  const currentPrice     = parseFloat(market?.markPriceRaw) || 0;
+  const imr              = riskParams?.imrPercent ? riskParams.imrPercent / 100 : 0.1;
+  const maxSize          = currentPrice > 0 ? (effectiveBalance * leverage) / currentPrice / imr : 0;
+
+  const sizeNum        = parseFloat(size) || 0;
+  const marketPrice    = parseFloat(market?.price) || 0;
+  const notionalValue  = sizeNum * marketPrice;
+  const fees           = notionalValue * 0.001;
+  const marginRequired = leverage > 0 ? notionalValue / leverage : 0;
+
+  // Estimated liquidation price (simplified)
+  const mmr      = riskParams?.mmrPercent ? riskParams.mmrPercent / 100 : 0.05;
+  const liqPrice = currentPrice > 0 && sizeNum > 0
+    ? isLong
+      ? (currentPrice - (marginRequired - mmr * notionalValue) / sizeNum).toFixed(2)
+      : (currentPrice + (marginRequired - mmr * notionalValue) / sizeNum).toFixed(2)
+    : "—";
+
+  // ── Trade success ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (isSuccess && hash && hash !== handledTxHash) {
       setHandledTxHash(hash);
       toast.success(
         <div>
           <div>Position opened successfully!</div>
-          <a
-            href={`https://sepolia.etherscan.io/tx/${hash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline text-sm"
-          >
+          <a href={`https://sepolia.etherscan.io/tx/${hash}`} target="_blank" rel="noopener noreferrer" className="underline text-sm">
             View on Etherscan →
           </a>
         </div>,
         { id: "trade", duration: 5000 }
       );
-
-      // Save trade to Supabase for trade history and volume tracking
       const saveTrade = async () => {
         if (!address || !market) return;
-
         const tradeData = {
           user_address: address.toLowerCase(),
           market: market.displayName || market.name,
-          side: side === "Buy" ? "Long" : "Short",
-          size: parseFloat(size),
-          price:
-            parseFloat(market.price) || parseFloat(market.markPriceRaw) || 0,
-          notional:
-            parseFloat(size) *
-            (parseFloat(market.price) || parseFloat(market.markPriceRaw) || 0),
+          side: isLong ? "Long" : "Short",
+          size: sizeNum,
+          price: marketPrice,
+          notional: notionalValue,
           tx_hash: hash,
         };
-
+        try { await supabase.from("trade_history").insert([tradeData]); } catch (e) { console.warn(e); }
         try {
-          const { error } = await supabase
-            .from("trade_history")
-            .insert([tradeData]);
-
-          if (error) {
-            console.warn("Error saving trade history:", error.message);
-          }
-        } catch (err) {
-          console.warn("Error saving trade:", err);
-        }
-
-        // Also save vAMM price to vamm_price_history for chart display
-        const saveVAMMPrice = async () => {
-          const vammPriceData = {
-            market: market.name, // e.g., "B200-PERP", "H100-PERP"
-            price: parseFloat(market.markPriceRaw) || parseFloat(market.price) || 0,
+          await supabase.from("vamm_price_history").insert([{
+            market: market.name,
+            price: parseFloat(market.markPriceRaw) || marketPrice,
             twap: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
             timestamp: new Date().toISOString(),
-          };
-
-          try {
-            const { error: vammError } = await supabase
-              .from("vamm_price_history")
-              .insert([vammPriceData]);
-
-            if (vammError) {
-              console.warn("Error saving vAMM price:", vammError.message);
-            } else {
-              console.log("vAMM price saved:", vammPriceData);
-            }
-          } catch (err) {
-            console.warn("Error saving vAMM price:", err);
-          }
-        };
-
-        await saveVAMMPrice();
+          }]);
+        } catch (e) { console.warn(e); }
       };
-
       saveTrade();
       setSize("");
       setPriceLimit("");
       setTimeout(() => resetTrade(), 100);
     }
-  }, [isSuccess, hash, handledTxHash, address, market, side, size, resetTrade]);
+  }, [isSuccess, hash, handledTxHash, address, market, isLong, sizeNum, marketPrice, notionalValue, resetTrade]);
 
+  // ── Trade error ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (tradeError) {
-      // Extract user-friendly error message
-      const getErrorMessage = (error) => {
-        const errorMsg = error.message.toLowerCase();
-        
-        // User rejected/denied transaction
-        if (errorMsg.includes('user rejected') || errorMsg.includes('user denied')) {
-          return 'Transaction cancelled';
-        }
-        
-        // Insufficient funds
-        if (errorMsg.includes('insufficient')) {
-          return 'Insufficient funds';
-        }
-        
-        // Network issues
-        if (errorMsg.includes('network')) {
-          return 'Network error - please try again';
-        }
-        
-        // Gas estimation failed
-        if (errorMsg.includes('gas')) {
-          return 'Transaction may fail - check parameters';
-        }
-        
-        // Default: Extract first sentence or first 100 chars
-        const firstSentence = error.message.split('\n')[0];
-        return firstSentence.length > 80 
-          ? firstSentence.substring(0, 80) + '...' 
-          : firstSentence;
-      };
-      
-      toast.error(getErrorMessage(tradeError), { id: "trade" });
+      const msg = tradeError.message.toLowerCase();
+      let friendly = "Transaction failed";
+      if (msg.includes("user rejected") || msg.includes("user denied")) friendly = "Transaction cancelled";
+      else if (msg.includes("insufficient")) friendly = "Insufficient funds";
+      else if (msg.includes("network")) friendly = "Network error — please try again";
+      else { const f = tradeError.message.split("\n")[0]; friendly = f.length > 80 ? f.slice(0, 80) + "…" : f; }
+      toast.error(friendly, { id: "trade" });
       resetTrade();
     }
   }, [tradeError, resetTrade]);
 
-  if (!selectedMarket)
-    return (
-      <div className="flex items-center justify-center h-full text-zinc-500 text-xs">
-        Select Market
-      </div>
-    );
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center h-full text-zinc-500 text-xs">
-        Loading...
-      </div>
-    );
-  if (error || !market)
-    return (
-      <div className="flex items-center justify-center h-full text-red-400 text-xs">
-        Error
-      </div>
-    );
+  // ── Guards ────────────────────────────────────────────────────────────────
+  if (!selectedMarket) return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Select a market</div>;
+  if (isLoading)        return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Loading…</div>;
+  if (error || !market) return <div className="flex items-center justify-center h-full text-red-500 text-xs">Error loading market</div>;
 
-  const handleSizeButtonClick = (percentage) => {
-    const accountValueNum = parseFloat(accountValue) || 0;
-    const vaultBalanceNum = parseFloat(totalCollateralValue) || 0;
-    const effectiveBalance =
-      accountValueNum > 0 ? accountValueNum : vaultBalanceNum;
-    const currentPrice = parseFloat(market?.markPriceRaw) || 3.79;
-    const imr = riskParams?.imrPercent ? riskParams.imrPercent / 100 : 0.1;
-    // Adjust max size based on leverage
-    const maxPositionSize = (effectiveBalance * leverage) / currentPrice / imr;
-    const calculatedSize = maxPositionSize * (percentage / 100);
-    setSize(calculatedSize > 0 ? calculatedSize.toFixed(4) : "");
+  const handleSizeButtonClick = (pct) => {
+    const calc = maxSize * (pct / 100);
+    setSize(calc > 0 ? calc.toFixed(4) : "");
   };
 
   const handleTrade = async () => {
-    if (!size || parseFloat(size) <= 0)
-      return toast.error("Please enter a valid size");
+    if (!size || sizeNum <= 0) return toast.error("Please enter a valid size");
     try {
-      const isLong = side === "Buy";
-      let priceLimitValue =
-        priceLimit && parseFloat(priceLimit) > 0 ? parseFloat(priceLimit) : 0;
+      const priceLimitValue = priceLimit && parseFloat(priceLimit) > 0 ? parseFloat(priceLimit) : 0;
       openPosition(isLong, size, priceLimitValue);
-      toast.loading(
-        `${side === "Buy" ? "Opening long" : "Opening short"} position...`,
-        { id: "trade" }
-      );
-    } catch (error) {
-      toast.error("Failed to execute trade: " + error.message);
+      toast.loading(`${isLong ? "Opening long" : "Opening short"} position…`, { id: "trade" });
+    } catch (err) {
+      toast.error("Failed to execute trade: " + err.message);
     }
   };
 
-  const notionalValue =
-    (parseFloat(size) || 0) * (parseFloat(market.price) || 0);
-  const fees = notionalValue * 0.001; // Est. 0.1% fee
-  const marginRequired = notionalValue / leverage;
+  // ── Side colour tokens ────────────────────────────────────────────────────
+  const C = isLong
+    ? { activeBg: "bg-emerald-500", activeText: "text-white", glow: "shadow-emerald-900/50", border: "border-emerald-500/20", accent: "bg-emerald-500/40", ring: "focus:border-emerald-500/30 focus:ring-emerald-500/10", badge: "text-emerald-400 border-emerald-500/25 bg-emerald-500/10" }
+    : { activeBg: "bg-red-500",     activeText: "text-white", glow: "shadow-red-900/50",     border: "border-red-500/20",     accent: "bg-red-500/40",     ring: "focus:border-red-500/30 focus:ring-red-500/10",     badge: "text-red-400 border-red-500/25 bg-red-500/10"     };
 
   return (
-    <div className="flex flex-col h-full bg-[#050505]">
-      {/* Header Tabs */}
-      <div className="flex border-b border-zinc-800">
-        <button
-          className={`flex-1 py-3 text-sm font-bold transition-all ${
-            side === "Buy"
-              ? "text-green-400 border-b-2 border-green-400 bg-green-400/5"
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-          }`}
-          onClick={() => setSide("Buy")}
-        >
-          Buy / Long
-        </button>
-        <button
-          className={`flex-1 py-3 text-sm font-bold transition-all ${
-            side === "Sell"
-              ? "text-red-400 border-b-2 border-red-400 bg-red-400/5"
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-          }`}
-          onClick={() => setSide("Sell")}
-        >
-          Sell / Short
-        </button>
+    <div className="flex flex-col h-full bg-[#06060a]">
+
+      {/* ── Long / Short tabs ───────────────────────────────────────────── */}
+      <div className="p-3 pb-2 border-b border-zinc-800/60">
+        <div className="flex bg-zinc-900/50 border border-zinc-800/60 rounded-xl p-1 gap-1">
+          {[
+            { key: "Buy",  label: "Long",  icon: <TrendingUp   size={13} /> },
+            { key: "Sell", label: "Short", icon: <TrendingDown size={13} /> },
+          ].map(({ key, label, icon }) => (
+            <button
+              key={key}
+              onClick={() => setSide(key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all duration-150 ${
+                side === key
+                  ? key === "Buy"
+                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-900/40"
+                    : "bg-red-500 text-white shadow-md shadow-red-900/40"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="p-4 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
-        {/* Collateral & Mint - Moved to top */}
-        <div className="space-y-3">
-          <CollateralManager />
-          <MintUSDC />
-        </div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="p-3 space-y-3">
 
-        <Separator className="bg-zinc-800/50" />
-
-        {/* Order Type */}
-        <div className="flex gap-4 text-xs font-medium text-zinc-400 pb-2 border-b border-zinc-800/50">
-          <button className="text-white">Market</button>
-        </div>
-
-        {/* Size Input */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-[10px] text-zinc-400">
-            <span>Size</span>
-            <span>
-              Max:{" "}
-              {(
-                (parseFloat(accountValue) * leverage) /
-                parseFloat(market.price)
-              ).toFixed(2)}{" "}
-              {market.baseAsset}
-            </span>
-          </div>
-          <div className="relative group">
-            <input
-              type="number"
-              placeholder="0.00"
-              className="w-full bg-[#0A0A0A] border border-zinc-800 rounded-lg pl-3 pr-12 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder-zinc-600 font-mono"
-              value={size}
-              onChange={(e) => setSize(e.target.value)}
-            />
-            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-500 text-xs font-bold">
-              {market.baseAsset}
-            </span>
-          </div>
-          {/* Quick Size Percentages */}
-          <div className="grid grid-cols-4 gap-2 mt-2">
-            {[25, 50, 75, 100].map((p) => (
-              <button
-                key={p}
-                onClick={() => handleSizeButtonClick(p)}
-                className="py-1 text-[10px] font-medium bg-[#0A0A0A] hover:bg-zinc-800 text-zinc-400 hover:text-white rounded border border-zinc-800 transition-colors"
-              >
-                {p}%
-              </button>
+          {/* ── Account overview ──────────────────────────────────────────── */}
+          <div className="grid grid-cols-3 divide-x divide-zinc-800/60 bg-zinc-900/30 border border-zinc-800/60 rounded-xl overflow-hidden">
+            {[
+              { label: "Balance",    value: `$${effectiveBalance.toFixed(2)}` },
+              { label: "Mark Price", value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—" },
+              { label: "Max Size",   value: maxSize > 0 ? `${maxSize.toFixed(1)} ${market.baseAsset}` : "—" },
+            ].map(({ label, value }) => (
+              <div key={label} className="px-2.5 py-2">
+                <div className="text-[8px] font-bold uppercase tracking-widest text-zinc-600 mb-0.5">{label}</div>
+                <div className="text-[11px] font-mono font-semibold text-zinc-200 truncate">{value}</div>
+              </div>
             ))}
           </div>
-        </div>
 
-        {/* Price Input */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-[10px] text-zinc-400">
-            <span>Price</span>
-            <span
-              className="text-blue-400 cursor-pointer"
-              onClick={() => setPriceLimit(market.price)}
-            >
-              Use Market
-            </span>
-          </div>
-          <div className="relative group">
-            <input
-              type="number"
-              placeholder="Market Price"
-              className="w-full bg-[#0A0A0A] border border-zinc-800 rounded-lg pl-3 pr-12 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder-zinc-600 font-mono"
-              value={priceLimit}
-              onChange={(e) => setPriceLimit(e.target.value)}
-            />
-            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-500 text-xs">
-              USDC
-            </span>
-          </div>
-        </div>
+          {/* ── Collateral & Faucet ───────────────────────────────────────── */}
+          <Section title="Collateral">
+            <div className="p-3 space-y-2">
+              <CollateralManager />
+              <MintUSDC />
+            </div>
+          </Section>
 
-        {/* Leverage Slider */}
-        <div className="space-y-3 pt-2">
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-zinc-400 font-medium">Leverage</span>
-            <span className="text-xs font-bold text-white bg-zinc-800 px-2 py-0.5 rounded">
-              {leverage}x
-            </span>
-          </div>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            step="1"
-            value={leverage}
-            onChange={(e) => setLeverage(parseInt(e.target.value))}
-            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-          />
-          <div className="flex justify-between text-[10px] text-zinc-600 font-mono">
-            <span>1x</span>
-            <span>3x</span>
-            <span>5x</span>
-            <span>7x</span>
-            <span>10x</span>
-          </div>
-        </div>
+          {/* ── Order ─────────────────────────────────────────────────────── */}
+          <Section title="Order" defaultOpen={true}>
+            <div className="p-3 space-y-3">
 
-        {/* Order Summary */}
-        <Card className="bg-[#0A0A0A]/30 border-zinc-800/50">
-          <CardContent className="p-3 space-y-2">
-            <div className="flex items-center gap-2 mb-2">
-              <Target size={12} className="text-zinc-400" />
-              <span className="text-xs text-zinc-400 font-medium">
-                Order Summary
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-zinc-500">Notional Value</span>
-              <span className="text-zinc-300 font-mono">
-                ${notionalValue.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-zinc-500">Est. Fees (0.1%)</span>
-              <span className="text-zinc-300 font-mono">
-                ${fees.toFixed(2)}
-              </span>
-            </div>
-            <Separator className="bg-zinc-800/50" />
-            <div className="flex justify-between text-xs">
-              <span className="text-zinc-400 font-medium">
-                Margin Required
-              </span>
-              <span className="text-white font-bold font-mono">
-                ${marginRequired.toFixed(2)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Risk Metrics */}
-        <Card className="bg-[#0A0A0A]/30 border-zinc-800/50">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck size={16} className="text-blue-400" />
-              <span className="text-sm text-zinc-300 font-semibold">
-                Risk Parameters
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
-                <span className="text-xs text-zinc-500 mb-1 flex items-center gap-1.5">
-                  IMR
-                  <InfoTooltip
-                    title="Initial Margin Requirement"
-                    description="The minimum margin required to open a new position. For example, 10% IMR means you need $100 margin to open a $1000 position (10x leverage)."
-                  />
-                </span>
-                <Badge variant="secondary" className="font-mono text-xs px-2 py-0.5">
-                  {riskParams?.imrPercent
-                    ? riskParams.imrPercent.toFixed(1) + "%"
-                    : "10.0%"}
-                </Badge>
+              {/* Order type */}
+              <div className="flex items-center gap-2">
+                <button className="px-3 py-1.5 bg-zinc-800 border border-zinc-700/60 rounded-lg text-[11px] font-bold text-white">
+                  Market
+                </button>
+                <button disabled className="px-3 py-1.5 border border-zinc-800/40 rounded-lg text-[11px] font-medium text-zinc-700 cursor-not-allowed">
+                  Limit
+                  <span className="ml-1 text-[8px] text-zinc-700">Soon</span>
+                </button>
               </div>
-              <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
-                <span className="text-xs text-zinc-500 mb-1 flex items-center gap-1.5">
-                  MMR
-                  <InfoTooltip
-                    title="Maintenance Margin Requirement"
-                    description="The minimum margin needed to keep your position open. If your margin falls below this level, your position can be liquidated. Lower than IMR to give you buffer room."
+
+              {/* Size */}
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Size</span>
+                  <span className="text-[9px] text-zinc-600 font-mono">
+                    Max {maxSize > 0 ? maxSize.toFixed(2) : "0.00"} {market.baseAsset}
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    placeholder="0.0000"
+                    className={`w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-3 pr-20 py-2.5 text-sm text-white focus:outline-none focus:ring-1 transition-all placeholder-zinc-700 font-mono ${C.ring}`}
+                    value={size}
+                    onChange={e => setSize(e.target.value)}
                   />
-                </span>
-                <Badge variant="secondary" className="font-mono text-xs px-2 py-0.5">
-                  {riskParams?.mmrPercent
-                    ? riskParams.mmrPercent.toFixed(1) + "%"
-                    : "5.0%"}
-                </Badge>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-md">
+                    {market.baseAsset}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 mt-2">
+                  {[25, 50, 75, 100].map(p => (
+                    <button
+                      key={p}
+                      onClick={() => handleSizeButtonClick(p)}
+                      className="py-1.5 text-[10px] font-bold bg-zinc-900/50 hover:bg-zinc-800 text-zinc-600 hover:text-zinc-200 rounded-lg border border-zinc-800/60 hover:border-zinc-700 transition-all"
+                    >
+                      {p}%
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
-                <span className="text-xs text-zinc-500 mb-1 flex items-center gap-1.5">
-                  Liq. Pen
-                  <InfoTooltip
-                    title="Liquidation Penalty"
-                    description="The penalty charged if your position gets liquidated. This goes to the liquidator (50%) and protocol insurance fund (50%). Avoid liquidation!"
+
+              {/* Price limit */}
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Price Limit</span>
+                  <button
+                    className="text-[9px] text-blue-500 hover:text-blue-400 font-semibold transition-colors"
+                    onClick={() => setPriceLimit(market.price)}
+                  >
+                    Use Market
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    placeholder="Market"
+                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-3 pr-16 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700/20 transition-all placeholder-zinc-700 font-mono"
+                    value={priceLimit}
+                    onChange={e => setPriceLimit(e.target.value)}
                   />
-                </span>
-                <Badge variant="warning" className="font-mono text-xs px-2 py-0.5">
-                  {riskParams?.liquidationPenaltyPercent
-                    ? riskParams.liquidationPenaltyPercent.toFixed(1) + "%"
-                    : "5.0%"}
-                </Badge>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-md">
+                    USDC
+                  </span>
+                </div>
+              </div>
+
+              {/* Leverage */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Leverage</span>
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg border ${C.badge}`}>
+                    {leverage}×
+                  </span>
+                </div>
+                <div className="grid grid-cols-5 gap-1.5 mb-2">
+                  {[1, 2, 3, 5, 10].map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setLeverage(v)}
+                      className={`py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
+                        leverage === v
+                          ? `${C.activeBg} border-transparent ${C.activeText}`
+                          : "bg-zinc-900/50 border-zinc-800/60 text-zinc-600 hover:text-zinc-300 hover:border-zinc-700"
+                      }`}
+                    >
+                      {v}×
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="range" min="1" max="10" step="1" value={leverage}
+                  onChange={e => setLeverage(parseInt(e.target.value))}
+                  className="w-full h-0.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-blue-500"
+                />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </Section>
+
+          {/* ── Order Summary ─────────────────────────────────────────────── */}
+          <div className={`rounded-xl border overflow-hidden ${C.border} bg-[#0a0a10]`}>
+            <div className={`h-px ${C.accent}`} />
+            <div className="px-3 py-2.5 divide-y divide-zinc-800/40">
+              <Row label="Notional Value"   value={notionalValue > 0 ? `$${notionalValue.toFixed(2)}` : "—"} />
+              <Row label="Est. Fees (0.1%)" value={fees > 0 ? `$${fees.toFixed(2)}` : "—"} valueClass="text-zinc-400" />
+              <Row
+                label="Margin Required"
+                value={marginRequired > 0 ? `$${marginRequired.toFixed(2)}` : "—"}
+                valueClass="text-white font-bold"
+                tooltip={{ title: "Margin Required", desc: "Collateral needed to open this position at the selected leverage." }}
+              />
+              <Row
+                label="Est. Liq. Price"
+                value={sizeNum > 0 ? `$${liqPrice}` : "—"}
+                valueClass="text-yellow-500"
+                tooltip={{ title: "Estimated Liquidation Price", desc: "Approximate price at which your position will be liquidated. Actual price depends on funding and fees." }}
+              />
+            </div>
+          </div>
+
+          {/* ── Risk Parameters ───────────────────────────────────────────── */}
+          <div className="rounded-xl border border-zinc-800/60 bg-[#0a0a10] overflow-hidden">
+            <div className="px-3 py-2 border-b border-zinc-800/60 flex items-center gap-1.5">
+              <ShieldCheck size={11} className="text-zinc-600" />
+              <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Risk Parameters</span>
+            </div>
+            <div className="px-3 divide-y divide-zinc-800/40">
+              <Row
+                label="Initial Margin (IMR)"
+                value={riskParams?.imrPercent ? `${riskParams.imrPercent.toFixed(1)}%` : "10.0%"}
+                tooltip={{ title: "Initial Margin Requirement", desc: "Minimum margin to open a position. 10% IMR = 10× max leverage." }}
+              />
+              <Row
+                label="Maintenance Margin (MMR)"
+                value={riskParams?.mmrPercent ? `${riskParams.mmrPercent.toFixed(1)}%` : "5.0%"}
+                tooltip={{ title: "Maintenance Margin Requirement", desc: "Minimum margin to keep a position open before liquidation." }}
+              />
+              <Row
+                label="Liquidation Penalty"
+                value={riskParams?.liquidationPenaltyPercent ? `${riskParams.liquidationPenaltyPercent.toFixed(1)}%` : "5.0%"}
+                valueClass="text-yellow-500"
+                tooltip={{ title: "Liquidation Penalty", desc: "Penalty charged on liquidation, split between the liquidator and the insurance fund." }}
+              />
+            </div>
+          </div>
+
+        </div>
       </div>
 
-      {/* Submit Button (Fixed at Bottom) */}
-      <div className="p-4 border-t border-zinc-800 bg-[#050505]">
+      {/* ── Submit ──────────────────────────────────────────────────────── */}
+      <div className="p-3 border-t border-zinc-800/60 bg-[#06060a] space-y-2">
         <button
-          className={`w-full py-3.5 rounded-lg font-bold text-white text-sm shadow-lg transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
-            side === "Buy"
-              ? "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 shadow-green-900/20"
-              : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 shadow-red-900/20"
+          className={`w-full py-3.5 rounded-xl font-bold text-white text-sm transition-all duration-150 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+            isLong
+              ? "bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-900/40"
+              : "bg-red-500 hover:bg-red-400 shadow-lg shadow-red-900/40"
           }`}
           onClick={handleTrade}
-          disabled={isPending || !size || parseFloat(size) <= 0}
+          disabled={isPending || !size || sizeNum <= 0}
         >
-          {isPending
-            ? "Processing..."
-            : `${side === "Buy" ? "Buy / Long" : "Sell / Short"} ${
-                market.baseAsset
-              }`}
+          {isPending ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Processing…
+            </>
+          ) : (
+            <>
+              {isLong ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+              {isLong ? "Buy / Long" : "Sell / Short"} {market.baseAsset}
+              {notionalValue > 0 && (
+                <span className="text-white/50 font-normal text-xs">· ${notionalValue.toFixed(0)}</span>
+              )}
+            </>
+          )}
         </button>
+        <p className="text-center text-[9px] text-zinc-700">
+          Testnet — no real funds at risk
+        </p>
       </div>
     </div>
   );

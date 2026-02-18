@@ -21,7 +21,7 @@ const Footer = () => {
   return (
     <footer
       ref={footerRef}
-      className={`relative z-10 bg-[#050505] border-t border-zinc-800 py-12 transition-opacity duration-700 ${
+      className={`relative z-10 bg-[#0a0a0f] border-t border-white/[0.06] py-12 transition-opacity duration-700 ${
         isVisible ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -147,7 +147,7 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-zinc-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-zinc-500">
+        <div className="border-t border-white/[0.06] pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-zinc-500">
           <p>© {new Date().getFullYear()} Byte Strike. All rights reserved.</p>
           <p className="text-zinc-500">
             Trading Charts provided by{" "}
