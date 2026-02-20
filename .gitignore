@@ -19,6 +19,8 @@ node_modules
 aml.ts
 supabase
 dist
+cloudflare-worker/node_modules
+cloudflare-worker/.wrangler
 dist-ssr
 *.local
 autorun.py

@@ -1,0 +1,23 @@
+name = "bytestrike-api-gateway"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Custom domain (configure after first deploy)
+# routes = [
+#   { pattern = "api.bytestrike.io/*", zone_name = "bytestrike.io" }
+# ]
+
+# KV namespace for rate limiting (create with: wrangler kv:namespace create RATE_LIMITER)
+# [[kv_namespaces]]
+# binding = "RATE_LIMITER"
+# id = "<your-kv-namespace-id>"
+
+[vars]
+ALLOWED_ORIGINS = "https://bytestrike.io,https://www.bytestrike.io,http://localhost:5173,http://localhost:3000"
+# Public market data cache TTL in seconds
+CACHE_TTL = "30"
+
+# Secrets (set with: wrangler secret put <NAME>)
+# SUPABASE_URL = "https://basxvmmtxwlxylpukqjj.supabase.co"
+# SUPABASE_ANON_KEY = "<your-anon-key>"
+# SUPABASE_SERVICE_ROLE_KEY = "<your-service-role-key>"

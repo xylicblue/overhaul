@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./creatclient";
+import { checkUsername } from "./services/api";
 import toast from "react-hot-toast";
 import { HiOutlineEnvelope, HiOutlineLockClosed, HiOutlineUser, HiOutlineEye, HiOutlineEyeSlash, HiCheck } from "react-icons/hi2";
 import AuthLayout from "./components/AuthLayout";
@@ -52,17 +53,10 @@ const SignupPage = () => {
     setUsernameError("");
 
     try {
-      // Check if username is unique
-      const { data: usernameData, error: usernameError } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("username", username)
-        .single();
+      // Check if username is unique via API
+      const { available } = await checkUsername(username);
 
-      if (usernameError && usernameError.code !== "PGRST116") {
-        throw usernameError;
-      }
-      if (usernameData) {
+      if (!available) {
         setUsernameError("Username is already taken.");
         setLoading(false);
         return;

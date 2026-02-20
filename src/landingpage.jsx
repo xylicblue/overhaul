@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { Link as Routerlink, useNavigate } from "react-router-dom";
 import PriceIndexChart from "./chart";
 import { supabase } from "./creatclient";
+import { submitInterest } from "./services/api";
 import Footer from "./components/Footer";
 import {
   motion,
@@ -250,16 +251,12 @@ const LandingPage = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("interest_list").insert([formData]);
-      if (error) {
-        if (error.code === "23505" || error.message.includes("duplicate")) {
-          toast.success("This email is already registered! We'll keep you updated.");
-          setFormData({ name: "", email: "", role: "", interest: "" });
-          return;
-        }
-        throw error;
+      const result = await submitInterest(formData);
+      if (result.duplicate) {
+        toast.success("This email is already registered! We'll keep you updated.");
+      } else {
+        toast.success("Thank you for your interest!");
       }
-      toast.success("Thank you for your interest!");
       setFormData({ name: "", email: "", role: "", interest: "" });
     } catch (error) {
       console.error("Error submitting form:", error.message);

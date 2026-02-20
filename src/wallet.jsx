@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { BrowserProvider } from "ethers";
 import { supabase } from "./creatclient";
-import toast from "react-hot-toast"; // 1. Make sure toast is imported
+import { updateWallet } from "./services/api";
+import toast from "react-hot-toast";
 
 const ConnectWalletButton = ({ session, initialAddress }) => {
   const [walletAddress, setWalletAddress] = useState(initialAddress || null);
@@ -31,12 +32,7 @@ const ConnectWalletButton = ({ session, initialAddress }) => {
       const signer = await provider.getSigner();
       const address = signer.address;
 
-      const { error } = await supabase
-        .from("profiles")
-        .update({ wallet_address: address })
-        .eq("id", session.user.id);
-
-      if (error) throw error;
+      await updateWallet(address);
 
       setWalletAddress(address);
       // 2. Add the success toast
@@ -53,12 +49,7 @@ const ConnectWalletButton = ({ session, initialAddress }) => {
   const disconnectWallet = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ wallet_address: null })
-        .eq("id", session.user.id);
-
-      if (error) throw error;
+      await updateWallet(null);
 
       setWalletAddress(null);
       // 4. Add the disconnect success toast

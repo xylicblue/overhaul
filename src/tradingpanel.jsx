@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { toast } from "react-hot-toast";
 import { useAccount } from "wagmi";
 import { supabase } from "./creatclient";
+import { recordTrade } from "./services/api";
 import { useMarketRealTimeData } from "./marketData";
 import MintUSDC from "./components/MintUSDC";
 import CollateralManager from "./components/CollateralManager";
@@ -147,24 +148,25 @@ export const TradingPanel = ({ selectedMarket }) => {
       );
       const saveTrade = async () => {
         if (!address || !market) return;
-        const tradeData = {
-          user_address: address.toLowerCase(),
-          market: market.displayName || market.name,
-          side: isLong ? "Long" : "Short",
-          size: sizeNum,
-          price: marketPrice,
-          notional: notionalValue,
-          tx_hash: hash,
-        };
-        try { await supabase.from("trade_history").insert([tradeData]); } catch (e) { console.warn(e); }
         try {
-          await supabase.from("vamm_price_history").insert([{
-            market: market.name,
-            price: parseFloat(market.markPriceRaw) || marketPrice,
-            twap: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
-            timestamp: new Date().toISOString(),
-          }]);
-        } catch (e) { console.warn(e); }
+          await recordTrade(
+            {
+              userAddress: address,
+              market: market.displayName || market.name,
+              side: isLong ? "Long" : "Short",
+              size: sizeNum,
+              price: marketPrice,
+              notional: notionalValue,
+              txHash: hash,
+            },
+            {
+              market: market.name,
+              price: parseFloat(market.markPriceRaw) || marketPrice,
+              twap: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
+              timestamp: new Date().toISOString(),
+            }
+          );
+        } catch (e) { console.warn("Failed to record trade:", e); }
       };
       saveTrade();
       setSize("");

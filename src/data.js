@@ -1,12 +1,14 @@
-// generateData.js
-// import { createClient } from "@supabase/supabase-js";
+// generateData.js — Price data seeder (run manually)
+// Uses env vars for connection — NEVER hardcode keys
 import { createClient } from "@supabase/supabase-js";
-// import { supabase } from "./creatclient";
-// IMPORTANT: Replace with your actual Supabase URL and SERVICE_ROLE key
 
-const supabaseUrl = "https://basxvmmtxwlxylpukqjj.supabase.co";
-const supabaseKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhc3h2bW10eHdseHlscHVrcWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDE5OTQsImV4cCI6MjA2ODY3Nzk5NH0.14XQiB2XmWBJ1louVTlMpJxlj4PTpH9xb14yMGhVfxk";
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://basxvmmtxwlxylpukqjj.supabase.co";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseKey) {
+  console.error("ERROR: Set SUPABASE_SERVICE_ROLE_KEY env var before running this script.");
+  process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 

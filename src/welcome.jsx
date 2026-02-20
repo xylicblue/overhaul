@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./creatclient";
+import { setUsername as apiSetUsername } from "./services/api";
 import AuthLayout from "./components/AuthLayout";
 import toast from "react-hot-toast";
 import { HiOutlineUser } from "react-icons/hi2";
@@ -50,17 +51,13 @@ const CreateUsernamePage = () => {
     if (!user) return;
 
     try {
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .upsert({ id: user.id, username }, { onConflict: "id" });
-
-      if (updateError) throw updateError;
+      await apiSetUsername(username);
 
       toast.success("Profile completed successfully!");
       navigate("/");
     } catch (error) {
       if (
-        error.message.includes("duplicate key value violates unique constraint")
+        error.message.includes("already taken")
       ) {
         setError("This username is already taken. Please choose another.");
       } else {

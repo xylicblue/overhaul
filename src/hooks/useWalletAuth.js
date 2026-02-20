@@ -5,7 +5,7 @@ import { useState, useCallback } from "react";
 import { supabase } from "../creatclient";
 import toast from "react-hot-toast";
 
-const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wallet-auth`;
+const EDGE_FUNCTION_URL = `${import.meta.env.VITE_API_GATEWAY_URL || import.meta.env.VITE_SUPABASE_URL}/functions/v1/wallet-auth`;
 
 /**
  * Call the wallet-auth edge function

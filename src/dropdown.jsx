@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import sumsubWebSdk from "@sumsub/websdk";
 import { supabase } from "./creatclient";
+import { getSumsubToken } from "./services/api";
 import "./dropdown.css";
 import Portal from "./Portal";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
@@ -93,12 +94,7 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
 
     try {
       const getNewToken = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error("User session not found.");
-        const { data, error } = await supabase.functions.invoke("get-sumsub-token", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (error) throw error;
+        const data = await getSumsubToken();
         return data.token;
       };
 
