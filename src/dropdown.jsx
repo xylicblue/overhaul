@@ -166,7 +166,7 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.97 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-0 mt-2.5 w-[300px] bg-[#0a0a0f]/95 backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.8)] overflow-hidden"
+            className="absolute right-0 mt-2.5 w-[300px] bg-[#0a0a0f]/95 backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.8)] overflow-hidden z-[9999]"
           >
             {/* ── Profile Header ─────────────────────────────────────── */}
             <div className="p-4 pb-3">
@@ -257,9 +257,9 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
               ) : (
                 <button
                   onClick={openConnectModal}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/[0.12] text-zinc-300 hover:text-white text-xs font-semibold transition-all duration-200"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 hover:border-blue-500/40 text-blue-400 hover:text-blue-300 text-xs font-bold transition-all duration-200"
                 >
-                  <Wallet size={14} className="opacity-60" />
+                  <Wallet size={13} />
                   Connect Wallet
                 </button>
               )}

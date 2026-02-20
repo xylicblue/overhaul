@@ -35,12 +35,13 @@ const TradingPage = () => {
 
       <WelcomeModal isOpen={showWelcome} onClose={handleCloseWelcome} />
 
-      {/* Quick Guide Button - Styled to be unobtrusive */}
+      {/* Quick Guide FAB */}
       <button
         onClick={() => setShowWelcome(true)}
-        className="fixed bottom-4 right-4 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium px-3 py-1.5 rounded-full border border-slate-700 backdrop-blur-sm transition-all shadow-lg z-50 flex items-center gap-1.5"
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 bg-[#0a0a10] hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-500 hover:text-zinc-200 text-[10px] font-bold uppercase tracking-widest rounded-lg backdrop-blur-sm transition-all shadow-lg"
       >
-        <span>?</span> Help
+        <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-zinc-700 text-zinc-600 font-mono text-[9px]">?</span>
+        Help
       </button>
     </PageTransition>
   );

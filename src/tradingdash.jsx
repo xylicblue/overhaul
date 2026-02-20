@@ -14,18 +14,35 @@ import { motion, AnimatePresence } from "framer-motion";
 // ConnectWalletOverlay
 // ─────────────────────────────────────────────────────────────────────────────
 const ConnectWalletOverlay = () => (
-  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/70 backdrop-blur-md p-6 text-center">
-    <div className="relative bg-[#0c0c14] border border-zinc-800 p-6 rounded-2xl shadow-2xl max-w-[280px] w-full overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/60 to-transparent" />
-      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mx-auto mb-4">
-        <Wallet className="w-6 h-6 text-blue-400" />
+  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#06060a]/80 backdrop-blur-md p-6">
+    {/* Subtle grid */}
+    <div
+      className="absolute inset-0 opacity-[0.03] pointer-events-none"
+      style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.4) 1px,transparent 1px)", backgroundSize: "32px 32px" }}
+    />
+
+    <div className="relative bg-[#0c0c14] border border-zinc-800/80 rounded-2xl shadow-2xl max-w-[300px] w-full overflow-hidden">
+      {/* Top accent */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+
+      <div className="p-6 text-center">
+        {/* Copy */}
+        <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-1">Authentication Required</p>
+        <h3 className="text-base font-bold text-white mb-2 tracking-tight">Connect Your Wallet</h3>
+        <p className="text-[11px] text-zinc-500 mb-5 leading-relaxed">
+          A Web3 wallet is required to place trades, manage collateral, and view open positions.
+        </p>
+
+        {/* RainbowKit button */}
+        <div className="flex justify-center [&_button]:!bg-white [&_button]:!text-black [&_button]:!rounded-xl [&_button]:!font-bold [&_button]:!shadow-none [&_button]:hover:!bg-zinc-100">
+          <ConnectButton />
+        </div>
       </div>
-      <h3 className="text-sm font-bold text-white mb-1">Connect Wallet</h3>
-      <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
-        Connect your wallet to place trades and manage positions.
-      </p>
-      <div className="flex justify-center">
-        <ConnectButton />
+
+      {/* Bottom status bar */}
+      <div className="border-t border-zinc-800/60 px-4 py-2.5 flex items-center gap-2 bg-zinc-900/30">
+        <span className="w-1.5 h-1.5 rounded-full bg-zinc-700" />
+        <span className="text-[10px] text-zinc-600 font-mono">Sepolia Testnet · No real funds required</span>
       </div>
     </div>
   </div>

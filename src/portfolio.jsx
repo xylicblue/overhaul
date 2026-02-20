@@ -1,42 +1,59 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./creatclient";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import {
   useAllPositions,
   useAccountValue,
   useVaultBalance,
 } from "./hooks/useClearingHouse";
 import { useMarkPrice, useFundingRate } from "./hooks/useVAMM";
-import { useReadContract } from "wagmi";
 import { SEPOLIA_CONTRACTS } from "./contracts/addresses";
 import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
 import PageTransition from "./components/PageTransition";
 import EmptyState from "./components/EmptyState";
-import { TableSkeleton } from "./components/Skeleton";
 import PnLChart from "./components/PnLChart";
-import "./portfolio.css";
-
 import {
-  HiOutlineWallet,
-  HiArrowTrendingUp,
-  HiArrowTrendingDown,
-  HiOutlineShieldCheck,
-  HiOutlineBolt,
-  HiOutlineBanknotes,
-  HiOutlineRectangleStack,
-  HiOutlineArrowsRightLeft,
-  HiArrowUp,
-  HiArrowDown,
-} from "react-icons/hi2";
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  ShieldCheck,
+  Zap,
+  Banknote,
+  LayoutList,
+  ArrowLeftRight,
+  ExternalLink,
+  Activity,
+} from "lucide-react";
 
-// --- UI SUB-COMPONENTS ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const fmt  = (n, d = 2) => Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+const mono = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt(Math.abs(n))}`;
 
-// Position Row Component - calculates Net P&L (unrealized)
+const SideBadge = ({ isLong }) => (
+  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+    isLong
+      ? "bg-emerald-500/8 text-emerald-400 border-emerald-500/20"
+      : "bg-red-500/8 text-red-400 border-red-500/20"
+  }`}>
+    {isLong ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+    {isLong ? "Long" : "Short"}
+  </span>
+);
+
+const Th = ({ children, right }) => (
+  <th className={`px-4 py-3 text-[9px] font-bold uppercase tracking-widest text-zinc-600 ${right ? "text-right" : ""}`}>
+    {children}
+  </th>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PositionRow
+// ─────────────────────────────────────────────────────────────────────────────
 const PositionRow = ({ pos }) => {
-  const { price: markPrice } = useMarkPrice(pos.vammAddress);
-  const { cumulativeFunding: currentFundingIndex } = useFundingRate(
-    pos.vammAddress
-  );
+  const { price: markPrice }                       = useMarkPrice(pos.vammAddress);
+  const { cumulativeFunding: currentFundingIndex } = useFundingRate(pos.vammAddress);
 
   const { data: marketConfig } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
@@ -46,526 +63,199 @@ const PositionRow = ({ pos }) => {
     chainId: 11155111,
   });
 
-  const entryPrice = parseFloat(pos.entryPriceX18);
-  const size = parseFloat(pos.size);
-  const absSize = Math.abs(size);
+  const entryPrice   = parseFloat(pos.entryPriceX18);
+  const absSize      = Math.abs(parseFloat(pos.size));
   const currentPrice = markPrice ? parseFloat(markPrice) : 0;
-  const isLong = pos.isLong;
+  const isLong       = pos.isLong;
+  const margin       = parseFloat(pos.margin);
 
-  // Trading P&L
-  const tradingPnL =
-    currentPrice > 0
-      ? isLong
-        ? (currentPrice - entryPrice) * absSize
-        : (entryPrice - currentPrice) * absSize
-      : 0;
+  const tradingPnL = currentPrice > 0
+    ? isLong ? (currentPrice - entryPrice) * absSize : (entryPrice - currentPrice) * absSize
+    : 0;
 
-  // Funding earned/paid
-  const currentIndex = parseFloat(currentFundingIndex || 0);
-  const lastIndex = parseFloat(pos.lastFundingIndex || 0);
-  const fundingPayment = (currentIndex - lastIndex) * size;
-  const fundingEarned = -fundingPayment;
+  const currentIndex   = parseFloat(currentFundingIndex || 0);
+  const lastIndex      = parseFloat(pos.lastFundingIndex || 0);
+  const fundingEarned  = -((currentIndex - lastIndex) * parseFloat(pos.size));
 
-  // Fees paid
-  const feeBps = marketConfig?.feeBps || 10;
+  const feeBps       = marketConfig?.feeBps || 10;
   const openNotional = entryPrice * absSize;
-  const feesPaid = (openNotional * feeBps) / 10000;
-
-  // Net P&L (this is what shows in position card)
-  const netPnL = tradingPnL + fundingEarned - feesPaid;
+  const feesPaid     = (openNotional * feeBps) / 10000;
+  const netPnL       = tradingPnL + fundingEarned - feesPaid;
+  const roe          = margin > 0 ? (netPnL / margin) * 100 : 0;
 
   return (
-    <tr className="hover:bg-zinc-800/30 transition-colors">
-      <td className="px-6 py-4 font-medium text-white">{pos.marketName}</td>
-      <td className="px-6 py-4">
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-            isLong
-              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-              : "bg-red-500/10 text-red-400 border border-red-500/20"
-          }`}
-        >
-          {isLong ? (
-            <HiArrowUp className="w-3 h-3" />
-          ) : (
-            <HiArrowDown className="w-3 h-3" />
-          )}
-          {isLong ? "Long" : "Short"}
-        </span>
+    <tr className="hover:bg-zinc-800/20 transition-colors group">
+      <td className="px-4 py-3">
+        <span className="text-xs font-bold text-white">{pos.marketName?.replace("-PERP", "")}</span>
+        <span className="text-[10px] text-zinc-600 ml-1">PERP</span>
       </td>
-      <td className="px-6 py-4 text-right font-mono text-zinc-300">
-        {absSize.toFixed(4)}
+      <td className="px-4 py-3"><SideBadge isLong={isLong} /></td>
+      <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">{absSize.toFixed(4)}</td>
+      <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">${entryPrice.toFixed(2)}</td>
+      <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+        {currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—"}
       </td>
-      <td className="px-6 py-4 text-right font-mono text-zinc-300">
-        ${entryPrice.toFixed(2)}
-      </td>
-      <td className="px-6 py-4 text-right font-mono text-zinc-300">
-        ${parseFloat(pos.margin).toFixed(2)}
-      </td>
-      <td
-        className={`px-6 py-4 text-right font-mono font-bold ${
-          netPnL >= 0 ? "text-emerald-400" : "text-red-400"
-        }`}
-      >
-        {netPnL >= 0 ? "+" : ""}${netPnL.toFixed(2)}
+      <td className="px-4 py-3 text-right font-mono text-xs text-zinc-400">${margin.toFixed(2)}</td>
+      <td className="px-4 py-3 text-right">
+        <div className={`text-xs font-mono font-bold ${netPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+          {mono(netPnL, true)}
+        </div>
+        <div className={`text-[10px] font-mono ${netPnL >= 0 ? "text-emerald-500/50" : "text-red-500/50"}`}>
+          {netPnL >= 0 ? "+" : ""}{roe.toFixed(2)}% ROE
+        </div>
       </td>
     </tr>
   );
 };
 
-const PortfolioHeader = ({
-  username,
-  portfolioValue,
-  realizedPnl,
-  realizedPnlPercent,
-}) => (
-  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-    <div>
-      <span className="text-zinc-400 text-sm font-medium">Welcome back,</span>
-      <h1 className="text-3xl font-bold text-white mt-1 tracking-tight">
-        {username?.toUpperCase() || "TRADER"}
-      </h1>
-    </div>
-    <div className="flex gap-4 w-full md:w-auto">
-      <div className="flex-1 md:flex-none bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-4 backdrop-blur-sm">
-        <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium mb-1">
-          <HiOutlineWallet className="w-4 h-4" />
-          <span>Total Value</span>
-        </div>
-        <span className="text-xl font-mono font-bold text-white">
-          $
-          {portfolioValue.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </span>
+// ─────────────────────────────────────────────────────────────────────────────
+// StatBar — top header strip
+// ─────────────────────────────────────────────────────────────────────────────
+const StatBar = ({ username, totalCollateral, realizedPnL, availableMargin, buyingPower, positionCount }) => {
+  const stats = [
+    { label: "Total Collateral",  value: `$${fmt(totalCollateral)}`,  icon: <ShieldCheck size={12} />,  sub: null },
+    { label: "Available Margin",  value: `$${fmt(availableMargin)}`,  icon: <Banknote size={12} />,     sub: null },
+    { label: "Buying Power",      value: `$${fmt(buyingPower)}`,      icon: <Zap size={12} />,          sub: "10× leverage" },
+    {
+      label: "Realized P&L",
+      value: mono(realizedPnL, true),
+      icon: realizedPnL >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />,
+      valueClass: realizedPnL >= 0 ? "text-emerald-400" : "text-red-400",
+      sub: null,
+    },
+    { label: "Open Positions",    value: positionCount,               icon: <Activity size={12} />,     sub: null },
+  ];
+
+  return (
+    <div className="mb-8">
+      {/* Greeting */}
+      <div className="mb-5">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-1">Portfolio</p>
+        <h1 className="text-2xl font-bold text-white tracking-tight">
+          {username ? username.toUpperCase() : "TRADER"}
+        </h1>
       </div>
-      <div className="flex-1 md:flex-none bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-4 backdrop-blur-sm">
-        <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium mb-1">
-          {realizedPnl >= 0 ? (
-            <HiArrowTrendingUp className="w-4 h-4 text-emerald-400" />
-          ) : (
-            <HiArrowTrendingDown className="w-4 h-4 text-red-400" />
-          )}
-          <span>Realized P&L</span>
-        </div>
-        <div
-          className={`flex items-baseline gap-2 font-mono font-bold ${
-            realizedPnl >= 0 ? "text-emerald-400" : "text-red-400"
-          }`}
-        >
-          <span className="text-xl">
-            {realizedPnl >= 0 ? "+" : ""}$
-            {Math.abs(realizedPnl).toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-          <span className="text-xs opacity-80">({realizedPnlPercent}%)</span>
-        </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        {stats.map(({ label, value, icon, sub, valueClass }) => (
+          <div
+            key={label}
+            className="relative bg-[#0a0a10] border border-zinc-800/80 rounded-xl p-4 overflow-hidden"
+          >
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-700/50 to-transparent" />
+            <div className="flex items-center gap-1.5 text-zinc-600 mb-2">
+              {icon}
+              <span className="text-[9px] font-bold uppercase tracking-widest">{label}</span>
+            </div>
+            <div className={`text-base font-mono font-bold ${valueClass || "text-white"}`}>{value}</div>
+            {sub && <div className="text-[9px] text-zinc-700 mt-0.5">{sub}</div>}
+          </div>
+        ))}
       </div>
     </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────────────────────────────
+const Tabs = ({ active, setActive }) => (
+  <div className="flex gap-0 bg-[#0a0a10] border border-zinc-800/80 rounded-lg p-1 w-fit mb-4">
+    {[
+      { id: "positions", icon: <LayoutList size={12} />,     label: "Open Positions"  },
+      { id: "trades",    icon: <ArrowLeftRight size={12} />, label: "Trade History"   },
+    ].map(({ id, icon, label }) => (
+      <button
+        key={id}
+        onClick={() => setActive(id)}
+        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-md text-[11px] font-bold transition-all ${
+          active === id
+            ? "bg-zinc-800 text-white"
+            : "text-zinc-500 hover:text-zinc-300"
+        }`}
+      >
+        {icon}{label}
+      </button>
+    ))}
   </div>
 );
 
-const IconSummaryCard = ({ icon, label, value }) => (
-  <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl p-5 flex items-center gap-4 hover:border-zinc-700 transition-colors backdrop-blur-sm group">
-    <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:bg-zinc-700 transition-colors">
-      <div className="text-xl">{icon}</div>
-    </div>
-    <div>
-      <div className="text-zinc-400 text-xs font-medium mb-0.5">{label}</div>
-      <div className="text-lg font-mono font-bold text-white">
-        $
-        {value.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}
-      </div>
-    </div>
+// ─────────────────────────────────────────────────────────────────────────────
+// TableWrap
+// ─────────────────────────────────────────────────────────────────────────────
+const TableWrap = ({ children }) => (
+  <div className="bg-[#0a0a10] border border-zinc-800/80 rounded-xl overflow-hidden">
+    {children}
   </div>
 );
 
-const AccountSummary = ({ availableMargin, totalCollateral, buyingPower }) => (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-    <IconSummaryCard
-      icon={<HiOutlineBanknotes />}
-      label="Available Margin"
-      value={availableMargin}
-    />
-    <IconSummaryCard
-      icon={<HiOutlineShieldCheck />}
-      label="Total Collateral"
-      value={totalCollateral}
-    />
-    <IconSummaryCard
-      icon={<HiOutlineBolt />}
-      label="Buying Power"
-      value={buyingPower}
-    />
-  </div>
+const TableHead = ({ children }) => (
+  <thead>
+    <tr className="border-b border-zinc-800/80 bg-zinc-900/30">
+      {children}
+    </tr>
+  </thead>
 );
 
-const HistoryTabs = ({ activeTab, setActiveTab }) => (
-  <div className="flex gap-1 bg-[#0A0A0A]/50 p-1 rounded-lg border border-zinc-800 w-fit mb-6">
-    <button
-      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-        activeTab === "positions"
-          ? "bg-zinc-800 text-white shadow-sm"
-          : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-      }`}
-      onClick={() => setActiveTab("positions")}
-    >
-      <HiOutlineRectangleStack className="w-4 h-4" />
-      Open Positions
-    </button>
-    <button
-      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-        activeTab === "trades"
-          ? "bg-zinc-800 text-white shadow-sm"
-          : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-      }`}
-      onClick={() => setActiveTab("trades")}
-    >
-      <HiOutlineArrowsRightLeft className="w-4 h-4" />
-      Trade History
-    </button>
-  </div>
-);
-
-// --- MAIN PORTFOLIO PAGE COMPONENT ---
-
+// ─────────────────────────────────────────────────────────────────────────────
+// PortfolioPage
+// ─────────────────────────────────────────────────────────────────────────────
 const PortfolioPage = () => {
-  const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [activeTab, setActiveTab] = useState("positions");
-  const [tradeHistory, setTradeHistory] = useState([]);
-  const [tradesLoading, setTradesLoading] = useState(false);
-  const [tradeTimeFilter, setTradeTimeFilter] = useState("all");
+  const [session, setSession]               = useState(null);
+  const [profile, setProfile]               = useState(null);
+  const [activeTab, setActiveTab]           = useState("positions");
+  const [tradeHistory, setTradeHistory]     = useState([]);
+  const [tradesLoading, setTradesLoading]   = useState(false);
+  const [timeFilter, setTimeFilter]         = useState("all");
 
-  // Get wallet connection and blockchain data
-  const { address, isConnected } = useAccount();
-  const { positions, isLoading: positionsLoading } = useAllPositions();
-  const { accountValue, isLoading: accountLoading } = useAccountValue();
-  const { totalCollateralValue, isLoading: vaultLoading } = useVaultBalance();
+  const { address, isConnected }            = useAccount();
+  const { positions, isLoading: posLoading }= useAllPositions();
+  const { accountValue }                    = useAccountValue();
+  const { totalCollateralValue }            = useVaultBalance();
 
   useEffect(() => {
-    // Fetch the current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    // Listen for authentication state changes (login, logout)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    // Fetch user profile when the session is available
     if (session?.user) {
-      supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", session.user.id)
-        .single()
-        .then(({ data, error }) => {
-          if (error) console.warn("Error fetching profile:", error.message);
-          if (data) setProfile(data);
-        });
+      supabase.from("profiles").select("username").eq("id", session.user.id).single()
+        .then(({ data }) => { if (data) setProfile(data); });
     }
   }, [session]);
 
   useEffect(() => {
-    // Fetch trade history from Supabase
-    const fetchTradeHistory = async () => {
-      if (!address) return;
-
-      setTradesLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("trade_history")
-          .select("*")
-          .eq("user_address", address.toLowerCase())
-          .order("created_at", { ascending: false })
-          .limit(50);
-
-        if (error) {
-          console.warn("Error fetching trades:", error.message);
-        } else {
-          setTradeHistory(data || []);
-        }
-      } catch (err) {
-        console.warn("Error fetching trades:", err);
-      } finally {
-        setTradesLoading(false);
-      }
-    };
-
-    fetchTradeHistory();
+    if (!address) return;
+    setTradesLoading(true);
+    supabase.from("trade_history").select("*")
+      .eq("user_address", address.toLowerCase())
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .then(({ data }) => { setTradeHistory(data || []); setTradesLoading(false); })
+      .catch(() => setTradesLoading(false));
   }, [address]);
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case "positions":
-        return (
-          <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl overflow-hidden backdrop-blur-sm">
-            {positionsLoading ? (
-              <div className="p-12 text-center text-zinc-500 text-sm">
-                Loading positions...
-              </div>
-            ) : positions.length === 0 ? (
-              <EmptyState
-                type="positions"
-                title="No Open Positions"
-                description="You don't have any active positions yet. Start trading to build your portfolio."
-                actionLabel="Go to Trade"
-                actionHref="/trade"
-                tips={[]}
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-800 bg-[#0A0A0A]/50 text-zinc-400 font-medium">
-                      <th className="px-6 py-4">Market</th>
-                      <th className="px-6 py-4">Side</th>
-                      <th className="px-6 py-4 text-right">Size</th>
-                      <th className="px-6 py-4 text-right">Entry Price</th>
-                      <th className="px-6 py-4 text-right">Margin</th>
-                      <th className="px-6 py-4 text-right">Unrealized P&L</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/50">
-                    {positions.map((pos) => (
-                      <PositionRow key={pos.marketId} pos={pos} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        );
-      case "trades":
-        return (
-          <div className="bg-[#0A0A0A]/50 border border-zinc-800 rounded-xl overflow-hidden backdrop-blur-sm">
-            {tradesLoading ? (
-              <div className="p-12 text-center text-zinc-500 text-sm">
-                Loading trade history...
-              </div>
-            ) : tradeHistory.length === 0 ? (
-              <EmptyState
-                type="trades"
-                title="No Trade History"
-                description="Your trading activity will appear here once you make your first trade."
-                actionLabel="Start Trading"
-                actionHref="/trade"
-                tips={[]}
-              />
-            ) : (
-              <>
-                {/* Time Filter Buttons */}
-                <div className="flex gap-2 p-4 border-b border-zinc-800">
-                  {[
-                    { id: "all", label: "All Time" },
-                    { id: "30d", label: "30 Days" },
-                    { id: "7d", label: "7 Days" },
-                    { id: "24h", label: "24 Hours" },
-                  ].map((filter) => (
-                    <button
-                      key={filter.id}
-                      onClick={() => setTradeTimeFilter(filter.id)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                        tradeTimeFilter === filter.id
-                          ? "bg-white/10 text-white border border-zinc-600"
-                          : "bg-zinc-800/50 text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-800"
-                      }`}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-800 bg-[#0A0A0A]/50 text-zinc-400 font-medium">
-                      <th className="px-6 py-4">Date</th>
-                      <th className="px-6 py-4">Market</th>
-                      <th className="px-6 py-4">Side</th>
-                      <th className="px-6 py-4 text-right">Size</th>
-                      <th className="px-6 py-4 text-right">Price</th>
-                      <th className="px-6 py-4 text-right">P&L</th>
-                      <th className="px-6 py-4 text-right">Funding</th>
-                      <th className="px-6 py-4 text-right">Fees</th>
-                      <th className="px-6 py-4 text-right">Tx Hash</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/50">
-                    {tradeHistory
-                      .filter((trade) => {
-                        if (tradeTimeFilter === "all") return true;
-                        const tradeDate = new Date(trade.created_at);
-                        const now = new Date();
-                        if (tradeTimeFilter === "24h") {
-                          return now - tradeDate <= 24 * 60 * 60 * 1000;
-                        } else if (tradeTimeFilter === "7d") {
-                          return now - tradeDate <= 7 * 24 * 60 * 60 * 1000;
-                        } else if (tradeTimeFilter === "30d") {
-                          return now - tradeDate <= 30 * 24 * 60 * 60 * 1000;
-                        }
-                        return true;
-                      })
-                      .map((trade, index) => {
-                      const hasPnL =
-                        trade.pnl !== null && trade.pnl !== undefined;
-                      const pnlValue = hasPnL ? parseFloat(trade.pnl) : null;
-                      const isPnLPositive = pnlValue !== null && pnlValue >= 0;
+  const availableMargin  = parseFloat(accountValue) || 0;
+  const totalCollateral  = parseFloat(totalCollateralValue) || 0;
+  const buyingPower      = availableMargin * 10;
+  const realizedPnL      = (positions || []).reduce((s, p) => s + parseFloat(p.realizedPnL || 0), 0);
 
-                      const hasFunding =
-                        trade.funding_earned !== null &&
-                        trade.funding_earned !== undefined;
-                      const fundingValue = hasFunding
-                        ? parseFloat(trade.funding_earned)
-                        : null;
-                      const isFundingPositive =
-                        fundingValue !== null && fundingValue >= 0;
-
-                      const hasFees =
-                        trade.fees_paid !== null &&
-                        trade.fees_paid !== undefined;
-                      const feesValue = hasFees
-                        ? parseFloat(trade.fees_paid)
-                        : null;
-
-                      return (
-                        <tr
-                          key={trade.id || index}
-                          className="hover:bg-zinc-800/30 transition-colors"
-                        >
-                          <td className="px-6 py-4 text-zinc-400 text-xs">
-                            {new Date(trade.created_at).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 font-medium text-white">
-                            {trade.market}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                                trade.side === "Long"
-                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                  : "bg-red-500/10 text-red-400 border border-red-500/20"
-                              }`}
-                            >
-                              {trade.side === "Long" ? (
-                                <HiArrowUp className="w-3 h-3" />
-                              ) : (
-                                <HiArrowDown className="w-3 h-3" />
-                              )}
-                              {trade.side}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right font-mono text-zinc-300">
-                            {parseFloat(trade.size).toFixed(4)}
-                          </td>
-                          <td className="px-6 py-4 text-right font-mono text-zinc-300">
-                            ${parseFloat(trade.price).toFixed(2)}
-                          </td>
-                          <td
-                            className={`px-6 py-4 text-right font-mono font-bold ${
-                              hasPnL
-                                ? isPnLPositive
-                                  ? "text-emerald-400"
-                                  : "text-red-400"
-                                : ""
-                            }`}
-                          >
-                            {hasPnL ? (
-                              `${isPnLPositive ? "+" : ""}$${pnlValue.toFixed(2)}`
-                            ) : (
-                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-zinc-500 bg-zinc-800/50 rounded">
-                                OPEN
-                              </span>
-                            )}
-                          </td>
-                          <td
-                            className={`px-6 py-4 text-right font-mono ${
-                              hasFunding
-                                ? isFundingPositive
-                                  ? "text-emerald-400"
-                                  : "text-red-400"
-                                : "text-zinc-600"
-                            }`}
-                          >
-                            {hasFunding
-                              ? `${isFundingPositive ? "+" : ""}$${fundingValue.toFixed(2)}`
-                              : "·"}
-                          </td>
-                          <td className={`px-6 py-4 text-right font-mono ${hasFees ? "text-red-400" : "text-zinc-600"}`}>
-                            {hasFees ? `-$${feesValue.toFixed(2)}` : "·"}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <a
-                              href={`https://sepolia.etherscan.io/tx/${trade.tx_hash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs"
-                            >
-                              {trade.tx_hash?.slice(0, 6)}...
-                              {trade.tx_hash?.slice(-4)}
-                            </a>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              </>
-            )}
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Calculate portfolio metrics from on-chain data
-  // IMPORTANT: accountValue from getAccountValue() is ALREADY (collateral - reserved margin)
-  // So it represents your available margin directly!
-  const availableMargin = parseFloat(accountValue) || 0;
-
-  // Total collateral is the raw vault balance
-  const totalCollateral = parseFloat(totalCollateralValue) || 0;
-
-  // Total margin locked = collateral - available
-  const totalMarginUsed = totalCollateral - availableMargin;
-
-  // Calculate total realized P&L: sum of realized P&L from all open positions
-  const totalRealizedPnL = (positions || []).reduce(
-    (sum, pos) => sum + parseFloat(pos.realizedPnL || 0),
-    0
-  );
-
-  // Buying power = available margin × leverage (10x)
-  const buyingPower = availableMargin * 10;
-
-  // Calculate realized P&L percentage relative to total collateral
-  const realizedPnlPercent =
-    totalCollateral > 0
-      ? ((totalRealizedPnL / totalCollateral) * 100).toFixed(2)
-      : "0.00";
+  const filteredTrades = tradeHistory.filter((t) => {
+    if (timeFilter === "all") return true;
+    const ms = { "24h": 864e5, "7d": 6048e5, "30d": 2592e6 }[timeFilter];
+    return ms ? Date.now() - new Date(t.created_at) <= ms : true;
+  });
 
   if (!isConnected) {
     return (
-      <PageTransition className="min-h-screen bg-[#050505] pt-24 pb-12 px-4 flex items-center justify-center">
+      <PageTransition className="min-h-screen bg-[#06060a] pt-24 pb-12 px-4 flex items-center justify-center">
         <EmptyState
           type="wallet"
           title="Connect Your Wallet"
-          description="Connect your wallet to access your portfolio, view open positions, and track your trading history."
+          description="Connect your wallet to view your portfolio and trade history."
           secondaryActionLabel="Learn More"
           secondaryActionHref="/guide"
         />
@@ -574,26 +264,168 @@ const PortfolioPage = () => {
   }
 
   return (
-    <PageTransition className="min-h-screen bg-[#050505] pt-16 pb-12 px-4 md:px-8 lg:px-12">
+    <PageTransition className="min-h-screen bg-[#06060a] pt-16 pb-12 px-4 md:px-8 lg:px-12">
       <div className="max-w-7xl mx-auto">
-        <PortfolioHeader
+
+        <StatBar
           username={profile?.username}
-          portfolioValue={totalCollateral}
-          realizedPnl={totalRealizedPnL}
-          realizedPnlPercent={realizedPnlPercent}
-        />
-        <AccountSummary
-          availableMargin={availableMargin}
           totalCollateral={totalCollateral}
+          realizedPnL={realizedPnL}
+          availableMargin={availableMargin}
           buyingPower={buyingPower}
+          positionCount={positions?.length ?? 0}
         />
-        <div className="space-y-6">
-          <HistoryTabs activeTab={activeTab} setActiveTab={setActiveTab} />
-          {renderContent()}
-        </div>
-        <div className="mt-6">
-          <PnLChart tradeHistory={tradeHistory} />
-        </div>
+
+        {/* PnL Chart */}
+        {tradeHistory.length > 0 && (
+          <div className="mb-6">
+            <PnLChart tradeHistory={tradeHistory} />
+          </div>
+        )}
+
+        <Tabs active={activeTab} setActive={setActiveTab} />
+
+        {/* ── Open Positions ──────────────────────────────────────────── */}
+        {activeTab === "positions" && (
+          <TableWrap>
+            {posLoading ? (
+              <div className="py-16 flex flex-col items-center gap-2 text-zinc-600">
+                <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
+                <span className="text-xs">Loading positions…</span>
+              </div>
+            ) : !positions?.length ? (
+              <EmptyState type="positions" title="No Open Positions" description="Open a position on the Trade page to see it here." actionLabel="Go to Trade" actionHref="/trade" tips={[]} />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <TableHead>
+                    <Th>Market</Th>
+                    <Th>Side</Th>
+                    <Th right>Size</Th>
+                    <Th right>Entry</Th>
+                    <Th right>Mark</Th>
+                    <Th right>Margin</Th>
+                    <Th right>Unrealized P&L</Th>
+                  </TableHead>
+                  <tbody className="divide-y divide-zinc-800/40">
+                    {positions.map((pos) => <PositionRow key={pos.marketId} pos={pos} />)}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </TableWrap>
+        )}
+
+        {/* ── Trade History ────────────────────────────────────────────── */}
+        {activeTab === "trades" && (
+          <TableWrap>
+            {tradesLoading ? (
+              <div className="py-16 flex flex-col items-center gap-2 text-zinc-600">
+                <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
+                <span className="text-xs">Loading history…</span>
+              </div>
+            ) : !tradeHistory.length ? (
+              <EmptyState type="trades" title="No Trade History" description="Your trade history will appear here after your first trade." actionLabel="Start Trading" actionHref="/trade" tips={[]} />
+            ) : (
+              <>
+                {/* Time filters */}
+                <div className="flex items-center gap-1.5 px-4 py-3 border-b border-zinc-800/60">
+                  {[
+                    { id: "all", label: "All" },
+                    { id: "30d", label: "30d" },
+                    { id: "7d",  label: "7d"  },
+                    { id: "24h", label: "24h" },
+                  ].map(({ id, label }) => (
+                    <button
+                      key={id}
+                      onClick={() => setTimeFilter(id)}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded border transition-all ${
+                        timeFilter === id
+                          ? "bg-zinc-800 border-zinc-700 text-white"
+                          : "bg-transparent border-zinc-800/60 text-zinc-600 hover:text-zinc-300 hover:border-zinc-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[10px] text-zinc-700 font-mono">{filteredTrades.length} trades</span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <TableHead>
+                      <Th>Date</Th>
+                      <Th>Market</Th>
+                      <Th>Side</Th>
+                      <Th right>Size</Th>
+                      <Th right>Price</Th>
+                      <Th right>P&L</Th>
+                      <Th right>Funding</Th>
+                      <Th right>Fees</Th>
+                      <Th right>Tx</Th>
+                    </TableHead>
+                    <tbody className="divide-y divide-zinc-800/40">
+                      {filteredTrades.map((trade, i) => {
+                        const pnl     = trade.pnl     != null ? parseFloat(trade.pnl)             : null;
+                        const funding = trade.funding_earned != null ? parseFloat(trade.funding_earned) : null;
+                        const fees    = trade.fees_paid     != null ? parseFloat(trade.fees_paid)       : null;
+
+                        return (
+                          <tr key={trade.id || i} className="hover:bg-zinc-800/20 transition-colors">
+                            <td className="px-4 py-3 text-[10px] font-mono text-zinc-600 whitespace-nowrap">
+                              {new Date(trade.created_at).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" })}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-xs font-bold text-white">{trade.market?.replace("-PERP", "")}</span>
+                              <span className="text-[10px] text-zinc-600 ml-1">PERP</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <SideBadge isLong={trade.side === "Long"} />
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+                              {parseFloat(trade.size).toFixed(4)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+                              ${parseFloat(trade.price).toFixed(2)}
+                            </td>
+                            <td className={`px-4 py-3 text-right font-mono text-xs font-bold ${
+                              pnl == null ? "" : pnl >= 0 ? "text-emerald-400" : "text-red-400"
+                            }`}>
+                              {pnl != null ? mono(pnl, true) : (
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-zinc-800 text-zinc-500 rounded">OPEN</span>
+                              )}
+                            </td>
+                            <td className={`px-4 py-3 text-right font-mono text-xs ${
+                              funding == null ? "text-zinc-700" : funding >= 0 ? "text-emerald-400" : "text-red-400"
+                            }`}>
+                              {funding != null ? mono(funding, true) : "·"}
+                            </td>
+                            <td className={`px-4 py-3 text-right font-mono text-xs ${fees != null ? "text-red-400" : "text-zinc-700"}`}>
+                              {fees != null ? `-$${fmt(fees)}` : "·"}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {trade.tx_hash ? (
+                                <a
+                                  href={`https://sepolia.etherscan.io/tx/${trade.tx_hash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[10px] font-mono text-blue-400 hover:text-blue-300 transition-colors"
+                                >
+                                  {trade.tx_hash.slice(0, 6)}…{trade.tx_hash.slice(-4)}
+                                  <ExternalLink size={9} />
+                                </a>
+                              ) : "·"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </TableWrap>
+        )}
       </div>
     </PageTransition>
   );

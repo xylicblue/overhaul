@@ -515,29 +515,44 @@ const TickerBar = () => {
     chainId: 11155111,
   });
 
-  const marketFee      = marketConfig?.feeBps ? `${(marketConfig.feeBps / 100).toFixed(2)}%` : "0.10%";
+  const marketFee        = marketConfig?.feeBps ? `${(marketConfig.feeBps / 100).toFixed(2)}%` : "0.10%";
   const changeIsPositive = marketData?.change24hValue >= 0;
 
+  // ── Stat column helper ──────────────────────────────────────────────────
+  const Stat = ({ value, label, valueClass = "text-zinc-200", tooltip }) => (
+    <div className="flex flex-col justify-center px-4 shrink-0 h-full">
+      <div className={`text-xs font-mono font-semibold whitespace-nowrap ${valueClass}`}>{value}</div>
+      <div className="flex items-center text-[10px] text-zinc-600 whitespace-nowrap mt-0.5 uppercase tracking-wide gap-0.5">
+        {label}
+        {tooltip && <div onClick={e => e.stopPropagation()}>{tooltip}</div>}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="h-12 bg-[#050505] border-b border-zinc-800 flex items-center px-4 gap-4 md:gap-6 shrink-0 overflow-x-auto no-scrollbar">
-      {/* Change Market Button */}
-      <div className="relative shrink-0">
+    <div className="h-11 bg-[#050505] border-b border-zinc-800/80 flex items-stretch px-0 shrink-0 overflow-x-auto no-scrollbar">
+      {/* ── Market name (static) + Switch button ───────────────────────── */}
+      <div className="relative shrink-0 flex items-center gap-2 px-4 border-r border-zinc-800/50">
+        {/* Market name — not clickable, just display */}
+        <span className="text-sm font-bold text-white tracking-tight">
+          {marketData?.displayName || marketName.replace("-PERP", "")}
+        </span>
+        <span className="text-[9px] font-bold text-zinc-600 border border-zinc-700/60 px-1 py-0.5 rounded font-mono">PERP</span>
+
+        {/* Dedicated Switch button */}
         <button
           ref={buttonRef}
-          className="group flex items-center gap-2 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 px-3 py-1.5 rounded-full transition-all duration-200 border border-blue-500/30 hover:border-blue-400/50 shadow-sm hover:shadow-[0_0_12px_rgba(59,130,246,0.3)]"
           onClick={() => {
             if (!isModalOpen && buttonRef.current) {
               const rect = buttonRef.current.getBoundingClientRect();
-              setDropdownPosition({ top: rect.bottom + 10, left: rect.left });
+              setDropdownPosition({ top: rect.bottom + 6, left: rect.left });
             }
             setIsModalOpen(prev => !prev);
           }}
+          className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 text-[10px] font-bold uppercase tracking-wide transition-all"
         >
-          <span className="text-xs font-semibold text-blue-400 group-hover:text-blue-300">Switch</span>
-          <ChevronDown
-            size={12}
-            className={`text-blue-400 group-hover:text-blue-300 transition-transform duration-200 ${isModalOpen ? "rotate-180" : ""}`}
-          />
+          Switch
+          <ChevronDown size={10} className={`transition-transform duration-150 ${isModalOpen ? "rotate-180" : ""}`} />
         </button>
 
         <MarketSelectorModal
@@ -550,110 +565,48 @@ const TickerBar = () => {
         />
       </div>
 
-      {/* Market Name */}
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="font-bold text-base md:text-lg text-white whitespace-nowrap">
-          {marketData?.displayName || marketName}
-        </span>
-        <div onClick={e => e.stopPropagation()}>
-          <InfoTooltip
-            title={marketData?.displayName || marketName}
-            description={
-              {
-                "H100-PERP":                  "Combined market tracking H100 GPU prices from all providers.",
-                "H100-non-HyperScalers-PERP": "H100 prices from Neocloud providers — Lambda, CoreWeave, Vultr, etc.",
-                "B200-PERP":                  "Next-generation NVIDIA Blackwell B200 GPU prices from specialized providers.",
-                "H200-PERP":                  "NVIDIA H200 GPU hourly rental rates — latest Hopper generation with HBM3e memory.",
-                "T4-PERP":                    "NVIDIA T4 GPU hourly rental rates — cost-effective inference workloads.",
-              }[marketName] || "GPU Compute Market"
-            }
-          />
+      {/* ── Mark price (primary, large) ──────────────────────────────────── */}
+      <div className="flex flex-col justify-center px-4 shrink-0">
+        <div className={`text-sm font-mono font-bold whitespace-nowrap ${changeIsPositive ? "text-emerald-400" : "text-red-400"}`}>
+          ${marketData?.price || "0.00"}
         </div>
-        <span className="text-[10px] text-zinc-500 bg-zinc-900 px-1 rounded border border-zinc-800 hidden sm:inline-block">
-          PERP
-        </span>
-      </div>
-
-      {/* Ticker Stats */}
-      <div className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar">
-        <div className="flex flex-col shrink-0">
-          <span className={`text-base md:text-lg font-mono font-bold whitespace-nowrap ${changeIsPositive ? "text-emerald-400" : "text-red-400"}`}>
-            ${marketData?.price || "0.00"}
-          </span>
-          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
-            Mark Price
-            <InfoTooltip
-              title="Mark Price ($/hour)"
-              description="The current trading price for GPU compute hours from the vAMM."
-            />
-          </span>
-        </div>
-
-        <div className="flex flex-col shrink-0">
-          <span className={`text-xs font-medium font-mono flex items-center gap-1 whitespace-nowrap ${changeIsPositive ? "text-emerald-400" : "text-red-400"}`}>
-            {changeIsPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+        <div className="flex items-center gap-1 mt-0.5">
+          <span className={`flex items-center gap-0.5 font-mono font-semibold text-[10px] ${changeIsPositive ? "text-emerald-500" : "text-red-500"}`}>
+            {changeIsPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
             {marketData?.change24h || "0.00%"}
           </span>
-          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
-            24h Change
-            <InfoTooltip
-              title="24h Change"
-              description="Percentage price change over the last 24 hours."
-            />
-          </span>
+          <span className="text-zinc-700 text-[10px]">·</span>
+          <span className="text-zinc-600 text-[10px] uppercase tracking-wide">Mark</span>
+          <div onClick={e => e.stopPropagation()}>
+            <InfoTooltip title="Mark Price ($/hour)" description="The current trading price for GPU compute hours from the vAMM." />
+          </div>
         </div>
+      </div>
 
-        <div className="flex flex-col shrink-0">
-          <span className="text-xs font-medium text-zinc-200 font-mono whitespace-nowrap">
-            ${marketData?.indexPrice || "0.00"}
-          </span>
-          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
-            Index Price
-            <InfoTooltip
-              title="Index Price (Oracle)"
-              description="Reference price from external oracles tracking real GPU rental rates. Used to calculate funding rates."
-            />
-          </span>
-        </div>
-
-        <div className="flex flex-col shrink-0">
-          <span className="text-xs font-medium text-yellow-500 font-mono whitespace-nowrap">
-            {marketData?.fundingRate || "0.0000%"}
-          </span>
-          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
-            Funding Rate
-            <InfoTooltip
-              title="Funding Rate"
-              description="Periodic payment between longs and shorts every 8 hours. Keeps the perpetual price anchored to real GPU rental rates."
-            />
-          </span>
-        </div>
-
-        <div className="flex flex-col shrink-0">
-          <span className="text-xs font-medium text-blue-400 font-mono whitespace-nowrap">
-            {marketFee}
-          </span>
-          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
-            Market Fee
-            <InfoTooltip
-              title="Trading Fee"
-              description="Fee charged on each trade as a percentage of notional value."
-            />
-          </span>
-        </div>
-
-        <div className="flex flex-col shrink-0">
-          <span className="text-xs font-medium text-zinc-200 font-mono whitespace-nowrap">
-            {marketData?.volume24h || "$24.5M"}
-          </span>
-          <span className="text-[10px] text-zinc-500 flex items-center whitespace-nowrap">
-            24h Volume
-            <InfoTooltip
-              title="24h Volume"
-              description="Total trading volume in USD over the last 24 hours."
-            />
-          </span>
-        </div>
+      {/* ── Secondary stats ──────────────────────────────────────────────── */}
+      <div className="flex items-stretch overflow-x-auto no-scrollbar">
+        <Stat
+          value={`$${marketData?.indexPrice || "0.00"}`}
+          label="Index Price"
+          tooltip={<InfoTooltip title="Index Price (Oracle)" description="Reference price from external oracles tracking real GPU rental rates. Used to calculate funding rates." />}
+        />
+        <Stat
+          value={marketData?.fundingRate || "0.0000%"}
+          valueClass={(() => { const r = parseFloat(marketData?.fundingRate); if (!r || r === 0) return "text-zinc-400"; return r > 0 ? "text-emerald-400" : "text-red-400"; })()}
+          label="Funding / 8h"
+          tooltip={<InfoTooltip title="Funding Rate" description="Periodic payment between longs and shorts every 8 hours. Keeps the perpetual price anchored to real GPU rental rates." />}
+        />
+        <Stat
+          value={marketFee}
+          valueClass="text-zinc-300"
+          label="Taker Fee"
+          tooltip={<InfoTooltip title="Trading Fee" description="Fee charged on each trade as a percentage of notional value." />}
+        />
+        <Stat
+          value={marketData?.volume24h || "$0.00"}
+          label="24h Volume"
+          tooltip={<InfoTooltip title="24h Volume" description="Total trading volume in USD over the last 24 hours." />}
+        />
       </div>
     </div>
   );

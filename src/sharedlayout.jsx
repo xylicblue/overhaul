@@ -16,14 +16,14 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-[#050505] border-b border-zinc-800 flex items-center px-4 justify-between backdrop-blur-md bg-[#050505]/90">
+    <header className="fixed top-0 left-0 right-0 z-[100] h-14 bg-[#050505] border-b border-zinc-800 flex items-center px-4 justify-between backdrop-blur-md bg-[#050505]/90">
       {/* Logo & Nav */}
       <div className="flex items-center gap-8">
         <Link to="/" className="flex items-center gap-3 group">
           <img
             src={logoImage}
             alt="ByteStrike"
-            className="h-7 w-auto group-hover:scale-105 transition-transform"
+            className="h-7 w-auto"
           />
           {/* <span className="text-lg font-bold text-white tracking-tight group-hover:text-blue-400 transition-colors hidden sm:block">
             ByteStrike
