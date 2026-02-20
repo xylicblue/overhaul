@@ -2,54 +2,73 @@
  * ByteStrike API Gateway — Cloudflare Worker
  *
  * Proxies requests to Supabase with:
- * - Rate limiting (in-memory per-worker, KV for distributed)
+ * - Rate limiting (KV-backed, globally distributed)
  * - CORS enforcement
  * - Security headers
- * - Response caching for public market data
+ * - KV response caching for public market data
  * - Request validation & sanitization
  */
 
-// ── Rate limiter (in-memory, per-worker instance) ────────────────────────
-const rateLimitStore = new Map(); // key → { count, resetAt }
+// ── Rate-limit config ────────────────────────────────────────────────────
 const RATE_LIMITS = {
-  auth: { max: 20, windowMs: 60_000 },      // 20 req/min for auth
-  write: { max: 60, windowMs: 60_000 },      // 60 req/min for mutations
-  read: { max: 200, windowMs: 60_000 },      // 200 req/min for reads
-  edge: { max: 30, windowMs: 60_000 },       // 30 req/min for edge functions
+  auth: { max: 20, windowSec: 60 },      // 20 req/min for auth
+  write: { max: 60, windowSec: 60 },      // 60 req/min for mutations
+  read: { max: 200, windowSec: 60 },      // 200 req/min for reads
+  edge: { max: 30, windowSec: 60 },       // 30 req/min for edge functions
 };
 
-function checkRateLimit(key, tier) {
+// In-memory fallback when KV is unavailable (keeps old behaviour)
+const memStore = new Map();
+
+async function checkRateLimit(key, tier, kv) {
   const limit = RATE_LIMITS[tier] || RATE_LIMITS.read;
   const now = Date.now();
-  const entry = rateLimitStore.get(key);
 
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + limit.windowMs });
-    return { allowed: true, remaining: limit.max - 1 };
+  // ── Try KV first (distributed, accurate) ─────────────────────────
+  if (kv) {
+    try {
+      const kvKey = `rl:${key}`;
+      const raw = await kv.get(kvKey, "json");
+      const entry = raw || { count: 0, resetAt: now + limit.windowSec * 1000 };
+
+      // Window expired → reset
+      if (now > entry.resetAt) {
+        entry.count = 1;
+        entry.resetAt = now + limit.windowSec * 1000;
+      } else {
+        entry.count++;
+      }
+
+      if (entry.count > limit.max) {
+        const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+        // Still persist the over-limit count so it doesn't reset on next read
+        await kv.put(kvKey, JSON.stringify(entry), { expirationTtl: limit.windowSec + 5 });
+        return { allowed: false, remaining: 0, retryAfter };
+      }
+
+      // Fire-and-forget write (don't block request)
+      await kv.put(kvKey, JSON.stringify(entry), { expirationTtl: limit.windowSec + 5 });
+      return { allowed: true, remaining: limit.max - entry.count };
+    } catch {
+      // KV failure → fall through to in-memory
+    }
   }
 
+  // ── In-memory fallback ───────────────────────────────────────────
+  const entry = memStore.get(key);
+  if (!entry || now > entry.resetAt) {
+    memStore.set(key, { count: 1, resetAt: now + limit.windowSec * 1000 });
+    return { allowed: true, remaining: limit.max - 1 };
+  }
   entry.count++;
   if (entry.count > limit.max) {
     return { allowed: false, remaining: 0, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
   }
-
   return { allowed: true, remaining: limit.max - entry.count };
-}
-
-// Clean up stale entries inline (called per-request, cheap check)
-let lastCleanup = 0;
-function cleanupRateLimits() {
-  const now = Date.now();
-  if (now - lastCleanup < 60_000) return; // Only clean once per minute
-  lastCleanup = now;
-  for (const [key, entry] of rateLimitStore) {
-    if (now > entry.resetAt) rateLimitStore.delete(key);
-  }
 }
 
 // ── Classify request tier ────────────────────────────────────────────────
 function classifyRequest(pathname, method) {
-  // Edge function calls
   if (pathname.startsWith("/functions/v1/")) {
     if (pathname.includes("wallet-auth") || pathname.includes("check-location")) return "auth";
     if (pathname.includes("api-trade")) return "write";
@@ -58,14 +77,8 @@ function classifyRequest(pathname, method) {
     if (pathname.includes("get-sumsub-token")) return "auth";
     return "edge";
   }
-
-  // Auth endpoints
   if (pathname.startsWith("/auth/")) return "auth";
-
-  // REST API writes
   if (method === "POST" || method === "PATCH" || method === "DELETE" || method === "PUT") return "write";
-
-  // Everything else is a read
   return "read";
 }
 
@@ -94,10 +107,10 @@ const SECURITY_HEADERS = {
 // ── Main handler ─────────────────────────────────────────────────────────
 export default {
   async fetch(request, env, ctx) {
-    cleanupRateLimits();
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") || "";
     const method = request.method;
+    const kv = env.CACHE || null; // KV binding (null if not configured)
 
     // ── CORS ───────────────────────────────────────────────────────────
     const allowedOrigins = (env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim());
@@ -108,7 +121,7 @@ export default {
       "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, prefer, x-request-id",
       "Access-Control-Max-Age": "86400",
-      "Access-Control-Expose-Headers": "x-ratelimit-remaining, x-ratelimit-reset",
+      "Access-Control-Expose-Headers": "x-ratelimit-remaining, x-ratelimit-reset, x-cache",
     };
 
     // Preflight
@@ -124,11 +137,11 @@ export default {
       });
     }
 
-    // ── Rate limiting ──────────────────────────────────────────────────
+    // ── Rate limiting (KV-backed with in-memory fallback) ──────────────
     const clientIP = request.headers.get("CF-Connecting-IP") || "unknown";
     const tier = classifyRequest(url.pathname, method);
     const rateLimitKey = `${clientIP}:${tier}`;
-    const rl = checkRateLimit(rateLimitKey, tier);
+    const rl = await checkRateLimit(rateLimitKey, tier, kv);
 
     if (!rl.allowed) {
       return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again later." }), {
@@ -156,42 +169,43 @@ export default {
 
     // ── Proxy headers ──────────────────────────────────────────────────
     const proxyHeaders = new Headers();
-
-    // Forward essential headers
     const forwardHeaders = ["authorization", "content-type", "prefer", "x-client-info", "accept"];
     for (const h of forwardHeaders) {
       const val = request.headers.get(h);
       if (val) proxyHeaders.set(h, val);
     }
 
-    // ALWAYS inject the anon key (clients no longer need it)
     proxyHeaders.set("apikey", env.SUPABASE_ANON_KEY || "");
 
-    // For edge function calls, ensure apikey + Authorization are always set
+    // Edge functions always need Authorization
     if (url.pathname.startsWith("/functions/v1/")) {
-      proxyHeaders.set("apikey", env.SUPABASE_ANON_KEY || "");
-      // Supabase requires an Authorization header even for --no-verify-jwt functions.
-      // If the client didn't send one, use the anon key as a bearer token.
       if (!proxyHeaders.has("authorization")) {
         proxyHeaders.set("authorization", `Bearer ${env.SUPABASE_ANON_KEY}`);
       }
     }
 
-    // ── Caching for public market data ─────────────────────────────────
+    // ── KV Cache: check for cached public data ─────────────────────────
     const cacheTtl = parseInt(env.CACHE_TTL || "30", 10);
-    if (isCacheableRequest(url.pathname, method) && cacheTtl > 0) {
-      const cache = caches.default;
-      const cacheKey = new Request(url.toString(), { method: "GET" });
-      const cached = await cache.match(cacheKey);
+    const cacheable = isCacheableRequest(url.pathname, method) && cacheTtl > 0;
 
-      if (cached) {
-        const resp = new Response(cached.body, cached);
-        // Add our headers
-        for (const [k, v] of Object.entries(corsHeaders)) resp.headers.set(k, v);
-        for (const [k, v] of Object.entries(SECURITY_HEADERS)) resp.headers.set(k, v);
-        resp.headers.set("X-Cache", "HIT");
-        resp.headers.set("X-RateLimit-Remaining", String(rl.remaining));
-        return resp;
+    if (cacheable && kv) {
+      try {
+        const cacheKey = `data:${url.pathname}${url.search}`;
+        const cached = await kv.get(cacheKey);
+        if (cached) {
+          return new Response(cached, {
+            status: 200,
+            headers: {
+              ...corsHeaders,
+              ...SECURITY_HEADERS,
+              "Content-Type": "application/json",
+              "X-Cache": "HIT",
+              "X-RateLimit-Remaining": String(rl.remaining),
+            },
+          });
+        }
+      } catch {
+        // KV read failure → just fetch from Supabase
       }
     }
 
@@ -200,7 +214,6 @@ export default {
     if (method !== "GET" && method !== "HEAD") {
       body = await request.text();
 
-      // Basic body size limit (1MB)
       if (body.length > 1_048_576) {
         return new Response(JSON.stringify({ error: "Request body too large" }), {
           status: 413,
@@ -218,31 +231,32 @@ export default {
     // ── Build response ─────────────────────────────────────────────────
     const responseHeaders = new Headers(proxyResponse.headers);
 
-    // Add our headers
     for (const [k, v] of Object.entries(corsHeaders)) responseHeaders.set(k, v);
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) responseHeaders.set(k, v);
     responseHeaders.set("X-RateLimit-Remaining", String(rl.remaining));
     responseHeaders.set("X-Cache", "MISS");
 
-    // Remove Supabase's own CORS headers to avoid duplicates
+    // Remove Supabase's own CORS to avoid duplicates, then re-set ours
     responseHeaders.delete("access-control-allow-origin");
-
-    // Re-set our CORS
     for (const [k, v] of Object.entries(corsHeaders)) responseHeaders.set(k, v);
 
-    const response = new Response(proxyResponse.body, {
+    // ── KV Cache: store cacheable responses ────────────────────────────
+    if (cacheable && kv && proxyResponse.ok) {
+      const responseBody = await proxyResponse.text();
+
+      // Fire-and-forget KV write
+      const cacheKey = `data:${url.pathname}${url.search}`;
+      ctx.waitUntil(kv.put(cacheKey, responseBody, { expirationTtl: cacheTtl }));
+
+      return new Response(responseBody, {
+        status: proxyResponse.status,
+        headers: responseHeaders,
+      });
+    }
+
+    return new Response(proxyResponse.body, {
       status: proxyResponse.status,
       headers: responseHeaders,
     });
-
-    // Cache public data responses
-    if (isCacheableRequest(url.pathname, method) && proxyResponse.ok && cacheTtl > 0) {
-      const cacheResponse = response.clone();
-      cacheResponse.headers.set("Cache-Control", `public, max-age=${cacheTtl}`);
-      const cache = caches.default;
-      ctx.waitUntil(cache.put(new Request(url.toString(), { method: "GET" }), cacheResponse));
-    }
-
-    return response;
   },
 };

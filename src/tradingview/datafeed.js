@@ -217,19 +217,10 @@ export const Datafeed = {
   ) => {
     const { from, to, firstDataRequest } = periodParams;
     
-    // For first request, limit time range to recent data for faster loading
-    // TradingView often requests years of data initially
-    let actualFrom = from;
-    if (firstDataRequest) {
-      // Limit initial load to last 30 days max for speed
-      const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
-      actualFrom = Math.max(from, thirtyDaysAgo);
-    }
-    
-    console.log("[Datafeed] getBars:", symbolInfo.name, resolution, new Date(actualFrom * 1000), new Date(to * 1000));
+    console.log("[Datafeed] getBars:", symbolInfo.name, resolution, new Date(from * 1000), new Date(to * 1000), firstDataRequest ? "(first)" : "");
 
     // Create cache key
-    const cacheKey = `${symbolInfo.name}_${resolution}_${actualFrom}_${to}`;
+    const cacheKey = `${symbolInfo.name}_${resolution}_${from}_${to}`;
     const cachedEntry = dataCache.get(cacheKey);
     
     // Return cached data if valid
@@ -240,31 +231,33 @@ export const Datafeed = {
     }
 
     try {
-      // Query Supabase for historical data
+      // Build market names to query
       let marketNames = [symbolInfo.name];
-      
-      // Allow fallback for H100-PERP to H100-GPU-PERP
       if (symbolInfo.name === "H100-PERP") {
         marketNames.push("H100-GPU-PERP");
       }
 
-      let data = null;
-      
-      for (const marketName of marketNames) {
-        // Only select necessary fields (not twap) for faster query
-        const { data: queryData, error } = await supabase
-          .from("vamm_price_history")
-          .select("price, timestamp")
-          .eq("market", marketName)
-          .gte("timestamp", new Date(actualFrom * 1000).toISOString())
-          .lte("timestamp", new Date(to * 1000).toISOString())
-          .order("timestamp", { ascending: true })
-          .limit(MAX_BARS_PER_REQUEST);
+      // Use Supabase .in() filter to fetch ALL matching market names in one query
+      // For first request, fetch everything (no time filter) so we have the full picture;
+      // for subsequent (scrollback) requests, use the from/to range.
+      let query = supabase
+        .from("vamm_price_history")
+        .select("price, timestamp")
+        .in("market", marketNames)
+        .order("timestamp", { ascending: true });
 
-        if (!error && queryData && queryData.length > 0) {
-          data = queryData;
-          break;
-        }
+      if (!firstDataRequest) {
+        query = query
+          .gte("timestamp", new Date(from * 1000).toISOString())
+          .lte("timestamp", new Date(to * 1000).toISOString());
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("[Datafeed] Query error:", error);
+        onErrorCallback(error.message);
+        return;
       }
 
       if (!data || data.length === 0) {

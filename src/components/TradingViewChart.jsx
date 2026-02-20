@@ -7,6 +7,26 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Datafeed } from "../tradingview/datafeed";
 import { IndexDatafeed } from "../tradingview/indexDatafeed";
 
+/**
+ * Returns an appropriate visible time range (in seconds) for a given resolution.
+ * This ensures the chart fills its width with a sensible number of bars
+ * when the user switches resolutions.
+ */
+function getVisibleRangeForResolution(resolution) {
+  const map = {
+    "1": 6 * 3600,            // 6 hours  → ~360 bars
+    "5": 24 * 3600,           // 1 day    → ~288 bars
+    "15": 3 * 24 * 3600,      // 3 days   → ~288 bars
+    "30": 5 * 24 * 3600,      // 5 days   → ~240 bars
+    "60": 14 * 24 * 3600,     // 2 weeks  → ~336 bars
+    "240": 60 * 24 * 3600,    // 2 months → ~360 bars
+    "D": 180 * 24 * 3600,     // 6 months → ~180 bars
+    "W": 365 * 24 * 3600,     // 1 year   → ~52 bars
+    "M": 3 * 365 * 24 * 3600, // 3 years  → ~36 bars
+  };
+  return map[resolution] || 30 * 24 * 3600;
+}
+
 const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
   const containerRef = useRef(null);
   const widgetRef = useRef(null);
@@ -93,29 +113,29 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
             "paneProperties.backgroundType": "solid",
             "paneProperties.vertGridProperties.color": "#1a1a1a",
             "paneProperties.horzGridProperties.color": "#1a1a1a",
-            "paneProperties.crossHairProperties.color": "#3b82f6",
+            "paneProperties.crossHairProperties.color": "#758696",
             
             // Scales
             "scalesProperties.backgroundColor": "#050505",
-            "scalesProperties.lineColor": "#27272a",
-            "scalesProperties.textColor": "#71717a",
+            "scalesProperties.lineColor": "#1e222d",
+            "scalesProperties.textColor": "#787b86",
             
-            // Main series (candles)
-            "mainSeriesProperties.candleStyle.upColor": "#22c55e",
-            "mainSeriesProperties.candleStyle.downColor": "#ef4444",
-            "mainSeriesProperties.candleStyle.borderUpColor": "#22c55e",
-            "mainSeriesProperties.candleStyle.borderDownColor": "#ef4444",
-            "mainSeriesProperties.candleStyle.wickUpColor": "#22c55e",
-            "mainSeriesProperties.candleStyle.wickDownColor": "#ef4444",
+            // Main series (candles) — TradingView pro palette
+            "mainSeriesProperties.candleStyle.upColor": "#26a69a",
+            "mainSeriesProperties.candleStyle.downColor": "#ef5350",
+            "mainSeriesProperties.candleStyle.borderUpColor": "#26a69a",
+            "mainSeriesProperties.candleStyle.borderDownColor": "#ef5350",
+            "mainSeriesProperties.candleStyle.wickUpColor": "#26a69a",
+            "mainSeriesProperties.candleStyle.wickDownColor": "#ef5350",
             
-            // Line style
-            "mainSeriesProperties.lineStyle.color": "#3b82f6",
+            // Line style — TradingView signature blue
+            "mainSeriesProperties.lineStyle.color": "#2962FF",
             "mainSeriesProperties.lineStyle.linewidth": 2,
             
             // Area style
-            "mainSeriesProperties.areaStyle.color1": "rgba(59, 130, 246, 0.3)",
-            "mainSeriesProperties.areaStyle.color2": "rgba(59, 130, 246, 0.05)",
-            "mainSeriesProperties.areaStyle.linecolor": "#3b82f6",
+            "mainSeriesProperties.areaStyle.color1": "rgba(41, 98, 255, 0.28)",
+            "mainSeriesProperties.areaStyle.color2": "rgba(41, 98, 255, 0.05)",
+            "mainSeriesProperties.areaStyle.linecolor": "#2962FF",
             "mainSeriesProperties.areaStyle.linewidth": 2,
           },
           
@@ -153,23 +173,34 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
           // 1 = Candles, 2 = Line
           chart.setChartType(priceType === "index" ? 2 : 1);
           
-          // Wait for data to load, then scroll to show latest data
+          // ── Listen for resolution changes and adjust visible range ──
+          chart.onIntervalChanged().subscribe(null, (interval) => {
+            // Wait for TradingView to fetch new bars, then set appropriate range
+            setTimeout(() => {
+              try {
+                const now = Math.floor(Date.now() / 1000);
+                const rangeSeconds = getVisibleRangeForResolution(interval);
+                chart.setVisibleRange({
+                  from: now - rangeSeconds,
+                  to: now,
+                });
+              } catch (e) {
+                // Fallback: just fit whatever content is loaded
+                try {
+                  chart.getTimeScale().fitContent();
+                } catch (e2) {
+                  console.warn("[TradingViewChart] Could not adjust range:", e2);
+                }
+              }
+            }, 500);
+          });
+          
+          // ── Initial load: fit all available data so the full history is visible ──
           setTimeout(() => {
             try {
-              // Scroll to show real-time data at the right edge
-              const timeScale = chart.getTimeScale();
-              timeScale.scrollToRealTime();
-              
-              // After scrolling, fit all available content
-              setTimeout(() => {
-                try {
-                  timeScale.fitContent();
-                } catch (e) {
-                  console.warn("[TradingViewChart] Could not fit content:", e);
-                }
-              }, 100);
+              chart.getTimeScale().fitContent();
             } catch (e) {
-              console.warn("[TradingViewChart] Could not scroll to real time:", e);
+              console.warn("[TradingViewChart] Could not fit content on load:", e);
             }
           }, 500);
         });
