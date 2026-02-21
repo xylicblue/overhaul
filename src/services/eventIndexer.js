@@ -327,6 +327,7 @@ export async function updateMarketStats(market) {
           trades_24h: stats.trades_24h,
           high_24h: stats.high_24h,
           low_24h: stats.low_24h,
+          open_interest_usd: stats.open_interest_usd ?? 0,
           last_updated: new Date().toISOString(),
         }, {
           onConflict: 'market_id',

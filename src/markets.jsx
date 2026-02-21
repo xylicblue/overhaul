@@ -12,7 +12,6 @@ const MARKET_CATEGORIES = {
   hyperscaler: "Hyperscaler",
 };
 
-// Market configuration with metadata
 const MARKETS_CONFIG = [
   {
     id: "H100-PERP",
@@ -22,7 +21,7 @@ const MARKETS_CONFIG = [
     table: "price_data",
     priceField: "price",
     timeField: "timestamp",
-    description: "Weighted average H100 GPU hourly rental rate",
+    description: "Composite index tracking H100 SXM5 hourly rental rates across major cloud and neocloud providers.",
   },
   {
     id: "B200-PERP",
@@ -31,7 +30,7 @@ const MARKETS_CONFIG = [
     category: "gpu",
     table: "b200_index_prices",
     priceField: "index_price",
-    description: "Weighted average B200 GPU hourly rental rate",
+    description: "Blackwell-generation index aggregating B200 spot prices from hyperscalers and specialty GPU clouds.",
   },
   {
     id: "H200-PERP",
@@ -40,7 +39,7 @@ const MARKETS_CONFIG = [
     category: "gpu",
     table: "h200_index_prices",
     priceField: "index_price",
-    description: "Weighted average H200 GPU hourly rental rate",
+    description: "Next-gen Hopper index covering H200 SXM5 instances with HBM3e memory across top-tier providers.",
   },
   {
     id: "ORACLE-B200-PERP",
@@ -50,7 +49,7 @@ const MARKETS_CONFIG = [
     table: "b200_provider_prices",
     priceField: "effective_price",
     providerFilter: "Oracle",
-    description: "Oracle Cloud B200 instance pricing",
+    description: "Oracle Cloud Infrastructure B200 bare-metal instance pricing in real‑time.",
   },
   {
     id: "AWS-B200-PERP",
@@ -60,7 +59,7 @@ const MARKETS_CONFIG = [
     table: "b200_provider_prices",
     priceField: "effective_price",
     providerFilter: "AWS",
-    description: "AWS B200 instance pricing",
+    description: "Amazon EC2 B200-powered instance on-demand pricing aggregated across US regions.",
   },
   {
     id: "GCP-B200-PERP",
@@ -70,7 +69,7 @@ const MARKETS_CONFIG = [
     table: "b200_provider_prices",
     priceField: "effective_price",
     providerFilter: "Google Cloud",
-    description: "Google Cloud B200 instance pricing",
+    description: "Google Cloud A3 Ultra B200 GPU instance pricing across multi-region deployments.",
   },
   {
     id: "COREWEAVE-B200-PERP",
@@ -80,7 +79,7 @@ const MARKETS_CONFIG = [
     table: "b200_provider_prices",
     priceField: "effective_price",
     providerFilter: "CoreWeave",
-    description: "CoreWeave B200 instance pricing",
+    description: "CoreWeave's purpose-built B200 GPU cloud pricing — the leading neocloud for AI workloads.",
   },
   {
     id: "ORACLE-H200-PERP",
@@ -90,7 +89,7 @@ const MARKETS_CONFIG = [
     table: "h200_provider_prices",
     priceField: "effective_price",
     providerFilter: "Oracle",
-    description: "Oracle Cloud H200 instance pricing",
+    description: "Oracle Cloud Infrastructure H200 bare-metal compute pricing in real‑time.",
   },
   {
     id: "AWS-H200-PERP",
@@ -100,7 +99,7 @@ const MARKETS_CONFIG = [
     table: "h200_provider_prices",
     priceField: "effective_price",
     providerFilter: "AWS",
-    description: "AWS H200 instance pricing",
+    description: "Amazon EC2 H200 on-demand instance pricing across US and EU regions.",
   },
   {
     id: "GCP-H200-PERP",
@@ -110,7 +109,7 @@ const MARKETS_CONFIG = [
     table: "h200_provider_prices",
     priceField: "effective_price",
     providerFilter: "Google Cloud",
-    description: "Google Cloud H200 instance pricing",
+    description: "Google Cloud A3 Mega H200 GPU instance pricing, aggregated across global regions.",
   },
   {
     id: "COREWEAVE-H200-PERP",
@@ -120,7 +119,7 @@ const MARKETS_CONFIG = [
     table: "h200_provider_prices",
     priceField: "effective_price",
     providerFilter: "CoreWeave",
-    description: "CoreWeave H200 instance pricing",
+    description: "CoreWeave H200 high-memory GPU cloud pricing for large-scale LLM training and inference.",
   },
   {
     id: "AZURE-H200-PERP",
@@ -130,9 +129,8 @@ const MARKETS_CONFIG = [
     table: "h200_provider_prices",
     priceField: "effective_price",
     providerFilter: "Azure",
-    description: "Azure H200 instance pricing",
+    description: "Microsoft Azure ND H200 v5 instance pricing for enterprise-scale AI workloads.",
   },
-  // T4 GPU Index
   {
     id: "T4-PERP",
     name: "T4",
@@ -140,9 +138,8 @@ const MARKETS_CONFIG = [
     category: "gpu",
     table: "t4_index_prices",
     priceField: "index_price",
-    description: "Weighted average T4 GPU hourly rental rate",
+    description: "Cost-effective inference index tracking T4 Tensor Core GPU spot rates across major clouds.",
   },
-  // H100 Hyperscaler-specific markets
   {
     id: "AWS-H100-PERP",
     name: "AWS H100",
@@ -151,7 +148,7 @@ const MARKETS_CONFIG = [
     table: "h100_hyperscaler_prices",
     priceField: "effective_price",
     providerFilter: "Amazon Web Services",
-    description: "AWS H100 instance pricing",
+    description: "Amazon EC2 p5 H100 instance on-demand pricing aggregated across US and EU AWS regions.",
   },
   {
     id: "AZURE-H100-PERP",
@@ -161,7 +158,7 @@ const MARKETS_CONFIG = [
     table: "h100_hyperscaler_prices",
     priceField: "effective_price",
     providerFilter: "Microsoft Azure",
-    description: "Azure H100 instance pricing",
+    description: "Microsoft Azure ND H100 v5 instance pricing for enterprise AI and HPC workloads.",
   },
   {
     id: "GCP-H100-PERP",
@@ -171,16 +168,24 @@ const MARKETS_CONFIG = [
     table: "h100_hyperscaler_prices",
     priceField: "effective_price",
     providerFilter: "Google Cloud",
-    description: "Google Cloud H100 instance pricing",
+    description: "Google Cloud A3 H100 GPU instance pricing across multi-region US and European deployments.",
   },
 ];
+
 
 /* ═══════════════════════════════════════════════
    Market Card Component — individual market tile
    ═══════════════════════════════════════════════ */
-const MarketCard = ({ market, price, change24h, volume24h, onClick, index }) => {
+const MarketCard = ({ market, price, change24h, volume24h, openInterest, onClick, index }) => {
   const isPositive = change24h >= 0;
   const isGpu = market.category === "gpu";
+
+  const fmtUsd = (val) => {
+    if (!val || val === 0) return "—";
+    if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(2)}M`;
+    if (val >= 1_000)     return `$${(val / 1_000).toFixed(1)}K`;
+    return `$${val.toFixed(0)}`;
+  };
 
   return (
     <div
@@ -195,8 +200,8 @@ const MarketCard = ({ market, price, change24h, volume24h, onClick, index }) => 
       }`} />
 
       <div className="p-5 md:p-6">
-        {/* Header row: name + category badge */}
-        <div className="flex items-start justify-between mb-4">
+        {/* Header row: icon + name + badge */}
+        <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
             {/* Icon circle */}
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
@@ -220,38 +225,45 @@ const MarketCard = ({ market, price, change24h, volume24h, onClick, index }) => 
           </span>
         </div>
 
+        {/* Description */}
+        <p className="text-[11px] text-zinc-600 leading-relaxed mb-4 line-clamp-2">
+          {market.description}
+        </p>
+
         {/* Price */}
-        <div className="mb-3">
+        <div className="mb-4">
           <span className="text-2xl font-bold text-white font-mono tracking-tight">
             ${price?.toFixed(2) || "—"}
           </span>
           <span className="text-[11px] text-zinc-600 ml-1.5">/hr</span>
         </div>
 
-        {/* Change + Volume row */}
-        <div className="flex items-center justify-between">
-          <div
-            className={`inline-flex items-center gap-1 text-xs font-semibold font-mono px-2 py-1 rounded-lg ${
-              isPositive
-                ? "text-emerald-400 bg-emerald-500/[0.08]"
-                : "text-red-400 bg-red-500/[0.08]"
-            }`}
-          >
-            {isPositive ? (
-              <HiArrowTrendingUp className="w-3.5 h-3.5" />
-            ) : (
-              <HiArrowTrendingDown className="w-3.5 h-3.5" />
-            )}
-            {isPositive ? "+" : ""}
-            {change24h?.toFixed(2) || "0.00"}%
+        {/* Stats row: 24h change · Volume · OI */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {/* 24h Change */}
+          <div>
+            <div className={`text-xs font-semibold font-mono flex items-center gap-0.5 ${
+              isPositive ? "text-emerald-400" : "text-red-400"
+            }`}>
+              {isPositive ? <HiArrowTrendingUp className="w-3 h-3" /> : <HiArrowTrendingDown className="w-3 h-3" />}
+              {isPositive ? "+" : ""}{change24h?.toFixed(2) || "0.00"}%
+            </div>
+            <div className="text-[10px] text-zinc-600 mt-0.5 uppercase tracking-wide">24h</div>
           </div>
-          <div className="text-[11px] text-zinc-500 font-mono">
-            Vol ${volume24h?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || "0"}
+          {/* Volume */}
+          <div>
+            <div className="text-xs font-semibold font-mono text-zinc-300">{fmtUsd(volume24h)}</div>
+            <div className="text-[10px] text-zinc-600 mt-0.5 uppercase tracking-wide">Volume</div>
+          </div>
+          {/* Open Interest */}
+          <div>
+            <div className="text-xs font-semibold font-mono text-zinc-300">{fmtUsd(openInterest)}</div>
+            <div className="text-[10px] text-zinc-600 mt-0.5 uppercase tracking-wide">OI</div>
           </div>
         </div>
 
         {/* Trade button — appears on hover */}
-        <div className="mt-4 pt-4 border-t border-white/[0.04] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="pt-3 border-t border-white/[0.04] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <Link
             to={`/trade?market=${market.id}`}
             onClick={(e) => e.stopPropagation()}
@@ -268,6 +280,7 @@ const MarketCard = ({ market, price, change24h, volume24h, onClick, index }) => 
     </div>
   );
 };
+
 
 /* ═══════════════════════════════════════════════
    Stats Card Component — top summary cards
@@ -399,7 +412,8 @@ const MarketsPage = () => {
               statsData.forEach(stat => {
                 stats[stat.market_id] = {
                   volume: parseFloat(stat.volume_24h_usd || 0),
-                  change: parseFloat(stat.change_24h_percent || 0)
+                  change: parseFloat(stat.change_24h_percent || 0),
+                  openInterest: parseFloat(stat.open_interest_usd || 0),
                 };
               });
               return stats;
@@ -446,7 +460,8 @@ const MarketsPage = () => {
           }
         }
 
-        prices[key].volume24h = vol;
+        prices[key].volume24h     = vol;
+        prices[key].openInterest  = indexerStats[marketHash]?.openInterest ?? 0;
       });
 
       setMarketPrices(prices);
@@ -610,6 +625,7 @@ const MarketsPage = () => {
                 price={marketPrices[market.id]?.price}
                 change24h={marketPrices[market.id]?.change24h}
                 volume24h={marketPrices[market.id]?.volume24h}
+                openInterest={marketPrices[market.id]?.openInterest}
                 onClick={() => (window.location.href = `/trade?market=${market.id}`)}
                 index={index}
               />

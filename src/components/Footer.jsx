@@ -30,10 +30,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="max-w-xs">
             <div className="flex items-center gap-3 mb-4">
-              <img src={logoImage} alt="Byte Strike" className="h-7 w-auto" />
-              <span className="font-bold text-xl text-white tracking-tight">
-                ByteStrike
-              </span>
+              <img src={logoImage} alt="ByteStrike" className="h-7 w-auto" />
             </div>
             <p className="text-zinc-400 text-sm leading-relaxed">
               Financializing AI Compute. Building the infrastructure for the
