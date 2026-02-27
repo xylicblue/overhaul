@@ -311,7 +311,7 @@ const LandingPage = () => {
               const to = ["what-we-do", "why-it-matters", "contact", "about"][i];
               return (
                 <Link key={to} to={to} smooth={true} duration={500} offset={-80}
-                  className="text-sm text-zinc-400 hover:text-white transition-colors cursor-pointer">
+                  className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer">
                   {item}
                 </Link>
               );
@@ -319,7 +319,7 @@ const LandingPage = () => {
             
             {/* Index Methodology Dropdown */}
             <div className="relative group">
-              <button className="text-sm text-zinc-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1">
+              <button className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1">
                 Index Methodology
                 <svg className="w-3 h-3 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -334,7 +334,7 @@ const LandingPage = () => {
                     { path: "/methodology/t4", label: "T4 Methodology" },
                   ].map((item, i, arr) => (
                     <Routerlink key={item.path} to={item.path}
-                      className={`block px-4 py-3 text-sm text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-colors ${i < arr.length - 1 ? "border-b border-white/[0.06]" : ""}`}>
+                      className={`block px-4 py-3 text-sm font-medium text-zinc-200 hover:text-white hover:bg-white/[0.04] transition-colors ${i < arr.length - 1 ? "border-b border-white/[0.06]" : ""}`}>
                       {item.label}
                     </Routerlink>
                   ))}
@@ -545,7 +545,7 @@ const LandingPage = () => {
               {["Live Price Indices", "GPU Compute Futures", "Transparent Methodology"].map((text, i) => (
                 <React.Fragment key={text}>
                   {i > 0 && <motion.span variants={fadeUpSubtle} className="w-1 h-1 rounded-full bg-zinc-700" />}
-                  <motion.span variants={fadeUpSubtle} className="text-xs text-zinc-500 uppercase tracking-wider">{text}</motion.span>
+                  <motion.span variants={fadeUpSubtle} className="text-sm font-medium text-zinc-300 uppercase tracking-wider">{text}</motion.span>
                 </React.Fragment>
               ))}
             </motion.div>
