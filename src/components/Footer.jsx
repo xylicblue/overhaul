@@ -161,9 +161,9 @@ const Footer = () => {
             <a href="#" className="hover:text-zinc-300 transition-colors">
               Terms of Service
             </a>
-            <a href="#" className="hover:text-zinc-300 transition-colors">
+            <Routerlink to="/privacy" className="hover:text-zinc-300 transition-colors">
               Privacy Policy
-            </a>
+            </Routerlink>
           </div>
         </div>
       </div>

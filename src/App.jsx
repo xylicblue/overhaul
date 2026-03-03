@@ -15,6 +15,7 @@ import MarketsPage from "./markets";
 import GuidePage from "./guidepage";
 import SettingsPage from "./settings";
 import MethodologyPage from "./MethodologyPage";
+import PrivacyPolicy from "./PrivacyPolicy";
 import SharedLayout from "./sharedlayout";
 import { DebugMarkets } from "./debug-markets";
 import { AuthModalProvider } from "./context/AuthModalContext";
@@ -140,6 +141,7 @@ function App() {
                 <Route path="/welcome" element={<CreateUsernamePage />} />
                 <Route path="/debug-markets" element={<DebugMarkets />} />
                 <Route path="/methodology/:gpu" element={<MethodologyPage />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route element={<SharedLayout />}>
                   <Route path="/trade" element={<TradingPage />} />
                   <Route path="/markets" element={<MarketsPage />} />
