@@ -13,7 +13,7 @@ binding = "CACHE"
 id = "13012326d9a444dea99ecde90ffa391a"
 
 [vars]
-ALLOWED_ORIGINS = "https://bytestrike.io,https://www.bytestrike.io,http://localhost:5173,http://localhost:3000"
+ALLOWED_ORIGINS = "https://bytestrike.io,https://www.bytestrike.io,https://byte-strike.com,https://www.byte-strike.com,http://localhost:5173,http://localhost:3000"
 # Public market data cache TTL in seconds
 CACHE_TTL = "30"
 

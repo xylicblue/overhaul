@@ -137,6 +137,50 @@ export default {
       });
     }
 
+    // ── Faucet proxy (/faucet/* → Railway bot) ─────────────────────────
+    if (url.pathname.startsWith("/faucet")) {
+      if (method !== "POST") {
+        return new Response(JSON.stringify({ error: "Method not allowed" }), {
+          status: 405,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const body = await request.text();
+        const railwayRes = await fetch(
+          "https://bytestrike-faucet-bot-production-1fc7.up.railway.app/request",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+          }
+        );
+        const data = await railwayRes.text();
+        return new Response(data, {
+          status: railwayRes.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: "Faucet unavailable", detail: String(err) }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ── Block paths that aren't Supabase API routes ─────────────────────
+    const isSupabasePath =
+      url.pathname.startsWith("/rest/v1/") ||
+      url.pathname.startsWith("/auth/") ||
+      url.pathname.startsWith("/functions/v1/") ||
+      url.pathname.startsWith("/storage/");
+    if (!isSupabasePath) {
+      return new Response(JSON.stringify({ error: "Not found", path: url.pathname }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Rate limiting (KV-backed with in-memory fallback) ──────────────
     const clientIP = request.headers.get("CF-Connecting-IP") || "unknown";
     const tier = classifyRequest(url.pathname, method);
