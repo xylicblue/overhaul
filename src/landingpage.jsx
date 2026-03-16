@@ -592,7 +592,7 @@ const LandingPage = () => {
             <motion.div variants={fadeUp} className="relative z-20 w-full max-w-5xl mx-auto mb-10">
               <div className="flex flex-col items-center gap-6 relative z-10">
                 <div className="flex items-center p-1 bg-white/[0.03] rounded-full border border-white/[0.08]">
-                  {["H100", "A100", "H200", "B200", "T4"].map((model) => (
+                  {["H100", "B200", "H200", "T4", "A100"].map((model) => (
                     <button key={model}
                       onClick={() => {
                         setSelectedModel(model);
