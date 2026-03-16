@@ -10,6 +10,7 @@ import { HeaderWallet } from "./components/HeaderWallet";
 import { Menu, X } from "lucide-react";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import { useAuthModal } from "./context/AuthModalContext";
+import NotificationBell from "./components/NotificationBell";
 
 // Clean, dark-themed header for the app
 const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) => {
@@ -132,6 +133,11 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
         <div className="hidden lg:block">
           {session && <HeaderWallet />}
         </div>
+
+        {/* Notification Bell — visible when logged in */}
+        {session && (
+          <NotificationBell userId={session.user?.id} />
+        )}
 
         <div className="hidden md:block">
           {session && profile ? (

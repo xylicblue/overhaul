@@ -1,0 +1,278 @@
+# ByteStrike - Complete System Overview
+
+ByteStrike is a GPU compute futures trading platform. Users trade perpetual contracts where the price tracks real-world GPU hourly rental rates (H100, B200, H200, T4, etc.) from major cloud providers. The platform runs on Ethereum Sepolia testnet.
+
+---
+
+## Table of Contents
+
+1. [What is ByteStrike?](#what-is-bytestrike)
+2. [How the System is Structured](#how-the-system-is-structured)
+3. [Frontend](#frontend)
+4. [Backend Infrastructure](#backend-infrastructure)
+5. [Smart Contracts (On-Chain)](#smart-contracts-on-chain)
+6. [How Trading Works](#how-trading-works)
+7. [Risk and Safety Mechanisms](#risk-and-safety-mechanisms)
+8. [Fees](#fees)
+9. [Price Oracle System](#price-oracle-system)
+10. [CI/CD and Version Control](#cicd-and-version-control)
+11. [Configuration and Secrets](#configuration-and-secrets)
+
+---
+
+## What is ByteStrike?
+
+ByteStrike lets users take long or short positions on GPU compute pricing. Instead of trading actual GPUs or cloud credits, users trade perpetual futures contracts - agreements that track the real-time hourly rental price of GPUs like the NVIDIA H100, H200, B200, and T4 across providers like AWS, Google Cloud, Azure, CoreWeave, and Oracle.
+
+This lets users hedge against changes in GPU costs or speculate on where GPU prices are heading - all on-chain, without any centralized order book.
+
+---
+
+## How the System is Structured
+
+```
+User's Browser
+        |
+        v
+Netlify (hosts the frontend website)
+        |
+        v
+Cloudflare Worker (API gateway - rate limiting, caching, CORS)
+        |
+        v
+Supabase (database + auth + serverless functions)
+        |
+        v
+Ethereum Sepolia (smart contracts - actual trade execution)
+
+  +--------------------------------------------+
+  |  Also connected from the browser directly  |
+  |    Alchemy RPC  ->  Sepolia blockchain      |
+  |    Railway Bot  ->  testnet ETH faucet      |
+  +--------------------------------------------+
+```
+
+The frontend shows live prices and lets users place trades. The backend stores price data, user accounts, and trade history. The actual trade logic (positions, collateral, settlements) lives in smart contracts on the Sepolia blockchain.
+
+---
+
+## Frontend
+
+**Hosted on:** Netlify
+**Domain:** byte-strike.com (registered on GoDaddy, DNS pointed to Netlify)
+
+### Technology Stack
+
+| Tool | Purpose |
+|------|---------|
+| React 19 + Vite | UI framework and build tool |
+| React Router v7 | Client-side page routing |
+| Tailwind CSS v4 | Styling |
+| wagmi + viem | Ethereum wallet connection and on-chain reads/writes |
+| RainbowKit | Wallet connect UI (MetaMask, Coinbase, WalletConnect) |
+| ethers.js v6 | Blockchain utility functions |
+| Supabase JS client | Communication with the database |
+| TanStack Query | Data fetching and caching |
+| Framer Motion | Page animations |
+| TradingView Charting Library | Price charts on the trade page |
+
+### Pages
+
+| Route | What it is |
+|-------|-----------|
+| `/` | Landing page |
+| `/trade` | Main trading dashboard - charts, order form, open positions |
+| `/markets` | Overview of all available GPU markets with live prices |
+| `/portfolio` | User's positions and trade history |
+| `/guide` | Getting started guide |
+| `/settings` | Account settings |
+| `/methodology/:gpu` | How each GPU index price is calculated |
+| `/login`, `/signup` | Auth pages |
+| `/privacy` | Privacy policy |
+
+### Wallet and Blockchain Connection
+
+- The app connects to the **Sepolia testnet** by default.
+- Blockchain calls go through **Alchemy**, a managed Ethereum node provider.
+- Smart contracts are deployed on Sepolia. Users sign transactions with their own wallet (MetaMask, Coinbase Wallet, etc.). No private keys are ever stored by the app.
+
+---
+
+## Backend Infrastructure
+
+### Supabase (Database and Auth)
+
+Supabase is the main backend. It handles:
+
+- **Database (PostgreSQL):** Stores all price data, user profiles, trade history, open positions, market stats, and index prices.
+- **Auth:** Email/password sign-up and login. Password reset emails are handled through Supabase.
+- **Edge Functions:** Serverless functions used for executing trades, managing user profiles, and KYC verification.
+
+### KYC - Sumsub
+
+User identity verification is handled through **Sumsub**, a third-party KYC provider. The flow works as follows:
+
+1. When a user initiates verification, the backend generates a short-lived access token via a Supabase edge function.
+2. This token is passed to the Sumsub Web SDK on the frontend, which opens an embedded verification widget.
+3. The user completes identity checks (document upload, liveness check, etc.) directly within the Sumsub flow.
+4. Sumsub processes the verification on their end and sends the result back via webhook.
+5. The user's verification status is stored in the database and used to gate access to certain platform features.
+
+No raw identity documents or personal verification data are stored by ByteStrike - everything stays within Sumsub's infrastructure.
+
+### Cloudflare Worker (API Gateway)
+
+Every request from the frontend to Supabase goes through a Cloudflare Worker first. It sits in the middle to provide:
+
+- **CORS enforcement** - only allows requests from the production domain.
+- **Rate limiting** - prevents abuse by capping request rates per IP across different operation types (reads, writes, auth).
+- **Response caching** - public market data is cached at the edge for 30 seconds so repeated reads don't repeatedly hit the database.
+- **Faucet proxy** - faucet requests are forwarded to the Railway server-to-server, so the browser never calls Railway directly.
+
+### Railway - Testnet Faucet Bot
+
+A small Node.js server deployed on Railway. When a user clicks "Get Sepolia ETH" on the trade page, a small amount of test ETH is sent from a pre-funded wallet to their address on Sepolia. Rate-limited to once per 24 hours per address.
+
+### Price Data (Scrapers and Indexer)
+
+GPU index prices (H100, B200, H200, T4, etc.) come from automated scrapers that pull pricing from cloud providers (AWS, GCP, Azure, CoreWeave, Oracle, etc.) and push the results into the database on a schedule.
+
+An **on-chain indexer** listens to the Sepolia blockchain for trade events emitted by the smart contracts and writes them to the database. This powers the 24h volume and price change numbers shown on the Markets page.
+
+---
+
+## Smart Contracts (On-Chain)
+
+The actual trading logic lives on-chain. Here is how the contracts fit together:
+
+```
+                    +------------------+
+                    |   ClearingHouse  | <- Main entry point for all trading
+                    +--------+---------+
+                             |
+         +-------------------+-------------------+
+         |                   |                   |
++--------v--------+  +-------v-------+  +-------v-------+
+| CollateralVault |  | MarketRegistry|  |     vAMM      |
+|  (deposits)     |  |  (markets)    |  | (price/swap)  |
++-----------------+  +---------------+  +-------+-------+
+                                                |
+                     +----------------+---------+
+                     |                |
+              +------v------+  +------v------+
+              |  FeeRouter  |  |InsuranceFund|
+              | (fee split) |  | (bad debt)  |
+              +-------------+  +-------------+
+```
+
+### ClearingHouse
+
+The central contract that users interact with. It handles:
+- Depositing and withdrawing collateral
+- Opening and closing positions
+- Adding and removing margin from positions
+- Triggering liquidations
+- Settling funding payments
+
+All other contracts are called from here. Users never need to interact with the vAMM or vault directly.
+
+### CollateralVault
+
+Holds user funds safely. When a user deposits USDC, it goes here. The vault tracks each user's balance, makes sure they cannot withdraw more than they deposited (minus any losses), and provides collateral value back to the ClearingHouse when needed.
+
+### MarketRegistry
+
+Keeps a list of all available markets (H100, B200, etc.) along with their configurations - which vAMM to use, which oracle feeds the price, what the trading fee is, and where fees are routed.
+
+### vAMM (Virtual AMM)
+
+The price engine for each market. It uses a constant-product formula (similar to Uniswap) to determine trade execution prices. Because it is virtual, no real liquidity needs to be provided - the AMM just tracks virtual reserves that shift as traders go long or short. One vAMM is deployed per market.
+
+### FeeRouter
+
+Receives trading fees from the ClearingHouse and splits them - a portion goes to the InsuranceFund, the remainder goes to the treasury.
+
+### InsuranceFund
+
+A pool of USDC that acts as a backstop. If a position is liquidated and the user's remaining collateral does not fully cover their losses, the InsuranceFund covers the shortfall. It is topped up by a portion of every trading fee.
+
+---
+
+## How Trading Works
+
+### From a User's Perspective
+
+1. **Deposit** - User deposits USDC as collateral.
+2. **Add margin** - User allocates some of their deposited USDC as margin for a specific market.
+3. **Open position** - User opens a long or short position. The size, their collateral, and the current price determine how leveraged they are.
+4. **Funding payments** - Every hour, a small payment passes between longs and shorts based on whether the mark price is above or below the oracle (real-world) price. This keeps the trading price anchored to reality over time.
+5. **Close position** - User closes their position, realizing their profit or loss.
+6. **Withdraw** - User withdraws their remaining collateral.
+
+### Leverage
+
+The system allows leverage. For example, with a 10% initial margin requirement, a user can open a position worth 10x their deposited margin. Higher leverage means higher potential profit but also higher risk of liquidation.
+
+### Liquidations
+
+If a user's position loses enough value that their margin falls below the maintenance threshold, the position is liquidated by a whitelisted liquidator bot. The liquidator receives a reward. The user receives whatever is left after the penalty. If nothing is left, the InsuranceFund covers the gap.
+
+---
+
+## Risk and Safety Mechanisms
+
+| Parameter | What it does |
+|-----------|-------------|
+| Initial Margin Requirement (10%) | Minimum collateral to open a position |
+| Maintenance Margin Requirement (5%) | If margin falls below this, position is eligible for liquidation |
+| Liquidation Penalty (2.5%) | Charged on the notional at liquidation - split between liquidator and insurance fund |
+| Maximum Penalty Cap | Prevents excessive penalties on large positions |
+| Position Size Limits | Min position size enforced to prevent dust positions |
+| Commit-Reveal Oracle | Price updates use a commit-reveal scheme to prevent front-running |
+| Upgradeable Proxies | ClearingHouse and vAMM use UUPS upgradeable proxies so bugs can be patched |
+| Insurance Fund | Absorbs bad debt so solvent users are not affected by others' losses |
+
+---
+
+## Fees
+
+### Trading Fees
+- Charged on every position open and close.
+- Calculated as a percentage of the notional value (typically 0.1%).
+- Split 50/50 between the Insurance Fund and the treasury.
+
+### Liquidation Fees
+- A 2.5% penalty is applied to the notional value at the time of liquidation.
+- Half goes to the liquidator as a reward for maintaining system health.
+- The other half goes to the Insurance Fund.
+
+---
+
+## Price Oracle System
+
+GPU prices are fed on-chain using a **commit-reveal oracle** to prevent front-running:
+
+1. An admin first submits a commitment (a hash of the new price) on-chain.
+2. After a minimum delay, the admin reveals the actual price.
+3. The contract verifies the reveal matches the commitment and updates the price.
+4. On-chain adapters wrap this oracle to supply prices to each vAMM, and reject prices that are older than a configurable maximum age (to prevent stale data from being used).
+
+Real-world GPU prices are sourced from scrapers that pull from AWS, GCP, Azure, CoreWeave, Oracle Cloud, and other providers on a regular schedule.
+
+---
+
+## CI/CD and Version Control
+
+**Version control:** GitHub
+**Deployments:** Netlify auto-deploys on every push to the main branch. Netlify runs the production build and serves the output automatically - no manual steps needed.
+
+The workflow is:
+1. Develop and test locally.
+2. Push changes to GitHub.
+3. Netlify picks up the commit and deploys within ~1-2 minutes.
+
+---
+
+## Configuration and Secrets
+
+All sensitive values (API keys, database credentials, service URLs) are stored as environment variables - never hardcoded in the source code. In production, these are managed through the respective platform dashboards (Netlify for frontend variables, Cloudflare for the API gateway secrets).
