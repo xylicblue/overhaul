@@ -1,14 +1,32 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../creatclient";
 
+const DEFAULT_PREFS = { enabled: true, types: ["info", "announcement", "warning"] };
+
 /**
  * useNotifications — fetches active notifications, tracks unread count,
  * subscribes to Realtime inserts, and handles per-user dismissal.
+ * Fetches its own notification_preferences from the profiles table so it
+ * always reflects the latest saved settings (no stale prop).
  */
 export function useNotifications(userId) {
-  const [notifications, setNotifications] = useState([]);
-  const [readIds, setReadIds] = useState(new Set());
-  const [loading, setLoading] = useState(true);
+  const [allNotifications, setAllNotifications] = useState([]);
+  const [readIds, setReadIds]   = useState(new Set());
+  const [loading, setLoading]   = useState(true);
+  const [prefs, setPrefs]       = useState(DEFAULT_PREFS);
+
+  // ── Fetch preferences from profiles ──────────────────────────────────────
+  const fetchPrefs = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("notification_preferences")
+      .eq("id", userId)
+      .single();
+    if (data?.notification_preferences) {
+      setPrefs(data.notification_preferences);
+    }
+  }, [userId]);
 
   // ── Fetch all active, non-expired notifications ──────────────────────────
   const fetchNotifications = useCallback(async () => {
@@ -19,7 +37,7 @@ export function useNotifications(userId) {
       .or("expires_at.is.null,expires_at.gt." + new Date().toISOString())
       .order("created_at", { ascending: false });
 
-    if (!error && data) setNotifications(data);
+    if (!error && data) setAllNotifications(data);
     setLoading(false);
   }, []);
 
@@ -37,23 +55,20 @@ export function useNotifications(userId) {
   }, [userId]);
 
   useEffect(() => {
+    fetchPrefs();
     fetchNotifications();
     fetchReadIds();
 
-    // ── Realtime subscription — new notifications appear instantly ────────
-    const channel = supabase
+    // ── Realtime: notification changes ────────────────────────────────────
+    const notifChannel = supabase
       .channel("notifications_channel")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications" },
         (payload) => {
           const n = payload.new;
-          // Only add if active and not expired
-          if (
-            n.is_active &&
-            (!n.expires_at || new Date(n.expires_at) > new Date())
-          ) {
-            setNotifications((prev) => [n, ...prev]);
+          if (n.is_active && (!n.expires_at || new Date(n.expires_at) > new Date())) {
+            setAllNotifications((prev) => [n, ...prev]);
           }
         }
       )
@@ -62,7 +77,7 @@ export function useNotifications(userId) {
         { event: "UPDATE", schema: "public", table: "notifications" },
         (payload) => {
           const updated = payload.new;
-          setNotifications((prev) =>
+          setAllNotifications((prev) =>
             updated.is_active
               ? prev.map((n) => (n.id === updated.id ? updated : n))
               : prev.filter((n) => n.id !== updated.id)
@@ -73,15 +88,45 @@ export function useNotifications(userId) {
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "notifications" },
         (payload) => {
-          setNotifications((prev) =>
-            prev.filter((n) => n.id !== payload.old.id)
-          );
+          setAllNotifications((prev) => prev.filter((n) => n.id !== payload.old.id));
         }
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [fetchNotifications, fetchReadIds]);
+    // ── Realtime: profile preference changes ──────────────────────────────
+    // Re-fetch prefs whenever the user's own profile row is updated
+    const profileChannel = userId
+      ? supabase
+          .channel("profile_prefs_channel")
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "profiles",
+              filter: `id=eq.${userId}`,
+            },
+            (payload) => {
+              if (payload.new?.notification_preferences) {
+                setPrefs(payload.new.notification_preferences);
+              }
+            }
+          )
+          .subscribe()
+      : null;
+
+    return () => {
+      supabase.removeChannel(notifChannel);
+      if (profileChannel) supabase.removeChannel(profileChannel);
+    };
+  }, [fetchPrefs, fetchNotifications, fetchReadIds, userId]);
+
+  // Apply prefs filter
+  const notifications = prefs.enabled === false
+    ? []
+    : allNotifications.filter((n) =>
+        !prefs.types || prefs.types.includes(n.type)
+      );
 
   // ── Mark a single notification as read ───────────────────────────────────
   const markRead = useCallback(
@@ -95,7 +140,7 @@ export function useNotifications(userId) {
     [userId, readIds]
   );
 
-  // ── Mark all as read ─────────────────────────────────────────────────────
+  // ── Mark all visible (filtered) as read ──────────────────────────────────
   const markAllRead = useCallback(async () => {
     if (!userId) return;
     const unread = notifications.filter((n) => !readIds.has(n.id));
@@ -106,7 +151,8 @@ export function useNotifications(userId) {
     );
   }, [userId, notifications, readIds]);
 
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
+  const unreadCount  = notifications.filter((n) => !readIds.has(n.id)).length;
+  const notifEnabled = prefs.enabled !== false;
 
-  return { notifications, readIds, unreadCount, loading, markRead, markAllRead };
+  return { notifications, readIds, unreadCount, loading, markRead, markAllRead, notifEnabled };
 }

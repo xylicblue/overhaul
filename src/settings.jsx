@@ -8,6 +8,7 @@ import {
   Settings as SettingsIcon,
   Shield,
   Bell,
+  BellOff,
   Moon,
   Sun,
   LogOut,
@@ -23,6 +24,152 @@ import BokehBackground from "./components/BokehBackground";
 import { HiOutlineHome } from "react-icons/hi2";
 import { Link } from "react-router-dom";
 import logo from "./assets/ByteStrikeLogoFinal.png";
+
+// ── Notification type meta ────────────────────────────────────────────────────
+const NOTIF_TYPES = [
+  { key: "info",         label: "Info",         desc: "General platform updates and announcements.",       color: "text-blue-400",   bg: "bg-blue-500/10",   hover: "group-hover:bg-blue-500/20"   },
+  { key: "announcement", label: "Announcement", desc: "Major product launches and important milestones.",  color: "text-purple-400", bg: "bg-purple-500/10", hover: "group-hover:bg-purple-500/20" },
+  { key: "warning",      label: "Warning",      desc: "Maintenance windows, incidents, and risk notices.", color: "text-amber-400",  bg: "bg-amber-500/10",  hover: "group-hover:bg-amber-500/20"  },
+];
+
+// ── NotificationSettings (sub-component for the notifications tab) ────────────
+const NotificationSettings = ({ session }) => {
+  const DEFAULT_PREFS = { enabled: true, types: ["info", "announcement", "warning"] };
+  const [prefs, setPrefs]       = useState(DEFAULT_PREFS);
+  const [saving, setSaving]     = useState(false);
+  const [loaded, setLoaded]     = useState(false);
+
+  // Load from profiles
+  useEffect(() => {
+    const load = async () => {
+      if (!session?.user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("notification_preferences")
+        .eq("id", session.user.id)
+        .single();
+      if (data?.notification_preferences) setPrefs(data.notification_preferences);
+      setLoaded(true);
+    };
+    load();
+  }, [session]);
+
+  // Persist to Supabase
+  const save = async (newPrefs) => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ notification_preferences: newPrefs })
+      .eq("id", session.user.id);
+    setSaving(false);
+    if (error) toast.error("Failed to save preferences");
+    else toast.success("Notification preferences saved");
+  };
+
+  const toggleEnabled = () => {
+    const next = { ...prefs, enabled: !prefs.enabled };
+    setPrefs(next);
+    save(next);
+  };
+
+  const toggleType = (typeKey) => {
+    const has = prefs.types.includes(typeKey);
+    const nextTypes = has
+      ? prefs.types.filter((t) => t !== typeKey)
+      : [...prefs.types, typeKey];
+    const next = { ...prefs, types: nextTypes };
+    setPrefs(next);
+    save(next);
+  };
+
+  if (!loaded) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-5 h-5 rounded-full border-2 border-zinc-800 border-t-blue-500 animate-spin" />
+    </div>
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      <h3 className="text-xl font-bold mb-6 text-white">Notification Preferences</h3>
+
+      {/* Master switch */}
+      <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden">
+        <div
+          className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors cursor-pointer group"
+          onClick={toggleEnabled}
+        >
+          <div className="flex items-center gap-4">
+            <div className={`p-2.5 rounded-xl transition-colors ${
+              prefs.enabled ? "bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20" : "bg-zinc-800 text-zinc-500"
+            }`}>
+              {prefs.enabled ? <Bell size={20} /> : <BellOff size={20} />}
+            </div>
+            <div>
+              <h4 className="font-bold text-white text-sm">Platform Notifications</h4>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                {prefs.enabled ? "You will receive in-app notifications from the admin team." : "All notifications are muted. The bell icon will be dimmed."}
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0">
+            {prefs.enabled
+              ? <ToggleRight size={32} className="text-blue-500" />
+              : <ToggleLeft  size={32} className="text-zinc-600" />}
+          </div>
+        </div>
+      </div>
+
+      {/* Per-type toggles */}
+      <div>
+        <p className="text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-3 px-1">
+          Notification Types
+        </p>
+        <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
+          {NOTIF_TYPES.map((t) => {
+            const active = prefs.types.includes(t.key);
+            const disabled = !prefs.enabled;
+            return (
+              <div
+                key={t.key}
+                onClick={() => !disabled && toggleType(t.key)}
+                className={`p-5 flex items-center justify-between transition-colors group ${
+                  disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-white/[0.02] cursor-pointer"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-2.5 rounded-xl transition-colors ${t.bg} ${t.color} ${!disabled ? t.hover : ""}`}>
+                    <Bell size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white text-sm">{t.label}</h4>
+                    <p className="text-xs text-zinc-500 mt-0.5">{t.desc}</p>
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  {active
+                    ? <ToggleRight size={32} className="text-blue-500" />
+                    : <ToggleLeft  size={32} className="text-zinc-600" />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {saving && (
+        <p className="text-xs text-zinc-600 flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded-full border border-zinc-600 border-t-blue-500 animate-spin" />
+          Saving...
+        </p>
+      )}
+    </motion.div>
+  );
+};
 
 const SettingsPage = () => {
   const [session, setSession] = useState(null);
@@ -344,65 +491,7 @@ const SettingsPage = () => {
         );
       case "notifications":
         return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            <h3 className="text-xl font-bold mb-6 text-white">
-              Notification Preferences
-            </h3>
-            <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
-              <div
-                className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors cursor-pointer group"
-                onClick={() => handleToggle("emailAlerts")}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="p-2.5 rounded-xl bg-yellow-500/10 text-yellow-400 group-hover:bg-yellow-500/20 transition-colors">
-                    <Bell size={20} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white text-sm">Email Alerts</h4>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      Receive updates about your account
-                    </p>
-                  </div>
-                </div>
-                <div className="text-zinc-600 group-hover:text-zinc-500 transition-colors">
-                  {settings.emailAlerts ? (
-                    <ToggleRight size={32} className="text-blue-600" />
-                  ) : (
-                    <ToggleLeft size={32} />
-                  )}
-                </div>
-              </div>
-
-              <div
-                className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors cursor-pointer group"
-                onClick={() => handleToggle("priceAlerts")}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="p-2.5 rounded-xl bg-green-500/10 text-green-400 group-hover:bg-green-500/20 transition-colors">
-                    <Bell size={20} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white text-sm">Price Alerts</h4>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      Get notified when prices change significantly
-                    </p>
-                  </div>
-                </div>
-                <div className="text-zinc-600 group-hover:text-zinc-500 transition-colors">
-                  {settings.priceAlerts ? (
-                    <ToggleRight size={32} className="text-blue-600" />
-                  ) : (
-                    <ToggleLeft size={32} />
-                  )}
-                </div>
-              </div>
-            </div>
-          </motion.div>
+          <NotificationSettings session={session} />
         );
       default:
         return null;

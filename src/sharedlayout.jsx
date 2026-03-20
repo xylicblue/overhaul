@@ -134,7 +134,6 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
           {session && <HeaderWallet />}
         </div>
 
-        {/* Notification Bell — visible when logged in */}
         {session && (
           <NotificationBell userId={session.user?.id} />
         )}

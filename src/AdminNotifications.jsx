@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "./creatclient";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import { Bell, Plus, Trash2, ToggleLeft, ToggleRight, AlertTriangle } from "lucide-react";
@@ -28,6 +29,7 @@ export default function AdminNotifications() {
   const [form, setForm] = useState({ title: "", message: "", type: "info", expires_at: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, title }
 
   // ── Check admin status ──────────────────────────────────────────────────
   useEffect(() => {
@@ -90,9 +92,10 @@ export default function AdminNotifications() {
   };
 
   // ── Delete ───────────────────────────────────────────────────────────────
-  const deleteNotif = async (id) => {
-    if (!window.confirm("Delete this notification?")) return;
-    await supabase.from("notifications").delete().eq("id", id);
+  const deleteNotif = async () => {
+    if (!deleteTarget) return;
+    await supabase.from("notifications").delete().eq("id", deleteTarget.id);
+    setDeleteTarget(null);
     fetchAll();
   };
 
@@ -254,7 +257,7 @@ export default function AdminNotifications() {
                       {n.is_active ? <ToggleRight size={16} className="text-blue-400" /> : <ToggleLeft size={16} />}
                     </button>
                     <button
-                      onClick={() => deleteNotif(n.id)}
+                      onClick={() => setDeleteTarget({ id: n.id, title: n.title })}
                       title="Delete"
                       className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/[0.08] transition-all"
                     >
@@ -267,6 +270,57 @@ export default function AdminNotifications() {
           )}
         </div>
       </main>
+
+      {/* ── Delete Confirm Modal ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+            onClick={() => setDeleteTarget(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1,    y: 0 }}
+              exit={{ opacity: 0,   scale: 0.95,  y: 8 }}
+              transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#0e0e14] shadow-2xl shadow-black/60 p-6"
+            >
+              {/* Icon */}
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
+                <Trash2 size={18} className="text-red-400" />
+              </div>
+
+              <h3 className="text-white font-semibold text-[15px] mb-1">Delete notification?</h3>
+              <p className="text-zinc-500 text-sm mb-1 leading-relaxed">
+                This will permanently remove:
+              </p>
+              <p className="text-zinc-300 text-sm font-medium mb-5 truncate">
+                &ldquo;{deleteTarget.title}&rdquo;
+              </p>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-white/[0.08] text-sm text-zinc-400 hover:text-white hover:border-white/[0.15] hover:bg-white/[0.04] transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={deleteNotif}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400 font-semibold hover:bg-red-500/20 hover:border-red-500/40 hover:text-red-300 transition-all"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
