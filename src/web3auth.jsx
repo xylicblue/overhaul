@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import { supabase } from "./creatclient";
 import { updateWallet } from "./services/api";
+import { markWalletConnected } from "./hooks/useReferral";
 import toast from "react-hot-toast";
 
 const Web3AuthHandler = () => {
@@ -30,6 +31,8 @@ const Web3AuthHandler = () => {
         console.log(`Wallet connected: ${address}. Updating profile...`);
         try {
           await updateWallet(address);
+          // Upgrade referral status if this user was referred
+          await markWalletConnected(userIdRef.current);
         } catch (e) { console.warn("Failed to update wallet:", e); }
       }
 

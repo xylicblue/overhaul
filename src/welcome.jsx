@@ -5,6 +5,7 @@ import { setUsername as apiSetUsername } from "./services/api";
 import AuthLayout from "./components/AuthLayout";
 import toast from "react-hot-toast";
 import { HiOutlineUser } from "react-icons/hi2";
+import { recordReferral, getStoredReferralCode } from "./hooks/useReferral";
 
 const CreateUsernamePage = () => {
   const [username, setUsername] = useState("");
@@ -21,6 +22,19 @@ const CreateUsernamePage = () => {
       if (!user) {
         navigate("/login");
         return;
+      }
+
+      // ── Record referral (runs only once, right after email confirmation) ──
+      // Priority: metadata set at signup → localStorage fallback
+      const codeFromMeta = user.user_metadata?.referral_code || "";
+      const codeFromStorage = getStoredReferralCode();
+      const referralCode = codeFromMeta || codeFromStorage;
+      if (referralCode) {
+        try {
+          await recordReferral(user.id, referralCode);
+        } catch (e) {
+          console.warn("Referral record failed:", e);
+        }
       }
 
       const { data: profile, error } = await supabase

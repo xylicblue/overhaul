@@ -15,6 +15,7 @@ import {
 import { useAuthModal } from "../context/AuthModalContext";
 import logo from "../assets/ByteStrikeLogoFinal.png";
 import WalletAuthButtons from "./WalletAuthButtons";
+import { getStoredReferralCode, recordReferral } from "../hooks/useReferral";
 
 // Login Form Component
 const LoginForm = ({ onSwitchMode, onClose }) => {
@@ -231,6 +232,9 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [referralCode, setReferralCode] = useState(
+    () => getStoredReferralCode()
+  );
 
   const passwordRequirements = {
     length: password.length >= 8,
@@ -258,15 +262,31 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/welcome`,
+          data: referralCode.trim()
+            ? { referral_code: referralCode.trim().toUpperCase() }
+            : {},
         },
       });
       if (error) throw error;
-      setSuccess(true);
+
+      if (data.session) {
+        // Email confirmation is OFF — user is authenticated immediately.
+        // Record the referral now (auth.uid() is valid), then go to /welcome.
+        if (data.user && referralCode.trim()) {
+          await recordReferral(data.user.id, referralCode.trim());
+        }
+        onClose();
+        navigate("/welcome");
+      } else {
+        // Email confirmation is ON — referral will be recorded in /welcome
+        // after the user clicks the confirmation link.
+        setSuccess(true);
+      }
     } catch (error) {
       setError(error.message);
     } finally {
@@ -381,6 +401,29 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             className="block w-full pl-11 pr-4 py-3 bg-zinc-900/50 border border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Referral Code (optional) */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+          Referral Code
+          <span className="text-zinc-600 normal-case font-normal tracking-normal">(optional)</span>
+        </label>
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <svg className="h-4 w-4 text-zinc-500 group-focus-within:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="BST-XXXXXX"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+            maxLength={10}
+            className="block w-full pl-11 pr-4 py-3 bg-zinc-900/50 border border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all text-sm font-mono tracking-widest"
           />
         </div>
       </div>

@@ -135,7 +135,10 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
         </div>
 
         {session && (
-          <NotificationBell userId={session.user?.id} />
+          <NotificationBell
+            userId={session.user?.id}
+            walletAddress={profile?.wallet_address}
+          />
         )}
 
         <div className="hidden md:block">

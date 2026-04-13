@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./creatclient";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   User,
+  Users,
   Settings as SettingsIcon,
   Shield,
   Bell,
@@ -19,7 +20,11 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Copy,
+  Check,
+  Link2,
 } from "lucide-react";
+import { useReferralDashboard } from "./hooks/useReferral";
 import BokehBackground from "./components/BokehBackground";
 import { HiOutlineHome } from "react-icons/hi2";
 import { Link } from "react-router-dom";
@@ -171,6 +176,132 @@ const NotificationSettings = ({ session }) => {
   );
 };
 
+
+// ── ReferralDashboard (sub-component for the referral tab) ────────────────────
+const STATUS_STYLES = {
+  signed_up:        "text-zinc-400 bg-zinc-800/50 border-zinc-700",
+  wallet_connected: "text-emerald-300 bg-emerald-500/10 border-emerald-500/20",
+  rewarded:         "text-yellow-300 bg-yellow-500/10 border-yellow-500/20",
+};
+const STATUS_LABELS = {
+  signed_up:        "Signed Up",
+  wallet_connected: "Wallet Connected",
+  rewarded:         "Rewarded",
+};
+
+const ReferralDashboard = ({ session }) => {
+  const { code, referralLink, referrals, stats, loading } = useReferralDashboard(session?.user?.id);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const copyToClipboard = async (text, setFlag) => {
+    await navigator.clipboard.writeText(text);
+    setFlag(true);
+    setTimeout(() => setFlag(false), 2000);
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-5 h-5 rounded-full border-2 border-zinc-800 border-t-blue-500 animate-spin" />
+    </div>
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      <div>
+        <h3 className="text-xl font-bold mb-1 text-white">Referral Program</h3>
+        <p className="text-zinc-500 text-sm">Share your code or link. Earn rewards when referred users connect their wallet.</p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Total Referred",    value: stats.total,           color: "text-white" },
+          { label: "Wallet Connected",  value: stats.walletConnected, color: "text-emerald-400" },
+          { label: "Rewarded",          value: stats.rewarded,        color: "text-yellow-400" },
+        ].map((s) => (
+          <div key={s.label} className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 text-center">
+            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Code + Link */}
+      <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 space-y-4">
+        {/* Code */}
+        <div>
+          <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 block">Your Referral Code</label>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-[#050505] border border-zinc-800 rounded-xl px-4 py-2.5 font-mono text-lg font-bold text-white tracking-widest">
+              {code || "—"}
+            </div>
+            <button
+              onClick={() => copyToClipboard(code, setCopiedCode)}
+              disabled={!code}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 text-white text-sm font-medium transition-all disabled:opacity-40"
+            >
+              {copiedCode ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+              {copiedCode ? "Copied!" : "Copy"}
+            </button>
+          </div>
+        </div>
+
+        {/* Link */}
+        <div>
+          <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 block">Referral Link</label>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-[#050505] border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-400 font-mono truncate">
+              {referralLink || "—"}
+            </div>
+            <button
+              onClick={() => copyToClipboard(referralLink, setCopiedLink)}
+              disabled={!referralLink}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 text-white text-sm font-medium transition-all disabled:opacity-40"
+            >
+              {copiedLink ? <Check size={14} className="text-emerald-400" /> : <Link2 size={14} />}
+              {copiedLink ? "Copied!" : "Copy Link"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* History */}
+      <div>
+        <p className="text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-3 px-1">
+          Referral History ({referrals.length})
+        </p>
+        {referrals.length === 0 ? (
+          <div className="bg-zinc-900/40 border border-white/5 rounded-2xl py-10 text-center">
+            <Users size={28} className="text-zinc-700 mx-auto mb-2" />
+            <p className="text-sm text-zinc-600">No referrals yet.</p>
+            <p className="text-xs text-zinc-700 mt-0.5">Share your link to get started.</p>
+          </div>
+        ) : (
+          <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
+            {referrals.map((r, i) => (
+              <div key={r.id} className="flex items-center justify-between px-5 py-3.5">
+                <div>
+                  <p className="text-sm text-zinc-300 font-medium">Referral #{i + 1}</p>
+                  <p className="text-xs text-zinc-600">{new Date(r.signed_up_at).toLocaleDateString()}</p>
+                </div>
+                <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg border ${STATUS_STYLES[r.status]}`}>
+                  {STATUS_LABELS[r.status]}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
 const SettingsPage = () => {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -269,10 +400,11 @@ const SettingsPage = () => {
   };
 
   const tabs = [
-    { id: "profile", label: "Profile", icon: User },
-    { id: "preferences", label: "Preferences", icon: SettingsIcon },
-    { id: "security", label: "Security", icon: Shield },
+    { id: "profile",       label: "Profile",       icon: User },
+    { id: "preferences",   label: "Preferences",   icon: SettingsIcon },
+    { id: "security",      label: "Security",       icon: Shield },
     { id: "notifications", label: "Notifications", icon: Bell },
+    { id: "referral",      label: "Referral",       icon: Users },
   ];
 
   const renderContent = () => {
@@ -492,6 +624,10 @@ const SettingsPage = () => {
       case "notifications":
         return (
           <NotificationSettings session={session} />
+        );
+      case "referral":
+        return (
+          <ReferralDashboard session={session} />
         );
       default:
         return null;

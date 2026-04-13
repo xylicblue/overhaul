@@ -20,7 +20,6 @@ import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import ceoPortrait from "./assets/gabe.jpg";
 import tradingPreview from "./assets/tradingpic.png";
 import ProfileDropdown from "./dropdown";
-import NotificationBell from "./components/NotificationBell";
 import { useAuthModal } from "./context/AuthModalContext";
 
 /* ─── Animation Variants (trigger-once) ─── */
@@ -348,9 +347,6 @@ const LandingPage = () => {
             <Routerlink to="/trade" className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
               Trade
             </Routerlink>
-            {session && (
-              <NotificationBell userId={session.user?.id} />
-            )}
             {session && profile ? (
               <ProfileDropdown session={session} profile={profile} onLogout={handleLogout} />
             ) : (
