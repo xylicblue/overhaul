@@ -1,109 +1,161 @@
 import React, { useState, useEffect } from "react";
-import {
-  BookOpen,
-  ChevronRight,
-  Code2,
-  Layers,
-  ShieldCheck,
-  ArrowLeftRight,
-  BarChart2,
-  Landmark,
-  Cpu,
-  Calculator,
-  Circle,
-} from "lucide-react";
+import { motion } from "framer-motion";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sidebar sections
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Sidebar nav ────────────────────────────────────────────────────────────
 const SECTIONS = [
-  { id: "overview",         number: "00", label: "Architecture Overview" },
-  { id: "clearinghouse",    number: "01", label: "ClearingHouse"         },
-  { id: "vamm",             number: "02", label: "vAMM"                  },
-  { id: "collateralvault",  number: "03", label: "CollateralVault"       },
-  { id: "marketregistry",   number: "04", label: "MarketRegistry"        },
-  { id: "feerouter",        number: "05", label: "FeeRouter"             },
-  { id: "insurancefund",    number: "06", label: "InsuranceFund"         },
-  { id: "oracle",           number: "07", label: "Oracle System"         },
-  { id: "calculations",     number: "08", label: "Calculations Library"  },
+  { id: "overview",        number: "00", label: "Architecture Overview" },
+  { id: "clearinghouse",   number: "01", label: "ClearingHouse"         },
+  { id: "vamm",            number: "02", label: "vAMM"                  },
+  { id: "collateralvault", number: "03", label: "CollateralVault"       },
+  { id: "marketregistry",  number: "04", label: "MarketRegistry"        },
+  { id: "feerouter",       number: "05", label: "FeeRouter"             },
+  { id: "insurancefund",   number: "06", label: "InsuranceFund"         },
+  { id: "oracle",          number: "07", label: "Oracle System"         },
+  { id: "calculations",    number: "08", label: "Calculations Library"  },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reusable primitives (same style as GuidePage)
-// ─────────────────────────────────────────────────────────────────────────────
-const SectionHeading = ({ number, icon: Icon, children }) => (
-  <div className="flex items-center gap-3 mb-6">
-    <span className="text-[11px] font-bold font-mono text-zinc-600 tabular-nums">{number}</span>
-    <div className="w-px h-4 bg-zinc-800" />
-    {Icon && <Icon size={14} className="text-blue-400 shrink-0" />}
-    <h2 className="text-xl font-bold text-white tracking-tight">{children}</h2>
-  </div>
-);
+// ─── Primitives ─────────────────────────────────────────────────────────────
 
-const Card = ({ children, className = "" }) => (
-  <div className={`bg-[#0a0a10] border border-zinc-800/80 rounded-xl overflow-hidden ${className}`}>
+/** Inline code */
+const C = ({ children }) => (
+  <code className="font-mono text-[13px] bg-zinc-800 text-zinc-100 px-1.5 py-0.5 rounded">
     {children}
+  </code>
+);
+
+/** Section heading */
+const H2 = ({ children }) => (
+  <h2 className="text-[1.25rem] font-semibold text-white tracking-tight mb-3">{children}</h2>
+);
+
+/** Sub-heading (FUNCTIONS / KEY CONCEPTS) */
+const H3 = ({ children }) => (
+  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">{children}</p>
+);
+
+/** Horizontal rule placed under H2 */
+const Rule = () => <div className="w-8 h-px bg-zinc-700 mb-6" />;
+
+/** Fade-up animation variant for sections */
+const fadeUp = {
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+};
+
+/**
+ * Function documentation block.
+ * signature – full Solidity-style signature string
+ * returns   – optional return type string
+ * description – plain text description
+ * params    – array of { name, type, desc }
+ */
+const FnBlock = ({ signature, returns, description, params }) => (
+  <div className="border border-zinc-800 hover:border-zinc-700 rounded-lg overflow-hidden mb-4 text-sm transition-colors duration-200">
+    {/* Signature bar */}
+    <div className="bg-[#111118] px-4 py-3 border-b border-zinc-800 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      <code className="font-mono text-[13px] text-blue-300 break-all">{signature}</code>
+      {returns && (
+        <code className="font-mono text-[13px] text-zinc-400 shrink-0">→ {returns}</code>
+      )}
+    </div>
+
+    {/* Body */}
+    <div className="px-4 py-3.5 bg-[#0c0c12] space-y-4">
+      <p className="text-zinc-300 leading-relaxed">{description}</p>
+
+      {params && params.length > 0 && (
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-zinc-800">
+              <th className="text-left pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider w-36">
+                Parameter
+              </th>
+              <th className="text-left pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider w-36">
+                Type
+              </th>
+              <th className="text-left pb-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                Description
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {params.map(({ name, type, desc }) => (
+              <tr key={name} className="border-b border-zinc-800/40 last:border-0">
+                <td className="py-2 pr-4 align-top">
+                  <code className="font-mono text-[12px] text-blue-300">{name}</code>
+                </td>
+                <td className="py-2 pr-4 align-top">
+                  <code className="font-mono text-[12px] text-zinc-400">{type}</code>
+                </td>
+                <td className="py-2 text-zinc-300 text-[13px] leading-relaxed align-top">{desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   </div>
 );
 
-const CardAccent = ({ color = "blue", children }) => {
-  const colors = {
-    blue:   "border-blue-500/30 bg-blue-500/5",
-    green:  "border-emerald-500/30 bg-emerald-500/5",
-    amber:  "border-amber-500/30 bg-amber-500/5",
-    purple: "border-purple-500/30 bg-purple-500/5",
-    red:    "border-red-500/30 bg-red-500/5",
+/**
+ * Key-concept / term table row.
+ * Wrap multiple <Term> in a <table> with <tbody>.
+ */
+const Term = ({ term, children }) => (
+  <tr className="border-b border-zinc-800/50 last:border-0">
+    <td className="py-3.5 pl-4 pr-6 align-top whitespace-nowrap">
+      <code className="font-mono text-[12px] text-zinc-200">{term}</code>
+    </td>
+    <td className="py-3.5 pl-2 pr-4 text-sm text-zinc-300 leading-relaxed">{children}</td>
+  </tr>
+);
+
+/** Concepts wrapper table */
+const TermTable = ({ children }) => (
+  <div className="border border-zinc-800 rounded-lg overflow-hidden mb-8">
+    <table className="w-full border-collapse">
+      <tbody>{children}</tbody>
+    </table>
+  </div>
+);
+
+/** Info / warning callout — border-left style */
+const Note = ({ color = "blue", label, children }) => {
+  const palette = {
+    blue:   { border: "border-l-blue-500",   bg: "bg-blue-500/[0.07]",   label: "text-blue-400",   body: "text-zinc-300" },
+    amber:  { border: "border-l-amber-500",  bg: "bg-amber-500/[0.07]",  label: "text-amber-400",  body: "text-zinc-300" },
+    green:  { border: "border-l-green-500",  bg: "bg-green-500/[0.07]",  label: "text-green-400",  body: "text-zinc-300" },
+    purple: { border: "border-l-purple-500", bg: "bg-purple-500/[0.07]", label: "text-purple-400", body: "text-zinc-300" },
   };
+  const p = palette[color] ?? palette.blue;
   return (
-    <div className={`border rounded-xl p-4 ${colors[color]}`}>
-      {children}
+    <div className={`border-l-2 ${p.border} ${p.bg} pl-4 pr-4 py-3 rounded-r-md`}>
+      {label && (
+        <p className={`text-xs font-semibold uppercase tracking-wider ${p.label} mb-1`}>{label}</p>
+      )}
+      <p className={`text-sm leading-relaxed ${p.body}`}>{children}</p>
     </div>
   );
 };
 
-// A function row inside a contract card
-const FnRow = ({ name, params, returns, desc }) => (
-  <div className="px-5 py-4 border-b border-zinc-800/50 last:border-b-0">
-    <div className="flex flex-wrap items-baseline gap-2 mb-1">
-      <code className="text-[12px] font-mono font-bold text-blue-300">{name}</code>
-      {params && (
-        <code className="text-[10px] font-mono text-zinc-500">({params})</code>
-      )}
-      {returns && (
-        <code className="text-[10px] font-mono text-emerald-500/80">→ {returns}</code>
-      )}
-    </div>
-    <p className="text-[11px] text-zinc-500 leading-relaxed">{desc}</p>
-  </div>
-);
-
-// A concept / design note row
-const ConceptRow = ({ label, children }) => (
-  <div className="flex gap-3 items-start px-5 py-3.5 border-b border-zinc-800/50 last:border-b-0">
-    <span className="text-[10px] font-bold font-mono text-zinc-600 uppercase tracking-widest mt-0.5 w-24 shrink-0">{label}</span>
-    <p className="text-[11px] text-zinc-400 leading-relaxed">{children}</p>
-  </div>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DocsPage
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Page ───────────────────────────────────────────────────────────────────
 const DocsPage = () => {
   const [activeSection, setActiveSection] = useState("overview");
 
   const scrollToSection = (id) => {
-    setActiveSection(id);
     const el = document.getElementById(id);
-    if (el)
+    if (el) {
       window.scrollTo({
-        top: el.getBoundingClientRect().top + window.pageYOffset - 90,
+        top: el.getBoundingClientRect().top + window.pageYOffset - 72,
         behavior: "smooth",
       });
+    }
+    setActiveSection(id);
   };
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollY = window.pageYOffset + 130;
+      const scrollY = window.pageYOffset + 110;
       for (let i = SECTIONS.length - 1; i >= 0; i--) {
         const el = document.getElementById(SECTIONS[i].id);
         if (el && el.offsetTop <= scrollY) {
@@ -112,651 +164,847 @@ const DocsPage = () => {
         }
       }
     };
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Scroll to hash on initial load (e.g. /docs#clearinghouse)
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    if (hash) {
+      // Wait a tick for the page to render fully
+      const raf = requestAnimationFrame(() => {
+        scrollToSection(hash);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#06060a] text-zinc-200 font-sans">
+    <div className="min-h-screen bg-[#0a0a0f] text-zinc-300">
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <div className="relative pt-24 pb-14 px-6 overflow-hidden border-b border-zinc-800/60">
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,.3) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.3) 1px,transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#06060a] to-transparent" />
-
-        <div className="max-w-4xl mx-auto relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/8 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-widest mb-5">
-            <Code2 size={11} />
-            Smart Contracts
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight leading-tight">
-            Contract<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
-              Documentation
-            </span>
-          </h1>
-          <p className="text-base text-zinc-500 max-w-lg leading-relaxed mb-8">
-            A complete reference for every smart contract powering ByteStrike —
-            what each one does, how they fit together, and the functions you can call.
-          </p>
-
-          <div className="flex items-center gap-6 text-[11px] font-mono text-zinc-600">
-            {[
-              { dot: "bg-blue-500",    text: "Solidity 0.8.28"  },
-              { dot: "bg-emerald-500", text: "Sepolia Testnet"   },
-              { dot: "bg-zinc-500",    text: "UUPS Upgradeable"  },
-            ].map(({ dot, text }) => (
-              <div key={text} className="flex items-center gap-2">
-                <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
-                {text}
-              </div>
-            ))}
-          </div>
+      {/* ── Page header ────────────────────────────────────────────────── */}
+      <div className="border-b border-zinc-800/60 pt-20 pb-8 px-6">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+          >
+            <p className="text-xs text-zinc-500 mb-4 font-mono">
+              ByteStrike Protocol&nbsp;&nbsp;/&nbsp;&nbsp;Contracts
+            </p>
+            <h1 className="text-2xl font-semibold text-white tracking-tight mb-2">
+              Contract Reference
+            </h1>
+            <p className="text-sm text-zinc-400 max-w-2xl leading-relaxed">
+              Complete reference for all smart contracts in the ByteStrike perpetuals protocol.
+              Covers architecture, function signatures, parameters, and design decisions.
+            </p>
+          </motion.div>
         </div>
       </div>
 
-      {/* ── Body ─────────────────────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-6 py-12 flex gap-10">
+      {/* ── Body ───────────────────────────────────────────────────────── */}
+      <div className="max-w-5xl mx-auto px-6 flex gap-12 py-10">
 
         {/* Sidebar */}
-        <aside className="hidden lg:block w-56 flex-shrink-0">
-          <div className="sticky top-24">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-3 px-1">
+        <aside className="hidden lg:block w-52 flex-shrink-0">
+          <motion.div
+            className="sticky top-20"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut", delay: 0.1 }}
+          >
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3 px-3">
               Contracts
             </p>
-            <nav className="relative">
-              <div className="absolute left-0 top-0 bottom-0 w-px bg-zinc-800" />
-              <div className="space-y-0.5">
-                {SECTIONS.map(({ id, number, label }) => {
-                  const active = activeSection === id;
-                  return (
-                    <button
-                      key={id}
-                      onClick={() => scrollToSection(id)}
-                      className={`w-full flex items-center gap-3 pl-4 pr-2 py-2 text-left transition-colors relative ${
-                        active ? "text-white" : "text-zinc-500 hover:text-zinc-300"
-                      }`}
-                    >
-                      {active && (
-                        <div className="absolute left-0 top-0 bottom-0 w-px bg-blue-500" />
-                      )}
-                      <span className="text-[9px] font-mono font-bold text-zinc-700 tabular-nums w-4 shrink-0">
-                        {number}
-                      </span>
-                      <span className="text-[11px] font-medium">{label}</span>
-                      {active && (
-                        <ChevronRight size={10} className="ml-auto text-blue-500 shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+            <nav className="space-y-0.5">
+              {SECTIONS.map(({ id, number, label }) => {
+                const active = activeSection === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => scrollToSection(id)}
+                    className={`w-full text-left flex items-center gap-2.5 px-3 py-1.5 rounded text-sm transition-all duration-150 ${
+                      active
+                        ? "bg-blue-500/10 text-white"
+                        : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    <span className="font-mono text-[10px] text-zinc-600 tabular-nums shrink-0">
+                      {number}
+                    </span>
+                    <span className={active ? "font-medium" : ""}>{label}</span>
+                  </button>
+                );
+              })}
             </nav>
-          </div>
+          </motion.div>
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 min-w-0 space-y-16 max-w-2xl">
+        <main className="flex-1 min-w-0 space-y-16">
 
-          {/* ── 00 Architecture Overview ─────────────────────────────────── */}
-          <section id="overview" className="scroll-mt-24">
-            <SectionHeading number="00" icon={Layers}>Architecture Overview</SectionHeading>
-            <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
-              All contracts work together through a central orchestrator. The diagram below shows the call flow.
+          {/* ── 00 Architecture Overview ───────────────────────────────── */}
+          <motion.section
+            id="overview"
+            className="scroll-mt-20"
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+          >
+            <H2>Architecture Overview</H2>
+            <Rule />
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              ByteStrike is a non-custodial perpetual futures protocol. All contracts interact
+              through a central orchestrator. User funds never flow directly through the
+              ClearingHouse - it delegates custody to the CollateralVault and price discovery
+              to each market's vAMM.
             </p>
 
-            {/* ASCII-style flow card */}
-            <Card className="mb-4">
-              <div className="p-5">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-4">Contract Interaction Flow</p>
-                <div className="font-mono text-[11px] leading-6 text-zinc-400 space-y-0.5">
-                  <div className="text-blue-300 font-bold">ClearingHouse <span className="text-zinc-600 font-normal">(UUPS Proxy — central orchestrator)</span></div>
-                  <div className="pl-4 text-zinc-500">├── <span className="text-zinc-300">CollateralVault</span> <span className="text-zinc-600">— multi-collateral custody</span></div>
-                  <div className="pl-4 text-zinc-500">├── <span className="text-zinc-300">MarketRegistry</span> <span className="text-zinc-600">— market config &amp; routing</span></div>
-                  <div className="pl-4 text-zinc-500">├── <span className="text-zinc-300">vAMM</span> <span className="text-zinc-600">— one per market, constant-product AMM</span></div>
-                  <div className="pl-4 text-zinc-500">├── <span className="text-zinc-300">FeeRouter</span> <span className="text-zinc-600">— splits fees per quote token</span></div>
-                  <div className="pl-4 text-zinc-500">└── <span className="text-zinc-300">InsuranceFund</span> <span className="text-zinc-600">— bad-debt backstop</span></div>
-                </div>
-              </div>
-            </Card>
-
-            <div className="grid sm:grid-cols-2 gap-3">
-              <CardAccent color="blue">
-                <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wider mb-1">Upgradeability</p>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  ClearingHouse and vAMM are <strong className="text-zinc-200">UUPS upgradeable proxies</strong>. All other contracts are non-upgradeable and are replaced by deploying new instances if needed.
-                </p>
-              </CardAccent>
-              <CardAccent color="green">
-                <p className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider mb-1">Precision</p>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  All internal values use <strong className="text-zinc-200">1e18 (WAD)</strong> precision. Conversions between raw token amounts and WAD happen only at the boundaries of external calls.
-                </p>
-              </CardAccent>
-            </div>
-          </section>
-
-          {/* ── 01 ClearingHouse ─────────────────────────────────────────── */}
-          <section id="clearinghouse" className="scroll-mt-24">
-            <SectionHeading number="01" icon={ArrowLeftRight}>ClearingHouse</SectionHeading>
-            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-              The ClearingHouse is the single entry point for all trading activity. It manages user positions, enforces margin requirements, routes fees, and coordinates liquidations. No funds flow directly through it — it delegates custody to the CollateralVault and execution to the vAMM.
-            </p>
-
-            <Card className="mb-4">
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-0">Key Concepts</p>
-              </div>
-              <ConceptRow label="Positions">
-                Each user has one isolated position per market, stored as <code className="text-[10px] font-mono text-zinc-300">PositionView</code>: size, margin, entry price, and a funding accumulator snapshot.
-              </ConceptRow>
-              <ConceptRow label="Margin">
-                Reserved margin is tracked globally per user across all active markets. Withdrawals are blocked if they would leave any position under-margined.
-              </ConceptRow>
-              <ConceptRow label="IMR / MMR">
-                <strong className="text-zinc-200">Initial Margin Ratio</strong> (default 5%) is enforced on open or increase. <strong className="text-zinc-200">Maintenance Margin Ratio</strong> (default 2.5%) determines the liquidation threshold. Both are set per market in basis points.
-              </ConceptRow>
-              <ConceptRow label="Funding">
-                Funding must be settled before any position modification. It is calculated by the vAMM and applied as a positive or negative cash adjustment to the user's margin.
-              </ConceptRow>
-              <ConceptRow label="Liquidation">
-                Full liquidation only — no partial. A whitelisted liquidator closes the position, takes a reward, and any shortfall is covered by the InsuranceFund.
-              </ConceptRow>
-            </Card>
-
-            <Card>
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Core Functions</p>
-              </div>
-              <FnRow
-                name="deposit"
-                params="token, amount"
-                desc="Deposits an ERC20 token into the CollateralVault on behalf of the caller. The vault records the balance; the ClearingHouse emits a collateralDeposited event."
-              />
-              <FnRow
-                name="withdraw"
-                params="token, amount"
-                desc="Withdraws collateral, but only if the user's remaining vault balance still covers all reserved margin across every active market. Checks all positions for post-withdrawal liquidatability."
-              />
-              <FnRow
-                name="openPosition"
-                params="marketId, isLong, size, margin"
-                desc="Opens a new perpetual position (or increases an existing one). Settles any pending funding, checks IMR, pulls margin into reserve, then calls the vAMM to execute the swap."
-              />
-              <FnRow
-                name="closePosition"
-                params="marketId"
-                desc="Closes the caller's entire position in the given market. Settles funding, executes the inverse swap on the vAMM, realizes PnL, and releases reserved margin back to the vault."
-              />
-              <FnRow
-                name="addMargin"
-                params="marketId, amount"
-                desc="Adds extra margin to an existing position without changing its size, reducing leverage and improving the liquidation price."
-              />
-              <FnRow
-                name="removeMargin"
-                params="marketId, amount"
-                desc="Withdraws excess margin from a position, provided IMR is still satisfied after removal."
-              />
-              <FnRow
-                name="liquidate"
-                params="account, marketId"
-                desc="Callable only by whitelisted liquidators. Closes an under-margined position, distributes the liquidation penalty between the liquidator and the FeeRouter, and covers any bad debt via the InsuranceFund."
-              />
-              <FnRow
-                name="setRiskParams"
-                params="marketId, MarketRiskParams"
-                desc="Admin function. Configures IMR, MMR, liquidation penalty BPS, penalty cap, and position size limits for a market."
-              />
-              <FnRow
-                name="setVault"
-                params="newVault"
-                desc="Admin function. Migrates the protocol to a new CollateralVault address (e.g., after a vault upgrade)."
-              />
-            </Card>
-          </section>
-
-          {/* ── 02 vAMM ──────────────────────────────────────────────────── */}
-          <section id="vamm" className="scroll-mt-24">
-            <SectionHeading number="02" icon={BarChart2}>vAMM</SectionHeading>
-            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-              One vAMM is deployed per market. It holds virtual reserves — no real tokens — and uses Uniswap V2 constant-product math (<code className="text-[10px] font-mono text-zinc-300">x × y = k</code>) to determine trade prices. It also maintains a TWAP for funding rate calculations.
-            </p>
-
-            <Card className="mb-4">
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Key Concepts</p>
-              </div>
-              <ConceptRow label="Reserves">
-                <code className="text-[10px] font-mono text-zinc-300">reserveBase</code> (X) and <code className="text-[10px] font-mono text-zinc-300">reserveQuote</code> (Y) are the virtual liquidity pools. Price = Y / X. Trades move both reserves while preserving k = X × Y.
-              </ConceptRow>
-              <ConceptRow label="Fee on Input">
-                A configurable fee (in BPS, e.g. 10 = 0.1%) is deducted from the input token before the swap is computed. Fees accumulate via a fee-growth-global accounting similar to Uniswap V3.
-              </ConceptRow>
-              <ConceptRow label="TWAP">
-                A 64-slot ring buffer of <code className="text-[10px] font-mono text-zinc-300">(timestamp, priceCumulativeX128)</code> observations provides a time-weighted average price. The default window is 1 hour.
-              </ConceptRow>
-              <ConceptRow label="Funding Rate">
-                Each <code className="text-[10px] font-mono text-zinc-300">pokeFunding</code> call computes (vAMM TWAP − Oracle price) / Oracle price, clamps it to the per-hour limit, scales by <code className="text-[10px] font-mono text-zinc-300">kFundingX18</code>, and accumulates it into <code className="text-[10px] font-mono text-zinc-300">_cumulativeFundingPerUnitX18</code>.
-              </ConceptRow>
-              <ConceptRow label="Reserve Protection">
-                Minimum reserve floors (<code className="text-[10px] font-mono text-zinc-300">minReserveBase</code>, <code className="text-[10px] font-mono text-zinc-300">minReserveQuote</code>) prevent total reserve depletion. Price change on <code className="text-[10px] font-mono text-zinc-300">resetReserves</code> is capped at 10% (1000 BPS).
-              </ConceptRow>
-            </Card>
-
-            <Card>
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Core Functions</p>
-              </div>
-              <FnRow
-                name="swap"
-                params="isLong, size"
-                returns="baseDelta, quoteDelta"
-                desc="Called only by ClearingHouse. Executes a virtual buy (isLong=true) or sell (isLong=false), applies the fee on input, updates reserves, records a TWAP observation, and returns the base and quote deltas."
-              />
-              <FnRow
-                name="pokeFunding"
-                returns="fundingRateX18"
-                desc="Computes the latest funding rate from TWAP vs oracle, updates the cumulative funding accumulator, and emits a FundingPoked event. Can be called by anyone; ClearingHouse calls it before every position mutation."
-              />
-              <FnRow
-                name="getFundingPayment"
-                params="size, entryFundingAccX18"
-                returns="int256 payment"
-                desc="Returns the unsettled funding payment for a position of the given size that was opened when the accumulator was at entryFundingAccX18."
-              />
-              <FnRow
-                name="getTWAP"
-                params="window (seconds)"
-                returns="uint256 priceX18"
-                desc="Returns the time-weighted average price over the requested window using the ring-buffer observations."
-              />
-              <FnRow
-                name="getMarkPrice"
-                returns="uint256 priceX18"
-                desc="Returns the current instantaneous mark price (reserveQuote / reserveBase)."
-              />
-              <FnRow
-                name="resetReserves"
-                params="newBaseReserve, newQuoteReserve"
-                desc="Owner-only. Re-initializes the reserves (e.g. after a large oracle divergence), subject to the 10% max price change guard."
-              />
-              <FnRow
-                name="setParams"
-                params="feeBps, frMaxBpsPerHour, kFundingX18, observationWindow"
-                desc="Owner-only. Updates the fee rate, funding rate clamp, funding scaling factor, and TWAP observation window."
-              />
-            </Card>
-          </section>
-
-          {/* ── 03 CollateralVault ───────────────────────────────────────── */}
-          <section id="collateralvault" className="scroll-mt-24">
-            <SectionHeading number="03" icon={Landmark}>CollateralVault</SectionHeading>
-            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-              The CollateralVault is the sole custodian of user funds. It supports multiple ERC20 collateral tokens, each with independent risk parameters (haircut, deposit cap, pause flag). Only the ClearingHouse can initiate outflows.
-            </p>
-
-            <Card className="mb-4">
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Key Concepts</p>
-              </div>
-              <ConceptRow label="Collateral Config">
-                Each registered token has a <code className="text-[10px] font-mono text-zinc-300">CollateralConfig</code>: oracle symbol, haircut BPS (discount applied to value), deposit cap, decimals, and a per-token pause flag.
-              </ConceptRow>
-              <ConceptRow label="Haircut">
-                A haircut (e.g. 10%) reduces the value credited to the user. A 1 WETH deposit at $2000 with a 10% haircut counts as $1800 of margin capacity.
-              </ConceptRow>
-              <ConceptRow label="Fee-on-Transfer">
-                Deposits use the balance-delta pattern: actual received = <code className="text-[10px] font-mono text-zinc-300">balanceAfter − balanceBefore</code>. This handles fee-on-transfer tokens correctly.
-              </ConceptRow>
-              <ConceptRow label="Valuation">
-                <code className="text-[10px] font-mono text-zinc-300">getAccountCollateralValueX18</code> iterates all registered tokens, prices each via the Oracle, applies the haircut, and sums to a single WAD value.
-              </ConceptRow>
-            </Card>
-
-            <Card>
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Core Functions</p>
-              </div>
-              <FnRow
-                name="deposit"
-                params="token, amount, user"
-                desc="Transfers token from user to vault using balance-delta accounting. Records the actual received amount in userBalances[user][token]."
-              />
-              <FnRow
-                name="withdrawFor"
-                params="token, amount, user"
-                returns="received"
-                desc="ClearingHouse-only. Transfers the requested amount to the user and returns the actual amount sent (handles fee-on-transfer tokens)."
-              />
-              <FnRow
-                name="seize"
-                params="token, amount, from, to"
-                desc="ClearingHouse-only. Moves funds from one user's balance to another (used during liquidation to transfer margin to the liquidator)."
-              />
-              <FnRow
-                name="sweepFees"
-                params="token, to"
-                desc="ClearingHouse-only. Transfers accumulated protocol fees for a token to the given address."
-              />
-              <FnRow
-                name="getAccountCollateralValueX18"
-                params="user"
-                returns="uint256 valueX18"
-                desc="Returns the total haircut-adjusted USD value of all collateral held by the user, in WAD precision."
-              />
-              <FnRow
-                name="registerCollateral"
-                params="token, CollateralConfig"
-                desc="Admin function. Whitelists a new ERC20 token as accepted collateral and sets its risk parameters."
-              />
-              <FnRow
-                name="updateCollateralConfig"
-                params="token, CollateralConfig"
-                desc="Admin function. Updates the risk parameters for an already-registered collateral token."
-              />
-            </Card>
-          </section>
-
-          {/* ── 04 MarketRegistry ────────────────────────────────────────── */}
-          <section id="marketregistry" className="scroll-mt-24">
-            <SectionHeading number="04" icon={BookOpen}>MarketRegistry</SectionHeading>
-            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-              The MarketRegistry is the source of truth for every listed market. It stores the vAMM address, oracle address, fee router, insurance fund, and trade-fee configuration for each <code className="text-[10px] font-mono text-zinc-300">bytes32 marketId</code>.
-            </p>
-
-            <Card className="mb-4">
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Roles</p>
-              </div>
-              <ConceptRow label="MARKET_ADMIN">Adds new markets and re-enables paused ones.</ConceptRow>
-              <ConceptRow label="PARAM_ADMIN">Updates fee parameters on existing markets.</ConceptRow>
-              <ConceptRow label="PAUSE_GUARDIAN">Pauses markets quickly without full admin rights. Trade fee is capped at 3% (300 BPS).</ConceptRow>
-            </Card>
-
-            <Card>
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Core Functions</p>
-              </div>
-              <FnRow
-                name="addMarket"
-                params="AddMarketConfig"
-                desc="Registers a new perpetual market. Config includes: marketId, vamm, oracle, feeRouter, insuranceFund, baseAsset, quoteAsset, baseSymbol, feeBps, and a paused flag. marketId must be unique."
-              />
-              <FnRow
-                name="updateMarketParams"
-                params="marketId, feeBps"
-                desc="PARAM_ADMIN only. Updates the trade fee for an existing market (capped at 300 BPS)."
-              />
-              <FnRow
-                name="setMarketPaused"
-                params="marketId, paused"
-                desc="PAUSE_GUARDIAN or MARKET_ADMIN. Pauses or resumes trading on a market."
-              />
-              <FnRow
-                name="getMarket"
-                params="marketId"
-                returns="Market"
-                desc="Returns the full Market struct: vamm, oracle, feeRouter, insuranceFund, baseAsset, quoteAsset, feeBps, paused status, and symbol."
-              />
-            </Card>
-          </section>
-
-          {/* ── 05 FeeRouter ─────────────────────────────────────────────── */}
-          <section id="feerouter" className="scroll-mt-24">
-            <SectionHeading number="05" icon={ArrowLeftRight}>FeeRouter</SectionHeading>
-            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-              One FeeRouter is deployed per quote token. When ClearingHouse collects a trade fee or liquidation penalty, it transfers the tokens to the FeeRouter and then calls the appropriate routing hook. The router splits the amount between the InsuranceFund and a treasury address according to governance-set BPS splits.
-            </p>
-
-            <Card className="mb-4">
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Key Concepts</p>
-              </div>
-              <ConceptRow label="tradeToFundBps">Fraction of trade fees sent to the InsuranceFund (e.g. 5000 = 50%). The remainder goes to treasury.</ConceptRow>
-              <ConceptRow label="liqToFundBps">Fraction of liquidation penalties sent to InsuranceFund. Remainder goes to treasury.</ConceptRow>
-              <ConceptRow label="Treasury">The <code className="text-[10px] font-mono text-zinc-300">treasuryAdmin</code> address can pull accumulated treasury share at any time via <code className="text-[10px] font-mono text-zinc-300">withdrawTreasury</code>.</ConceptRow>
-            </Card>
-
-            <Card>
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Core Functions</p>
-              </div>
-              <FnRow
-                name="onTradeFee"
-                params="amount"
-                desc="ClearingHouse-only. Routes the given amount: sends tradeToFundBps fraction to InsuranceFund (via onFeeReceived), retains the rest as treasury."
-              />
-              <FnRow
-                name="onLiquidationPenalty"
-                params="amount"
-                desc="ClearingHouse-only. Routes the liquidation penalty using the liqToFundBps split."
-              />
-              <FnRow
-                name="withdrawTreasury"
-                params="to, amount"
-                desc="Treasury admin only. Withdraws accumulated treasury share to the specified address."
-              />
-              <FnRow
-                name="setSplits"
-                params="tradeToFundBps, liqToFundBps"
-                desc="Owner only. Updates the fee split ratios (each capped at 10000 BPS)."
-              />
-            </Card>
-          </section>
-
-          {/* ── 06 InsuranceFund ─────────────────────────────────────────── */}
-          <section id="insurancefund" className="scroll-mt-24">
-            <SectionHeading number="06" icon={ShieldCheck}>InsuranceFund</SectionHeading>
-            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-              The InsuranceFund is a single-token ERC20 reserve that absorbs bad debt from liquidations. It receives a share of all trade fees and liquidation penalties. When a liquidation results in a shortfall, ClearingHouse calls <code className="text-[10px] font-mono text-zinc-300">payBadDebt</code> and the fund pays what it can without reverting.
-            </p>
-
-            <Card className="mb-4">
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Key Concepts</p>
-              </div>
-              <ConceptRow label="Graceful Degradation">
-                If the fund cannot cover the full bad debt, it pays the available balance and ClearingHouse records the remaining shortfall as <code className="text-[10px] font-mono text-zinc-300">totalBadDebt</code> — it never reverts a liquidation.
-              </ConceptRow>
-              <ConceptRow label="Authorization">
-                Only registered routers can push fees (<code className="text-[10px] font-mono text-zinc-300">onFeeReceived</code>). Only authorized modules (ClearingHouse) can request payouts (<code className="text-[10px] font-mono text-zinc-300">payBadDebt</code>).
-              </ConceptRow>
-              <ConceptRow label="Pull Pattern">
-                <code className="text-[10px] font-mono text-zinc-300">onFeeReceived</code> uses a balance-delta check to verify actual token receipt, preventing spoofed accounting.
-              </ConceptRow>
-            </Card>
-
-            <Card>
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Core Functions</p>
-              </div>
-              <FnRow
-                name="onFeeReceived"
-                params="amount"
-                desc="Called by an authorized FeeRouter after transferring tokens. Verifies receipt via balance delta and updates internal accounting."
-              />
-              <FnRow
-                name="payBadDebt"
-                params="amount, recipient"
-                returns="uint256 paid"
-                desc="Called by ClearingHouse during liquidation. Transfers min(balance, amount) to the recipient and returns the actual amount paid."
-              />
-              <FnRow
-                name="addRouter"
-                params="router"
-                desc="Owner only. Authorizes a FeeRouter to push fees into the fund."
-              />
-              <FnRow
-                name="addAuthorized"
-                params="module"
-                desc="Owner only. Authorizes a module (e.g. ClearingHouse) to request bad-debt payouts."
-              />
-              <FnRow
-                name="balance"
-                returns="uint256"
-                desc="Returns the current token balance of the fund."
-              />
-            </Card>
-          </section>
-
-          {/* ── 07 Oracle System ─────────────────────────────────────────── */}
-          <section id="oracle" className="scroll-mt-24">
-            <SectionHeading number="07" icon={Cpu}>Oracle System</SectionHeading>
-            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-              ByteStrike uses a layered oracle design. Chainlink feeds back ETH and major assets; a custom <strong className="text-zinc-200">CuOracle</strong> provides GPU compute prices via a commit-reveal scheme to prevent sandwich attacks.
-            </p>
-
-            <div className="space-y-3 mb-4">
-              <Card>
-                <div className="p-4 border-b border-zinc-800/50">
-                  <div className="flex items-center gap-2">
-                    <Circle size={8} className="fill-blue-400 text-blue-400" />
-                    <p className="text-xs font-bold text-white">Oracle.sol — Chainlink Wrapper</p>
-                  </div>
-                </div>
-                <div>
-                  <ConceptRow label="Purpose">Wraps Chainlink AggregatorV3 feeds. Validates staleness (max age configurable), checks for zero/negative prices, and returns a WAD-scaled price by symbol string.</ConceptRow>
-                  <FnRow
-                    name="getPrice"
-                    params="symbol"
-                    returns="uint256 priceX18"
-                    desc="Looks up the registered Chainlink feed for the symbol, reads latestRoundData, applies staleness check, and returns the price in 1e18 precision."
-                  />
-                  <FnRow
-                    name="setFeed"
-                    params="symbol, feedAddress, maxAge"
-                    desc="Admin only. Registers or updates a Chainlink aggregator feed for a given symbol string."
-                  />
-                </div>
-              </Card>
-
-              <Card>
-                <div className="p-4 border-b border-zinc-800/50">
-                  <div className="flex items-center gap-2">
-                    <Circle size={8} className="fill-purple-400 text-purple-400" />
-                    <p className="text-xs font-bold text-white">CuOracle.sol — Commit-Reveal GPU Price Oracle</p>
-                  </div>
-                </div>
-                <div>
-                  <ConceptRow label="Commit-Reveal">
-                    The operator first commits <code className="text-[10px] font-mono text-zinc-300">keccak256(price, nonce)</code> and later reveals the price+nonce in a separate transaction. A minimum delay between commit and reveal (configurable) prevents front-running.
-                  </ConceptRow>
-                  <ConceptRow label="Assets">
-                    Supports multiple GPU asset IDs (e.g. <code className="text-[10px] font-mono text-zinc-300">H100</code>, <code className="text-[10px] font-mono text-zinc-300">H200</code>). Each asset must be registered before use.
-                  </ConceptRow>
-                  <FnRow
-                    name="commitPrice"
-                    params="assetId, commitHash"
-                    desc="Stores the price commitment hash for an asset. Enforces minimum time between commits for the same asset."
-                  />
-                  <FnRow
-                    name="revealPrice"
-                    params="assetId, price, nonce"
-                    desc="Validates the reveal against the stored commit hash (after the required delay). Updates the latest price and timestamp on success."
-                  />
-                  <FnRow
-                    name="getPrice"
-                    params="assetId"
-                    returns="uint256 priceX18, uint256 updatedAt"
-                    desc="Returns the latest revealed price and its timestamp. Reverts if the asset is not registered or has no price."
-                  />
-                </div>
-              </Card>
-
-              <Card>
-                <div className="p-4 border-b border-zinc-800/50">
-                  <div className="flex items-center gap-2">
-                    <Circle size={8} className="fill-emerald-400 text-emerald-400" />
-                    <p className="text-xs font-bold text-white">MultiAssetOracle.sol — Aggregated Price Source</p>
-                  </div>
-                </div>
-                <div>
-                  <ConceptRow label="Purpose">
-                    Aggregates prices from multiple underlying oracle sources (Chainlink feeds, CuOracle) into a single contract with a unified <code className="text-[10px] font-mono text-zinc-300">getPrice(symbol)</code> interface. Supports per-symbol source configuration.
-                  </ConceptRow>
-                  <FnRow
-                    name="getPrice"
-                    params="symbol"
-                    returns="uint256 priceX18"
-                    desc="Routes the price query to the registered source for the given symbol and returns the WAD-scaled result."
-                  />
-                </div>
-              </Card>
-            </div>
-
-            <CardAccent color="amber">
-              <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                <strong className="text-amber-200">CuOracleAdapter</strong> and <strong className="text-amber-200">MultiAssetOracleAdapter</strong> are thin wrappers that implement the <code className="text-[10px] font-mono text-amber-200">IOracle</code> interface, allowing any oracle variant to plug into the ClearingHouse and CollateralVault without contract changes.
+            {/* Dependency graph */}
+            <div className="bg-[#0d0d14] border border-zinc-800 rounded-lg p-5 mb-6 font-mono text-sm leading-7">
+              <p className="text-xs text-zinc-600 uppercase tracking-wider mb-4">
+                Dependency Graph
               </p>
-            </CardAccent>
-          </section>
+              <div className="text-zinc-400 space-y-0.5">
+                <div>
+                  <span className="text-white font-semibold">ClearingHouse</span>
+                  <span className="text-zinc-600 ml-2">— UUPS Proxy, central orchestrator</span>
+                </div>
+                <div className="ml-4">
+                  ├── <span className="text-zinc-200">CollateralVault</span>
+                  <span className="text-zinc-600 ml-2">— multi-token collateral custody</span>
+                </div>
+                <div className="ml-4">
+                  ├── <span className="text-zinc-200">MarketRegistry</span>
+                  <span className="text-zinc-600 ml-2">— market config &amp; routing</span>
+                </div>
+                <div className="ml-4">
+                  ├── <span className="text-zinc-200">vAMM</span>
+                  <span className="text-zinc-600 ml-2">— one per market, constant-product AMM</span>
+                </div>
+                <div className="ml-4">
+                  ├── <span className="text-zinc-200">FeeRouter</span>
+                  <span className="text-zinc-600 ml-2">— splits fees per quote token</span>
+                </div>
+                <div className="ml-4">
+                  └── <span className="text-zinc-200">InsuranceFund</span>
+                  <span className="text-zinc-600 ml-2">— bad-debt backstop</span>
+                </div>
+              </div>
+            </div>
 
-          {/* ── 08 Calculations Library ──────────────────────────────────── */}
-          <section id="calculations" className="scroll-mt-24">
-            <SectionHeading number="08" icon={Calculator}>Calculations Library</SectionHeading>
-            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-              A pure Solidity library providing overflow-safe fixed-point arithmetic at 1e18 (WAD) precision. Used by ClearingHouse and vAMM for all price and value math.
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Note color="blue" label="Upgradeability">
+                ClearingHouse and vAMM are UUPS upgradeable proxies. All other contracts are
+                non-upgradeable and replaced by redeployment when changes are needed.
+              </Note>
+              <Note color="green" label="Precision">
+                All internal values use 1e18 (WAD) precision. Token↔WAD conversions occur
+                only at the boundaries of external calls.
+              </Note>
+            </div>
+          </motion.section>
+
+          {/* ── 01 ClearingHouse ───────────────────────────────────────── */}
+          <motion.section id="clearinghouse" className="scroll-mt-20" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-60px" }}>
+            <H2>ClearingHouse</H2>
+            <Rule />
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              The single entry point for all trading activity. Manages user positions, enforces
+              margin requirements, routes fees, and coordinates liquidations. Delegates fund
+              custody to CollateralVault and trade execution to each market's vAMM.
             </p>
 
-            <Card>
-              <div className="p-4 border-b border-zinc-800/50">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Functions</p>
-              </div>
-              <FnRow
-                name="mul"
-                params="a, b"
-                returns="(a × b) / 1e18"
-                desc="Multiplies two WAD numbers. Checks for overflow before multiplying, then divides by 1e18 to restore WAD scale."
-              />
-              <FnRow
-                name="div"
-                params="a, b"
-                returns="(a × 1e18) / b"
-                desc="Divides two WAD numbers. Scales the numerator by 1e18 first, then divides. Reverts on division by zero or overflow."
-              />
-              <FnRow
-                name="mulDiv"
-                params="a, b, denominator"
-                returns="(a × b) / denominator"
-                desc="Full-precision multiply-then-divide using 512-bit intermediate arithmetic. Used for price cumulative calculations in the TWAP."
-              />
-              <FnRow
-                name="sqrt"
-                params="x"
-                returns="uint256"
-                desc="Integer square root via Newton-Raphson iteration. Used for initial reserve seeding."
-              />
-              <FnRow
-                name="toWad"
-                params="a"
-                returns="a × 1e18"
-                desc="Converts a plain integer to WAD precision. Reverts on overflow."
-              />
-              <FnRow
-                name="fromWad"
-                params="a"
-                returns="a / 1e18"
-                desc="Converts a WAD number back to a plain integer (truncates fractional part)."
-              />
-            </Card>
+            <H3>Key Concepts</H3>
+            <TermTable>
+              <Term term="PositionView">
+                Per-user, per-market struct: size, margin, entry price, and a funding
+                accumulator snapshot.
+              </Term>
+              <Term term="Reserved Margin">
+                Tracked globally per user across all active markets. Withdrawals are blocked
+                if they would leave any position under-margined.
+              </Term>
+              <Term term="IMR / MMR">
+                Initial Margin Ratio (default 5%) is enforced on open or increase. Maintenance
+                Margin Ratio (default 2.5%) is the liquidation threshold. Both are configured
+                per market in basis points.
+              </Term>
+              <Term term="Funding">
+                Settled before any position mutation. The vAMM computes the payment;
+                ClearingHouse applies it as a signed cash adjustment to the user's margin.
+              </Term>
+              <Term term="Liquidation">
+                Full-position only — no partial liquidations. Whitelisted liquidators close
+                the position, take a reward, and any shortfall is covered by InsuranceFund.
+              </Term>
+            </TermTable>
 
-            <div className="mt-4">
-              <CardAccent color="purple">
-                <p className="text-[10px] font-bold text-purple-300 uppercase tracking-wider mb-1">Design Note</p>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  All arithmetic reverts on overflow/underflow rather than wrapping. There are no unchecked blocks — correctness is favored over gas savings at the library level.
-                </p>
-              </CardAccent>
+            <H3>Functions</H3>
+
+            <FnBlock
+              signature="deposit(address token, uint256 amount)"
+              description="Deposits an ERC20 token into the CollateralVault on behalf of the caller. The vault records the balance; ClearingHouse emits a collateralDeposited event."
+              params={[
+                { name: "token",  type: "address", desc: "Address of the ERC20 collateral token." },
+                { name: "amount", type: "uint256", desc: "Amount to deposit in token decimals." },
+              ]}
+            />
+
+            <FnBlock
+              signature="withdraw(address token, uint256 amount)"
+              description="Withdraws collateral. Checks that the remaining vault balance still covers all reserved margin across every active position. Reverts if withdrawal would leave any position liquidatable."
+              params={[
+                { name: "token",  type: "address", desc: "Collateral token to withdraw." },
+                { name: "amount", type: "uint256", desc: "Amount to withdraw in token decimals." },
+              ]}
+            />
+
+            <FnBlock
+              signature="openPosition(bytes32 marketId, bool isLong, uint256 size, uint256 margin)"
+              description="Opens or increases a perpetual position. Settles pending funding, verifies IMR, pulls margin into reserve, then calls the vAMM to execute the virtual swap."
+              params={[
+                { name: "marketId", type: "bytes32", desc: "Unique market identifier from MarketRegistry." },
+                { name: "isLong",   type: "bool",    desc: "true for long, false for short."               },
+                { name: "size",     type: "uint256", desc: "Position size in WAD (1e18 = 1 unit)."         },
+                { name: "margin",   type: "uint256", desc: "Margin to allocate in WAD."                    },
+              ]}
+            />
+
+            <FnBlock
+              signature="closePosition(bytes32 marketId)"
+              description="Closes the caller's entire position in the given market. Settles funding, executes the inverse swap on the vAMM, realizes PnL, and releases reserved margin back to the vault."
+              params={[
+                { name: "marketId", type: "bytes32", desc: "Market to close the position in." },
+              ]}
+            />
+
+            <FnBlock
+              signature="addMargin(bytes32 marketId, uint256 amount)"
+              description="Adds margin to an existing position without changing its size, reducing leverage and improving the liquidation price."
+              params={[
+                { name: "marketId", type: "bytes32", desc: "Target market."               },
+                { name: "amount",   type: "uint256", desc: "Additional margin in WAD."    },
+              ]}
+            />
+
+            <FnBlock
+              signature="removeMargin(bytes32 marketId, uint256 amount)"
+              description="Withdraws excess margin from a position. Reverts if IMR would be violated after removal."
+              params={[
+                { name: "marketId", type: "bytes32", desc: "Target market."            },
+                { name: "amount",   type: "uint256", desc: "Margin to remove in WAD."  },
+              ]}
+            />
+
+            <FnBlock
+              signature="liquidate(address account, bytes32 marketId)"
+              description="Whitelisted-liquidator only. Closes an under-margined position, distributes the liquidation penalty to the liquidator and FeeRouter, and covers any bad debt via InsuranceFund."
+              params={[
+                { name: "account",  type: "address", desc: "Address of the account to liquidate."               },
+                { name: "marketId", type: "bytes32", desc: "Market in which to execute the liquidation."          },
+              ]}
+            />
+
+            <FnBlock
+              signature="setRiskParams(bytes32 marketId, MarketRiskParams calldata params)"
+              description="Admin. Configures IMR, MMR, liquidation penalty BPS, penalty cap, and position size limits for a market."
+              params={[
+                { name: "marketId", type: "bytes32",          desc: "Target market."                                                         },
+                { name: "params",   type: "MarketRiskParams", desc: "Struct: IMR, MMR, penalty BPS, penalty cap, and max position size."      },
+              ]}
+            />
+          </motion.section>
+
+          {/* ── 02 vAMM ────────────────────────────────────────────────── */}
+          <motion.section id="vamm" className="scroll-mt-20" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-60px" }}>
+            <H2>vAMM</H2>
+            <Rule />
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              One vAMM is deployed per market. It holds virtual reserves — no real tokens —
+              and uses Uniswap V2 constant-product math (<C>x × y = k</C>) to determine trade
+              prices. It also maintains a TWAP used by the funding rate calculation.
+            </p>
+
+            <H3>Key Concepts</H3>
+            <TermTable>
+              <Term term="reserveBase / reserveQuote">
+                Virtual liquidity pools (X, Y). Price&nbsp;=&nbsp;Y&nbsp;/&nbsp;X. Trades
+                shift both reserves while preserving k&nbsp;=&nbsp;X&nbsp;×&nbsp;Y.
+              </Term>
+              <Term term="Fee on Input">
+                Configurable BPS fee deducted from the input token before the swap is
+                computed. Accumulated via a fee-growth-global counter.
+              </Term>
+              <Term term="TWAP">
+                64-slot ring buffer of <C>(timestamp, priceCumulativeX128)</C> observations.
+                Default observation window: 1 hour.
+              </Term>
+              <Term term="Funding Rate">
+                (vAMM TWAP − Oracle price) / Oracle price, clamped to a per-hour limit,
+                scaled by <C>kFundingX18</C>, and accumulated into{" "}
+                <C>_cumulativeFundingPerUnitX18</C>.
+              </Term>
+              <Term term="Reserve Floors">
+                <C>minReserveBase</C> and <C>minReserveQuote</C> prevent total reserve
+                depletion. Price change on <C>resetReserves</C> is capped at 10%.
+              </Term>
+            </TermTable>
+
+            <H3>Functions</H3>
+
+            <FnBlock
+              signature="swap(bool isLong, uint256 size)"
+              returns="(int256 baseDelta, int256 quoteDelta)"
+              description="ClearingHouse-only. Executes a virtual buy (isLong=true) or sell (isLong=false), applies the fee on input, updates reserves, records a TWAP observation, and returns the base and quote deltas."
+              params={[
+                { name: "isLong", type: "bool",    desc: "Direction: true = long (buy base), false = short (sell base)." },
+                { name: "size",   type: "uint256", desc: "Trade size in WAD."                                            },
+              ]}
+            />
+
+            <FnBlock
+              signature="pokeFunding()"
+              returns="int256 fundingRateX18"
+              description="Computes the latest funding rate from TWAP vs oracle, updates the cumulative funding accumulator, and emits FundingPoked. Can be called by anyone; ClearingHouse calls it before every position mutation."
+            />
+
+            <FnBlock
+              signature="getFundingPayment(int256 size, int256 entryFundingAccX18)"
+              returns="int256 payment"
+              description="Returns the unsettled funding payment for a position that was opened when the accumulator was at entryFundingAccX18."
+              params={[
+                { name: "size",               type: "int256", desc: "Position size in WAD (positive = long, negative = short)." },
+                { name: "entryFundingAccX18", type: "int256", desc: "Cumulative funding accumulator value at position open."     },
+              ]}
+            />
+
+            <FnBlock
+              signature="getTWAP(uint32 window)"
+              returns="uint256 priceX18"
+              description="Returns the time-weighted average price over the requested window using ring-buffer observations."
+              params={[
+                { name: "window", type: "uint32", desc: "Lookback window in seconds. Must not exceed the oldest observation age." },
+              ]}
+            />
+
+            <FnBlock
+              signature="getMarkPrice()"
+              returns="uint256 priceX18"
+              description="Returns the current instantaneous mark price (reserveQuote / reserveBase) in WAD precision."
+            />
+
+            <FnBlock
+              signature="resetReserves(uint256 newBaseReserve, uint256 newQuoteReserve)"
+              description="Owner-only. Re-initializes the virtual reserves (e.g. after a large oracle divergence), subject to the 10% max price change guard."
+              params={[
+                { name: "newBaseReserve",  type: "uint256", desc: "New base reserve in WAD."  },
+                { name: "newQuoteReserve", type: "uint256", desc: "New quote reserve in WAD." },
+              ]}
+            />
+
+            <FnBlock
+              signature="setParams(uint16 feeBps, uint16 frMaxBpsPerHour, int256 kFundingX18, uint32 observationWindow)"
+              description="Owner-only. Updates fee rate, funding rate clamp, funding scaling factor, and TWAP observation window."
+              params={[
+                { name: "feeBps",            type: "uint16",  desc: "Trade fee in basis points (e.g. 10 = 0.1%)."          },
+                { name: "frMaxBpsPerHour",   type: "uint16",  desc: "Max funding rate magnitude per hour in basis points."  },
+                { name: "kFundingX18",       type: "int256",  desc: "Funding scaling factor in WAD."                        },
+                { name: "observationWindow", type: "uint32",  desc: "TWAP window in seconds."                               },
+              ]}
+            />
+          </motion.section>
+
+          {/* ── 03 CollateralVault ─────────────────────────────────────── */}
+          <motion.section id="collateralvault" className="scroll-mt-20" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-60px" }}>
+            <H2>CollateralVault</H2>
+            <Rule />
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              Sole custodian of user funds. Supports multiple ERC20 collateral tokens, each
+              with independent risk parameters (haircut, deposit cap, pause flag). Only the
+              ClearingHouse can initiate outflows.
+            </p>
+
+            <H3>Key Concepts</H3>
+            <TermTable>
+              <Term term="CollateralConfig">
+                Per-token struct: oracle symbol, haircut BPS, deposit cap, decimals, and a
+                per-token pause flag.
+              </Term>
+              <Term term="Haircut">
+                Discount applied to collateral value. Example: 1 WETH at $2,000 with a 10%
+                haircut counts as $1,800 of margin capacity.
+              </Term>
+              <Term term="Fee-on-Transfer">
+                Deposits use balance-delta accounting:{" "}
+                <C>received = balanceAfter − balanceBefore</C>. Handles rebasing and
+                fee-on-transfer tokens correctly.
+              </Term>
+              <Term term="Valuation">
+                <C>getAccountCollateralValueX18</C> iterates all registered tokens, prices
+                each via the Oracle, applies the haircut, and sums to a single WAD value.
+              </Term>
+            </TermTable>
+
+            <H3>Functions</H3>
+
+            <FnBlock
+              signature="deposit(address token, uint256 amount, address user)"
+              description="Transfers token from user to vault using balance-delta accounting. Records the actual received amount in userBalances[user][token]."
+              params={[
+                { name: "token",  type: "address", desc: "ERC20 collateral token."              },
+                { name: "amount", type: "uint256", desc: "Amount in token decimals."            },
+                { name: "user",   type: "address", desc: "Account to credit the balance to."   },
+              ]}
+            />
+
+            <FnBlock
+              signature="withdrawFor(address token, uint256 amount, address user)"
+              returns="uint256 received"
+              description="ClearingHouse-only. Transfers the requested amount to the user and returns the actual amount sent (handles fee-on-transfer tokens)."
+              params={[
+                { name: "token",  type: "address", desc: "Collateral token to withdraw." },
+                { name: "amount", type: "uint256", desc: "Amount in token decimals."     },
+                { name: "user",   type: "address", desc: "Recipient address."            },
+              ]}
+            />
+
+            <FnBlock
+              signature="seize(address token, uint256 amount, address from, address to)"
+              description="ClearingHouse-only. Moves funds between user balances (used during liquidation to transfer margin to the liquidator)."
+              params={[
+                { name: "token",  type: "address", desc: "Token to transfer."    },
+                { name: "amount", type: "uint256", desc: "Amount in token decimals." },
+                { name: "from",   type: "address", desc: "Account to debit."     },
+                { name: "to",     type: "address", desc: "Account to credit."    },
+              ]}
+            />
+
+            <FnBlock
+              signature="sweepFees(address token, address to)"
+              description="ClearingHouse-only. Transfers accumulated protocol fees for a token to the given address."
+              params={[
+                { name: "token", type: "address", desc: "Fee token to sweep."       },
+                { name: "to",    type: "address", desc: "Recipient of the fees."    },
+              ]}
+            />
+
+            <FnBlock
+              signature="getAccountCollateralValueX18(address user)"
+              returns="uint256 valueX18"
+              description="Returns the total haircut-adjusted USD value of all collateral held by the user, in WAD precision."
+              params={[
+                { name: "user", type: "address", desc: "Account to value." },
+              ]}
+            />
+
+            <FnBlock
+              signature="registerCollateral(address token, CollateralConfig calldata config)"
+              description="Admin. Whitelists a new ERC20 token as accepted collateral and sets its risk parameters."
+              params={[
+                { name: "token",  type: "address",          desc: "Token to whitelist."                                                              },
+                { name: "config", type: "CollateralConfig", desc: "Struct with oracle symbol, haircut BPS, deposit cap, decimals, and pause flag."   },
+              ]}
+            />
+
+            <FnBlock
+              signature="updateCollateralConfig(address token, CollateralConfig calldata config)"
+              description="Admin. Updates the risk parameters for an already-registered collateral token."
+              params={[
+                { name: "token",  type: "address",          desc: "Token to update."                },
+                { name: "config", type: "CollateralConfig", desc: "New configuration parameters."   },
+              ]}
+            />
+          </motion.section>
+
+          {/* ── 04 MarketRegistry ──────────────────────────────────────── */}
+          <motion.section id="marketregistry" className="scroll-mt-20" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-60px" }}>
+            <H2>MarketRegistry</H2>
+            <Rule />
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              Source of truth for all listed markets. Stores the vAMM address, oracle, fee
+              router, insurance fund, and trade-fee configuration for each{" "}
+              <C>bytes32 marketId</C>.
+            </p>
+
+            <H3>Access Control</H3>
+            <TermTable>
+              <Term term="MARKET_ADMIN">Adds new markets and re-enables paused ones.</Term>
+              <Term term="PARAM_ADMIN">
+                Updates fee parameters on existing markets. Trade fee is capped at 300 BPS (3%).
+              </Term>
+              <Term term="PAUSE_GUARDIAN">
+                Pauses markets quickly without requiring full admin rights.
+              </Term>
+            </TermTable>
+
+            <H3>Functions</H3>
+
+            <FnBlock
+              signature="addMarket(AddMarketConfig calldata config)"
+              description="Registers a new perpetual market. marketId must be unique. Reverts if the marketId already exists."
+              params={[
+                { name: "config.marketId",      type: "bytes32", desc: "Unique market identifier."                              },
+                { name: "config.vamm",          type: "address", desc: "vAMM contract address for this market."                 },
+                { name: "config.oracle",        type: "address", desc: "Oracle contract address."                               },
+                { name: "config.feeRouter",     type: "address", desc: "FeeRouter contract address."                            },
+                { name: "config.insuranceFund", type: "address", desc: "InsuranceFund contract address."                        },
+                { name: "config.feeBps",        type: "uint16",  desc: "Trade fee in basis points (max 300)."                   },
+                { name: "config.paused",        type: "bool",    desc: "Whether the market starts in a paused state."           },
+              ]}
+            />
+
+            <FnBlock
+              signature="updateMarketParams(bytes32 marketId, uint16 feeBps)"
+              description="PARAM_ADMIN only. Updates the trade fee for an existing market."
+              params={[
+                { name: "marketId", type: "bytes32", desc: "Market to update."                          },
+                { name: "feeBps",   type: "uint16",  desc: "New fee in basis points (max 300)."         },
+              ]}
+            />
+
+            <FnBlock
+              signature="setMarketPaused(bytes32 marketId, bool paused)"
+              description="PAUSE_GUARDIAN or MARKET_ADMIN. Pauses or resumes trading on a market."
+              params={[
+                { name: "marketId", type: "bytes32", desc: "Target market."                   },
+                { name: "paused",   type: "bool",    desc: "true to pause, false to resume."  },
+              ]}
+            />
+
+            <FnBlock
+              signature="getMarket(bytes32 marketId)"
+              returns="Market"
+              description="Returns the full Market struct: vamm, oracle, feeRouter, insuranceFund, baseAsset, quoteAsset, feeBps, paused status, and symbol."
+              params={[
+                { name: "marketId", type: "bytes32", desc: "Market to query." },
+              ]}
+            />
+          </motion.section>
+
+          {/* ── 05 FeeRouter ───────────────────────────────────────────── */}
+          <motion.section id="feerouter" className="scroll-mt-20" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-60px" }}>
+            <H2>FeeRouter</H2>
+            <Rule />
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              One FeeRouter is deployed per quote token. When ClearingHouse collects a trade
+              fee or liquidation penalty, it transfers tokens to the router and calls the
+              appropriate routing hook. The router splits the amount between the InsuranceFund
+              and a treasury address according to governance-set BPS splits.
+            </p>
+
+            <H3>Key Concepts</H3>
+            <TermTable>
+              <Term term="tradeToFundBps">
+                Fraction of trade fees sent to InsuranceFund (e.g. 5000 = 50%). The remainder
+                is retained as treasury balance.
+              </Term>
+              <Term term="liqToFundBps">
+                Fraction of liquidation penalties sent to InsuranceFund. Remainder goes to
+                treasury.
+              </Term>
+              <Term term="Treasury">
+                The <C>treasuryAdmin</C> address can pull accumulated treasury balance at any
+                time via <C>withdrawTreasury</C>.
+              </Term>
+            </TermTable>
+
+            <H3>Functions</H3>
+
+            <FnBlock
+              signature="onTradeFee(uint256 amount)"
+              description="ClearingHouse-only. Routes the given amount: sends the tradeToFundBps fraction to InsuranceFund, retains the rest as treasury."
+              params={[
+                { name: "amount", type: "uint256", desc: "Total trade fee received in token units." },
+              ]}
+            />
+
+            <FnBlock
+              signature="onLiquidationPenalty(uint256 amount)"
+              description="ClearingHouse-only. Routes the liquidation penalty using the liqToFundBps split."
+              params={[
+                { name: "amount", type: "uint256", desc: "Total liquidation penalty in token units." },
+              ]}
+            />
+
+            <FnBlock
+              signature="withdrawTreasury(address to, uint256 amount)"
+              description="Treasury admin only. Withdraws accumulated treasury share to the specified address."
+              params={[
+                { name: "to",     type: "address", desc: "Recipient of the withdrawal." },
+                { name: "amount", type: "uint256", desc: "Amount to withdraw."          },
+              ]}
+            />
+
+            <FnBlock
+              signature="setSplits(uint16 tradeToFundBps, uint16 liqToFundBps)"
+              description="Owner only. Updates the fee split ratios. Each value is capped at 10000 BPS."
+              params={[
+                { name: "tradeToFundBps", type: "uint16", desc: "New trade fee split to InsuranceFund in basis points."              },
+                { name: "liqToFundBps",   type: "uint16", desc: "New liquidation penalty split to InsuranceFund in basis points."    },
+              ]}
+            />
+          </motion.section>
+
+          {/* ── 06 InsuranceFund ───────────────────────────────────────── */}
+          <motion.section id="insurancefund" className="scroll-mt-20" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-60px" }}>
+            <H2>InsuranceFund</H2>
+            <Rule />
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              Single-token ERC20 reserve that absorbs bad debt from liquidations. Receives a
+              share of all trade fees and liquidation penalties. When a liquidation results in
+              a shortfall, ClearingHouse calls <C>payBadDebt</C> and the fund pays what it can
+              without reverting the transaction.
+            </p>
+
+            <H3>Key Concepts</H3>
+            <TermTable>
+              <Term term="Graceful Degradation">
+                If the fund cannot cover the full bad debt, it pays the available balance.
+                ClearingHouse records the remaining shortfall as <C>totalBadDebt</C> —
+                liquidations never revert.
+              </Term>
+              <Term term="Authorization">
+                Only registered FeeRouters can push fees (<C>onFeeReceived</C>). Only
+                authorized modules (e.g. ClearingHouse) can request payouts (<C>payBadDebt</C>).
+              </Term>
+              <Term term="Balance-Delta Check">
+                <C>onFeeReceived</C> verifies actual token receipt via balance delta, preventing
+                spoofed accounting.
+              </Term>
+            </TermTable>
+
+            <H3>Functions</H3>
+
+            <FnBlock
+              signature="onFeeReceived(uint256 amount)"
+              description="Called by an authorized FeeRouter after transferring tokens. Verifies receipt via balance delta and updates internal accounting."
+              params={[
+                { name: "amount", type: "uint256", desc: "Expected fee amount. Verified against actual balance delta." },
+              ]}
+            />
+
+            <FnBlock
+              signature="payBadDebt(uint256 amount, address recipient)"
+              returns="uint256 paid"
+              description="Called by ClearingHouse during liquidation. Transfers min(balance, amount) to the recipient and returns the actual amount paid."
+              params={[
+                { name: "amount",    type: "uint256", desc: "Bad debt amount to cover."              },
+                { name: "recipient", type: "address", desc: "Address to send the payout to."         },
+              ]}
+            />
+
+            <FnBlock
+              signature="addRouter(address router)"
+              description="Owner only. Authorizes a FeeRouter to push fees into the fund."
+              params={[
+                { name: "router", type: "address", desc: "FeeRouter contract to authorize." },
+              ]}
+            />
+
+            <FnBlock
+              signature="addAuthorized(address module)"
+              description="Owner only. Authorizes a module (e.g. ClearingHouse) to request bad-debt payouts."
+              params={[
+                { name: "module", type: "address", desc: "Module contract to authorize." },
+              ]}
+            />
+
+            <FnBlock
+              signature="balance()"
+              returns="uint256"
+              description="Returns the current token balance held by the fund."
+            />
+          </motion.section>
+
+          {/* ── 07 Oracle System ───────────────────────────────────────── */}
+          <motion.section id="oracle" className="scroll-mt-20" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-60px" }}>
+            <H2>Oracle System</H2>
+            <Rule />
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              A layered oracle design. Chainlink feeds price ETH and major assets; a custom
+              CuOracle provides GPU compute prices via a commit-reveal scheme to prevent
+              front-running.
+            </p>
+
+            {/* Oracle.sol */}
+            <div className="mb-10">
+              <h3 className="text-sm font-semibold text-white mb-0.5">
+                Oracle.sol{" "}
+                <span className="font-normal text-zinc-500">— Chainlink Wrapper</span>
+              </h3>
+              <div className="w-6 h-px bg-zinc-800 mb-4" />
+              <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+                Wraps Chainlink AggregatorV3 feeds. Validates staleness (configurable max age),
+                rejects zero or negative prices, and returns WAD-scaled prices by symbol string.
+              </p>
+              <FnBlock
+                signature="getPrice(string calldata symbol)"
+                returns="uint256 priceX18"
+                description="Looks up the registered Chainlink feed for the symbol, reads latestRoundData, applies the staleness check, and returns the price in 1e18 precision."
+                params={[
+                  { name: "symbol", type: "string", desc: "Asset symbol (e.g. 'ETH', 'BTC')." },
+                ]}
+              />
+              <FnBlock
+                signature="setFeed(string calldata symbol, address feedAddress, uint256 maxAge)"
+                description="Admin only. Registers or updates a Chainlink AggregatorV3 feed for a given symbol."
+                params={[
+                  { name: "symbol",      type: "string",  desc: "Asset symbol to register."                                  },
+                  { name: "feedAddress", type: "address", desc: "Chainlink AggregatorV3 contract address."                   },
+                  { name: "maxAge",      type: "uint256", desc: "Maximum acceptable age of price data in seconds."           },
+                ]}
+              />
             </div>
-          </section>
+
+            {/* CuOracle.sol */}
+            <div className="mb-10">
+              <h3 className="text-sm font-semibold text-white mb-0.5">
+                CuOracle.sol{" "}
+                <span className="font-normal text-zinc-500">— Commit-Reveal GPU Price Oracle</span>
+              </h3>
+              <div className="w-6 h-px bg-zinc-800 mb-4" />
+              <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+                Provides GPU compute asset prices via a two-phase commit-reveal mechanism.
+                The operator first commits <C>keccak256(price, nonce)</C> then reveals in a
+                separate transaction after a mandatory delay, preventing front-running.
+              </p>
+              <FnBlock
+                signature="commitPrice(bytes32 assetId, bytes32 commitHash)"
+                description="Stores a price commitment hash for an asset. Enforces a minimum interval between commits for the same asset."
+                params={[
+                  { name: "assetId",    type: "bytes32", desc: "GPU asset identifier (e.g. keccak256('H100'))."           },
+                  { name: "commitHash", type: "bytes32", desc: "keccak256(abi.encode(price, nonce))."                     },
+                ]}
+              />
+              <FnBlock
+                signature="revealPrice(bytes32 assetId, uint256 price, bytes32 nonce)"
+                description="Validates the reveal against the stored commitment after the required delay. Updates the latest price and timestamp on success."
+                params={[
+                  { name: "assetId", type: "bytes32", desc: "GPU asset to update."                                       },
+                  { name: "price",   type: "uint256", desc: "Revealed price in WAD precision."                           },
+                  { name: "nonce",   type: "bytes32", desc: "Nonce used in the original commitment."                     },
+                ]}
+              />
+              <FnBlock
+                signature="getPrice(bytes32 assetId)"
+                returns="(uint256 priceX18, uint256 updatedAt)"
+                description="Returns the latest revealed price and its timestamp. Reverts if the asset has not been registered or has no revealed price yet."
+                params={[
+                  { name: "assetId", type: "bytes32", desc: "GPU asset to query." },
+                ]}
+              />
+            </div>
+
+            {/* MultiAssetOracle.sol */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-white mb-0.5">
+                MultiAssetOracle.sol{" "}
+                <span className="font-normal text-zinc-500">— Aggregated Price Source</span>
+              </h3>
+              <div className="w-6 h-px bg-zinc-800 mb-4" />
+              <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+                Aggregates prices from multiple underlying sources (Chainlink, CuOracle) into a
+                single contract with a unified interface. Per-symbol source configuration.
+              </p>
+              <FnBlock
+                signature="getPrice(string calldata symbol)"
+                returns="uint256 priceX18"
+                description="Routes the price query to the registered source for the given symbol and returns the WAD-scaled result."
+                params={[
+                  { name: "symbol", type: "string", desc: "Asset symbol to price." },
+                ]}
+              />
+            </div>
+
+            <Note color="amber" label="Adapter Pattern">
+              <C>CuOracleAdapter</C> and <C>MultiAssetOracleAdapter</C> are thin wrappers that
+              implement <C>IOracle</C>, allowing any oracle variant to plug into ClearingHouse
+              and CollateralVault without contract changes.
+            </Note>
+          </motion.section>
+
+          {/* ── 08 Calculations Library ────────────────────────────────── */}
+          <motion.section id="calculations" className="scroll-mt-20" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-60px" }}>
+            <H2>Calculations Library</H2>
+            <Rule />
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              Pure Solidity library providing overflow-safe fixed-point arithmetic at 1e18
+              (WAD) precision. Used by ClearingHouse and vAMM for all price and value math.
+            </p>
+
+            <H3>Functions</H3>
+
+            <FnBlock
+              signature="mul(uint256 a, uint256 b)"
+              returns="(a × b) / 1e18"
+              description="Multiplies two WAD numbers. Checks for overflow before multiplying, then divides by 1e18 to restore WAD scale."
+              params={[
+                { name: "a", type: "uint256", desc: "First WAD operand."  },
+                { name: "b", type: "uint256", desc: "Second WAD operand." },
+              ]}
+            />
+
+            <FnBlock
+              signature="div(uint256 a, uint256 b)"
+              returns="(a × 1e18) / b"
+              description="Divides two WAD numbers. Scales the numerator by 1e18 first, then divides. Reverts on division by zero or overflow."
+              params={[
+                { name: "a", type: "uint256", desc: "Numerator in WAD."   },
+                { name: "b", type: "uint256", desc: "Denominator in WAD." },
+              ]}
+            />
+
+            <FnBlock
+              signature="mulDiv(uint256 a, uint256 b, uint256 denominator)"
+              returns="(a × b) / denominator"
+              description="Full-precision multiply-then-divide using 512-bit intermediate arithmetic. Used for price cumulative calculations in the TWAP."
+              params={[
+                { name: "a",           type: "uint256", desc: "First multiplicand." },
+                { name: "b",           type: "uint256", desc: "Second multiplicand." },
+                { name: "denominator", type: "uint256", desc: "Divisor."            },
+              ]}
+            />
+
+            <FnBlock
+              signature="sqrt(uint256 x)"
+              returns="uint256"
+              description="Integer square root via Newton-Raphson iteration. Used for initial reserve seeding."
+              params={[
+                { name: "x", type: "uint256", desc: "Input value." },
+              ]}
+            />
+
+            <FnBlock
+              signature="toWad(uint256 a)"
+              returns="a × 1e18"
+              description="Converts a plain integer to WAD precision. Reverts on overflow."
+              params={[
+                { name: "a", type: "uint256", desc: "Plain integer to convert." },
+              ]}
+            />
+
+            <FnBlock
+              signature="fromWad(uint256 a)"
+              returns="a / 1e18"
+              description="Converts a WAD number back to a plain integer, truncating the fractional part."
+              params={[
+                { name: "a", type: "uint256", desc: "WAD value to convert." },
+              ]}
+            />
+
+            <div className="mt-6">
+              <Note color="purple" label="Design Note">
+                All arithmetic reverts on overflow/underflow rather than wrapping. There are no
+                unchecked blocks — correctness is favored over gas savings at the library level.
+              </Note>
+            </div>
+          </motion.section>
 
         </main>
       </div>

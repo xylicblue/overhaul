@@ -79,6 +79,12 @@ const blurFadeIn = {
   },
 };
 
+const dropdownVariants = {
+  hidden: { opacity: 0, y: -6, scale: 0.97 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.16, ease: "easeOut" } },
+  exit:   { opacity: 0, y: -4, scale: 0.97, transition: { duration: 0.12, ease: "easeIn" } },
+};
+
 /* ─── Animated Section Wrapper (trigger-once) ─── */
 const AnimatedSection = ({ children, className = "", variants = staggerContainer, ...props }) => {
   const ref = useRef(null);
@@ -138,6 +144,8 @@ const whyNowCardsData = [
 
 const LandingPage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [methodologyOpen, setMethodologyOpen] = useState(false);
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -158,6 +166,8 @@ const LandingPage = () => {
   const horizontalRef = useRef(null);
   const aboutImageRef = useRef(null);
   const pageRef = useRef(null);
+  const docsRef = useRef(null);
+  const methodologyRef = useRef(null);
 
   /* ─── 1. Scroll Progress Bar — full page ─── */
   const { scrollYProgress: pageProgress } = useScroll();
@@ -209,6 +219,15 @@ const LandingPage = () => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (docsRef.current && !docsRef.current.contains(e.target)) setDocsOpen(false);
+      if (methodologyRef.current && !methodologyRef.current.contains(e.target)) setMethodologyOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -318,33 +337,138 @@ const LandingPage = () => {
               );
             })}
             
-            <Routerlink to="/docs" className="text-sm font-medium text-zinc-200 hover:text-white transition-colors">
-              Docs
-            </Routerlink>
-
-            {/* Index Methodology Dropdown */}
-            <div className="relative group">
-              <button className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1">
-                Index Methodology
-                <svg className="w-3 h-3 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {/* ── Docs Dropdown ───────────────────────────────────── */}
+            <div className="relative" ref={docsRef}>
+              <button
+                onClick={() => { setDocsOpen(v => !v); setMethodologyOpen(false); }}
+                className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+              >
+                Docs
+                <motion.svg
+                  animate={{ rotate: docsOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="w-3 h-3"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                </motion.svg>
               </button>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <div className="bg-[#12121a] border border-white/[0.08] rounded-xl shadow-xl overflow-hidden min-w-[180px]">
-                  {[
-                    { path: "/methodology/h100", label: "H100 Methodology" },
-                    { path: "/methodology/a100", label: "A100 Methodology" },
-                    { path: "/methodology/b200", label: "B200 Methodology" },
-                    { path: "/methodology/t4", label: "T4 Methodology" },
-                  ].map((item, i, arr) => (
-                    <Routerlink key={item.path} to={item.path}
-                      className={`block px-4 py-3 text-sm font-medium text-zinc-200 hover:text-white hover:bg-white/[0.04] transition-colors ${i < arr.length - 1 ? "border-b border-white/[0.06]" : ""}`}>
-                      {item.label}
-                    </Routerlink>
-                  ))}
-                </div>
-              </div>
+
+              <AnimatePresence>
+                {docsOpen && (
+                  <motion.div
+                    variants={dropdownVariants}
+                    initial="hidden" animate="visible" exit="exit"
+                    className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-50"
+                  >
+                    <div className="bg-[#111118] border border-white/[0.08] rounded-2xl shadow-2xl p-5 w-[580px]">
+                      <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-4">Contract Reference</p>
+                      <div className="grid grid-cols-3 gap-6">
+                        {[
+                          {
+                            category: "Core Protocol",
+                            items: [
+                              { id: "overview",      label: "Architecture Overview", desc: "System topology and upgrade paths" },
+                              { id: "clearinghouse", label: "ClearingHouse",         desc: "Positions, margin, liquidations"  },
+                              { id: "vamm",          label: "vAMM",                  desc: "Virtual AMM for price discovery"  },
+                            ],
+                          },
+                          {
+                            category: "Infrastructure",
+                            items: [
+                              { id: "collateralvault", label: "CollateralVault", desc: "Token deposits and withdrawals" },
+                              { id: "marketregistry",  label: "MarketRegistry",  desc: "Market creation and config"      },
+                              { id: "feerouter",       label: "FeeRouter",       desc: "Fee collection and distribution" },
+                            ],
+                          },
+                          {
+                            category: "Risk & Financials",
+                            items: [
+                              { id: "insurancefund", label: "InsuranceFund",       desc: "Shortfall coverage mechanism"  },
+                              { id: "oracle",        label: "Oracle System",        desc: "Price feed adapter interfaces" },
+                              { id: "calculations",  label: "Calculations Library", desc: "WAD math and margin formulas"  },
+                            ],
+                          },
+                        ].map(({ category, items }) => (
+                          <div key={category}>
+                            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">{category}</p>
+                            {items.map(item => (
+                              <Routerlink
+                                key={item.id}
+                                to={`/docs#${item.id}`}
+                                onClick={() => setDocsOpen(false)}
+                                className="block py-2 px-2 -mx-2 rounded-lg hover:bg-white/[0.05] transition-colors group/item"
+                              >
+                                <p className="text-sm font-medium text-zinc-200 group-hover/item:text-white transition-colors">{item.label}</p>
+                                <p className="text-xs text-zinc-500 mt-0.5">{item.desc}</p>
+                              </Routerlink>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                        <Routerlink
+                          to="/docs"
+                          onClick={() => setDocsOpen(false)}
+                          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          View full contract reference →
+                        </Routerlink>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* ── Index Methodology Dropdown ──────────────────────── */}
+            <div className="relative" ref={methodologyRef}>
+              <button
+                onClick={() => { setMethodologyOpen(v => !v); setDocsOpen(false); }}
+                className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+              >
+                Index Methodology
+                <motion.svg
+                  animate={{ rotate: methodologyOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="w-3 h-3"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </motion.svg>
+              </button>
+
+              <AnimatePresence>
+                {methodologyOpen && (
+                  <motion.div
+                    variants={dropdownVariants}
+                    initial="hidden" animate="visible" exit="exit"
+                    className="absolute top-full right-0 pt-3 z-50"
+                  >
+                    <div className="bg-[#111118] border border-white/[0.08] rounded-2xl shadow-2xl p-5 w-[380px]">
+                      <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-4">Price Indices</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { path: "/methodology/h100", label: "H100", desc: "NVIDIA H100 SXM & PCIe compute index"   },
+                          { path: "/methodology/a100", label: "A100", desc: "NVIDIA A100 80GB data center index"     },
+                          { path: "/methodology/b200", label: "B200", desc: "NVIDIA Blackwell B200 compute index"    },
+                          { path: "/methodology/t4",   label: "T4",   desc: "NVIDIA T4 inference GPU index"         },
+                        ].map(item => (
+                          <Routerlink
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setMethodologyOpen(false)}
+                            className="group/item block p-3 rounded-xl border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] transition-all duration-150"
+                          >
+                            <p className="text-sm font-semibold text-zinc-100 group-hover/item:text-white transition-colors mb-1">{item.label}</p>
+                            <p className="text-xs text-zinc-500 leading-relaxed">{item.desc}</p>
+                          </Routerlink>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </nav>
 

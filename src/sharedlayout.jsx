@@ -1,6 +1,7 @@
 // src/SharedLayout.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { useDisconnect } from "wagmi";
 import { supabase } from "./creatclient";
 import Web3AuthHandler from "./web3auth";
@@ -13,8 +14,27 @@ import { useAuthModal } from "./context/AuthModalContext";
 import NotificationBell from "./components/NotificationBell";
 
 // Clean, dark-themed header for the app
+const dropdownVariants = {
+  hidden:  { opacity: 0, y: -6, scale: 0.97 },
+  visible: { opacity: 1, y: 0,  scale: 1,    transition: { duration: 0.16, ease: "easeOut" } },
+  exit:    { opacity: 0, y: -4, scale: 0.97, transition: { duration: 0.12, ease: "easeIn"  } },
+};
+
 const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuOpen,      setIsMenuOpen]      = useState(false);
+  const [docsOpen,        setDocsOpen]        = useState(false);
+  const [methodologyOpen, setMethodologyOpen] = useState(false);
+  const docsRef        = useRef(null);
+  const methodologyRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (docsRef.current        && !docsRef.current.contains(e.target))        setDocsOpen(false);
+      if (methodologyRef.current && !methodologyRef.current.contains(e.target)) setMethodologyOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-[100] h-14 bg-[#050505] border-b border-zinc-800 flex items-center px-4 justify-between backdrop-blur-md bg-[#050505]/90">
@@ -87,42 +107,138 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
             Guide
           </NavLink>
 
-          {/* Index Methodology Dropdown */}
-          <div className="relative group">
-            <button className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-              Index Methodology
-              <svg className="w-3 h-3 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          {/* ── Docs Dropdown ───────────────────────────────────── */}
+          <div className="relative" ref={docsRef}>
+            <button
+              onClick={() => { setDocsOpen(v => !v); setMethodologyOpen(false); }}
+              className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+            >
+              Docs
+              <motion.svg
+                animate={{ rotate: docsOpen ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="w-3 h-3"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              </motion.svg>
             </button>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-              <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-700 rounded-lg shadow-xl overflow-hidden min-w-[160px]">
-                <Link
-                  to="/methodology/h100"
-                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border-b border-zinc-700/50"
+
+            <AnimatePresence>
+              {docsOpen && (
+                <motion.div
+                  variants={dropdownVariants}
+                  initial="hidden" animate="visible" exit="exit"
+                  className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-50"
                 >
-                  H100 Methodology
-                </Link>
-                <Link
-                  to="/methodology/a100"
-                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border-b border-zinc-700/50"
+                  <div className="bg-[#111118] border border-white/[0.08] rounded-2xl shadow-2xl p-5 w-[580px]">
+                    <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-4">Contract Reference</p>
+                    <div className="grid grid-cols-3 gap-6">
+                      {[
+                        {
+                          category: "Core Protocol",
+                          items: [
+                            { id: "overview",      label: "Architecture Overview", desc: "System topology and upgrade paths" },
+                            { id: "clearinghouse", label: "ClearingHouse",         desc: "Positions, margin, liquidations"  },
+                            { id: "vamm",          label: "vAMM",                  desc: "Virtual AMM for price discovery"  },
+                          ],
+                        },
+                        {
+                          category: "Infrastructure",
+                          items: [
+                            { id: "collateralvault", label: "CollateralVault", desc: "Token deposits and withdrawals" },
+                            { id: "marketregistry",  label: "MarketRegistry",  desc: "Market creation and config"     },
+                            { id: "feerouter",       label: "FeeRouter",       desc: "Fee collection and distribution" },
+                          ],
+                        },
+                        {
+                          category: "Risk & Financials",
+                          items: [
+                            { id: "insurancefund", label: "InsuranceFund",       desc: "Shortfall coverage mechanism"  },
+                            { id: "oracle",        label: "Oracle System",        desc: "Price feed adapter interfaces" },
+                            { id: "calculations",  label: "Calculations Library", desc: "WAD math and margin formulas"  },
+                          ],
+                        },
+                      ].map(({ category, items }) => (
+                        <div key={category}>
+                          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">{category}</p>
+                          {items.map(item => (
+                            <Link
+                              key={item.id}
+                              to={`/docs#${item.id}`}
+                              onClick={() => setDocsOpen(false)}
+                              className="block py-2 px-2 -mx-2 rounded-lg hover:bg-white/[0.05] transition-colors group/item"
+                            >
+                              <p className="text-sm font-medium text-zinc-200 group-hover/item:text-white transition-colors">{item.label}</p>
+                              <p className="text-xs text-zinc-500 mt-0.5">{item.desc}</p>
+                            </Link>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                      <Link
+                        to="/docs"
+                        onClick={() => setDocsOpen(false)}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        View full contract reference →
+                      </Link>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* ── Index Methodology Dropdown ──────────────────────── */}
+          <div className="relative" ref={methodologyRef}>
+            <button
+              onClick={() => { setMethodologyOpen(v => !v); setDocsOpen(false); }}
+              className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+            >
+              Index Methodology
+              <motion.svg
+                animate={{ rotate: methodologyOpen ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="w-3 h-3"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </motion.svg>
+            </button>
+
+            <AnimatePresence>
+              {methodologyOpen && (
+                <motion.div
+                  variants={dropdownVariants}
+                  initial="hidden" animate="visible" exit="exit"
+                  className="absolute top-full right-0 pt-3 z-50"
                 >
-                  A100 Methodology
-                </Link>
-                <Link
-                  to="/methodology/b200"
-                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border-b border-zinc-700/50"
-                >
-                  B200 Methodology
-                </Link>
-                <Link
-                  to="/methodology/t4"
-                  className="block px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  T4 Methodology
-                </Link>
-              </div>
-            </div>
+                  <div className="bg-[#111118] border border-white/[0.08] rounded-2xl shadow-2xl p-5 w-[380px]">
+                    <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-4">Price Indices</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { path: "/methodology/h100", label: "H100", desc: "NVIDIA H100 SXM & PCIe compute index"  },
+                        { path: "/methodology/a100", label: "A100", desc: "NVIDIA A100 80GB data center index"    },
+                        { path: "/methodology/b200", label: "B200", desc: "NVIDIA Blackwell B200 compute index"   },
+                        { path: "/methodology/t4",   label: "T4",   desc: "NVIDIA T4 inference GPU index"        },
+                      ].map(item => (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setMethodologyOpen(false)}
+                          className="group/item block p-3 rounded-xl border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] transition-all duration-150"
+                        >
+                          <p className="text-sm font-semibold text-zinc-100 group-hover/item:text-white transition-colors mb-1">{item.label}</p>
+                          <p className="text-xs text-zinc-500 leading-relaxed">{item.desc}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </nav>
       </div>
@@ -235,28 +351,68 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
           >
             Guide
           </NavLink>
-          <div className="text-zinc-500 text-xs uppercase tracking-wider mt-2">Documentation</div>
+          {/* ── Index Methodology ────────────────────────── */}
+          <div className="text-zinc-500 text-xs uppercase tracking-wider mt-2">Index Methodology</div>
           <Link
             to="/methodology/h100"
             className="text-sm text-zinc-400 hover:text-white"
             onClick={() => setIsMenuOpen(false)}
           >
-            H100 Methodology
+            H100 Index
           </Link>
           <Link
             to="/methodology/a100"
             className="text-sm text-zinc-400 hover:text-white"
             onClick={() => setIsMenuOpen(false)}
           >
-            A100 Methodology
+            A100 Index
           </Link>
           <Link
             to="/methodology/b200"
             className="text-sm text-zinc-400 hover:text-white"
             onClick={() => setIsMenuOpen(false)}
           >
-            B200 Methodology
+            B200 Index
           </Link>
+          <Link
+            to="/methodology/t4"
+            className="text-sm text-zinc-400 hover:text-white"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            T4 Index
+          </Link>
+
+          {/* ── Contract Docs ─────────────────────────── */}
+          <div className="text-zinc-500 text-xs uppercase tracking-wider mt-2">Contract Docs</div>
+          <Link
+            to="/docs#clearinghouse"
+            className="text-sm text-zinc-400 hover:text-white"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            ClearingHouse
+          </Link>
+          <Link
+            to="/docs#vamm"
+            className="text-sm text-zinc-400 hover:text-white"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            vAMM
+          </Link>
+          <Link
+            to="/docs#collateralvault"
+            className="text-sm text-zinc-400 hover:text-white"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            CollateralVault
+          </Link>
+          <Link
+            to="/docs"
+            className="text-sm text-blue-400 hover:text-blue-300"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Full Reference →
+          </Link>
+
           <div className="h-px bg-zinc-800 my-2"></div>
           {session && profile ? (
             <div className="flex flex-col gap-4">

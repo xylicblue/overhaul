@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
 import LandingPage from "./landingpage";
 import LoginPage from "./login";
 import SignupPage from "./signup";
@@ -66,6 +67,19 @@ const wagmiConfig = createConfig({
 });
 
 const queryClient = new QueryClient();
+
+/** Scrolls to top on every route change (except hash links — those scroll themselves). */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  React.useEffect(() => {
+    // Only reset if there's no hash — hash links handle their own scroll
+    if (!window.location.hash) {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname]);
+  return null;
+}
+
 function App() {
   return (
     <WagmiProvider config={wagmiConfig}>
@@ -74,6 +88,7 @@ function App() {
           {/* <GeoGatekeeper> */}
           <AuthModalProvider>
           <Router>
+            <ScrollToTop />
             <AuthModal />
             <div className="App">
               <Toaster

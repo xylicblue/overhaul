@@ -199,11 +199,18 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
           query = query.gte(timestampField, startTime);
         }
 
-        const result = await query.order(timestampField, { ascending: true });
+        // Order DESC so Supabase's row cap always returns the most recent rows,
+        // then reverse client-side to restore chronological order for the chart.
+        const rowLimit = timeRange === "max" ? 10000 :
+                         timeRange === "15d" ? 10000 :
+                         timeRange === "5d"  ? 8000  :
+                         timeRange === "3d"  ? 5000  : 2000;
+        const result = await query.order(timestampField, { ascending: false }).limit(rowLimit);
 
         if (!result.error && result.data && result.data.length >= 2) {
           // Transform data to standard format (normalize price field and timestamp field)
-          data = result.data.map(record => ({
+          // Reverse to restore ascending (chronological) order for the chart.
+          data = result.data.reverse().map(record => ({
             price: record[config.priceField] || record.price,
             timestamp: record[timestampField] || record.timestamp
           }));
