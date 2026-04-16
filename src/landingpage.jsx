@@ -318,6 +318,10 @@ const LandingPage = () => {
               );
             })}
             
+            <Routerlink to="/docs" className="text-sm font-medium text-zinc-200 hover:text-white transition-colors">
+              Docs
+            </Routerlink>
+
             {/* Index Methodology Dropdown */}
             <div className="relative group">
               <button className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1">
@@ -383,6 +387,7 @@ const LandingPage = () => {
                 ))}
                 <div className="h-px bg-white/[0.06] my-2"></div>
                 <Routerlink to="/trade" className="text-blue-400 font-medium" onClick={() => setIsMenuOpen(false)}>Trade</Routerlink>
+                <Routerlink to="/docs" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>Docs</Routerlink>
                 <div className="text-zinc-600 text-xs uppercase tracking-wider mt-2">Documentation</div>
                 <Routerlink to="/methodology/h100" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>H100 Methodology</Routerlink>
                 <Routerlink to="/methodology/a100" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>A100 Methodology</Routerlink>

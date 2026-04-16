@@ -15,6 +15,7 @@ import MarketsPage from "./markets";
 import GuidePage from "./guidepage";
 import SettingsPage from "./settings";
 import MethodologyPage from "./MethodologyPage";
+import DocsPage from "./DocsPage";
 import PrivacyPolicy from "./PrivacyPolicy";
 import AdminNotifications from "./AdminNotifications";
 import SharedLayout from "./sharedlayout";
@@ -150,6 +151,7 @@ function App() {
                   <Route path="/portfolio" element={<PortfolioPage />} />
                   {/* <Route path="/leaderboard" element={<LeaderboardPage />} /> */}
                   <Route path="/guide" element={<GuidePage />} />
+                  <Route path="/docs" element={<DocsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   {/* You can add more pages here later that need the same header/footer */}
                 </Route>

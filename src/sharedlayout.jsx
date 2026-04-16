@@ -86,7 +86,7 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
           >
             Guide
           </NavLink>
-          
+
           {/* Index Methodology Dropdown */}
           <div className="relative group">
             <button className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
