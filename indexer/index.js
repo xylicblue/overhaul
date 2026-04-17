@@ -27,31 +27,37 @@ const CONFIG = {
   rpcUrl: process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com',
   chainId: 11155111, // Sepolia
 
-  // Contracts (Sepolia)
+  // Contracts (Sepolia) — updated to V5 addresses
   contracts: {
-    vammProxy: '0x81C40Fb63dFBa1C7d6C32b7a23fc25bd2E6bE3Cc',
-    vammProxyOld: '0xd5d946Fc7c41C1AD7C0aC1BdfDCE53FE0a860204',
-    oracle: '0x0Ed715b613E19028eB9e5b06cc696B45C7d4D1F9',
-  },
-
-  // Market IDs (keccak256 of market name)
-  marketIds: {
-    'H100-PERP': '0x1a9c55d7e8e99e4e5e6b6f5c7a4e9e8f6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0',
-    'ETH-PERP-V2': '0x2b8d66e7f9f88f5f6f7c8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b',
-    'ETH-PERP': '0x3c9e77f8g0g99g6g7g8d9f0g1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0c',
+    clearingHouse:  '0x18F863b1b0A3Eca6B2235dc1957291E357f490B0', // V5 ClearingHouse proxy
+    collateralVault:'0x86A10164eB8F55EA6765185aFcbF5e073b249Dd2',
+    vammProxy:       '0xF7210ccC245323258CC15e0Ca094eBbe2DC2CD85', // H100-PERP
+    vammProxyOld:    '0xF8908F7B4a1AaaD69bF0667FA83f85D3d0052739',
+    oracle:          '0x3cA2Da03e4b6dB8fe5a24c22Cf5EB2A34B59cbad',
   },
 
   // Indexer settings
   snapshotInterval: parseInt(process.env.SNAPSHOT_INTERVAL) || 60000, // 1 minute
-  statsInterval: parseInt(process.env.STATS_INTERVAL) || 300000, // 5 minutes
-  indexHistorical: process.env.INDEX_HISTORICAL !== 'false', // Default: true
+  statsInterval:    parseInt(process.env.STATS_INTERVAL)    || 300000, // 5 minutes
+  indexHistorical:  process.env.INDEX_HISTORICAL !== 'false',
+
+  // Notification dedup suppression windows (ms)
+  dedup: {
+    A1: 5  * 60 * 1000,  // 5 min
+    A2: 2  * 60 * 1000,  // 2 min
+    A3: 30 * 1000,        // 30 sec
+    C2: 60 * 60 * 1000,  // 1 hr
+    C3: 4  * 60 * 60 * 1000, // 4 hr
+    F3: 30 * 60 * 1000,  // 30 min
+    _default: 0,          // 0 = no suppression (event-driven)
+  },
 };
 
 // ==================== MARKETS ====================
 
 const MARKETS = [
   {
-    id: CONFIG.marketIds['H100-PERP'],
+    id: '0x2bc0c3f3ef82289c7da8a9335c83ea4f2b5b8bd62b67c4f4e0dba00b304c2937', // H100-PERP
     name: 'H100-PERP',
     displayName: 'H100 GPU',
     vammAddress: CONFIG.contracts.vammProxy,
@@ -83,7 +89,7 @@ const MARKETS = [
     active: true,
   },
   {
-    id: CONFIG.marketIds['ETH-PERP-V2'],
+    id: '0x385badc5603eb47056a6bdcd6ac81a50df49d7a4e8a7451405e580bd12087a28', // ETH-PERP-V2 (deprecated alias)
     name: 'ETH-PERP-V2',
     displayName: 'H100 GPU',
     vammAddress: CONFIG.contracts.vammProxy,
@@ -92,7 +98,7 @@ const MARKETS = [
     active: true,
   },
   {
-    id: CONFIG.marketIds['ETH-PERP'],
+    id: '0x352291f10e3a0d4a9f7beb3b623eac0b06f735c95170f956bc68b2f8b504a35d', // ETH-PERP (deprecated)
     name: 'ETH-PERP',
     displayName: 'Test Market [OLD]',
     vammAddress: CONFIG.contracts.vammProxyOld,
@@ -111,13 +117,20 @@ const VAMM_ABI = [
     "stateMutability": "view"
   },
   {
+    "type": "function",
+    "name": "getFundingRate",
+    "inputs": [],
+    "outputs": [{"type": "int256"}],
+    "stateMutability": "view"
+  },
+  {
     "type": "event",
     "name": "Swap",
     "inputs": [
-      {"name": "sender", "type": "address", "indexed": true},
-      {"name": "baseDelta", "type": "int256", "indexed": false},
-      {"name": "quoteDelta", "type": "int256", "indexed": false},
-      {"name": "avgPriceX18", "type": "uint256", "indexed": false}
+      {"name": "sender",      "type": "address", "indexed": true},
+      {"name": "baseDelta",   "type": "int256",  "indexed": false},
+      {"name": "quoteDelta",  "type": "int256",  "indexed": false},
+      {"name": "avgPriceX18","type": "uint256", "indexed": false}
     ]
   }
 ];
@@ -129,6 +142,69 @@ const ORACLE_ABI = [
     "inputs": [],
     "outputs": [{"type": "uint256"}],
     "stateMutability": "view"
+  }
+];
+
+// ClearingHouse ABI — only the events we need for notifications
+const CLEARING_HOUSE_ABI = [
+  {
+    "type": "event",
+    "name": "LiquidationExecuted",
+    "inputs": [
+      {"name": "marketId",        "type": "bytes32", "indexed": true},
+      {"name": "liquidator",      "type": "address", "indexed": true},
+      {"name": "account",         "type": "address", "indexed": true},
+      {"name": "size",            "type": "uint128", "indexed": false},
+      {"name": "notional",        "type": "uint256", "indexed": false},
+      {"name": "penalty",         "type": "uint256", "indexed": false},
+      {"name": "liquidatorReward","type": "uint256", "indexed": false},
+      {"name": "protocolFee",     "type": "uint256", "indexed": false},
+      {"name": "insurancePayout", "type": "uint256", "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "FundingSettled",
+    "inputs": [
+      {"name": "marketId",       "type": "bytes32", "indexed": true},
+      {"name": "account",        "type": "address", "indexed": true},
+      {"name": "fundingPayment", "type": "int256",  "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "MarketPaused",
+    "inputs": [
+      {"name": "marketId", "type": "bytes32", "indexed": true},
+      {"name": "isPaused", "type": "bool",    "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "collateralDeposited",
+    "inputs": [
+      {"name": "user",   "type": "address", "indexed": true},
+      {"name": "token",  "type": "address", "indexed": true},
+      {"name": "amount", "type": "uint256", "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "collateralWithdrawn",
+    "inputs": [
+      {"name": "user",   "type": "address", "indexed": true},
+      {"name": "token",  "type": "address", "indexed": true},
+      {"name": "amount", "type": "uint256", "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "MarginAdded",
+    "inputs": [
+      {"name": "user",     "type": "address", "indexed": true},
+      {"name": "marketId", "type": "bytes32", "indexed": true},
+      {"name": "amount",   "type": "uint256", "indexed": false}
+    ]
   }
 ];
 
@@ -174,18 +250,211 @@ async function getMarkPrice(vammAddress) {
   }
 }
 
-async function getOraclePrice() {
+async function getIndexPriceFromDB(tableName) {
+  if (!tableName) return null;
   try {
-    const price = await publicClient.readContract({
-      address: CONFIG.contracts.oracle,
-      abi: ORACLE_ABI,
-      functionName: 'getPrice',
-    });
-    return parseFloat(formatUnits(price, 18));
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('price')
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .single();
+    if (error || !data) return null;
+    return parseFloat(data.price);
   } catch (error) {
-    console.error('Error fetching oracle price:', error.message);
+    console.error(`Error fetching index price from DB (${tableName}):`, error.message);
     return null;
   }
+}
+
+// ==================== NOTIFICATION ENGINE ====================
+
+/**
+ * Map market ID bytes32 → human-readable label.
+ * Falls back to truncated marketId if not found.
+ */
+const MARKET_ID_TO_LABEL = {
+  '0x2bc0c3f3ef82289c7da8a9335c83ea4f2b5b8bd62b67c4f4e0dba00b304c2937': 'H100-PERP',
+  '0xf4aa47cc83b0d01511ca8025a996421dda6fbab1764466da4b0de6408d3db2e2': 'H100-HyperScalers-PERP',
+  '0x9d2d658888da74a10ac9263fc14dcac4a834dd53e8edf664b4cc3b2b4a23f214': 'H100-non-HyperScalers-PERP',
+  '0xb4be6bdaf765a9dc45759a99c834b32d12825dce59bc28052946c1f1267a999b': 'B200-PERP',
+  '0x3b9736717eab3427f776c56345a626690c13be77aa87cb6858bf92d50ad0c998': 'H200-PERP',
+  '0x78b1dd5626222aef5d91e323da7cbe8941adb4eaaf0d1e90ac2dcee2680be01f': 'Oracle-B200-PERP',
+  '0x7e0ed16d08b6e36ae874386fd9c02a530e31026876a299a5ac59e9a8a7859c8e': 'AWS-B200-PERP',
+  '0x05b98a16e85afdd21369f8dde4ae197e2b445f37445b0e382ebcfdd10b711306': 'CoreWeave-B200-PERP',
+  '0xd0394d4ba76fe79cd0b954eb8e205df0cc4f08fb654dc916f5728d31c19f9305': 'GCP-B200-PERP',
+  '0x61f05fafb6842941c9a7d6839378de32d97a2de181b4db0e276b8d2093b61866': 'Oracle-H200-PERP',
+  '0x12aa394c59dbf446e7ba1d3ab66f4629761c27d0dbacf484da0f4b205260c8fc': 'AWS-H200-PERP',
+  '0xf8444beb26f5f34e8d5ec6c988b1023100cd68287fa48066b54e428188ffa447': 'CoreWeave-H200-PERP',
+  '0xb654d9eedc69b55e0fe883d03cae37d13fdacc319a5a1f507bb33875e0e14201': 'GCP-H200-PERP',
+  '0xc845b4b5cdd753d1ad772bc105e5c4ddddff19c3da674c69da5c9f1a810bb872': 'Azure-H200-PERP',
+  '0x69df00e859e1b007896c59653bb3ca35622fdf2bf46c2fd9fea7ffa7d88b6378': 'AWS-H100-PERP',
+  '0x2492e86fcfe9b174434dfca2c27205159a34cf4e90f0ec7a1605fae91a7e7bbd': 'Azure-H100-PERP',
+  '0x8c78c8c17cc7712fe1b17592a2c0a7f814f8ec784de0fbb4ae6573e3457e11dd': 'GCP-H100-PERP',
+  '0x7c611d543b87d4eecced3a16f8db373340d784390882ad3e2fd76f257a51cf55': 'A100-PERP',
+  '0xb1bae2ea6c465ce4acb7d8a4a16a8899c9cc94ac35b5a82403875c6b2aa34f3e': 'T4-PERP',
+};
+
+function marketLabel(marketId) {
+  const id = marketId.toLowerCase();
+  return MARKET_ID_TO_LABEL[id] || `Market(${id.slice(0,10)}...)`;
+}
+
+/**
+ * Check suppression window for a (user, marketId, code) triplet.
+ * Returns true if we should skip inserting (still within window).
+ */
+async function isDuped(userAddress, marketId, code) {
+  const windowMs = CONFIG.dedup[code] ?? CONFIG.dedup._default;
+  if (windowMs === 0) return false; // event-driven, never suppress
+
+  const { data, error } = await supabase
+    .from('notification_dedup_log')
+    .select('last_sent_at, send_count')
+    .eq('user_id',   userAddress.toLowerCase())
+    .eq('market_id', (marketId || '').toLowerCase())
+    .eq('code',      code)
+    .single();
+
+  if (error || !data) return false;
+
+  const elapsed = Date.now() - new Date(data.last_sent_at).getTime();
+  return elapsed < windowMs;
+}
+
+/**
+ * Update the dedup log after sending a notification.
+ */
+async function updateDedup(userAddress, marketId, code) {
+  await supabase
+    .from('notification_dedup_log')
+    .upsert({
+      user_id:      userAddress.toLowerCase(),
+      market_id:    (marketId || '').toLowerCase(),
+      code,
+      last_sent_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,market_id,code' })
+    .select();
+}
+
+/**
+ * CODE → { category, priority, titleFn, bodyFn, actionsFn }
+ */
+const NOTIFICATION_DEFS = {
+  // ── B: Liquidation ──────────────────────────────────────────
+  B1: {
+    category: 'B', priority: 'critical',
+    titleFn: (d) => `Partial Liquidation — ${d.market}`,
+    bodyFn:  (d) => `${d.sizeFormatted} of your position was liquidated. Penalty: $${d.penaltyFormatted}. Remaining: ${d.remainingFormatted} units.`,
+    actionsFn: () => [{ label: 'View Position', href: '/trade' }],
+  },
+  B2: {
+    category: 'B', priority: 'critical',
+    titleFn: (d) => `Full Liquidation — ${d.market}`,
+    bodyFn:  (d) => `Your entire position (notional: $${d.notionalFormatted}) was liquidated. Penalty: $${d.penaltyFormatted}.`,
+    actionsFn: () => [{ label: 'View History', href: '/portfolio' }],
+  },
+  // ── C: Funding ──────────────────────────────────────────────
+  C1: {
+    category: 'C', priority: 'low',
+    titleFn: (d) => `Funding Settled — ${d.market}`,
+    bodyFn:  (d) => `Funding payment: ${d.fundingFormatted} (${d.fundingSign}).`,
+    actionsFn: () => [],
+  },
+  // ── D: Position Events ──────────────────────────────────────
+  D1: {
+    category: 'D', priority: 'low',
+    titleFn: (d) => `Position Opened — ${d.market}`,
+    bodyFn:  (d) => `${d.side} ${d.sizeFormatted} units at $${d.priceFormatted}/unit.`,
+    actionsFn: () => [{ label: 'View Position', href: '/trade' }],
+  },
+  D2: {
+    category: 'D', priority: 'low',
+    titleFn: (d) => `Position Closed — ${d.market}`,
+    bodyFn:  (d) => `Closed ${d.sizeFormatted} units. Realized PnL: +$${d.pnlFormatted}.`,
+    actionsFn: () => [{ label: 'View History', href: '/portfolio' }],
+  },
+  D3: {
+    category: 'D', priority: 'low',
+    titleFn: (d) => `Position Closed — ${d.market}`,
+    bodyFn:  (d) => `Closed ${d.sizeFormatted} units. Realized PnL: -$${d.pnlFormatted}.`,
+    actionsFn: () => [{ label: 'View History', href: '/portfolio' }],
+  },
+  // ── E: Collateral ───────────────────────────────────────────
+  E1: {
+    category: 'E', priority: 'low',
+    titleFn: () => 'Deposit Confirmed',
+    bodyFn:  (d) => `$${d.amountFormatted} USDC deposited to your account.`,
+    actionsFn: () => [],
+  },
+  E2: {
+    category: 'E', priority: 'low',
+    titleFn: () => 'Withdrawal Confirmed',
+    bodyFn:  (d) => `$${d.amountFormatted} USDC withdrawn to your wallet.`,
+    actionsFn: () => [],
+  },
+  // ── F: Market Status ────────────────────────────────────────
+  F1: {
+    category: 'F', priority: 'high',
+    titleFn: (d) => `Market Paused — ${d.market}`,
+    bodyFn:  () => 'This market has been paused. No new trades or position changes can be made. Your open position is safe.',
+    actionsFn: () => [],
+  },
+  F2: {
+    category: 'F', priority: 'high',
+    titleFn: (d) => `Market Resumed — ${d.market}`,
+    bodyFn:  () => 'Trading has resumed. Funding rates will continue from where they left off.',
+    actionsFn: () => [{ label: 'Trade Now', href: '/trade' }],
+  },
+};
+
+/**
+ * Core function: build and persist a trader notification.
+ * Called by every event handler and the state poller.
+ */
+async function createTraderNotification(code, userAddress, marketId, payload, txHash = null) {
+  const def = NOTIFICATION_DEFS[code];
+  if (!def) {
+    console.warn(`⚠️  No definition for notification code: ${code}`);
+    return;
+  }
+
+  const userLower   = userAddress.toLowerCase();
+  const marketIdLow = (marketId || '').toLowerCase();
+  const label       = marketLabel(marketId);
+
+  // Suppression check
+  if (await isDuped(userLower, marketIdLow, code)) {
+    console.log(`🔕 Suppressed ${code} for ${userLower.slice(0,8)}... (dedup window active)`);
+    return;
+  }
+
+  const data = { market: label, ...payload };
+
+  const { error } = await supabase
+    .from('trader_notifications')
+    .insert({
+      user_id:      userLower,
+      category:     def.category,
+      code,
+      priority:     def.priority,
+      market_id:    marketIdLow || null,
+      market_label: label,
+      title:        def.titleFn(data),
+      body:         def.bodyFn(data),
+      data:         payload,
+      actions:      def.actionsFn(data),
+      status:       'unread',
+      tx_hash:      txHash,
+    });
+
+  if (error) {
+    console.error(`❌ Failed to insert notification ${code}:`, error.message);
+    return;
+  }
+
+  await updateDedup(userLower, marketIdLow, code);
+  console.log(`🔔 [${code}] ${def.priority.toUpperCase()} → ${userLower.slice(0,10)}... | ${label}`);
 }
 
 // ==================== DATABASE FUNCTIONS ====================
@@ -423,9 +692,161 @@ function startEventWatcher(market) {
   return unwatch;
 }
 
+// ==================== CLEARINGHOUSE EVENT WATCHERS ====================
+
+/**
+ * Watch all notification-relevant ClearingHouse events.
+ * Returns an array of unwatch functions.
+ */
+function startClearingHouseWatchers() {
+  const ch  = CONFIG.contracts.clearingHouse;
+  const unwatches = [];
+
+  // ── LiquidationExecuted → B1 (partial) or B2 (full) ─────────────
+  unwatches.push(
+    publicClient.watchEvent({
+      address: ch,
+      event: {
+        type: 'event',
+        name: 'LiquidationExecuted',
+        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'LiquidationExecuted').inputs,
+      },
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          const { marketId, account, size, notional, penalty } = log.args;
+          const trader    = account.toLowerCase();
+          const marketLow = marketId.toLowerCase();
+          const sizeNum   = parseFloat(formatUnits(size, 18));
+          const notionalNum = parseFloat(formatUnits(notional, 6));
+          const penaltyNum  = parseFloat(formatUnits(penalty, 6));
+
+          // Determine B1 vs B2: query the current position size to see if fully liquidated.
+          // As a heuristic: if remaining = 0 we treat as B2. We don't have position state
+          // in the indexer, so we read from swap_events to estimate.
+          // Simplified approach: emit B2 for now (full liquidation) — can be improved later.
+          const code = 'B2'; // TODO: compare against open position to detect partial (B1)
+
+          await createTraderNotification(code, trader, marketLow, {
+            sizeFormatted:      sizeNum.toFixed(4),
+            notionalFormatted:  notionalNum.toFixed(2),
+            penaltyFormatted:   penaltyNum.toFixed(2),
+            remainingFormatted: '0',
+          }, log.transactionHash);
+        }
+      },
+    })
+  );
+
+  // ── FundingSettled → C1 ──────────────────────────────────────────
+  unwatches.push(
+    publicClient.watchEvent({
+      address: ch,
+      event: {
+        type: 'event',
+        name: 'FundingSettled',
+        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'FundingSettled').inputs,
+      },
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          const { marketId, account, fundingPayment } = log.args;
+          const trader     = account.toLowerCase();
+          const paymentNum = parseFloat(formatUnits(fundingPayment, 6));
+
+          // Only notify if payment exceeds $1 threshold
+          if (Math.abs(paymentNum) < 1.0) continue;
+
+          const isPositive = paymentNum >= 0;
+          await createTraderNotification('C1', trader, marketId.toLowerCase(), {
+            fundingFormatted: `$${Math.abs(paymentNum).toFixed(2)}`,
+            fundingSign:      isPositive ? 'received' : 'paid',
+          }, log.transactionHash);
+        }
+      },
+    })
+  );
+
+  // ── MarketPaused → F1 (paused) or F2 (resumed) ──────────────────
+  unwatches.push(
+    publicClient.watchEvent({
+      address: ch,
+      event: {
+        type: 'event',
+        name: 'MarketPaused',
+        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'MarketPaused').inputs,
+      },
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          const { marketId, isPaused } = log.args;
+          const marketLow = marketId.toLowerCase();
+          const code      = isPaused ? 'F1' : 'F2';
+
+          // Get all traders with open positions in this market from swap_events
+          const { data: traders } = await supabase
+            .from('swap_events')
+            .select('trader_address')
+            .eq('market_id', marketLow)
+            .order('block_number', { ascending: false });
+
+          const uniqueTraders = [...new Set((traders || []).map(r => r.trader_address))];
+          console.log(`📢 Market ${isPaused ? 'paused' : 'resumed'}: notifying ${uniqueTraders.length} traders`);
+
+          for (const trader of uniqueTraders) {
+            await createTraderNotification(code, trader, marketLow, {}, log.transactionHash);
+          }
+        }
+      },
+    })
+  );
+
+  // ── collateralDeposited → E1 ─────────────────────────────────────
+  unwatches.push(
+    publicClient.watchEvent({
+      address: ch,
+      event: {
+        type: 'event',
+        name: 'collateralDeposited',
+        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'collateralDeposited').inputs,
+      },
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          const { user, amount } = log.args;
+          const amountNum = parseFloat(formatUnits(amount, 6)); // USDC = 6 decimals
+          await createTraderNotification('E1', user.toLowerCase(), null, {
+            amountFormatted: amountNum.toFixed(2),
+          }, log.transactionHash);
+        }
+      },
+    })
+  );
+
+  // ── collateralWithdrawn → E2 ─────────────────────────────────────
+  unwatches.push(
+    publicClient.watchEvent({
+      address: ch,
+      event: {
+        type: 'event',
+        name: 'collateralWithdrawn',
+        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'collateralWithdrawn').inputs,
+      },
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          const { user, amount } = log.args;
+          const amountNum = parseFloat(formatUnits(amount, 6));
+          await createTraderNotification('E2', user.toLowerCase(), null, {
+            amountFormatted: amountNum.toFixed(2),
+          }, log.transactionHash);
+        }
+      },
+    })
+  );
+
+  console.log('✅ ClearingHouse event watchers started (LiquidationExecuted, FundingSettled, MarketPaused, collateralDeposited, collateralWithdrawn)');
+  return unwatches;
+}
+
 async function snapshotPrice(market) {
   const markPrice = await getMarkPrice(market.vammAddress);
-  const oraclePrice = await getOraclePrice();
+  const oraclePrice = await getIndexPriceFromDB(market.tableName);
   const block = await publicClient.getBlockNumber();
 
   if (markPrice) {
@@ -476,7 +897,7 @@ async function main() {
       await indexHistoricalEvents(market);
     }
 
-    // Watch for new events
+    // Watch for new swap events
     const unwatch = startEventWatcher(market);
     unwatchFns.push(unwatch);
 
@@ -486,6 +907,10 @@ async function main() {
 
     console.log('');
   }
+
+  // ── Start ClearingHouse notification watchers ─────────────────
+  const chUnwatches = startClearingHouseWatchers();
+  chUnwatches.forEach(fn => unwatchFns.push(fn));
 
   // Set up periodic tasks
   const snapshotTimer = setInterval(async () => {

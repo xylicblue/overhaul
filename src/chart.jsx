@@ -330,7 +330,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     chart: {
       type: "area",
       height: "100%",
-      fontFamily: "Inter, sans-serif",
+      fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
       background: "transparent",
       toolbar: { show: false },
       zoom: { enabled: false },
@@ -373,7 +373,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       axisBorder: { show: false },
       axisTicks: { show: false },
       labels: {
-        style: { colors: "#94a3b8", fontSize: "11px" }, // slate-400
+        style: { colors: "#94a3b8", fontSize: "11px", fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }, // slate-400
         format: timeRange === "24h" ? "HH:mm" : "MMM dd",
       },
     },
@@ -381,13 +381,13 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       opposite: true,
       tickAmount: 4, // Equal spacing between y-axis labels
       labels: {
-        style: { colors: "#94a3b8", fontSize: "11px" },
+        style: { colors: "#94a3b8", fontSize: "11px", fontFamily: "'IBM Plex Mono', ui-monospace, monospace" },
         formatter: (val) => `$${val.toFixed(2)}`,
       },
     },
     tooltip: {
       theme: "dark",
-      style: { fontSize: "12px" },
+      style: { fontSize: "12px", fontFamily: "'IBM Plex Mono', ui-monospace, monospace" },
       custom: function({ series, seriesIndex, dataPointIndex, w }) {
         const value = series[seriesIndex][dataPointIndex];
         const timestamp = w.globals.seriesX[seriesIndex][dataPointIndex];
@@ -441,7 +441,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
               font-size: 20px;
               font-weight: 700;
               color: #ffffff;
-              font-family: 'SF Mono', 'Fira Code', monospace;
+              font-family: 'IBM Plex Mono', ui-monospace, monospace;
               letter-spacing: -0.5px;
               margin-bottom: 4px;
             ">$${value.toFixed(3)}</div>
@@ -470,9 +470,9 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
               {loading ? "..." : typeof currentPrice === "number" ? `$${currentPrice.toFixed(2)}` : "N/A"}
             </h1>
             {hasEnoughData && priceChange !== null && (
-              <div className={`flex items-center text-xs font-medium font-mono ${isPriceUp ? "text-emerald-400" : "text-red-400"}`}>
+              <div className={`flex items-center text-sm font-bold font-mono tabular-nums tracking-tight ${isPriceUp ? "text-emerald-400" : "text-red-400"}`}>
                 <span>{isPriceUp ? "+" : ""}{priceChange.toFixed(2)}</span>
-                <span className="ml-1">({isPriceUp ? "+" : ""}{priceChangePercent.toFixed(2)}%)</span>
+                <span className="ml-1 text-xs font-semibold opacity-80">({isPriceUp ? "+" : ""}{priceChangePercent.toFixed(2)}%)</span>
               </div>
             )}
           </div>

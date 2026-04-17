@@ -27,7 +27,8 @@
 
     /* Mono font for all prices and numbers */
     .font-mono {
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+        font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+        font-feature-settings: 'tnum' 1, 'zero' 1;
         font-feature-settings: 'tnum' on, 'lnum' on;
     }
 }

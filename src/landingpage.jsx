@@ -639,13 +639,6 @@ const LandingPage = () => {
           }}
         >
           <motion.div variants={staggerContainer} initial="hidden" animate="visible">
-            {/* Badge */}
-            <motion.div variants={scaleFade}>
-              <span className="inline-block py-1.5 px-4 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-widest mb-8">
-                The Future of Compute
-              </span>
-            </motion.div>
-
             {/* Headline */}
             <motion.h1 variants={blurFadeIn} className="text-5xl md:text-7xl font-semibold mb-6 tracking-tight leading-[1.1] text-white">
               A New Marketplace <br />for Compute
@@ -1078,10 +1071,6 @@ const LandingPage = () => {
             {/* Bio */}
             <AnimatedSection className="md:col-span-7 space-y-8" variants={staggerContainer}>
               <motion.div variants={slideFromRight}>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/20 mb-4">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                  <span className="text-blue-300 text-[10px] font-semibold uppercase tracking-widest">Vision & Leadership</span>
-                </div>
                 <h2 className="text-4xl md:text-5xl font-semibold text-white tracking-tight leading-[1.1]">
                   About Us
                 </h2>
