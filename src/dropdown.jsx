@@ -166,7 +166,8 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.97 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-0 mt-2.5 w-[300px] bg-[#0a0a0f]/95 backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.8)] overflow-hidden z-[9999]"
+            className="absolute right-0 mt-2.5 w-[calc(100vw-16px)] sm:w-[300px] max-h-[85vh] overflow-y-auto bg-[#0a0a0f]/95 backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.8)] overflow-hidden z-[9999] right-0 sm:right-0"
+            style={{ maxWidth: '300px', right: 0 }}
           >
             {/* ── Profile Header ─────────────────────────────────────── */}
             <div className="p-4 pb-3">

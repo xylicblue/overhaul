@@ -279,13 +279,22 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
           )}
         </div>
 
-        {/* Mobile Menu Toggle */}
-        <button
-          className="md:hidden text-zinc-400 hover:text-white"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-        >
-          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        {/* Mobile: profile pill + hamburger */}
+        <div className="md:hidden flex items-center gap-2">
+          {session && profile && (
+            <ProfileDropdown
+              session={session}
+              profile={profile}
+              onLogout={handleLogout}
+            />
+          )}
+          <button
+            className="text-zinc-400 hover:text-white p-1"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu Dropdown */}

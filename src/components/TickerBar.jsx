@@ -248,8 +248,147 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
     }
   }, [isOpen, onClose, buttonRef]);
 
+  // Detect mobile
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
   if (!isOpen) return null;
 
+  // ── Mobile: full-screen overlay ──────────────────────────────────────────
+  if (isMobile) {
+    return ReactDOM.createPortal(
+      <div className="fixed inset-0 z-[9999] flex flex-col bg-[#08080c]">
+        {/* Top accent */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/60 to-transparent" />
+
+        {/* Header */}
+        <div className="px-4 pt-5 pb-0 bg-[#08080c] shrink-0">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4" />
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Search markets…"
+                className="w-full bg-zinc-900/60 border border-zinc-700/40 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-zinc-600 transition-all"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <button onClick={onClose} className="p-2 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Tabs — horizontal scroll on mobile */}
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">
+            {TABS.map(tab => {
+              const isActive = activeTab === tab;
+              const isFavTab = tab === "★ Favorites";
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    isActive
+                      ? isFavTab ? "bg-yellow-500/15 text-yellow-400 border border-yellow-500/25" : "bg-blue-500/15 text-blue-400 border border-blue-500/25"
+                      : "text-zinc-500 hover:text-zinc-300 bg-zinc-800/60 border border-transparent"
+                  }`}
+                >
+                  {tab}
+                  {isFavTab && favorites.size > 0 && (
+                    <span className={`ml-1 px-1 py-0.5 rounded-full text-[10px] font-bold ${isActive ? "bg-yellow-500/20 text-yellow-400" : "bg-zinc-700 text-zinc-400"}`}>
+                      {favorites.size}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Column header */}
+        <div className="grid grid-cols-12 px-4 py-2 mt-2 bg-zinc-900/40 border-y border-zinc-800/60 text-[10px] font-bold text-zinc-500 uppercase tracking-widest shrink-0">
+          <div className="col-span-7">Market</div>
+          <div className="col-span-3 text-right">Price</div>
+          <div className="col-span-2 text-right">24h</div>
+        </div>
+
+        {/* List */}
+        <div ref={listRef} className="overflow-y-auto flex-1">
+          {favLoading && [0,1,2,3,4].map(i => <SkeletonRow key={i} />)}
+          {!favLoading && filteredMarkets.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Search className="w-10 h-10 text-zinc-700 mb-3" />
+              <p className="text-zinc-400 font-semibold text-sm">No markets found</p>
+            </div>
+          )}
+          {!favLoading && filteredMarkets.map((market, index) => {
+            const price      = market.markPrice || market.oraclePrice || 0;
+            const change24h  = market.change24h || 0;
+            const isPositive = change24h >= 0;
+            const isActive   = market.name === currentMarket;
+            const isFav      = favorites.has(market.name);
+            const provider   = getProviderMeta(market.name);
+            const badge      = getMarketBadge(market.name);
+            const category   = getCategory(market.name);
+            return (
+              <button
+                key={market.name}
+                onClick={() => { onSelect(market.name); onClose(); }}
+                className={`w-full grid grid-cols-12 px-4 py-4 items-center border-b border-zinc-800/40 transition-colors text-left relative ${
+                  isActive ? "bg-blue-500/[0.07]" : "active:bg-white/[0.04]"
+                }`}
+              >
+                {isActive && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500 rounded-r" />}
+                <div className="col-span-7 flex items-center gap-2.5 min-w-0">
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleFavorite(market.name); }}
+                    className={`shrink-0 ${isFav ? "text-yellow-400" : "text-zinc-700"} ${!isLoggedIn ? "opacity-30" : ""}`}
+                    disabled={!isLoggedIn}
+                  >
+                    <Star className="w-3.5 h-3.5" fill={isFav ? "currentColor" : "none"} />
+                  </button>
+                  <div className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center ${
+                    category === "GPU Index" ? "bg-blue-500/10" : "bg-zinc-800/80"
+                  }`}>
+                    {category === "GPU Index" ? <Cpu className="w-3 h-3 text-blue-400" /> : <Cloud className="w-3 h-3 text-zinc-400" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className={`text-sm font-semibold truncate ${isActive ? "text-blue-300" : "text-white"}`}>
+                        {market.displayName || market.name.split("-")[0]}
+                      </span>
+                      {provider && (
+                        <span className={`inline-flex px-1 py-0.5 rounded border text-[9px] font-bold ${provider.color}`}>{provider.label}</span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-zinc-600 font-mono mt-0.5 truncate">{market.name}</div>
+                  </div>
+                </div>
+                <div className={`col-span-3 text-right font-mono text-sm font-medium ${isActive ? "text-blue-300" : "text-zinc-200"}`}>
+                  ${price.toFixed(2)}
+                </div>
+                <div className={`col-span-2 text-right font-mono text-xs font-semibold ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+                  {isPositive ? "+" : ""}{change24h.toFixed(2)}%
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 bg-[#08080c] border-t border-zinc-800/60 shrink-0">
+          <p className="text-[10px] text-zinc-600 text-center">
+            {filteredMarkets.length} market{filteredMarkets.length !== 1 ? "s" : ""}
+            {!isLoggedIn && <span className="ml-2 text-yellow-600">· Log in to save favorites</span>}
+          </p>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  // ── Desktop: anchored dropdown ────────────────────────────────────────────
   return ReactDOM.createPortal(
     <div className="fixed z-[9999]" style={{ top: position.top, left: position.left }}>
       <div

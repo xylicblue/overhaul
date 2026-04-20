@@ -326,6 +326,10 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     };
   }, [timeRange, market, config.tableName, config.fallbackTable]);
 
+  const accentColor    = isPriceUp ? "#00d4aa" : "#f23645";
+  const accentColorDim = isPriceUp ? "rgba(0,212,170,0.12)" : "rgba(242,54,69,0.12)";
+  const accentBorder   = isPriceUp ? "rgba(0,212,170,0.22)" : "rgba(242,54,69,0.22)";
+
   const chartOptions = {
     chart: {
       type: "area",
@@ -334,185 +338,308 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       background: "transparent",
       toolbar: { show: false },
       zoom: { enabled: false },
-      animations: { enabled: true, easing: "easeinout", speed: 800 },
+      selection: { enabled: false },
+      animations: { enabled: true, easing: "easeinout", speed: 500 },
     },
-    theme: { mode: "dark" },
     stroke: {
       curve: "straight",
-      width: 2,
-      colors: ["#3b82f6"], // blue-500
+      width: 1.5,
+      colors: [accentColor],
+      lineCap: "square",
     },
     markers: {
       size: 0,
+      hover: {
+        size: 4,
+        fillColor: accentColor,
+        strokeColor: "#0a0a12",
+        strokeWidth: 2,
+      },
     },
     fill: {
       type: "gradient",
       gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.4,
-        opacityTo: 0.05,
-        stops: [0, 100],
+        type: "vertical",
+        shadeIntensity: 0,
+        opacityFrom: 0.2,
+        opacityTo: 0,
+        stops: [0, 88, 100],
         colorStops: [
-          { offset: 0, color: "#3b82f6", opacity: 0.4 },
-          { offset: 100, color: "#3b82f6", opacity: 0 },
+          { offset: 0,   color: accentColor, opacity: 0.2 },
+          { offset: 88,  color: accentColor, opacity: 0.03 },
+          { offset: 100, color: accentColor, opacity: 0 },
         ],
       },
     },
     dataLabels: { enabled: false },
     grid: {
       show: true,
-      borderColor: "#1e293b", // slate-800
-      strokeDashArray: 4,
+      borderColor: "rgba(255,255,255,0.04)",
+      strokeDashArray: 0,
+      position: "back",
       xaxis: { lines: { show: false } },
       yaxis: { lines: { show: true } },
-      padding: { top: 0, right: 0, bottom: 0, left: 10 },
+      padding: { top: 16, right: 4, bottom: 4, left: 8 },
     },
     xaxis: {
       type: "datetime",
+      min: chartData.length > 0 ? chartData[0].x.getTime() : undefined,
+      max: chartData.length > 0 ? chartData[chartData.length - 1].x.getTime() : undefined,
+      tickAmount: timeRange === "24h" ? 6 : timeRange === "3d" ? 6 : timeRange === "5d" ? 5 : timeRange === "15d" ? 5 : 6,
       tooltip: { enabled: false },
       axisBorder: { show: false },
       axisTicks: { show: false },
+      crosshairs: {
+        show: true,
+        width: 1,
+        position: "back",
+        opacity: 1,
+        stroke: { color: "rgba(255,255,255,0.1)", width: 1, dashArray: 4 },
+        fill: { type: "solid", color: "transparent" },
+        dropShadow: { enabled: false },
+      },
       labels: {
-        style: { colors: "#94a3b8", fontSize: "11px", fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }, // slate-400
+        show: true,
+        style: {
+          colors: "#52525b",
+          fontSize: "10px",
+          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+          fontWeight: 500,
+        },
         format: timeRange === "24h" ? "HH:mm" : "MMM dd",
+        offsetY: 4,
+        datetimeUTC: false,
+        hideOverlappingLabels: true,
+        rotate: 0,
       },
     },
     yaxis: {
       opposite: true,
-      tickAmount: 4, // Equal spacing between y-axis labels
+      tickAmount: 4,
+      min: (min) => min * 0.998,
+      crosshairs: {
+        show: true,
+        position: "back",
+        stroke: { color: "rgba(255,255,255,0.07)", width: 1, dashArray: 4 },
+      },
       labels: {
-        style: { colors: "#94a3b8", fontSize: "11px", fontFamily: "'IBM Plex Mono', ui-monospace, monospace" },
+        show: true,
+        style: {
+          colors: "#52525b",
+          fontSize: "10px",
+          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+          fontWeight: 500,
+        },
         formatter: (val) => `$${val.toFixed(2)}`,
+        offsetX: -4,
       },
     },
+    annotations: {
+      yaxis: currentPrice
+        ? [{
+            y: currentPrice,
+            borderColor: accentColor,
+            borderWidth: 1,
+            strokeDashArray: 3,
+            opacity: 0.45,
+            label: { show: false },
+          }]
+        : [],
+    },
     tooltip: {
-      theme: "dark",
-      style: { fontSize: "12px", fontFamily: "'IBM Plex Mono', ui-monospace, monospace" },
-      custom: function({ series, seriesIndex, dataPointIndex, w }) {
+      shared: false,
+      intersect: false,
+      followCursor: false,
+      custom: function ({ series, seriesIndex, dataPointIndex, w }) {
         const value = series[seriesIndex][dataPointIndex];
         const timestamp = w.globals.seriesX[seriesIndex][dataPointIndex];
         const date = new Date(timestamp);
-        
-        // Format date nicely
-        const formattedDate = date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric',
-          year: 'numeric'
-        });
-        const formattedTime = date.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: true
-        });
-        
+        const formattedDate = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        const formattedTime = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+        const openPrice = chartData.length > 0 ? chartData[0].y : null;
+        const delta    = openPrice !== null ? value - openPrice : null;
+        const deltaPct = openPrice !== null && openPrice !== 0 ? (delta / openPrice) * 100 : null;
+        const isUp     = delta !== null && delta >= 0;
+        const tc       = isUp ? "#00d4aa" : "#f23645";
+        const sign     = isUp ? "+" : "";
         return `
           <div style="
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 12px;
-            padding: 12px 16px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(59, 130, 246, 0.1);
-            min-width: 140px;
+            background: #0c0c14;
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 8px;
+            padding: 12px 14px;
+            min-width: 190px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.025);
+            font-family: 'IBM Plex Mono', ui-monospace, monospace;
           ">
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 6px;
-              margin-bottom: 8px;
-              padding-bottom: 8px;
-              border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-            ">
-              <div style="
-                width: 8px;
-                height: 8px;
-                background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-                border-radius: 50%;
-                box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
-              "></div>
-              <span style="
-                font-size: 11px;
-                color: #94a3b8;
-                font-weight: 500;
-                letter-spacing: 0.5px;
-              ">${formattedDate}</span>
+            <div style="font-size: 9px; color: #3f3f46; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 9px;">
+              ${formattedDate}&nbsp;&nbsp;${formattedTime}
             </div>
+            <div style="font-size: 23px; font-weight: 700; color: #fff; letter-spacing: -0.04em; line-height: 1; margin-bottom: 9px; font-variant-numeric: tabular-nums;">
+              $${value.toFixed(3)}
+            </div>
+            ${delta !== null ? `
             <div style="
-              font-size: 20px;
-              font-weight: 700;
-              color: #ffffff;
-              font-family: 'IBM Plex Mono', ui-monospace, monospace;
-              letter-spacing: -0.5px;
-              margin-bottom: 4px;
-            ">$${value.toFixed(3)}</div>
-            <div style="
-              font-size: 10px;
-              color: #64748b;
-              font-weight: 500;
-            ">${formattedTime}</div>
+              display: inline-flex; align-items: center;
+              background: ${isUp ? "rgba(0,212,170,0.08)" : "rgba(242,54,69,0.08)"};
+              border: 1px solid ${isUp ? "rgba(0,212,170,0.18)" : "rgba(242,54,69,0.18)"};
+              border-radius: 4px; padding: 2px 8px;
+            ">
+              <span style="font-size: 10px; font-weight: 600; color: ${tc}; font-variant-numeric: tabular-nums;">
+                ${sign}${delta.toFixed(3)}&nbsp;&nbsp;${sign}${deltaPct.toFixed(2)}%
+              </span>
+            </div>` : ""}
           </div>
         `;
       },
-      marker: { show: false },
     },
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-950/50">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between p-4 gap-4 sm:gap-0 border-b border-slate-800/50">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-sm font-medium text-slate-400">{config.displayName} Index Price</h2>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
+
+      {/* ── Header ── */}
+      <div style={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        padding: "16px 20px 14px",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+        gap: "12px",
+        flexWrap: "wrap",
+      }}>
+        {/* Left block */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+          {/* Symbol row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "10px", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, letterSpacing: "0.12em", color: "#a1a1aa", textTransform: "uppercase" }}>
+              {config.displayName}
+            </span>
+            <span style={{ fontSize: "10px", fontFamily: "'IBM Plex Mono', monospace", letterSpacing: "0.08em", color: "#3f3f46", textTransform: "uppercase" }}>
+              · Perp Index
+            </span>
+            {/* LIVE badge */}
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: "4px",
+              background: "rgba(0,212,170,0.07)", border: "1px solid rgba(0,212,170,0.18)",
+              borderRadius: "4px", padding: "1px 7px",
+            }}>
+              <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#00d4aa", boxShadow: "0 0 6px rgba(0,212,170,0.8)", display: "inline-block" }} />
+              <span style={{ fontSize: "9px", color: "#00d4aa", fontFamily: "'IBM Plex Mono', monospace", letterSpacing: "0.1em", fontWeight: 600 }}>LIVE</span>
+            </span>
           </div>
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight font-mono">
-              {loading ? "..." : typeof currentPrice === "number" ? `$${currentPrice.toFixed(2)}` : "N/A"}
-            </h1>
+
+          {/* Price row */}
+          <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
+            <span style={{
+              fontSize: "30px", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700,
+              color: loading ? "#3f3f46" : "#ffffff", letterSpacing: "-0.04em", lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+            }}>
+              {loading
+                ? "—"
+                : typeof currentPrice === "number"
+                  ? `$${currentPrice.toFixed(2)}`
+                  : "N/A"}
+            </span>
             {hasEnoughData && priceChange !== null && (
-              <div className={`flex items-center text-sm font-bold font-mono tabular-nums tracking-tight ${isPriceUp ? "text-emerald-400" : "text-red-400"}`}>
-                <span>{isPriceUp ? "+" : ""}{priceChange.toFixed(2)}</span>
-                <span className="ml-1 text-xs font-semibold opacity-80">({isPriceUp ? "+" : ""}{priceChangePercent.toFixed(2)}%)</span>
-              </div>
+              <span style={{
+                display: "inline-flex", alignItems: "center",
+                background: accentColorDim, border: `1px solid ${accentBorder}`,
+                borderRadius: "5px", padding: "3px 9px",
+              }}>
+                <span style={{
+                  fontSize: "11px", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600,
+                  color: accentColor, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em",
+                }}>
+                  {isPriceUp ? "▲" : "▼"}&nbsp;
+                  {isPriceUp ? "+" : ""}{priceChange.toFixed(3)}&nbsp;&nbsp;
+                  <span style={{ opacity: 0.7, fontWeight: 500 }}>
+                    ({isPriceUp ? "+" : ""}{priceChangePercent.toFixed(2)}%)
+                  </span>
+                </span>
+              </span>
             )}
           </div>
         </div>
 
-        {/* Time Range Toggles */}
-        <div className="flex bg-slate-900 rounded-lg p-0.5 border border-slate-800 self-start sm:self-auto w-full sm:w-auto overflow-x-auto no-scrollbar justify-between sm:justify-start">
+        {/* Right: time range pill selector */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: "2px",
+          background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: "8px", padding: "3px",
+        }}>
           {["24h", "3d", "5d", "15d", "max"].map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
-              className={`flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold uppercase rounded transition-all whitespace-nowrap ${
-                timeRange === range
-                  ? "bg-slate-700 text-white shadow-sm"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
-              }`}
+              style={{
+                padding: "5px 11px", fontSize: "10px",
+                fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600,
+                letterSpacing: "0.08em", textTransform: "uppercase",
+                borderRadius: "5px", border: "none", cursor: "pointer",
+                transition: "all 0.15s ease",
+                background: timeRange === range ? "rgba(255,255,255,0.09)" : "transparent",
+                color: timeRange === range ? "#e4e4e7" : "#52525b",
+                outline: timeRange === range ? "1px solid rgba(255,255,255,0.1)" : "none",
+              }}
             >
-              {range.toUpperCase()}
+              {range}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Chart Area */}
-      <div className="flex-1 min-h-0 w-full relative">
+      {/* ── Chart area ── */}
+      <div style={{ flex: 1, minHeight: 0, width: "100%", position: "relative" }}>
         {loading ? (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-            Loading Chart Data...
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+              <div style={{
+                width: "18px", height: "18px", borderRadius: "50%",
+                border: "1.5px solid rgba(255,255,255,0.06)", borderTopColor: "rgba(255,255,255,0.3)",
+                animation: "chart-spin 0.8s linear infinite",
+              }} />
+              <span style={{ fontSize: "9px", fontFamily: "'IBM Plex Mono', monospace", color: "#3f3f46", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+                Loading
+              </span>
+            </div>
           </div>
         ) : hasEnoughData ? (
-          <Chart options={chartOptions} series={[{ name: "Price", data: chartData }]} type="area" height="100%" width="100%" />
+          <Chart
+            options={chartOptions}
+            series={[{ name: "Index Price", data: chartData }]}
+            type="area"
+            height="100%"
+            width="100%"
+          />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">
-            Not enough data for this time range.
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+            <span style={{ fontSize: "9px", fontFamily: "'IBM Plex Mono', monospace", color: "#3f3f46", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+              No data for selected range
+            </span>
           </div>
         )}
+        <style>{`@keyframes chart-spin { to { transform: rotate(360deg); } }`}</style>
       </div>
+
+      {/* ── Footer ── */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "7px 20px", borderTop: "1px solid rgba(255,255,255,0.04)",
+      }}>
+        <span style={{ fontSize: "9px", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 500, color: "#3f3f46", textTransform: "uppercase", letterSpacing: "0.14em" }}>
+          GPU Compute Index
+        </span>
+        <span style={{ fontSize: "9px", fontFamily: "'IBM Plex Mono', monospace", color: "#3f3f46", letterSpacing: "0.06em" }}>
+          Perpetual · Real-time
+        </span>
+      </div>
+
     </div>
   );
 };
 
 export default PriceIndexChart;
+
+

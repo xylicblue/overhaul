@@ -492,12 +492,17 @@ const LandingPage = () => {
             )}
           </div>
 
-          {/* Mobile Menu Toggle */}
-          <button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-            </svg>
-          </button>
+          {/* Mobile: profile pill + hamburger */}
+          <div className="md:hidden flex items-center gap-2">
+            {session && profile && (
+              <ProfileDropdown session={session} profile={profile} onLogout={handleLogout} />
+            )}
+            <button className="text-white p-1" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Mobile Nav */}
@@ -783,41 +788,21 @@ const LandingPage = () => {
               {/* Ambient glow behind the card */}
               <div className="absolute -inset-4 bg-blue-600/[0.06] rounded-3xl blur-2xl pointer-events-none" />
               
-              <div className="relative w-full h-full bg-[#0d0d14] border border-white/[0.08] rounded-2xl overflow-hidden">
-                {/* Gradient accent line at the top */}
-                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
-                
-                <div className="p-4 md:p-8 h-full">
-                  <div className="flex items-start justify-between mb-4 md:mb-0">
-                    <div className="z-10">
-                      <motion.div key={selectedMarket} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-1">
-                        <h3 className="text-xl md:text-2xl font-semibold text-white tracking-tight">
-                          {marketNameMap[selectedMarket] || "GPU Index"}
-                        </h3>
-                        <p className="text-xs md:text-sm text-zinc-500 flex items-center gap-2">
-                          <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                          </span>
-                          Real-Time Index Price
-                        </p>
-                      </motion.div>
-                    </div>
-                    {/* Trade action in top right */}
-                    <Routerlink 
-                      to="/trade" 
-                      className="group hidden md:flex items-center gap-2 px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all text-xs text-zinc-400 hover:text-white"
-                    >
-                      Trade {selectedModel}
-                      <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </Routerlink>
-                  </div>
-                  <div className="pt-8 md:pt-4 h-full w-full overflow-hidden" style={{ height: "calc(100% - 60px)" }}>
-                    <PriceIndexChart market={selectedMarket} />
-                  </div>
-                </div>
+              {/* Trade action — sits above the card, top-right */}
+              <Routerlink
+                to={`/trade?market=${selectedMarket}`}
+                className="absolute -top-12 right-0 group hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 transition-all text-[11px] font-mono font-semibold text-white shadow-lg shadow-blue-900/40"
+              >
+                Trade {selectedModel}
+                <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Routerlink>
+
+              <div className="relative w-full h-full bg-[#0d0d14] border border-white/[0.08] rounded-2xl overflow-visible">
+                {/* Top accent line */}
+                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent z-10 pointer-events-none" />
+                <PriceIndexChart market={selectedMarket} />
               </div>
             </motion.div>
 
