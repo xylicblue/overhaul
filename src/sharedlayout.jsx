@@ -108,9 +108,8 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
           </NavLink>
 
           {/* ── Docs Dropdown ───────────────────────────────────── */}
-          <div className="relative" ref={docsRef}>
+          <div className="relative" ref={docsRef} onMouseEnter={() => { setDocsOpen(true); setMethodologyOpen(false); }} onMouseLeave={() => setDocsOpen(false)}>
             <button
-              onClick={() => { setDocsOpen(v => !v); setMethodologyOpen(false); }}
               className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
             >
               Docs
@@ -133,22 +132,13 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
                 >
                   <div className="bg-[#111118] border border-white/[0.08] rounded-2xl shadow-2xl p-5 w-[580px]">
                     <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-4">Contract Reference</p>
-                    <div className="grid grid-cols-3 gap-6">
+                    <div className="grid grid-cols-2 gap-6">
                       {[
                         {
                           category: "Core Protocol",
                           items: [
                             { id: "overview",      label: "Architecture Overview", desc: "System topology and upgrade paths" },
                             { id: "clearinghouse", label: "ClearingHouse",         desc: "Positions, margin, liquidations"  },
-                            { id: "vamm",          label: "vAMM",                  desc: "Virtual AMM for price discovery"  },
-                          ],
-                        },
-                        {
-                          category: "Infrastructure",
-                          items: [
-                            { id: "collateralvault", label: "CollateralVault", desc: "Token deposits and withdrawals" },
-                            { id: "marketregistry",  label: "MarketRegistry",  desc: "Market creation and config"     },
-                            { id: "feerouter",       label: "FeeRouter",       desc: "Fee collection and distribution" },
                           ],
                         },
                         {
@@ -192,9 +182,8 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
           </div>
 
           {/* ── Index Methodology Dropdown ──────────────────────── */}
-          <div className="relative" ref={methodologyRef}>
+          <div className="relative" ref={methodologyRef} onMouseEnter={() => { setMethodologyOpen(true); setDocsOpen(false); }} onMouseLeave={() => setMethodologyOpen(false)}>
             <button
-              onClick={() => { setMethodologyOpen(v => !v); setDocsOpen(false); }}
               className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
             >
               Index Methodology
@@ -399,20 +388,6 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
             onClick={() => setIsMenuOpen(false)}
           >
             ClearingHouse
-          </Link>
-          <Link
-            to="/docs#vamm"
-            className="text-sm text-zinc-400 hover:text-white"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            vAMM
-          </Link>
-          <Link
-            to="/docs#collateralvault"
-            className="text-sm text-zinc-400 hover:text-white"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            CollateralVault
           </Link>
           <Link
             to="/docs"

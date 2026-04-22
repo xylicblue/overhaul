@@ -164,7 +164,6 @@ const LandingPage = () => {
   const heroRef = useRef(null);
   const chartRef = useRef(null);
   const horizontalRef = useRef(null);
-  const aboutImageRef = useRef(null);
   const pageRef = useRef(null);
   const docsRef = useRef(null);
   const methodologyRef = useRef(null);
@@ -196,13 +195,6 @@ const LandingPage = () => {
     offset: ["start start", "end end"],
   });
   const horizontalX = useTransform(horizontalScrollProgress, [0, 1], ["0%", "-20%"]);
-
-  /* ─── 5. About Image Curtain Reveal ─── */
-  const { scrollYProgress: aboutImageProgress } = useScroll({
-    target: aboutImageRef,
-    offset: ["start end", "center center"],
-  });
-  const curtainScaleX = useTransform(aboutImageProgress, [0, 1], [1, 0]);
 
   /* ─── 6. Platform Preview Cinematic Reveal ─── */
   const previewRef = useRef(null);
@@ -345,9 +337,8 @@ const LandingPage = () => {
             </Routerlink>
             
             {/* ── Docs Dropdown ───────────────────────────────────── */}
-            <div className="relative" ref={docsRef}>
+            <div className="relative" ref={docsRef} onMouseEnter={() => { setDocsOpen(true); setMethodologyOpen(false); }} onMouseLeave={() => setDocsOpen(false)}>
               <button
-                onClick={() => { setDocsOpen(v => !v); setMethodologyOpen(false); }}
                 className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
               >
                 Docs
@@ -370,22 +361,13 @@ const LandingPage = () => {
                   >
                     <div className="bg-[#111118] border border-white/[0.08] rounded-2xl shadow-2xl p-5 w-[580px]">
                       <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-4">Contract Reference</p>
-                      <div className="grid grid-cols-3 gap-6">
+                      <div className="grid grid-cols-2 gap-6">
                         {[
                           {
                             category: "Core Protocol",
                             items: [
                               { id: "overview",      label: "Architecture Overview", desc: "System topology and upgrade paths" },
                               { id: "clearinghouse", label: "ClearingHouse",         desc: "Positions, margin, liquidations"  },
-                              { id: "vamm",          label: "vAMM",                  desc: "Virtual AMM for price discovery"  },
-                            ],
-                          },
-                          {
-                            category: "Infrastructure",
-                            items: [
-                              { id: "collateralvault", label: "CollateralVault", desc: "Token deposits and withdrawals" },
-                              { id: "marketregistry",  label: "MarketRegistry",  desc: "Market creation and config"      },
-                              { id: "feerouter",       label: "FeeRouter",       desc: "Fee collection and distribution" },
                             ],
                           },
                           {
@@ -429,9 +411,8 @@ const LandingPage = () => {
             </div>
 
             {/* ── Index Methodology Dropdown ──────────────────────── */}
-            <div className="relative" ref={methodologyRef}>
+            <div className="relative" ref={methodologyRef} onMouseEnter={() => { setMethodologyOpen(true); setDocsOpen(false); }} onMouseLeave={() => setMethodologyOpen(false)}>
               <button
-                onClick={() => { setMethodologyOpen(v => !v); setDocsOpen(false); }}
                 className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
               >
                 Index Methodology
@@ -799,11 +780,11 @@ const LandingPage = () => {
               {/* Trade action — sits above the card, top-right */}
               <Routerlink
                 to={`/trade?market=${selectedMarket}`}
-                className="absolute -top-12 right-0 group hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 transition-all text-[11px] font-mono font-semibold text-white shadow-lg shadow-blue-900/40"
+                className="absolute -top-11 right-0 group hidden md:flex items-center gap-2 px-4 py-2 rounded-lg border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/[0.16] transition-all duration-200 text-[11px] font-medium text-zinc-400 hover:text-zinc-100 tracking-wide"
               >
                 Trade {selectedModel}
-                <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </Routerlink>
 
@@ -1032,80 +1013,76 @@ const LandingPage = () => {
       <div className="section-divider max-w-5xl mx-auto" />
 
 
-      {/* ═══ ABOUT US — with image curtain reveal ═══ */}
+      {/* ═══ ABOUT US ═══ */}
       <section id="about" className="py-24 relative z-10">
-        <div className="container mx-auto px-6 relative z-10">
-          <div className="grid md:grid-cols-12 gap-10 lg:gap-16 items-center">
-              
-            {/* Image with curtain wipe reveal */}
-            <AnimatedSection className="md:col-span-5 relative flex flex-col justify-center" variants={staggerContainer}>
-              <motion.div variants={slideFromLeft} ref={aboutImageRef} className="relative rounded-2xl overflow-hidden border border-white/[0.06] max-w-[400px] mx-auto w-full">
-                <div className="aspect-square">
-                  <img src={ceoPortrait} alt="Gabe Jaffe" loading="lazy" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f] via-transparent to-transparent opacity-60"></div>
-                </div>
+        <div className="container mx-auto px-6">
+          <AnimatedSection className="max-w-5xl mx-auto">
 
+            {/* Header */}
+            <motion.div variants={fadeUp} className="mb-12">
+              <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-4">About Us</p>
+              <h2 className="text-4xl md:text-5xl font-semibold text-white tracking-tight leading-[1.1] mb-5">
+                The financial layer<br className="hidden sm:block" /> for compute.
+              </h2>
+              <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-2xl">
+                ByteStrike is a licensed futures exchange for GPU compute hours. We turn AI's most strategic commodity into a tradable, hedgeable asset.
+              </p>
+            </motion.div>
 
+            <div className="h-px bg-white/[0.06] mb-10" />
+
+            {/* Three editorial columns */}
+            <div className="grid md:grid-cols-3 gap-4">
+              {[
+                {
+                  num: "01",
+                  label: "The Problem",
+                  body: "AI runs on GPU hours. The market for them is enormous, and primitive. Spot prices swing 10×. Enterprises overpay on long-term contracts. Operators sit on idle capacity. There's no standardized instrument, no forward curve, no way to hedge directional exposure.",
+                },
+                {
+                  num: "02",
+                  label: "What We Do",
+                  body: "ByteStrike gives compute the financial rails it's missing. Enterprises lock in prices ahead of training runs. Operators hedge utilization and monetize forward capacity. Allocators gain exposure to the AI build-out without owning hardware. Contracts are standardized, settlement is instant and onchain, and counterparty risk is managed at the exchange layer.",
+                },
+                {
+                  num: "03",
+                  label: "Why Now",
+                  body: "Hyperscalers and neoclouds will spend hundreds of billions on GPUs this cycle. That capex needs price discovery, risk transfer, and liquidity. The commodities that shaped the last century - oil, power, grain - all got their markets. Compute is next, and it's bigger than any of them.",
+                },
+              ].map(({ num, label, body }, i) => (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  key={label}
+                  initial={{ opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.4, duration: 0.5 }}
-                  className="absolute bottom-5 left-5 z-20"
+                  viewport={{ once: true, margin: "-40px" }}
+                  transition={{ duration: 0.4, delay: i * 0.09, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="border border-white/[0.06] bg-white/[0.02] rounded-xl p-6 flex flex-col gap-4"
                 >
-                  <div className="bg-[#0a0a0f]/80 backdrop-blur-md border border-white/[0.08] rounded-xl px-5 py-3">
-                    <p className="text-white text-lg font-semibold tracking-tight">Gabe Jaffe</p>
-                    <p className="text-xs text-zinc-400 uppercase tracking-widest mt-0.5">Founder & CEO</p>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] text-zinc-600 tabular-nums">{num}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{label}</span>
                   </div>
+                  <div className="h-px bg-white/[0.05]" />
+                  <p className="text-zinc-400 text-sm leading-relaxed">{body}</p>
                 </motion.div>
-              </motion.div>
-            </AnimatedSection>
+              ))}
+            </div>
 
-            {/* Bio */}
-            <AnimatedSection className="md:col-span-7 space-y-8" variants={staggerContainer}>
-              <motion.div variants={slideFromRight}>
-                <h2 className="text-4xl md:text-5xl font-semibold text-white tracking-tight leading-[1.1]">
-                  About Us
-                </h2>
-              </motion.div>
+            {/* Contact footer */}
+            <motion.div
+              variants={fadeUp}
+              className="mt-12 pt-8 border-t border-white/[0.06] flex items-center justify-between flex-wrap gap-4"
+            >
+              <p className="text-xs text-zinc-600 uppercase tracking-widest font-medium">Get in touch</p>
+              <a
+                href="mailto:gabejaffe@byte-strike.com"
+                className="text-sm text-zinc-400 hover:text-white transition-colors"
+              >
+                gabejaffe@byte-strike.com →
+              </a>
+            </motion.div>
 
-              <motion.div variants={fadeUp} className="space-y-4 text-base md:text-lg text-zinc-400 leading-relaxed">
-                <p>
-                  <span className="text-white">Gabe Jaffe</span> is a Sophomore student at the <span className="text-white">McDonough School of Business</span> at Georgetown University. At the age of 15, he founded his first company, <span className="text-white">Teen Hampton</span> and <span className="text-white">Teen NYC</span>, a digital platform for teenage tutors, sports instructors, and babysitters, that has housed more than 100 workers and served more than 1,000 clients.
-                </p>
-                <p>
-                  As Gabe scaled the business, he appeared on{" "}
-                  <a href="https://www.youtube.com/watch?v=MJko_jIdZxk" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">Good Day New York</a>,{" "}
-                  <a href="https://www.foxnews.com/video/6307767277112" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">Fox National News</a>,{" "}
-                  <a href="https://www.youtube.com/watch?v=stkR3mEhIAQ" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">CBS Inside Edition</a>, and more to discuss his accomplishments.
-                </p>
-                <p>
-                  Now, he is working to build the foundations of a futures market for compute as a commodity to accelerate AI learning and market growth.
-                </p>
-              </motion.div>
-
-              {/* Blockquote */}
-              <motion.div variants={fadeUp} className="border-l-2 border-blue-600 pl-6 py-2">
-                <blockquote className="text-lg md:text-xl italic text-zinc-200 leading-relaxed">
-                  "We stand at a pivotal moment where computational power is the most critical resource on the planet. Our mission is to build the tools that will power the next century of innovation."
-                </blockquote>
-              </motion.div>
-
-              <motion.div variants={fadeUpSubtle} className="flex items-center gap-4 pt-6 border-t border-white/[0.06]">
-                <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-0.5">Get in Touch</p>
-                  <a href="mailto:gabe.jaffe@bytestrike.com" className="text-lg text-white hover:text-blue-400 transition-colors">
-                    gabejaffe@byte-strike.com
-                  </a>
-                </div>
-              </motion.div>
-            </AnimatedSection>
-          </div>
+          </AnimatedSection>
         </div>
       </section>
 

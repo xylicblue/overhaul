@@ -343,9 +343,9 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     },
     stroke: {
       curve: "straight",
-      width: 1.5,
+      width: 1.8,
       colors: [accentColor],
-      lineCap: "square",
+      lineCap: "round",
     },
     markers: {
       size: 0,
@@ -361,25 +361,20 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       gradient: {
         type: "vertical",
         shadeIntensity: 0,
-        opacityFrom: 0.2,
+        opacityFrom: 0.13,
         opacityTo: 0,
-        stops: [0, 88, 100],
+        stops: [0, 75, 100],
         colorStops: [
-          { offset: 0,   color: accentColor, opacity: 0.2 },
-          { offset: 88,  color: accentColor, opacity: 0.03 },
+          { offset: 0,   color: accentColor, opacity: 0.13 },
+          { offset: 75,  color: accentColor, opacity: 0.02 },
           { offset: 100, color: accentColor, opacity: 0 },
         ],
       },
     },
     dataLabels: { enabled: false },
     grid: {
-      show: true,
-      borderColor: "rgba(255,255,255,0.04)",
-      strokeDashArray: 0,
-      position: "back",
-      xaxis: { lines: { show: false } },
-      yaxis: { lines: { show: true } },
-      padding: { top: 16, right: 4, bottom: 4, left: 8 },
+      show: false,
+      padding: { top: 20, right: 2, bottom: 6, left: 8 },
     },
     xaxis: {
       type: "datetime",
@@ -401,10 +396,10 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       labels: {
         show: true,
         style: {
-          colors: "#52525b",
+          colors: "#71717a",
           fontSize: "10px",
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontWeight: 500,
+          fontWeight: 400,
         },
         format: timeRange === "24h" ? "HH:mm" : "MMM dd",
         offsetY: 4,
@@ -425,10 +420,10 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       labels: {
         show: true,
         style: {
-          colors: "#52525b",
+          colors: "#71717a",
           fontSize: "10px",
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontWeight: 500,
+          fontWeight: 400,
         },
         formatter: (val) => `$${val.toFixed(2)}`,
         offsetX: -4,
@@ -621,19 +616,6 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
           </div>
         )}
         <style>{`@keyframes chart-spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-
-      {/* ── Footer ── */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "7px 20px", borderTop: "1px solid rgba(255,255,255,0.04)",
-      }}>
-        <span style={{ fontSize: "9px", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 500, color: "#3f3f46", textTransform: "uppercase", letterSpacing: "0.14em" }}>
-          GPU Compute Index
-        </span>
-        <span style={{ fontSize: "9px", fontFamily: "'IBM Plex Mono', monospace", color: "#3f3f46", letterSpacing: "0.06em" }}>
-          Perpetual · Real-time
-        </span>
       </div>
 
     </div>
