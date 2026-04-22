@@ -1,0 +1,21 @@
+<svg width="320" height="88" viewBox="0 0 320 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cyfrinGradient" x1="20" y1="12" x2="76" y2="76" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5AA2FF"/>
+      <stop offset="1" stop-color="#2D63FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="318" height="86" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.10)"/>
+
+  <g transform="translate(20,14)">
+    <path d="M28 0L56 14V38C56 52.4 44.8 65.4 28 68C11.2 65.4 0 52.4 0 38V14L28 0Z" fill="url(#cyfrinGradient)"/>
+    <path d="M39.5 24.5H30.3C27.1 24.5 24.5 27.1 24.5 30.3V39.5C24.5 42.7 21.9 45.3 18.7 45.3H12.5" stroke="white" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="40" cy="24" r="4" fill="white"/>
+    <circle cx="12" cy="45" r="4" fill="white"/>
+  </g>
+
+  <g fill="#F5F7FF" font-family="Inter, Segoe UI, Arial, sans-serif" font-weight="700">
+    <text x="94" y="51" font-size="34" letter-spacing="1.2">CYFRIN</text>
+  </g>
+</svg>
