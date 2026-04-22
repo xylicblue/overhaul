@@ -18,6 +18,7 @@ import SettingsPage from "./settings";
 import MethodologyPage from "./MethodologyPage";
 import DocsPage from "./DocsPage";
 import PrivacyPolicy from "./PrivacyPolicy";
+import SecurityPage from "./SecurityPage";
 import AdminNotifications from "./AdminNotifications";
 import SharedLayout from "./sharedlayout";
 import { DebugMarkets } from "./debug-markets";
@@ -159,6 +160,7 @@ function App() {
                 <Route path="/debug-markets" element={<DebugMarkets />} />
                 <Route path="/methodology/:gpu" element={<MethodologyPage />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/security" element={<SecurityPage />} />
                 <Route path="/admin/notifications" element={<AdminNotifications />} />
                 <Route element={<SharedLayout />}>
                   <Route path="/trade" element={<TradingPage />} />
