@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import ReactDOM from "react-dom";
 import { useMarket } from "../marketcontext";
 import { useMarketRealTimeData, useMarketsData } from "../marketData";
+import Sparkline from "./Sparkline";
 import { useReadContract } from "wagmi";
 import { SEPOLIA_CONTRACTS, MARKET_IDS } from "../contracts/addresses";
 import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
@@ -155,7 +156,7 @@ const InfoTooltip = ({ title, description }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const SkeletonRow = () => (
   <div className="grid grid-cols-12 px-6 py-3.5 border-b border-zinc-800/50 animate-pulse">
-    <div className="col-span-5 flex items-center gap-3">
+    <div className="col-span-4 flex items-center gap-3">
       <div className="w-3.5 h-3.5 rounded bg-zinc-800" />
       <div className="space-y-1.5">
         <div className="h-3 w-24 rounded bg-zinc-800" />
@@ -163,13 +164,16 @@ const SkeletonRow = () => (
       </div>
     </div>
     <div className="col-span-3 flex justify-end items-center">
+      <div className="h-[22px] w-[60px] rounded bg-zinc-800/40" />
+    </div>
+    <div className="col-span-2 flex justify-end items-center">
       <div className="h-3 w-16 rounded bg-zinc-800" />
     </div>
     <div className="col-span-2 flex justify-end items-center">
       <div className="h-3 w-12 rounded bg-zinc-800" />
     </div>
-    <div className="col-span-2 flex justify-end items-center">
-      <div className="h-3 w-10 rounded bg-zinc-800/60" />
+    <div className="col-span-1 flex justify-end items-center">
+      <div className="h-3 w-8 rounded bg-zinc-800/60" />
     </div>
   </div>
 );
@@ -189,8 +193,9 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
   const listRef                                         = useRef(null);
 
   // ── Filtered list (must be defined before effects that reference it) ──────
+  const PIN_ORDER = ["H100-PERP", "B200-PERP"];
   const filteredMarkets = useMemo(() => {
-    return markets.filter(m => {
+    const filtered = markets.filter(m => {
       const q = searchTerm.toLowerCase();
       const matchesSearch =
         m.name.toLowerCase().includes(q) ||
@@ -202,6 +207,15 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
       else if (activeTab === "Hyperscaler") matchesTab = getCategory(m.name) === "Hyperscaler";
 
       return matchesSearch && matchesTab;
+    });
+
+    return filtered.sort((a, b) => {
+      const ai = PIN_ORDER.indexOf(a.name);
+      const bi = PIN_ORDER.indexOf(b.name);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return 0;
     });
   }, [markets, searchTerm, activeTab, favorites]);
 
@@ -308,8 +322,9 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
 
         {/* Column header */}
         <div className="grid grid-cols-12 px-4 py-2 mt-2 bg-zinc-900/40 border-y border-zinc-800/60 text-[10px] font-bold text-zinc-500 uppercase tracking-widest shrink-0">
-          <div className="col-span-7">Market</div>
-          <div className="col-span-3 text-right">Price</div>
+          <div className="col-span-5">Market</div>
+          <div className="col-span-3 text-right">Trend</div>
+          <div className="col-span-2 text-right">Price</div>
           <div className="col-span-2 text-right">24h</div>
         </div>
 
@@ -340,7 +355,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
                 }`}
               >
                 {isActive && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500 rounded-r" />}
-                <div className="col-span-7 flex items-center gap-2.5 min-w-0">
+                <div className="col-span-5 flex items-center gap-2 min-w-0">
                   <button
                     onClick={e => { e.stopPropagation(); toggleFavorite(market.name); }}
                     className={`shrink-0 ${isFav ? "text-yellow-400" : "text-zinc-700"} ${!isLoggedIn ? "opacity-30" : ""}`}
@@ -365,7 +380,10 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
                     <div className="text-[10px] text-zinc-600 font-mono mt-0.5 truncate">{market.name}</div>
                   </div>
                 </div>
-                <div className={`col-span-3 text-right font-mono text-sm font-medium ${isActive ? "text-blue-300" : "text-zinc-200"}`}>
+                <div className="col-span-3 flex items-center justify-end">
+                  <Sparkline marketId={market.name} width={56} height={20} />
+                </div>
+                <div className={`col-span-2 text-right font-mono text-sm font-medium ${isActive ? "text-blue-300" : "text-zinc-200"}`}>
                   ${price.toFixed(2)}
                 </div>
                 <div className={`col-span-2 text-right font-mono text-xs font-semibold ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
@@ -452,10 +470,11 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
 
         {/* ── Table header ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-12 px-6 py-2.5 mt-3 bg-zinc-900/40 border-y border-zinc-800/60 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-          <div className="col-span-5">Market</div>
-          <div className="col-span-3 text-right">Index Price</div>
+          <div className="col-span-4">Market</div>
+          <div className="col-span-3 text-right">Trend</div>
+          <div className="col-span-2 text-right">Index Price</div>
           <div className="col-span-2 text-right">24h</div>
-          <div className="col-span-2 text-right">Volume</div>
+          <div className="col-span-1 text-right">Vol</div>
         </div>
 
         {/* ── Market list ────────────────────────────────────────────────── */}
@@ -512,7 +531,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
                 )}
 
                 {/* ── Market name col ─────────────────────────────────── */}
-                <div className="col-span-5 flex items-center gap-2.5 min-w-0">
+                <div className="col-span-4 flex items-center gap-2.5 min-w-0">
                   {/* Star button */}
                   <button
                     onClick={e => { e.stopPropagation(); toggleFavorite(market.name); }}
@@ -567,8 +586,13 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
                   </div>
                 </div>
 
+                {/* ── Sparkline col ───────────────────────────────────── */}
+                <div className="col-span-3 flex items-center justify-end pr-1">
+                  <Sparkline marketId={market.name} width={60} height={22} />
+                </div>
+
                 {/* ── Price col ───────────────────────────────────────── */}
-                <div className={`col-span-3 text-right font-mono text-sm font-medium ${
+                <div className={`col-span-2 text-right font-mono text-sm font-medium ${
                   isActive ? "text-blue-300" : "text-zinc-200"
                 }`}>
                   ${price.toFixed(2)}
@@ -582,7 +606,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
                 </div>
 
                 {/* ── Volume col ──────────────────────────────────────── */}
-                <div className="col-span-2 text-right font-mono text-xs text-zinc-600">
+                <div className="col-span-1 text-right font-mono text-xs text-zinc-600">
                   —
                 </div>
 

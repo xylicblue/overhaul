@@ -4,6 +4,7 @@ import { supabase } from "./creatclient";
 import { MARKET_IDS } from "./contracts/addresses";
 import PageTransition from "./components/PageTransition";
 import { HiArrowTrendingUp, HiArrowTrendingDown, HiMagnifyingGlass } from "react-icons/hi2";
+import Sparkline from "./components/Sparkline";
 
 // Market categories
 const MARKET_CATEGORIES = {
@@ -230,12 +231,15 @@ const MarketCard = ({ market, price, change24h, volume24h, openInterest, onClick
           {market.description}
         </p>
 
-        {/* Price */}
-        <div className="mb-4">
-          <span className="text-2xl font-bold text-white font-mono tracking-tight">
-            ${price?.toFixed(2) || "—"}
-          </span>
-          <span className="text-[11px] text-zinc-600 ml-1.5">/hr</span>
+        {/* Price + Sparkline */}
+        <div className="mb-4 flex items-end justify-between">
+          <div>
+            <span className="text-2xl font-bold text-white font-mono tracking-tight">
+              ${price?.toFixed(2) || "—"}
+            </span>
+            <span className="text-[11px] text-zinc-600 ml-1.5">/hr</span>
+          </div>
+          <Sparkline marketId={market.id} width={72} height={28} />
         </div>
 
         {/* Stats row: 24h change · Volume · OI */}
