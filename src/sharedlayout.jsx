@@ -12,6 +12,7 @@ import { Menu, X } from "lucide-react";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import { useAuthModal } from "./context/AuthModalContext";
 import NotificationBell from "./components/NotificationBell";
+import { useNotificationStore } from "./stores/useNotificationStore";
 
 // Clean, dark-themed header for the app
 const dropdownVariants = {
@@ -20,7 +21,7 @@ const dropdownVariants = {
   exit:    { opacity: 0, y: -4, scale: 0.97, transition: { duration: 0.12, ease: "easeIn"  } },
 };
 
-const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) => {
+const AppHeader = ({ session, profile, sessionLoading, handleLogout, openLogin, openSignup }) => {
   const [isMenuOpen,      setIsMenuOpen]      = useState(false);
   const [docsOpen,        setDocsOpen]        = useState(false);
   const [methodologyOpen, setMethodologyOpen] = useState(false);
@@ -236,15 +237,17 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
       <div className="flex items-center gap-4">
         {/* Wallet Status (Visible on Desktop, only when logged in) */}
         <div className="hidden lg:block">
-          {session && <HeaderWallet />}
+          {!sessionLoading && session && <HeaderWallet />}
         </div>
 
-        {session && (
+        {!sessionLoading && session && (
           <NotificationBell userId={session.user?.id} />
         )}
 
         <div className="hidden md:block">
-          {session && profile ? (
+          {sessionLoading || (session && !profile) ? (
+            <div className="w-24 h-8 rounded-xl bg-white/[0.04] animate-pulse" />
+          ) : session && profile ? (
             <ProfileDropdown
               session={session}
               profile={profile}
@@ -270,13 +273,15 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
 
         {/* Mobile: profile pill + hamburger */}
         <div className="md:hidden flex items-center gap-2">
-          {session && profile && (
+          {sessionLoading || (session && !profile) ? (
+            <div className="w-8 h-8 rounded-full bg-white/[0.04] animate-pulse" />
+          ) : session && profile ? (
             <ProfileDropdown
               session={session}
               profile={profile}
               onLogout={handleLogout}
             />
-          )}
+          ) : null}
           <button
             className="text-zinc-400 hover:text-white p-1"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -473,6 +478,7 @@ const AppHeader = ({ session, profile, handleLogout, openLogin, openSignup }) =>
 const SharedLayout = () => {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const navigate = useNavigate();
   const { disconnect } = useDisconnect();
   const { openLogin, openSignup } = useAuthModal();
@@ -480,14 +486,28 @@ const SharedLayout = () => {
   useEffect(() => {
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => setSession(session));
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setSessionLoading(false);
+      });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) =>
-      setSession(session)
-    );
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setSessionLoading(false);
+    });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Notification store: one shared subscription for the entire app
+  useEffect(() => {
+    const { initialize, teardown } = useNotificationStore.getState();
+    if (session?.user?.id) {
+      initialize(session.user.id);
+    } else {
+      teardown();
+    }
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (session?.user) {
@@ -532,6 +552,7 @@ const SharedLayout = () => {
       <AppHeader
         session={session}
         profile={profile}
+        sessionLoading={sessionLoading}
         handleLogout={handleLogout}
         openLogin={openLogin}
         openSignup={openSignup}

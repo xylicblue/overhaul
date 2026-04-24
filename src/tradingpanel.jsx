@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useTradingStore } from "./stores/useTradingStore";
 import ReactDOM from "react-dom";
 import { toast } from "react-hot-toast";
 import { useAccount } from "wagmi";
@@ -92,11 +93,10 @@ const Section = ({ title, children, defaultOpen = true }) => {
 // TradingPanel
 // ─────────────────────────────────────────────────────────────────────────────
 export const TradingPanel = ({ selectedMarket }) => {
-  const [side, setSide]             = useState("Buy");
-  const [size, setSize]             = useState("");
-  const [priceLimit, setPriceLimit] = useState("");
-  const [leverage, setLeverage]     = useState(1);
-  const { address }                 = useAccount();
+  const { side, size, priceLimit, leverage, lastTxHash,
+          setSide, setSize, setPriceLimit, setLeverage,
+          resetOrder, setLastTx } = useTradingStore();
+  const { address }               = useAccount();
 
   const marketId                 = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
   const { accountValue }         = useAccountValue();
@@ -107,36 +107,39 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
-  const [handledTxHash, setHandledTxHash] = useState(null);
 
   const isLong = side === "Buy";
 
-  // ── Calculations ──────────────────────────────────────────────────────────
-  const accountValueNum  = parseFloat(accountValue) || 0;
-  const vaultBalanceNum  = parseFloat(totalCollateralValue) || 0;
-  const effectiveBalance = accountValueNum > 0 ? accountValueNum : vaultBalanceNum;
-  const currentPrice     = parseFloat(market?.markPriceRaw) || 0;
-  const imr              = riskParams?.imrPercent ? riskParams.imrPercent / 100 : 0.1;
-  const maxSize          = currentPrice > 0 ? (effectiveBalance * leverage) / currentPrice / imr : 0;
-
-  const sizeNum        = parseFloat(size) || 0;
-  const marketPrice    = parseFloat(market?.price) || 0;
-  const notionalValue  = sizeNum * marketPrice;
-  const fees           = notionalValue * 0.001;
-  const marginRequired = leverage > 0 ? notionalValue / leverage : 0;
-
-  // Estimated liquidation price (simplified)
-  const mmr      = riskParams?.mmrPercent ? riskParams.mmrPercent / 100 : 0.05;
-  const liqPrice = currentPrice > 0 && sizeNum > 0
-    ? isLong
-      ? (currentPrice - (marginRequired - mmr * notionalValue) / sizeNum).toFixed(2)
-      : (currentPrice + (marginRequired - mmr * notionalValue) / sizeNum).toFixed(2)
-    : "—";
+  // ── Calculations (memoised — only rerun when inputs actually change) ───────
+  const {
+    effectiveBalance, currentPrice, marketPrice,
+    maxSize, sizeNum, notionalValue, fees, marginRequired, liqPrice,
+  } = useMemo(() => {
+    const accountValueNum  = parseFloat(accountValue) || 0;
+    const vaultBalanceNum  = parseFloat(totalCollateralValue) || 0;
+    const effectiveBalance = accountValueNum > 0 ? accountValueNum : vaultBalanceNum;
+    const currentPrice     = parseFloat(market?.markPriceRaw) || 0;
+    const marketPrice      = parseFloat(market?.price) || 0;
+    const imr              = riskParams?.imrPercent ? riskParams.imrPercent / 100 : 0.1;
+    const mmr              = riskParams?.mmrPercent ? riskParams.mmrPercent / 100 : 0.05;
+    const maxSize          = currentPrice > 0 ? (effectiveBalance * leverage) / currentPrice / imr : 0;
+    const sizeNum          = parseFloat(size) || 0;
+    const notionalValue    = sizeNum * marketPrice;
+    const fees             = notionalValue * 0.001;
+    const marginRequired   = leverage > 0 ? notionalValue / leverage : 0;
+    const liqPrice         = currentPrice > 0 && sizeNum > 0
+      ? isLong
+        ? (currentPrice - (marginRequired - mmr * notionalValue) / sizeNum).toFixed(2)
+        : (currentPrice + (marginRequired - mmr * notionalValue) / sizeNum).toFixed(2)
+      : "—";
+    return { effectiveBalance, currentPrice, marketPrice, maxSize, sizeNum, notionalValue, fees, marginRequired, liqPrice };
+  }, [accountValue, totalCollateralValue, market?.markPriceRaw, market?.price,
+      riskParams?.imrPercent, riskParams?.mmrPercent, size, leverage, isLong]);
 
   // ── Trade success ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isSuccess && hash && hash !== handledTxHash) {
-      setHandledTxHash(hash);
+    if (isSuccess && hash && hash !== lastTxHash) {
+      setLastTx(hash, side);
       toast.success(
         <div>
           <div>Position opened successfully!</div>
@@ -169,11 +172,10 @@ export const TradingPanel = ({ selectedMarket }) => {
         } catch (e) { console.warn("Failed to record trade:", e); }
       };
       saveTrade();
-      setSize("");
-      setPriceLimit("");
+      resetOrder();
       setTimeout(() => resetTrade(), 100);
     }
-  }, [isSuccess, hash, handledTxHash, address, market, isLong, sizeNum, marketPrice, notionalValue, resetTrade]);
+  }, [isSuccess, hash, lastTxHash, address, market, isLong, sizeNum, marketPrice, notionalValue, resetTrade, setLastTx, resetOrder, side]);
 
   // ── Trade error ───────────────────────────────────────────────────────────
   useEffect(() => {

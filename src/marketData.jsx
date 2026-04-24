@@ -441,30 +441,6 @@ export const useMarketsData = () => {
   } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyOld, 5000);
 
   useEffect(() => {
-    // Log for debugging
-    console.log("useMarketsData:", {
-      h100: { markPriceH100, priceLoadingH100, errorH100 },
-      hyperscalers: { markPriceHyperscalers, priceLoadingHyperscalers, errorHyperscalers },
-      nonHyperscalers: { markPriceNonHyperscalers, priceLoadingNonHyperscalers, errorNonHyperscalers },
-      b200: { markPriceB200, priceLoadingB200, errorB200 },
-      h200: { markPriceH200, priceLoadingH200, errorH200 },
-      oracleB200: { markPriceOracleB200, priceLoadingOracleB200, errorOracleB200 },
-      awsB200: { markPriceAWSB200, priceLoadingAWSB200, errorAWSB200 },
-      coreweaveB200: { markPriceCoreWeaveB200, priceLoadingCoreWeaveB200, errorCoreWeaveB200 },
-      gcpB200: { markPriceGCPB200, priceLoadingGCPB200, errorGCPB200 },
-      oracleH200: { markPriceOracleH200, priceLoadingOracleH200, errorOracleH200 },
-      awsH200: { markPriceAWSH200, priceLoadingAWSH200, errorAWSH200 },
-      coreweaveH200: { markPriceCoreWeaveH200, priceLoadingCoreWeaveH200, errorCoreWeaveH200 },
-      gcpH200: { markPriceGCPH200, priceLoadingGCPH200, errorGCPH200 },
-      azureH200: { markPriceAzureH200, priceLoadingAzureH200, errorAzureH200 },
-      awsH100: { markPriceAWSH100, priceLoadingAWSH100, errorAWSH100 },
-      azureH100: { markPriceAzureH100, priceLoadingAzureH100, errorAzureH100 },
-      gcpH100: { markPriceGCPH100, priceLoadingGCPH100, errorGCPH100 },
-      a100: { markPriceA100, priceLoadingA100, errorA100 },
-      t4: { markPriceT4, priceLoadingT4, errorT4 },
-      old: { markPriceOld, priceLoadingOld, errorOld },
-    });
-
     if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingH200 && !priceLoadingOracleB200 && !priceLoadingAWSB200 && !priceLoadingCoreWeaveB200 && !priceLoadingGCPB200 && !priceLoadingOracleH200 && !priceLoadingAWSH200 && !priceLoadingCoreWeaveH200 && !priceLoadingGCPH200 && !priceLoadingAzureH200 && !priceLoadingAWSH100 && !priceLoadingAzureH100 && !priceLoadingGCPH100 && !priceLoadingA100 && !priceLoadingT4 && !priceLoadingOld) {
       const markets = [];
 
@@ -914,17 +890,6 @@ export const useMarketRealTimeData = (marketName) => {
   }, [market.marketId]);
 
   useEffect(() => {
-    // Debug logging
-    console.log("useMarketRealTimeData for", marketName, {
-      markPrice,
-      twap,
-      oraclePrice,
-      stats24h,
-      priceLoading,
-      twapLoading,
-      oracleLoading,
-    });
-
     // Update data as soon as we have at least mark price
     // Other values will use fallbacks until they load
     if (!priceLoading && markPrice) {

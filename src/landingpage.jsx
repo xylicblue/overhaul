@@ -148,6 +148,7 @@ const LandingPage = () => {
   const [methodologyOpen, setMethodologyOpen] = useState(false);
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
   const navigate = useNavigate();
   const { openLogin, openSignup } = useAuthModal();
@@ -226,10 +227,12 @@ const LandingPage = () => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
+      setSessionLoading(false);
     };
     getSession();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setSessionLoading(false);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -464,10 +467,12 @@ const LandingPage = () => {
             <Routerlink to="/trade" className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
               Trade
             </Routerlink>
-            {session && (
+            {!sessionLoading && session && (
               <NotificationBell userId={session.user?.id} />
             )}
-            {session && profile ? (
+            {sessionLoading || (session && !profile) ? (
+              <div className="w-24 h-8 rounded-xl bg-white/[0.04] animate-pulse" />
+            ) : session && profile ? (
               <ProfileDropdown session={session} profile={profile} onLogout={handleLogout} />
             ) : (
               <div className="flex items-center gap-3">
@@ -482,9 +487,11 @@ const LandingPage = () => {
 
           {/* Mobile: profile pill + hamburger */}
           <div className="md:hidden flex items-center gap-2">
-            {session && profile && (
+            {sessionLoading || (session && !profile) ? (
+              <div className="w-8 h-8 rounded-full bg-white/[0.04] animate-pulse" />
+            ) : session && profile ? (
               <ProfileDropdown session={session} profile={profile} onLogout={handleLogout} />
-            )}
+            ) : null}
             <button className="text-white p-1" onClick={() => setIsMenuOpen(!isMenuOpen)}>
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />

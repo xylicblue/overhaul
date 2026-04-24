@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, memo } from "react";
 import { Bell, BellOff, CheckCheck, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNotifications } from "../hooks/useNotifications";
+import { useNotificationStore } from "../stores/useNotificationStore";
 
 const TYPE_CONFIG = {
   info:         { label: "Info",         dot: "bg-blue-400",   badge: "text-blue-300 bg-blue-500/10 border-blue-500/20" },
@@ -17,12 +17,15 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-export default function NotificationBell({ userId }) {
+function NotificationBell({ userId }) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef(null);
 
-  const { notifications, readIds, unreadCount, loading, markRead, markAllRead, notifEnabled } =
-    useNotifications(userId);
+  const { readIds, loading, markRead, markAllRead, prefs, getNotifications, getUnreadCount } =
+    useNotificationStore();
+  const notifications  = getNotifications();
+  const unreadCount    = getUnreadCount();
+  const notifEnabled   = prefs.enabled !== false;
 
   // Close on outside click
   useEffect(() => {
@@ -89,7 +92,7 @@ export default function NotificationBell({ userId }) {
               </div>
               {unreadCount > 0 && (
                 <button
-                  onClick={markAllRead}
+                  onClick={() => markAllRead(userId)}
                   className="flex items-center gap-1 text-[11px] text-zinc-500 hover:text-blue-400 transition-colors group"
                 >
                   <CheckCheck size={12} className="group-hover:text-blue-400 transition-colors" />
@@ -123,12 +126,12 @@ export default function NotificationBell({ userId }) {
               ) : (
                 <div>
                   {notifications.map((n, idx) => {
-                    const isUnread = !readIds.has(n.id);
+                    const isUnread = !readIds[n.id];
                     const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.info;
                     return (
                       <div
                         key={n.id}
-                        onMouseEnter={() => isUnread && markRead(n.id)}
+                        onMouseEnter={() => isUnread && markRead(n.id, userId)}
                         className={`relative flex gap-3 px-4 py-3.5 cursor-default transition-colors duration-100
                           ${isUnread ? "bg-white/[0.025]" : ""}
                           hover:bg-white/[0.035]
@@ -189,3 +192,5 @@ export default function NotificationBell({ userId }) {
     </div>
   );
 }
+
+export default memo(NotificationBell);

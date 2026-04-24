@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { useAccount, useBalance, useChainId } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { SEPOLIA_CONTRACTS } from "../contracts/addresses";
@@ -19,7 +19,7 @@ const USDC_ICON = (
   </svg>
 );
 
-export const HeaderWallet = () => {
+const _HeaderWallet = () => {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
 
@@ -75,3 +75,5 @@ export const HeaderWallet = () => {
     </div>
   );
 };
+
+export const HeaderWallet = memo(_HeaderWallet);

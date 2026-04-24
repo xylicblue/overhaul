@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, memo } from "react";
+import { useTradingStore } from "../stores/useTradingStore";
 import { useAccount, useReadContract } from "wagmi";
 import { toast } from "react-hot-toast";
 import { useAllPositions, useClosePosition } from "../hooks/useClearingHouse";
@@ -18,8 +19,12 @@ import { recordTrade } from "../services/api";
 export function PositionPanel({ selectedMarket = null }) {
   const { address, isConnected } = useAccount();
   const { positions: allPositions, isLoading, error } = useAllPositions();
-  const [closingPosition, setClosingPosition] = useState(null);
-  const [closeSize, setCloseSize] = useState("");
+  const {
+    closingPositionId: closingPosition,
+    closeSize,
+    setClosingPosition,
+    setCloseSize,
+  } = useTradingStore();
 
   const marketName = typeof selectedMarket === "string"
     ? selectedMarket
@@ -140,11 +145,6 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
 
   const { price: markPrice }                       = useMarkPrice(vammAddress);
   const { cumulativeFunding: currentFundingIndex } = useFundingRate(vammAddress);
-  const currentPrice   = markPrice ? parseFloat(markPrice) : 0;
-  const currentIndex   = parseFloat(currentFundingIndex || 0);
-  const lastIndex      = parseFloat(position.lastFundingIndex || 0);
-  const fundingPayment = (currentIndex - lastIndex) * size;
-  const fundingEarned  = -fundingPayment;
 
   const { data: marketConfig } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
@@ -154,28 +154,35 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
     chainId: 11155111,
   });
 
-  const feeBps       = marketConfig?.feeBps || 10;
-  const openNotional = entryPrice * absSize;
-  const feesPaid     = (openNotional * feeBps) / 10000;
-  const leverage     = margin > 0 ? openNotional / margin : 0;
-
-  const currentPnL = currentPrice > 0
-    ? isLong
-      ? (currentPrice - entryPrice) * absSize
-      : (entryPrice - currentPrice) * absSize
-    : 0;
-
-  const netPnL      = currentPnL + fundingEarned - feesPaid;
-  const roe         = margin > 0 ? (netPnL / margin) * 100 : 0;
-  const isProfitable = netPnL >= 0;
-
-  // Estimated liquidation price
-  const mmr     = 0.05;
-  const liqPrice = currentPrice > 0 && margin > 0
-    ? isLong
-      ? entryPrice - (margin - mmr * openNotional) / absSize
-      : entryPrice + (margin - mmr * openNotional) / absSize
-    : null;
+  // ── Memoised calculations — rerun only when price/funding/config changes ──
+  const { currentPrice, openNotional, feeBps, feesPaid, leverage,
+          currentPnL, fundingEarned, netPnL, roe, isProfitable, liqPrice } = useMemo(() => {
+    const currentPrice   = markPrice ? parseFloat(markPrice) : 0;
+    const currentIndex   = parseFloat(currentFundingIndex || 0);
+    const lastIndex      = parseFloat(position.lastFundingIndex || 0);
+    const fundingEarned  = -((currentIndex - lastIndex) * size);
+    const feeBps         = marketConfig?.feeBps || 10;
+    const openNotional   = entryPrice * absSize;
+    const feesPaid       = (openNotional * feeBps) / 10000;
+    const leverage       = margin > 0 ? openNotional / margin : 0;
+    const currentPnL     = currentPrice > 0
+      ? isLong
+        ? (currentPrice - entryPrice) * absSize
+        : (entryPrice - currentPrice) * absSize
+      : 0;
+    const netPnL         = currentPnL + fundingEarned - feesPaid;
+    const roe            = margin > 0 ? (netPnL / margin) * 100 : 0;
+    const isProfitable   = netPnL >= 0;
+    const mmr            = 0.05;
+    const liqPrice       = currentPrice > 0 && margin > 0
+      ? isLong
+        ? entryPrice - (margin - mmr * openNotional) / absSize
+        : entryPrice + (margin - mmr * openNotional) / absSize
+      : null;
+    return { currentPrice, openNotional, feeBps, feesPaid, leverage,
+             currentPnL, fundingEarned, netPnL, roe, isProfitable, liqPrice };
+  }, [markPrice, currentFundingIndex, marketConfig?.feeBps,
+      position.lastFundingIndex, entryPrice, absSize, size, margin, isLong]);
 
   const { closePosition, isPending, isSuccess, error: closeError, hash } = useClosePosition(position.marketId);
   const { address } = useAccount();

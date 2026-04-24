@@ -751,4 +751,4 @@ const TickerBar = () => {
   );
 };
 
-export default TickerBar;
+export default React.memo(TickerBar);

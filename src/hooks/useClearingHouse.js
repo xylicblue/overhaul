@@ -423,15 +423,6 @@ export function useMarketRiskParams(marketId) {
     },
   });
 
-  // Debug logging
-  console.log("useMarketRiskParams Debug:", {
-    marketId,
-    isLoading,
-    error: error?.message,
-    data,
-    dataType: typeof data,
-  });
-
   if (!data || !marketId) {
     return {
       riskParams: null,
@@ -442,31 +433,21 @@ export function useMarketRiskParams(marketId) {
   }
 
   // MarketRiskParams struct: { imrBps, mmrBps, liquidationPenaltyBps, penaltyCap }
-  // Data might be returned as array [imrBps, mmrBps, liquidationPenaltyBps, penaltyCap]
-  const imrBps = data[0] || data.imrBps || 0n;
-  const mmrBps = data[1] || data.mmrBps || 0n;
+  // Data may be returned as array [imrBps, mmrBps, liquidationPenaltyBps, penaltyCap]
+  const imrBps                = data[0] || data.imrBps                || 0n;
+  const mmrBps                = data[1] || data.mmrBps                || 0n;
   const liquidationPenaltyBps = data[2] || data.liquidationPenaltyBps || 0n;
-  const penaltyCap = data[3] || data.penaltyCap || 0n;
-
-  console.log("useMarketRiskParams Parsed:", {
-    imrBps: String(imrBps),
-    mmrBps: String(mmrBps),
-    liquidationPenaltyBps: String(liquidationPenaltyBps),
-    penaltyCap: String(penaltyCap),
-  });
+  const penaltyCap            = data[3] || data.penaltyCap            || 0n;
 
   const riskParams = {
-    imrBps: Number(imrBps),
-    mmrBps: Number(mmrBps),
-    liquidationPenaltyBps: Number(liquidationPenaltyBps),
-    penaltyCap: formatUnits(penaltyCap, 18), // Assuming quote token has 18 decimals
-    // Human-readable percentages
-    imrPercent: Number(imrBps) / 100, // bps to percent (e.g., 1000 bps = 10%)
-    mmrPercent: Number(mmrBps) / 100,
+    imrBps:                   Number(imrBps),
+    mmrBps:                   Number(mmrBps),
+    liquidationPenaltyBps:    Number(liquidationPenaltyBps),
+    penaltyCap:               formatUnits(penaltyCap, 18),
+    imrPercent:               Number(imrBps) / 100,
+    mmrPercent:               Number(mmrBps) / 100,
     liquidationPenaltyPercent: Number(liquidationPenaltyBps) / 100,
   };
-
-  console.log("useMarketRiskParams Final:", riskParams);
 
   return {
     riskParams,
@@ -526,10 +507,6 @@ export function useVaultBalance(userAddress = null) {
   const { address: connectedAddress } = useAccount();
   const addressToUse = userAddress || connectedAddress;
 
-  console.log("[useVaultBalance] Address:", addressToUse);
-  console.log("[useVaultBalance] Vault:", SEPOLIA_CONTRACTS.collateralVault);
-  console.log("[useVaultBalance] mUSDC:", SEPOLIA_CONTRACTS.mockUSDC);
-
   // Get mUSDC balance (6 decimals)
   const {
     data: usdcBalance,
@@ -546,9 +523,6 @@ export function useVaultBalance(userAddress = null) {
       refetchInterval: 5000,
     },
   });
-
-  console.log("[useVaultBalance] mUSDC Balance Raw:", usdcBalance);
-  console.log("[useVaultBalance] mUSDC Error:", usdcError);
 
   // Get mWETH balance (18 decimals)
   const { data: wethBalance, refetch: refetchWETH } = useReadContract({
@@ -580,9 +554,6 @@ export function useVaultBalance(userAddress = null) {
     },
   });
 
-  console.log("[useVaultBalance] Total Collateral Raw:", totalCollateralValue);
-  console.log("[useVaultBalance] Total Collateral Error:", totalError);
-
   const refetchAll = () => {
     refetchUSDC();
     refetchWETH();
@@ -601,9 +572,6 @@ export function useVaultBalance(userAddress = null) {
     totalCollateralValue !== undefined && totalCollateralValue !== null
       ? formatUnits(totalCollateralValue, 18)
       : "0";
-
-  console.log("[useVaultBalance] Formatted USDC:", formattedUSDC);
-  console.log("[useVaultBalance] Formatted Total:", formattedTotal);
 
   return {
     usdcBalance: formattedUSDC,
