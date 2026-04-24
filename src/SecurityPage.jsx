@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import cyfrinWordmark from "./assets/cyfrin-wordmark.svg";
+import battlechainLogo from "./assets/battlechainlogo.png";
 import Footer from "./components/Footer";
 
 const SECTIONS = [
@@ -19,6 +20,8 @@ const SECTIONS = [
       "Remediation-focused workflow with follow-up verification",
     ],
     partner: cyfrinWordmark,
+    partnerAlt: "Cyfrin",
+    partnerUrl: "https://www.cyfrin.io/",
   },
   {
     id: "battlechain",
@@ -31,6 +34,10 @@ const SECTIONS = [
       "Validation under volatile mark/index divergence conditions",
       "Regression testing to ensure fixes remain stable across releases",
     ],
+    partner: battlechainLogo,
+    partnerAlt: "BattleChain",
+    partnerUrl: "https://www.battlechain.com/",
+    partnerText: "BattleChain",
   },
   {
     id: "security-process",
@@ -121,12 +128,24 @@ export default function SecurityPage() {
                     {section.badge}
                   </span>
                   {section.partner && (
-                    <img
-                      src={section.partner}
-                      alt="Cyfrin"
-                      className="h-6 w-auto opacity-70"
-                      loading="lazy"
-                    />
+                    <a
+                      href={section.partnerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
+                    >
+                      <img
+                        src={section.partner}
+                        alt={section.partnerAlt ?? "Partner"}
+                        className="h-6 w-auto"
+                        loading="lazy"
+                      />
+                      {section.partnerText && (
+                        <span className="text-sm font-semibold text-white">
+                          {section.partnerText}
+                        </span>
+                      )}
+                    </a>
                   )}
                 </div>
 
