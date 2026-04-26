@@ -23,6 +23,10 @@ import ProfileDropdown from "./dropdown";
 import NotificationBell from "./components/NotificationBell";
 import { useAuthModal } from "./context/AuthModalContext";
 import Sparkline from "./components/Sparkline";
+import { useDisconnect } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNotificationStore } from "./stores/useNotificationStore";
+import { useTradingStore } from "./stores/useTradingStore";
 
 /* ─── Animation Variants (trigger-once) ─── */
 const staggerContainer = {
@@ -184,6 +188,8 @@ const LandingPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const navigate = useNavigate();
   const { openLogin, openSignup } = useAuthModal();
+  const { disconnect } = useDisconnect();
+  const queryClient = useQueryClient();
   const [selectedMarket, setSelectedMarket] = useState("H100-PERP");
   const [selectedModel, setSelectedModel] = useState("H100");
 
@@ -278,12 +284,26 @@ const LandingPage = () => {
           .eq("id", session.user.id)
           .single();
         if (data) setProfile(data);
+      } else {
+        setProfile(null);
       }
     };
     getProfile();
   }, [session]);
 
   const handleLogout = async () => {
+    disconnect();
+    queryClient.clear();
+    useTradingStore.setState({
+      size: "",
+      priceLimit: "",
+      lastTxHash: null,
+      lastTxSide: null,
+      closingPositionId: null,
+      closeSize: "",
+    });
+    useNotificationStore.getState().teardown();
+    setProfile(null);
     await supabase.auth.signOut();
     navigate("/");
   };

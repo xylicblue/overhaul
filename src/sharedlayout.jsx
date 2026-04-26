@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useDisconnect } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./creatclient";
 import Web3AuthHandler from "./web3auth";
 import ProfileDropdown from "./dropdown";
@@ -13,6 +14,7 @@ import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import { useAuthModal } from "./context/AuthModalContext";
 import NotificationBell from "./components/NotificationBell";
 import { useNotificationStore } from "./stores/useNotificationStore";
+import { useTradingStore } from "./stores/useTradingStore";
 
 // Clean, dark-themed header for the app
 const dropdownVariants = {
@@ -482,6 +484,7 @@ const SharedLayout = () => {
   const navigate = useNavigate();
   const { disconnect } = useDisconnect();
   const { openLogin, openSignup } = useAuthModal();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     supabase.auth
@@ -537,11 +540,32 @@ const SharedLayout = () => {
       return () => {
         supabase.removeChannel(channel);
       };
+    } else {
+      // No session — clear any lingering profile from a previous user
+      setProfile(null);
     }
   }, [session]);
 
   const handleLogout = async () => {
-    disconnect(); // Disconnect wallet first
+    // 1. Disconnect the wallet so wagmi's `useAccount` stops returning the address
+    disconnect();
+    // 2. Clear all cached on-chain reads (positions, vault balance, account value, etc.)
+    //    Without this, useReadContract keeps serving stale data until next refetch.
+    queryClient.clear();
+    // 3. Reset trading store (clears size/price input, lastTxHash dedup, close-position state)
+    useTradingStore.setState({
+      size: "",
+      priceLimit: "",
+      lastTxHash: null,
+      lastTxSide: null,
+      closingPositionId: null,
+      closeSize: "",
+    });
+    // 4. Tear down notification subscription
+    useNotificationStore.getState().teardown();
+    // 5. Clear local state
+    setProfile(null);
+    // 6. Sign out of Supabase (fires onAuthStateChange → setSession(null))
     await supabase.auth.signOut();
     navigate("/");
   };
