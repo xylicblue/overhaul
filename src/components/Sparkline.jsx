@@ -30,7 +30,7 @@ function buildFill(data, w, h) {
   return `${line} L${w} ${h} L0 ${h} Z`;
 }
 
-const Sparkline = memo(({ marketId, width = 68, height = 26 }) => {
+const Sparkline = memo(({ marketId, width = 68, height = 26, block = false }) => {
   const [points, setPoints] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,14 +70,14 @@ const Sparkline = memo(({ marketId, width = 68, height = 26 }) => {
   if (loading) {
     return (
       <div
-        style={{ width, height }}
-        className="rounded animate-pulse bg-white/[0.04] shrink-0"
+        style={block ? { height } : { width, height }}
+        className={`rounded animate-pulse bg-white/[0.04] ${block ? "w-full" : "shrink-0"}`}
       />
     );
   }
 
   if (points.length < 2) {
-    return <div style={{ width, height }} className="shrink-0" />;
+    return <div style={block ? { height } : { width, height }} className={block ? "w-full" : "shrink-0"} />;
   }
 
   const isUp = points[points.length - 1] >= points[0];
@@ -88,11 +88,12 @@ const Sparkline = memo(({ marketId, width = 68, height = 26 }) => {
 
   return (
     <svg
-      width={width}
+      width={block ? "100%" : width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio={block ? "none" : undefined}
       fill="none"
-      className="shrink-0 overflow-visible"
+      className={block ? "w-full overflow-visible" : "shrink-0 overflow-visible"}
     >
       <defs>
         <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">

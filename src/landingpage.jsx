@@ -22,6 +22,7 @@ import tradingPreview from "./assets/tradingpic.png";
 import ProfileDropdown from "./dropdown";
 import NotificationBell from "./components/NotificationBell";
 import { useAuthModal } from "./context/AuthModalContext";
+import Sparkline from "./components/Sparkline";
 
 /* ─── Animation Variants (trigger-once) ─── */
 const staggerContainer = {
@@ -142,6 +143,37 @@ const whyNowCardsData = [
 ];
 
 
+const GPU_INDEX_MARKETS = [
+  {
+    id: "H100-PERP",
+    name: "H100",
+    full: "NVIDIA H100 SXM",
+    badge: "HOT",
+    badgeColor: "text-yellow-400 bg-yellow-500/10 border-yellow-500/25",
+  },
+  {
+    id: "B200-PERP",
+    name: "B200",
+    full: "NVIDIA Blackwell B200",
+    badge: "NEW",
+    badgeColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
+  },
+  {
+    id: "H200-PERP",
+    name: "H200",
+    full: "NVIDIA H200 SXM",
+    badge: null,
+    badgeColor: "",
+  },
+  {
+    id: "T4-PERP",
+    name: "T4",
+    full: "NVIDIA T4 Inference",
+    badge: "BETA",
+    badgeColor: "text-zinc-400 bg-zinc-500/10 border-zinc-500/25",
+  },
+];
+
 const LandingPage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
@@ -255,6 +287,24 @@ const LandingPage = () => {
     await supabase.auth.signOut();
     navigate("/");
   };
+
+  const [indexPrices, setIndexPrices] = useState({});
+  useEffect(() => {
+    (async () => {
+      const [h100, b200, h200, t4] = await Promise.all([
+        supabase.from("price_data").select("price").order("timestamp", { ascending: false }).limit(1).single(),
+        supabase.from("b200_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
+        supabase.from("h200_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
+        supabase.from("t4_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
+      ]);
+      setIndexPrices({
+        "H100-PERP": h100.data?.price != null ? parseFloat(h100.data.price) : null,
+        "B200-PERP": b200.data?.index_price != null ? parseFloat(b200.data.index_price) : null,
+        "H200-PERP": h200.data?.index_price != null ? parseFloat(h200.data.index_price) : null,
+        "T4-PERP":   t4.data?.index_price  != null ? parseFloat(t4.data.index_price)  : null,
+      });
+    })();
+  }, []);
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -694,6 +744,133 @@ const LandingPage = () => {
             </svg>
           </motion.div>
         </motion.div>
+      </section>
+
+      {/* ═══ MARKETS PREVIEW ═══ */}
+      <section className="relative z-10 py-20 md:py-28 overflow-hidden">
+        {/* Hairline separator */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" />
+
+        <div className="container mx-auto px-6">
+          <AnimatedSection className="flex flex-col items-center">
+
+            {/* Eyebrow */}
+            <motion.p
+              variants={fadeUpSubtle}
+              className="text-[10px] font-semibold uppercase tracking-[0.22em] text-blue-400/70 mb-5"
+            >
+              Live GPU Markets
+            </motion.p>
+
+            {/* Headline */}
+            <motion.h2
+              variants={blurFadeIn}
+              className="text-4xl md:text-5xl font-semibold text-white tracking-tight mb-4 text-center leading-[1.1]"
+            >
+              The world's compute,<br className="hidden sm:block" /> priced live.
+            </motion.h2>
+
+            {/* Sub */}
+            <motion.p
+              variants={fadeUp}
+              className="text-zinc-400 max-w-md mx-auto text-base leading-relaxed text-center mb-14"
+            >
+              Perpetual futures on GPU rental rates, aggregated from global cloud providers in real time.
+            </motion.p>
+
+            {/* Cards */}
+            <motion.div
+              variants={staggerContainer}
+              className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 w-full max-w-4xl"
+            >
+              {GPU_INDEX_MARKETS.map((market) => (
+                <motion.div
+                  key={market.id}
+                  variants={fadeUpSubtle}
+                  whileHover={{ y: -4 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 22 }}
+                >
+                  <Routerlink
+                    to={`/trade?market=${market.id}`}
+                    className="group flex flex-col h-full p-4 md:p-5 rounded-2xl bg-white/[0.025] border border-white/[0.07] hover:border-white/[0.14] hover:bg-white/[0.04] transition-all duration-300 relative overflow-hidden"
+                  >
+                    {/* Hover top accent */}
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/0 to-transparent group-hover:via-blue-500/50 transition-all duration-500 pointer-events-none" />
+
+                    {/* Name + badges */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="min-w-0">
+                        <div className="text-[22px] md:text-2xl font-semibold text-white tracking-tight leading-none">
+                          {market.name}
+                        </div>
+                        <div className="text-[10px] text-zinc-500 mt-1 leading-none">{market.full}</div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 ml-2 shrink-0">
+                        <span className="text-[8px] text-zinc-600 border border-zinc-800/80 px-1.5 py-0.5 rounded font-mono">
+                          PERP
+                        </span>
+                        {market.badge && (
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border ${market.badgeColor}`}>
+                            {market.badge}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Sparkline — fills card width */}
+                    <div className="my-2 w-full">
+                      <Sparkline marketId={market.id} width={160} height={44} block />
+                    </div>
+
+                    {/* Price */}
+                    <div className="mt-2">
+                      {indexPrices[market.id] != null ? (
+                        <span className="text-[17px] font-mono font-semibold text-white tracking-tight">
+                          ${indexPrices[market.id].toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-[17px] font-mono font-semibold text-zinc-700">—</span>
+                      )}
+                      <div className="text-[9px] text-zinc-600 mt-0.5 uppercase tracking-widest">per GPU · hr</div>
+                    </div>
+
+                    {/* Trade CTA */}
+                    <div className="flex items-center gap-1 mt-auto pt-3 text-[11px] font-medium text-zinc-600 group-hover:text-blue-400 transition-colors duration-200">
+                      Trade futures
+                      <svg
+                        className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform"
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </div>
+                  </Routerlink>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {/* Bottom actions */}
+            <motion.div variants={fadeUp} className="mt-10 flex items-center gap-5 text-sm">
+              <Routerlink
+                to="/markets"
+                className="group inline-flex items-center gap-1.5 font-medium text-zinc-400 hover:text-white transition-colors"
+              >
+                View all markets
+                <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Routerlink>
+              <span className="w-1 h-1 rounded-full bg-zinc-700" />
+              <Routerlink
+                to="/trade"
+                className="font-medium text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                Start trading →
+              </Routerlink>
+            </motion.div>
+
+          </AnimatedSection>
+        </div>
       </section>
 
       <div className="section-divider max-w-5xl mx-auto" />
