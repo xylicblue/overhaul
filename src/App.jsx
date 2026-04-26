@@ -1,7 +1,7 @@
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
+import { Toaster, ToastBar, toast } from "react-hot-toast";
 import { AuthModalProvider } from "./context/AuthModalContext";
 import AuthModal from "./components/AuthModal";
 import "@rainbow-me/rainbowkit/styles.css";
@@ -41,6 +41,34 @@ const PageLoader = () => (
     <div className="w-5 h-5 rounded-full border border-white/[0.08] border-t-white/[0.35] animate-spin" />
   </div>
 );
+
+// ── Swipe-on-hover toast wrapper ─────────────────────────────────────────────
+// Hovering the toast slides it to the right and dismisses it.
+const SWIPE_DURATION_MS = 280;
+const SwipeToast = ({ t }) => {
+  const [swiping, setSwiping] = useState(false);
+
+  const handleEnter = () => {
+    if (swiping) return;
+    setSwiping(true);
+    setTimeout(() => toast.dismiss(t.id), SWIPE_DURATION_MS);
+  };
+
+  return (
+    <div
+      onMouseEnter={handleEnter}
+      style={{
+        transform: swiping ? "translateX(420px)" : "translateX(0)",
+        opacity:   swiping ? 0 : 1,
+        transition: `transform ${SWIPE_DURATION_MS}ms cubic-bezier(0.32, 0.72, 0, 1), opacity ${SWIPE_DURATION_MS - 40}ms ease-out`,
+        cursor: "pointer",
+      }}
+      title="Hover to dismiss"
+    >
+      <ToastBar toast={t} />
+    </div>
+  );
+};
 
 // ── Wagmi / RainbowKit setup ─────────────────────────────────────────────────
 const chains    = [sepolia, mainnet];
@@ -134,7 +162,9 @@ function App() {
                       },
                     },
                   }}
-                />
+                >
+                  {(t) => <SwipeToast t={t} />}
+                </Toaster>
 
                 {/* All routes wrapped in a single Suspense boundary */}
                 <Suspense fallback={<PageLoader />}>
