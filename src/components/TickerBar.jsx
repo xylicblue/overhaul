@@ -27,19 +27,19 @@ import {
 
 /** Derive a short provider label and colour from a market name */
 function getProviderMeta(name) {
-  if (name.startsWith("AWS"))        return { label: "AWS",        color: "text-orange-400 bg-orange-500/10 border-orange-500/20" };
-  if (name.startsWith("GCP"))        return { label: "GCP",        color: "text-blue-400   bg-blue-500/10   border-blue-500/20"   };
-  if (name.startsWith("AZURE"))      return { label: "Azure",      color: "text-sky-400    bg-sky-500/10    border-sky-500/20"     };
-  if (name.startsWith("COREWEAVE"))  return { label: "CW",         color: "text-purple-400 bg-purple-500/10 border-purple-500/20" };
-  if (name.startsWith("ORACLE"))     return { label: "Oracle",     color: "text-red-400    bg-red-500/10    border-red-500/20"     };
+  if (name.startsWith("AWS"))        return { label: "AWS",    color: "text-orange-300/90 border-orange-400/15" };
+  if (name.startsWith("GCP"))        return { label: "GCP",    color: "text-blue-300/90   border-blue-400/15"   };
+  if (name.startsWith("AZURE"))      return { label: "Azure",  color: "text-sky-300/90    border-sky-400/15"    };
+  if (name.startsWith("COREWEAVE"))  return { label: "CW",     color: "text-purple-300/90 border-purple-400/15" };
+  if (name.startsWith("ORACLE"))     return { label: "Oracle", color: "text-red-300/90    border-red-400/15"    };
   return null; // GPU index — no provider badge
 }
 
 /** Derive a "NEW" or "HOT" badge for a market */
 function getMarketBadge(name) {
-  if (name.startsWith("B200"))       return { label: "NEW",  color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" };
-  if (name === "H100-PERP")          return { label: "HOT",  color: "text-yellow-400  bg-yellow-500/10  border-yellow-500/30"  };
-  if (name.startsWith("T4"))         return { label: "BETA", color: "text-zinc-400    bg-zinc-500/10    border-zinc-500/30"    };
+  if (name.startsWith("B200"))       return { label: "NEW",  color: "text-emerald-300/90 border-emerald-400/15" };
+  if (name === "H100-PERP")          return { label: "HOT",  color: "text-yellow-300/90  border-yellow-400/15"  };
+  if (name.startsWith("T4"))         return { label: "BETA", color: "text-zinc-400       border-white/[0.08]"   };
   return null;
 }
 
@@ -411,36 +411,33 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
     <div className="fixed z-[9999]" style={{ top: position.top, left: position.left }}>
       <div
         ref={modalRef}
-        className="relative w-[820px] bg-[#08080c] border border-zinc-800/80 rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[560px] animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+        className="relative w-[760px] bg-[#08080c] border border-white/[0.07] rounded-lg shadow-[0_24px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[540px] animate-in fade-in duration-100 origin-top-left"
       >
-        {/* Top accent line */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/60 to-transparent" />
-
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="px-5 pt-5 pb-0 bg-[#08080c]">
+        <div className="px-3 pt-3 bg-[#08080c]">
           {/* Search row */}
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-2 mb-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600 w-3.5 h-3.5" strokeWidth={1.75} />
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Search markets…"
-                className="w-full bg-zinc-900/60 border border-zinc-700/40 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 placeholder-zinc-600 transition-all"
+                placeholder="Search markets"
+                className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md pl-8 pr-3 py-1.5 text-[13px] text-white focus:outline-none focus:border-white/[0.16] placeholder-zinc-600 transition-colors duration-150"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"
+              className="p-1.5 rounded-md hover:bg-white/[0.04] text-zinc-500 hover:text-zinc-200 transition-colors duration-150"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" strokeWidth={1.75} />
             </button>
           </div>
 
-          {/* Tabs */}
-          <div className="flex items-center gap-1 -mx-1">
+          {/* Tabs — underline-style */}
+          <div className="flex items-center gap-5 -mx-3 px-3 border-b border-white/[0.05]">
             {TABS.map(tab => {
               const isActive = activeTab === tab;
               const isFavTab = tab === "★ Favorites";
@@ -448,19 +445,20 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                    isActive
-                      ? isFavTab
-                        ? "bg-yellow-500/15 text-yellow-400 border border-yellow-500/25"
-                        : "bg-blue-500/15 text-blue-400 border border-blue-500/25"
-                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 border border-transparent"
+                  className={`relative py-2 text-[12px] font-medium whitespace-nowrap transition-colors duration-150 ${
+                    isActive ? "text-white" : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
-                  {tab}
-                  {isFavTab && favorites.size > 0 && (
-                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? "bg-yellow-500/20 text-yellow-400" : "bg-zinc-700 text-zinc-400"}`}>
-                      {favorites.size}
-                    </span>
+                  <span className="flex items-center gap-1.5">
+                    {tab}
+                    {isFavTab && favorites.size > 0 && (
+                      <span className="text-[10px] font-mono tabular-nums text-zinc-500">
+                        {favorites.size}
+                      </span>
+                    )}
+                  </span>
+                  {isActive && (
+                    <span className="absolute -bottom-px left-0 right-0 h-px bg-white/80" />
                   )}
                 </button>
               );
@@ -469,10 +467,10 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
         </div>
 
         {/* ── Table header ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-12 px-6 py-2.5 mt-3 bg-zinc-900/40 border-y border-zinc-800/60 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+        <div className="grid grid-cols-12 px-3 py-1.5 border-b border-white/[0.05] text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">
           <div className="col-span-4">Market</div>
           <div className="col-span-3 text-right">Trend</div>
-          <div className="col-span-2 text-right">Index Price</div>
+          <div className="col-span-2 text-right">Price</div>
           <div className="col-span-2 text-right">24h</div>
           <div className="col-span-1 text-right">Vol</div>
         </div>
@@ -484,20 +482,20 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
 
           {/* Empty state */}
           {!favLoading && filteredMarkets.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
               {activeTab === "★ Favorites" ? (
                 <>
-                  <Star className="w-10 h-10 text-zinc-700 mb-3" />
-                  <p className="text-zinc-400 font-semibold text-sm">No favorites yet</p>
-                  <p className="text-zinc-600 text-xs mt-1">
+                  <Star className="w-7 h-7 text-zinc-700 mb-2" strokeWidth={1.5} />
+                  <p className="text-zinc-300 text-[13px] font-medium">No favorites yet</p>
+                  <p className="text-zinc-600 text-[11px] mt-1">
                     {isLoggedIn ? "Click the ★ next to any market to save it here." : "Log in to save favorites."}
                   </p>
                 </>
               ) : (
                 <>
-                  <Search className="w-10 h-10 text-zinc-700 mb-3" />
-                  <p className="text-zinc-400 font-semibold text-sm">No markets found</p>
-                  <p className="text-zinc-600 text-xs mt-1">Try a different search term.</p>
+                  <Search className="w-7 h-7 text-zinc-700 mb-2" strokeWidth={1.5} />
+                  <p className="text-zinc-300 text-[13px] font-medium">No markets found</p>
+                  <p className="text-zinc-600 text-[11px] mt-1">Try a different search term.</p>
                 </>
               )}
             </div>
@@ -520,128 +518,115 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
                 key={market.name}
                 onClick={() => { onSelect(market.name); onClose(); }}
                 onMouseEnter={() => setSelectedIndex(index)}
-                className={`w-full grid grid-cols-12 px-6 py-3.5 items-center border-b border-zinc-800/40 transition-all duration-100 text-left group relative ${
-                  isActive   ? "bg-blue-500/[0.07]" :
-                  isSelected ? "bg-white/[0.03]"    : "hover:bg-white/[0.025]"
+                className={`w-full grid grid-cols-12 px-3 py-2 items-center text-left group relative transition-colors duration-100 ${
+                  isSelected ? "bg-white/[0.03]" : "hover:bg-white/[0.02]"
                 }`}
               >
-                {/* Active left-border accent */}
+                {/* Active left indicator */}
                 {isActive && (
-                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500 rounded-r" />
+                  <div className="absolute left-0 top-1 bottom-1 w-0.5 bg-white/80 rounded-r" />
                 )}
 
                 {/* ── Market name col ─────────────────────────────────── */}
-                <div className="col-span-4 flex items-center gap-2.5 min-w-0">
+                <div className="col-span-4 flex items-center gap-2 min-w-0">
                   {/* Star button */}
                   <button
                     onClick={e => { e.stopPropagation(); toggleFavorite(market.name); }}
-                    className={`shrink-0 transition-all duration-200 ${
+                    className={`shrink-0 transition-colors duration-150 ${
                       isFav
-                        ? "text-yellow-400 scale-110"
-                        : "text-zinc-700 hover:text-zinc-400 group-hover:text-zinc-500"
+                        ? "text-yellow-400/90"
+                        : "text-zinc-700 hover:text-zinc-400 group-hover:text-zinc-600"
                     } ${!isLoggedIn ? "opacity-30 cursor-not-allowed" : ""}`}
                     title={isLoggedIn ? (isFav ? "Remove from favorites" : "Add to favorites") : "Log in to save favorites"}
                     disabled={!isLoggedIn}
                   >
-                    <Star className="w-3.5 h-3.5" fill={isFav ? "currentColor" : "none"} />
+                    <Star className="w-3 h-3" fill={isFav ? "currentColor" : "none"} strokeWidth={1.75} />
                   </button>
 
                   {/* Category icon */}
-                  <div className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center ${
-                    category === "GPU Index" ? "bg-blue-500/10" : "bg-zinc-800/80"
-                  }`}>
-                    {category === "GPU Index"
-                      ? <Cpu className="w-3 h-3 text-blue-400" />
-                      : <Cloud className="w-3 h-3 text-zinc-400" />
-                    }
-                  </div>
+                  {category === "GPU Index"
+                    ? <Cpu   className="w-3 h-3 text-zinc-500 shrink-0" strokeWidth={1.75} />
+                    : <Cloud className="w-3 h-3 text-zinc-500 shrink-0" strokeWidth={1.75} />
+                  }
 
                   {/* Name + sub-label */}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`text-sm font-semibold truncate transition-colors ${
-                        isActive ? "text-blue-300" : "text-white group-hover:text-zinc-100"
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[12px] font-medium truncate transition-colors ${
+                        isActive ? "text-white" : "text-zinc-200"
                       }`}>
                         {market.displayName || market.name.split("-")[0]}
                       </span>
 
                       {/* Provider badge */}
                       {provider && (
-                        <span className={`inline-flex px-1.5 py-0.5 rounded border text-[9px] font-bold tracking-wide ${provider.color}`}>
+                        <span className={`inline-flex px-1 py-px rounded border text-[9px] font-medium tracking-wide ${provider.color}`}>
                           {provider.label}
                         </span>
                       )}
 
                       {/* NEW / HOT / BETA badge */}
                       {badge && (
-                        <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-bold tracking-wide ${badge.color}`}>
-                          {badge.label === "HOT" && <Zap className="w-2 h-2" />}
+                        <span className={`inline-flex items-center gap-0.5 px-1 py-px rounded border text-[9px] font-medium tracking-wide ${badge.color}`}>
                           {badge.label}
                         </span>
                       )}
                     </div>
                     <div className="text-[10px] text-zinc-600 font-mono mt-0.5 truncate">
-                      {market.name} · PERP · 20×
+                      {market.name}
                     </div>
                   </div>
                 </div>
 
                 {/* ── Sparkline col ───────────────────────────────────── */}
                 <div className="col-span-3 flex items-center justify-end pr-1">
-                  <Sparkline marketId={market.name} width={60} height={22} />
+                  <Sparkline marketId={market.name} width={56} height={20} />
                 </div>
 
                 {/* ── Price col ───────────────────────────────────────── */}
-                <div className={`col-span-2 text-right font-mono text-sm font-medium ${
-                  isActive ? "text-blue-300" : "text-zinc-200"
+                <div className={`col-span-2 text-right font-mono text-[12px] tabular-nums ${
+                  isActive ? "text-white" : "text-zinc-200"
                 }`}>
                   ${price.toFixed(2)}
                 </div>
 
                 {/* ── 24h change col ──────────────────────────────────── */}
-                <div className={`col-span-2 text-right font-mono text-xs font-semibold ${
+                <div className={`col-span-2 text-right font-mono text-[11px] tabular-nums ${
                   isPositive ? "text-emerald-400" : "text-red-400"
                 }`}>
                   {isPositive ? "+" : ""}{change24h.toFixed(2)}%
                 </div>
 
                 {/* ── Volume col ──────────────────────────────────────── */}
-                <div className="col-span-1 text-right font-mono text-xs text-zinc-600">
+                <div className="col-span-1 text-right font-mono text-[11px] text-zinc-600 tabular-nums">
                   —
                 </div>
-
-                {/* Active checkmark */}
-                {isActive && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <Check className="w-3.5 h-3.5 text-blue-400" />
-                  </div>
-                )}
               </button>
             );
           })}
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────────── */}
-        <div className="px-5 py-2.5 bg-[#08080c] border-t border-zinc-800/60 flex items-center justify-between">
-          <div className="flex items-center gap-4 text-[10px] text-zinc-600">
+        <div className="px-3 py-1.5 bg-[#08080c] border-t border-white/[0.05] flex items-center justify-between">
+          <div className="flex items-center gap-3 text-[10px] text-zinc-600">
             <span className="flex items-center gap-1">
-              <kbd className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-zinc-400 font-mono">↑</kbd>
-              <kbd className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-zinc-400 font-mono">↓</kbd>
+              <kbd className="bg-white/[0.03] border border-white/[0.06] px-1 py-px rounded text-zinc-500 font-mono text-[9px]">↑</kbd>
+              <kbd className="bg-white/[0.03] border border-white/[0.06] px-1 py-px rounded text-zinc-500 font-mono text-[9px]">↓</kbd>
               Navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-zinc-400 font-mono">↵</kbd>
+              <kbd className="bg-white/[0.03] border border-white/[0.06] px-1 py-px rounded text-zinc-500 font-mono text-[9px]">↵</kbd>
               Select
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-zinc-400 font-mono">Esc</kbd>
+              <kbd className="bg-white/[0.03] border border-white/[0.06] px-1 py-px rounded text-zinc-500 font-mono text-[9px]">Esc</kbd>
               Close
             </span>
           </div>
-          <div className="text-[10px] text-zinc-700">
+          <div className="text-[10px] text-zinc-600 tabular-nums">
             {filteredMarkets.length} market{filteredMarkets.length !== 1 ? "s" : ""}
             {!isLoggedIn && (
-              <span className="ml-2 text-zinc-600">· <span className="text-yellow-600">Log in</span> to save favorites</span>
+              <span className="ml-2 text-zinc-700">· <span className="text-yellow-500/80">Log in</span> to save favorites</span>
             )}
           </div>
         </div>

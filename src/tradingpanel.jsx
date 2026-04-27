@@ -15,7 +15,7 @@ import {
   useVaultBalance,
 } from "./hooks/useClearingHouse";
 import { MARKET_IDS } from "./contracts/addresses";
-import { Info, TrendingUp, TrendingDown, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { Info, ShieldCheck } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Info Tooltip
@@ -58,36 +58,27 @@ const InfoTooltip = ({ title, description }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Row — label / value pair used in order summary & risk params
+// SummaryRow — single label/value line used in order summary & risk params
 // ─────────────────────────────────────────────────────────────────────────────
-const Row = ({ label, value, valueClass = "text-zinc-300", tooltip }) => (
-  <div className="flex items-center justify-between py-1.5">
-    <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+const SummaryRow = ({ label, value, valueClass = "text-zinc-200", tooltip }) => (
+  <div className="flex items-center justify-between text-[11px] leading-5">
+    <span className="text-zinc-500 flex items-center gap-1">
       {label}
       {tooltip && <InfoTooltip title={tooltip.title} description={tooltip.desc} />}
     </span>
-    <span className={`text-[11px] font-mono font-semibold ${valueClass}`}>{value}</span>
+    <span className={`font-mono tabular-nums ${valueClass}`}>{value}</span>
   </div>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Collapsible section wrapper
+// SectionLabel — small uppercase label used to group sections
 // ─────────────────────────────────────────────────────────────────────────────
-const Section = ({ title, children, defaultOpen = true }) => {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="border border-zinc-800/60 rounded-xl overflow-hidden">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2.5 bg-zinc-900/30 hover:bg-zinc-900/50 transition-colors"
-      >
-        <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">{title}</span>
-        {open ? <ChevronUp size={12} className="text-zinc-600" /> : <ChevronDown size={12} className="text-zinc-600" />}
-      </button>
-      {open && <div className="bg-[#0a0a10]">{children}</div>}
-    </div>
-  );
-};
+const SectionLabel = ({ children, right }) => (
+  <div className="flex items-center justify-between mb-2">
+    <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">{children}</span>
+    {right}
+  </div>
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TradingPanel
@@ -212,226 +203,215 @@ export const TradingPanel = ({ selectedMarket }) => {
     }
   };
 
-  // ── Side colour tokens ────────────────────────────────────────────────────
-  const C = isLong
-    ? { activeBg: "bg-emerald-500", activeText: "text-white", glow: "shadow-emerald-900/50", border: "border-emerald-500/20", accent: "bg-emerald-500/40", ring: "focus:border-emerald-500/30 focus:ring-emerald-500/10", badge: "text-emerald-400 border-emerald-500/25 bg-emerald-500/10" }
-    : { activeBg: "bg-red-500",     activeText: "text-white", glow: "shadow-red-900/50",     border: "border-red-500/20",     accent: "bg-red-500/40",     ring: "focus:border-red-500/30 focus:ring-red-500/10",     badge: "text-red-400 border-red-500/25 bg-red-500/10"     };
+  const sideAccent = isLong ? "text-emerald-400" : "text-red-400";
 
   return (
     <div className="flex flex-col h-full bg-[#06060a]">
 
-      {/* ── Long / Short tabs ───────────────────────────────────────────── */}
-      <div className="p-3 pb-2 border-b border-zinc-800/60">
-        <div className="flex bg-zinc-900/50 border border-zinc-800/60 rounded-xl p-1 gap-1">
-          {[
-            { key: "Buy",  label: "Long",  icon: <TrendingUp   size={13} /> },
-            { key: "Sell", label: "Short", icon: <TrendingDown size={13} /> },
-          ].map(({ key, label, icon }) => (
-            <button
-              key={key}
-              onClick={() => setSide(key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all duration-150 ${
-                side === key
-                  ? key === "Buy"
-                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-900/40"
-                    : "bg-red-500 text-white shadow-md shadow-red-900/40"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              {icon}
-              {label}
-            </button>
-          ))}
+      {/* ── Direction toggle ────────────────────────────────────────────── */}
+      <div className="px-3 pt-3 pb-3 border-b border-zinc-800/80">
+        <div className="grid grid-cols-2 gap-px bg-zinc-800/80 rounded-md overflow-hidden p-px">
+          <button
+            onClick={() => setSide("Buy")}
+            className={`py-1.5 text-[12px] font-medium transition-colors duration-100 ${
+              isLong
+                ? "bg-emerald-500 text-white"
+                : "bg-[#06060a] text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Long
+          </button>
+          <button
+            onClick={() => setSide("Sell")}
+            className={`py-1.5 text-[12px] font-medium transition-colors duration-100 ${
+              !isLong
+                ? "bg-red-500 text-white"
+                : "bg-[#06060a] text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Short
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="p-3 space-y-3">
+      {/* ── Scrollable body ─────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
 
-          {/* ── Account overview ──────────────────────────────────────────── */}
-          <div className="grid grid-cols-3 divide-x divide-zinc-800/60 bg-zinc-900/30 border border-zinc-800/60 rounded-xl overflow-hidden">
-            {[
-              { label: "Balance",    value: `$${effectiveBalance.toFixed(2)}` },
-              { label: "Mark Price", value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—" },
-              { label: "Max Size",   value: maxSize > 0 ? `${maxSize.toFixed(1)} ${market.baseAsset}` : "—" },
-            ].map(({ label, value }) => (
-              <div key={label} className="px-2.5 py-2">
-                <div className="text-[8px] font-bold uppercase tracking-widest text-zinc-600 mb-0.5">{label}</div>
-                <div className="text-[11px] font-mono font-semibold text-zinc-200 truncate">{value}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Collateral & Faucet ───────────────────────────────────────── */}
-          <Section title="Collateral">
-            <div className="p-3 space-y-2">
-              <CollateralManager />
-              <MintUSDC />
+        {/* Key stats row */}
+        <div className="grid grid-cols-3 px-3 py-2.5 border-b border-zinc-800/80">
+          {[
+            { label: "Balance", value: `$${effectiveBalance.toFixed(2)}`,                      align: "items-start" },
+            { label: "Mark",    value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—", align: "items-center" },
+            { label: "Max",     value: maxSize > 0 ? maxSize.toFixed(2) : "—",                 align: "items-end" },
+          ].map(({ label, value, align }) => (
+            <div key={label} className={`flex flex-col ${align}`}>
+              <span className="text-[9px] font-medium text-zinc-500 uppercase tracking-[0.14em]">{label}</span>
+              <span className="text-[12px] font-mono font-medium text-zinc-200 tabular-nums truncate mt-0.5">{value}</span>
             </div>
-          </Section>
+          ))}
+        </div>
 
-          {/* ── Order ─────────────────────────────────────────────────────── */}
-          <Section title="Order" defaultOpen={true}>
-            <div className="p-3 space-y-3">
+        {/* Collateral */}
+        <div className="px-3 py-3 border-b border-zinc-800/80">
+          <SectionLabel>Collateral</SectionLabel>
+          <div className="space-y-2">
+            <CollateralManager />
+            <MintUSDC />
+          </div>
+        </div>
 
-              {/* Order type */}
-              <div className="flex items-center gap-2">
-                <button className="px-3 py-1.5 bg-zinc-800 border border-zinc-700/60 rounded-lg text-[11px] font-bold text-white">
-                  Market
+        {/* Order */}
+        <div className="px-3 py-3 border-b border-zinc-800/80 space-y-3">
+          <SectionLabel
+            right={
+              <div className="flex items-center gap-3 text-[11px]">
+                <span className="text-white font-medium">Market</span>
+                <span className="text-zinc-700 cursor-not-allowed">Limit<span className="ml-1 text-[9px] text-zinc-700">soon</span></span>
+              </div>
+            }
+          >
+            Order
+          </SectionLabel>
+
+          {/* Size */}
+          <div>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Size</label>
+              <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
+                Max {maxSize > 0 ? maxSize.toFixed(2) : "0.00"} {market.baseAsset}
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                placeholder="0.0000"
+                className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md pl-3 pr-16 py-2 text-[13px] text-white focus:outline-none focus:border-white/[0.16] transition-colors duration-150 placeholder-zinc-700 font-mono tabular-nums"
+                value={size}
+                onChange={e => setSize(e.target.value)}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+                {market.baseAsset}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-px mt-1.5 bg-zinc-800/80 rounded-md overflow-hidden p-px">
+              {[25, 50, 75, 100].map(p => (
+                <button
+                  key={p}
+                  onClick={() => handleSizeButtonClick(p)}
+                  className="py-1 text-[10px] font-medium bg-[#06060a] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] transition-colors duration-100"
+                >
+                  {p}%
                 </button>
-                <button disabled className="px-3 py-1.5 border border-zinc-800/40 rounded-lg text-[11px] font-medium text-zinc-700 cursor-not-allowed">
-                  Limit
-                  <span className="ml-1 text-[8px] text-zinc-700">Soon</span>
-                </button>
-              </div>
-
-              {/* Size */}
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Size</span>
-                  <span className="text-[9px] text-zinc-600 font-mono">
-                    Max {maxSize > 0 ? maxSize.toFixed(2) : "0.00"} {market.baseAsset}
-                  </span>
-                </div>
-                <div className="relative">
-                  <input
-                    type="number"
-                    placeholder="0.0000"
-                    className={`w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-3 pr-20 py-2.5 text-sm text-white focus:outline-none focus:ring-1 transition-all placeholder-zinc-700 font-mono ${C.ring}`}
-                    value={size}
-                    onChange={e => setSize(e.target.value)}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-md">
-                    {market.baseAsset}
-                  </span>
-                </div>
-                <div className="grid grid-cols-4 gap-1.5 mt-2">
-                  {[25, 50, 75, 100].map(p => (
-                    <button
-                      key={p}
-                      onClick={() => handleSizeButtonClick(p)}
-                      className="py-1.5 text-[10px] font-bold bg-zinc-900/50 hover:bg-zinc-800 text-zinc-600 hover:text-zinc-200 rounded-lg border border-zinc-800/60 hover:border-zinc-700 transition-all"
-                    >
-                      {p}%
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price limit */}
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Price Limit</span>
-                  <button
-                    className="text-[9px] text-blue-500 hover:text-blue-400 font-semibold transition-colors"
-                    onClick={() => setPriceLimit(market.price)}
-                  >
-                    Use Market
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type="number"
-                    placeholder="Market"
-                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-3 pr-16 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700/20 transition-all placeholder-zinc-700 font-mono"
-                    value={priceLimit}
-                    onChange={e => setPriceLimit(e.target.value)}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-md">
-                    USDC
-                  </span>
-                </div>
-              </div>
-
-              {/* Leverage */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Leverage</span>
-                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg border ${C.badge}`}>
-                    {leverage}×
-                  </span>
-                </div>
-                <div className="grid grid-cols-5 gap-1.5 mb-2">
-                  {[1, 2, 3, 5, 10].map(v => (
-                    <button
-                      key={v}
-                      onClick={() => setLeverage(v)}
-                      className={`py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
-                        leverage === v
-                          ? `${C.activeBg} border-transparent ${C.activeText}`
-                          : "bg-zinc-900/50 border-zinc-800/60 text-zinc-600 hover:text-zinc-300 hover:border-zinc-700"
-                      }`}
-                    >
-                      {v}×
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="range" min="1" max="10" step="1" value={leverage}
-                  onChange={e => setLeverage(parseInt(e.target.value))}
-                  className="w-full h-0.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-blue-500"
-                />
-              </div>
-            </div>
-          </Section>
-
-          {/* ── Order Summary ─────────────────────────────────────────────── */}
-          <div className={`rounded-xl border overflow-hidden ${C.border} bg-[#0a0a10]`}>
-            <div className={`h-px ${C.accent}`} />
-            <div className="px-3 py-2.5 divide-y divide-zinc-800/40">
-              <Row label="Notional Value"   value={notionalValue > 0 ? `$${notionalValue.toFixed(2)}` : "—"} />
-              <Row label="Est. Fees (0.1%)" value={fees > 0 ? `$${fees.toFixed(2)}` : "—"} valueClass="text-zinc-400" />
-              <Row
-                label="Margin Required"
-                value={marginRequired > 0 ? `$${marginRequired.toFixed(2)}` : "—"}
-                valueClass="text-white font-bold"
-                tooltip={{ title: "Margin Required", desc: "Collateral needed to open this position at the selected leverage." }}
-              />
-              <Row
-                label="Est. Liq. Price"
-                value={sizeNum > 0 ? `$${liqPrice}` : "—"}
-                valueClass="text-yellow-500"
-                tooltip={{ title: "Estimated Liquidation Price", desc: "Approximate price at which your position will be liquidated. Actual price depends on funding and fees." }}
-              />
+              ))}
             </div>
           </div>
 
-          {/* ── Risk Parameters ───────────────────────────────────────────── */}
-          <div className="rounded-xl border border-zinc-800/60 bg-[#0a0a10] overflow-hidden">
-            <div className="px-3 py-2 border-b border-zinc-800/60 flex items-center gap-1.5">
-              <ShieldCheck size={11} className="text-zinc-600" />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Risk Parameters</span>
+          {/* Price limit */}
+          <div>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Price limit</label>
+              <button
+                className="text-[10px] text-zinc-400 hover:text-white font-medium transition-colors duration-150"
+                onClick={() => setPriceLimit(market.price)}
+              >
+                Use mark
+              </button>
             </div>
-            <div className="px-3 divide-y divide-zinc-800/40">
-              <Row
-                label="Initial Margin (IMR)"
-                value={riskParams?.imrPercent ? `${riskParams.imrPercent.toFixed(1)}%` : "10.0%"}
-                tooltip={{ title: "Initial Margin Requirement", desc: "Minimum margin to open a position. 10% IMR = 10× max leverage." }}
+            <div className="relative">
+              <input
+                type="number"
+                placeholder="Market"
+                className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md pl-3 pr-12 py-2 text-[13px] text-white focus:outline-none focus:border-white/[0.16] transition-colors duration-150 placeholder-zinc-700 font-mono tabular-nums"
+                value={priceLimit}
+                onChange={e => setPriceLimit(e.target.value)}
               />
-              <Row
-                label="Maintenance Margin (MMR)"
-                value={riskParams?.mmrPercent ? `${riskParams.mmrPercent.toFixed(1)}%` : "5.0%"}
-                tooltip={{ title: "Maintenance Margin Requirement", desc: "Minimum margin to keep a position open before liquidation." }}
-              />
-              <Row
-                label="Liquidation Penalty"
-                value={riskParams?.liquidationPenaltyPercent ? `${riskParams.liquidationPenaltyPercent.toFixed(1)}%` : "5.0%"}
-                valueClass="text-yellow-500"
-                tooltip={{ title: "Liquidation Penalty", desc: "Penalty charged on liquidation, split between the liquidator and the insurance fund." }}
-              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+                USDC
+              </span>
             </div>
           </div>
 
+          {/* Leverage */}
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Leverage</label>
+              <span className={`text-[12px] font-mono font-medium tabular-nums ${sideAccent}`}>
+                {leverage}×
+              </span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              step="1"
+              value={leverage}
+              onChange={e => setLeverage(parseInt(e.target.value))}
+              className={`w-full h-1 bg-zinc-800 rounded-full appearance-none cursor-pointer ${
+                isLong ? "accent-emerald-500" : "accent-red-500"
+              }`}
+            />
+            <div className="flex justify-between mt-1 text-[9px] font-mono text-zinc-600 tabular-nums">
+              <span>1×</span>
+              <span>3×</span>
+              <span>5×</span>
+              <span>10×</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Order summary — clean key/value list */}
+        <div className="px-3 py-3 border-b border-zinc-800/80 space-y-1">
+          <SummaryRow
+            label="Notional"
+            value={notionalValue > 0 ? `$${notionalValue.toFixed(2)}` : "—"}
+          />
+          <SummaryRow
+            label="Fees (0.10%)"
+            value={fees > 0 ? `$${fees.toFixed(2)}` : "—"}
+            valueClass="text-zinc-400"
+          />
+          <SummaryRow
+            label="Margin"
+            value={marginRequired > 0 ? `$${marginRequired.toFixed(2)}` : "—"}
+            valueClass="text-white font-medium"
+            tooltip={{ title: "Margin Required", desc: "Collateral needed to open this position at the selected leverage." }}
+          />
+          <SummaryRow
+            label="Liq. price"
+            value={sizeNum > 0 ? `$${liqPrice}` : "—"}
+            valueClass="text-yellow-400"
+            tooltip={{ title: "Estimated Liquidation Price", desc: "Approximate price at which your position will be liquidated. Actual price depends on funding and fees." }}
+          />
+        </div>
+
+        {/* Risk parameters — low-priority info, integrated */}
+        <div className="px-3 py-3 space-y-1">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <ShieldCheck size={10} strokeWidth={1.75} className="text-zinc-600" />
+            <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Risk</span>
+          </div>
+          <SummaryRow
+            label="IMR / MMR"
+            value={`${riskParams?.imrPercent ? riskParams.imrPercent.toFixed(1) : "10.0"}% / ${riskParams?.mmrPercent ? riskParams.mmrPercent.toFixed(1) : "5.0"}%`}
+            valueClass="text-zinc-400"
+            tooltip={{ title: "Initial / Maintenance Margin", desc: "IMR is the minimum margin to open a position. MMR is the minimum to keep it open before liquidation." }}
+          />
+          <SummaryRow
+            label="Liq. penalty"
+            value={`${riskParams?.liquidationPenaltyPercent ? riskParams.liquidationPenaltyPercent.toFixed(1) : "5.0"}%`}
+            valueClass="text-yellow-400"
+            tooltip={{ title: "Liquidation Penalty", desc: "Penalty charged on liquidation, split between the liquidator and the insurance fund." }}
+          />
         </div>
       </div>
 
       {/* ── Submit ──────────────────────────────────────────────────────── */}
-      <div className="p-3 border-t border-zinc-800/60 bg-[#06060a] space-y-2">
+      <div className="px-3 py-3 border-t border-zinc-800/80 bg-[#06060a]">
         <button
-          className={`w-full py-3.5 rounded-xl font-bold text-white text-sm transition-all duration-150 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+          className={`w-full h-10 rounded-md font-medium text-white text-[13px] transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
             isLong
-              ? "bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-900/40"
-              : "bg-red-500 hover:bg-red-400 shadow-lg shadow-red-900/40"
+              ? "bg-emerald-500 hover:bg-emerald-400"
+              : "bg-red-500 hover:bg-red-400"
           }`}
           onClick={handleTrade}
           disabled={isPending || !size || sizeNum <= 0}
@@ -439,21 +419,17 @@ export const TradingPanel = ({ selectedMarket }) => {
           {isPending ? (
             <>
               <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Processing…
+              Processing
             </>
           ) : (
             <>
-              {isLong ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-              {isLong ? "Buy / Long" : "Sell / Short"} {market.baseAsset}
+              {isLong ? "Long" : "Short"} {market.baseAsset}
               {notionalValue > 0 && (
-                <span className="text-white/50 font-normal text-xs">· ${notionalValue.toFixed(0)}</span>
+                <span className="text-white/60 font-normal text-[11px] tabular-nums">· ${notionalValue.toFixed(0)}</span>
               )}
             </>
           )}
         </button>
-        <p className="text-center text-[9px] text-zinc-700">
-          Testnet — no real funds at risk
-        </p>
       </div>
     </div>
   );

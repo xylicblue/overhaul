@@ -1,136 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import ChartToggle from "./components/ChartToggle";
 import { TradingPanel } from "./tradingpanel";
 import PositionPanel from "./components/PositionPanel";
 import TickerBar from "./components/TickerBar";
-import Sparkline from "./components/Sparkline";
 import { useMarket } from "./marketcontext";
-import { useMarketsData } from "./marketData";
-import { LayoutDashboard, CandlestickChart, ArrowLeftRight, ChevronUp, ChevronDown, Activity, Search } from "lucide-react";
+import { LayoutDashboard, CandlestickChart, ArrowLeftRight, ChevronUp, ChevronDown, Activity } from "lucide-react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAllPositions } from "./hooks/useClearingHouse";
 import { motion, AnimatePresence } from "framer-motion";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MarketsListColumn — left context rail
-// ─────────────────────────────────────────────────────────────────────────────
-const PIN_ORDER = ["H100-PERP", "B200-PERP"];
-
-const MarketsListColumn = () => {
-  const { selectedMarket, selectMarket } = useMarket();
-  const { markets } = useMarketsData();
-  const [query, setQuery] = useState("");
-
-  const currentName =
-    typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
-
-  const sorted = useMemo(() => {
-    const filtered = markets.filter((m) => {
-      if (!query) return true;
-      const q = query.toLowerCase();
-      return (
-        m.name.toLowerCase().includes(q) ||
-        (m.displayName && m.displayName.toLowerCase().includes(q))
-      );
-    });
-    return filtered.sort((a, b) => {
-      const ai = PIN_ORDER.indexOf(a.name);
-      const bi = PIN_ORDER.indexOf(b.name);
-      if (ai !== -1 && bi !== -1) return ai - bi;
-      if (ai !== -1) return -1;
-      if (bi !== -1) return 1;
-      return a.name.localeCompare(b.name);
-    });
-  }, [markets, query]);
-
-  return (
-    <div className="w-[240px] shrink-0 flex flex-col bg-[#06060a] border-r border-zinc-800/80 min-h-0">
-      {/* Section header */}
-      <div className="h-9 px-3 flex items-center justify-between border-b border-zinc-800/80 shrink-0">
-        <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.16em]">Markets</span>
-        <span className="text-[10px] font-mono text-zinc-600 tabular-nums">{markets.length}</span>
-      </div>
-
-      {/* Search */}
-      <div className="px-2 py-2 border-b border-zinc-800/80 shrink-0">
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-600 w-3 h-3" strokeWidth={1.75} />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search"
-            className="w-full bg-white/[0.02] border border-white/[0.05] rounded-md pl-7 pr-2 py-1.5 text-[11px] text-white placeholder-zinc-600 focus:outline-none focus:border-white/[0.12] transition-colors duration-150"
-          />
-        </div>
-      </div>
-
-      {/* Column header */}
-      <div className="h-7 px-3 flex items-center justify-between border-b border-zinc-800/60 text-[9px] font-medium text-zinc-600 uppercase tracking-[0.14em] shrink-0">
-        <span>Market</span>
-        <span>Price · 24h</span>
-      </div>
-
-      {/* List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
-        {sorted.map((m) => {
-          const isActive = m.name === currentName;
-          const price = m.markPrice || m.oraclePrice || 0;
-          const change = m.change24h || 0;
-          const positive = change >= 0;
-          const shortName =
-            (m.displayName && m.displayName.replace(/\s*\(\$.*\)$/, "")) ||
-            m.name.replace("-PERP", "");
-
-          return (
-            <button
-              key={m.name}
-              onClick={() => selectMarket(m.name)}
-              className={`w-full flex items-center justify-between px-3 py-2 border-b border-zinc-800/40 text-left transition-colors duration-100 relative ${
-                isActive ? "bg-white/[0.04]" : "hover:bg-white/[0.02]"
-              }`}
-            >
-              {isActive && (
-                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500/80" />
-              )}
-              <div className="flex flex-col min-w-0 mr-2">
-                <span
-                  className={`text-[12px] font-medium truncate ${
-                    isActive ? "text-white" : "text-zinc-300"
-                  }`}
-                >
-                  {shortName}
-                </span>
-                <span className="text-[9px] text-zinc-600 font-mono mt-0.5 truncate">
-                  {m.name.replace("-PERP", "")}
-                </span>
-              </div>
-              <div className="flex flex-col items-end shrink-0">
-                <span className="text-[11px] font-mono tabular-nums text-zinc-200">
-                  ${price.toFixed(2)}
-                </span>
-                <span
-                  className={`text-[10px] font-mono tabular-nums ${
-                    positive ? "text-emerald-400" : "text-red-400"
-                  }`}
-                >
-                  {positive ? "+" : ""}
-                  {change.toFixed(2)}%
-                </span>
-              </div>
-            </button>
-          );
-        })}
-        {sorted.length === 0 && (
-          <div className="px-3 py-8 text-center text-[11px] text-zinc-600">
-            No markets match
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ConnectStrip — inline disabled-state notice (no modal)
@@ -185,13 +63,10 @@ export const TradingDashboard = () => {
         <TickerBar />
       </div>
 
-      {/* ── Desktop Layout — 3 columns: markets · chart · order ─────────── */}
+      {/* ── Desktop Layout ──────────────────────────────────────────────── */}
       <div className="hidden md:flex flex-1 overflow-hidden min-h-0">
 
-        {/* Left: Markets list (context) */}
-        <MarketsListColumn />
-
-        {/* Center: Chart + Positions Drawer (analysis) */}
+        {/* Left: Chart + Positions Drawer */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-zinc-800/80 relative overflow-hidden">
 
           {/* Chart — always full height */}
