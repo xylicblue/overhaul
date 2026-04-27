@@ -356,24 +356,24 @@ const LandingPage = () => {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
           isScrolled
-            ? "bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/[0.06] py-3"
-            : "bg-transparent py-5"
+            ? "bg-[#0a0a0f]/85 backdrop-blur-md border-b border-white/[0.05] py-3"
+            : "bg-transparent py-4"
         }`}
       >
-        <div className="container mx-auto px-6 flex justify-between items-center">
+        <div className="container mx-auto px-6 lg:px-8 flex justify-between items-center">
           <Routerlink to="/" className="flex items-center gap-3">
             <img src={logoImage} alt="ByteStrike" className="h-7 w-auto" />
           </Routerlink>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-7">
             {["What We're Exploring", "Why This Matters", "Your Input", "About Us"].map((item, i) => {
               const to = ["what-we-do", "why-it-matters", "contact", "about"][i];
               return (
                 <Link key={to} to={to} smooth={true} duration={500} offset={-80}
-                  className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer">
+                  className="text-[13px] text-zinc-300 hover:text-white transition-colors duration-150 cursor-pointer">
                   {item}
                 </Link>
               );
@@ -381,15 +381,15 @@ const LandingPage = () => {
 
             <Routerlink
               to="/security"
-              className="text-sm font-medium text-zinc-200 hover:text-white transition-colors"
+              className="text-[13px] text-zinc-300 hover:text-white transition-colors duration-150"
             >
               Security
             </Routerlink>
-            
+
             {/* ── Docs Dropdown ───────────────────────────────────── */}
             <div className="relative" ref={docsRef} onMouseEnter={() => { setDocsOpen(true); setMethodologyOpen(false); }} onMouseLeave={() => setDocsOpen(false)}>
               <button
-                className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                className="text-[13px] text-zinc-300 hover:text-white transition-colors duration-150 cursor-pointer flex items-center gap-1"
               >
                 Docs
                 <motion.svg
@@ -409,7 +409,7 @@ const LandingPage = () => {
                     initial="hidden" animate="visible" exit="exit"
                     className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-50"
                   >
-                    <div className="bg-[#111118] border border-white/[0.08] rounded-2xl shadow-2xl p-5 w-[580px]">
+                    <div className="bg-[#111118] border border-white/[0.08] rounded-xl shadow-2xl p-5 w-[580px]">
                       <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-4">Contract Reference</p>
                       <div className="grid grid-cols-2 gap-6">
                         {[
@@ -463,7 +463,7 @@ const LandingPage = () => {
             {/* ── Index Methodology Dropdown ──────────────────────── */}
             <div className="relative" ref={methodologyRef} onMouseEnter={() => { setMethodologyOpen(true); setDocsOpen(false); }} onMouseLeave={() => setMethodologyOpen(false)}>
               <button
-                className="text-sm font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                className="text-[13px] text-zinc-300 hover:text-white transition-colors duration-150 cursor-pointer flex items-center gap-1"
               >
                 Index Methodology
                 <motion.svg
@@ -483,7 +483,7 @@ const LandingPage = () => {
                     initial="hidden" animate="visible" exit="exit"
                     className="absolute top-full right-0 pt-3 z-50"
                   >
-                    <div className="bg-[#111118] border border-white/[0.08] rounded-2xl shadow-2xl p-5 w-[380px]">
+                    <div className="bg-[#111118] border border-white/[0.08] rounded-xl shadow-2xl p-5 w-[380px]">
                       <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-4">Price Indices</p>
                       <div className="grid grid-cols-2 gap-3">
                         {[
@@ -496,7 +496,7 @@ const LandingPage = () => {
                             key={item.path}
                             to={item.path}
                             onClick={() => setMethodologyOpen(false)}
-                            className="group/item block p-3 rounded-xl border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] transition-all duration-150"
+                            className="group/item block p-3 rounded-lg border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] transition-colors duration-150"
                           >
                             <p className="text-sm font-semibold text-zinc-100 group-hover/item:text-white transition-colors mb-1">{item.label}</p>
                             <p className="text-xs text-zinc-500 leading-relaxed">{item.desc}</p>
@@ -510,23 +510,33 @@ const LandingPage = () => {
             </div>
           </nav>
 
-          <div className="hidden md:flex items-center gap-4">
-            <Routerlink to="/trade" className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+          <div className="hidden md:flex items-center gap-3">
+            <Routerlink
+              to="/trade"
+              className="px-4 py-1.5 rounded-full border border-white/[0.12] bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/[0.2] text-zinc-200 hover:text-white text-[13px] font-medium transition-colors duration-150"
+            >
               Trade
             </Routerlink>
             {!sessionLoading && session && (
               <NotificationBell userId={session.user?.id} />
             )}
             {sessionLoading || (session && !profile) ? (
-              <div className="w-24 h-8 rounded-xl bg-white/[0.04] animate-pulse" />
+              <div className="w-24 h-8 rounded-md bg-white/[0.04] animate-pulse" />
             ) : session && profile ? (
               <ProfileDropdown session={session} profile={profile} onLogout={handleLogout} />
             ) : (
-              <div className="flex items-center gap-3">
-                <button onClick={() => openLogin()} className="text-sm text-zinc-400 hover:text-white transition-colors">Login</button>
-                <button onClick={() => openSignup()}
-                  className="px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white rounded-xl border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/[0.15] transition-all duration-300">
-                  Sign Up
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => openLogin()}
+                  className="px-2.5 py-1.5 text-[13px] text-zinc-300 hover:text-white transition-colors duration-150"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => openSignup()}
+                  className="px-4 py-1.5 text-[13px] font-semibold text-zinc-900 bg-white hover:bg-zinc-100 rounded-md transition-colors duration-150"
+                >
+                  Sign up
                 </button>
               </div>
             )}
@@ -557,7 +567,7 @@ const LandingPage = () => {
                   <Link key={i} to={["what-we-do", "why-it-matters", "contact", "about"][i]} smooth={true} offset={-80} onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-white">{item}</Link>
                 ))}
                 <div className="h-px bg-white/[0.06] my-2"></div>
-                <Routerlink to="/trade" className="text-blue-400 font-medium" onClick={() => setIsMenuOpen(false)}>Trade</Routerlink>
+                <Routerlink to="/trade" className="text-white font-medium" onClick={() => setIsMenuOpen(false)}>Trade</Routerlink>
                 <Routerlink to="/security" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>Security</Routerlink>
                 <Routerlink to="/docs" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>Docs</Routerlink>
                 <div className="text-zinc-600 text-xs uppercase tracking-wider mt-2">Documentation</div>
