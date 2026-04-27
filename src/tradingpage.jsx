@@ -38,9 +38,9 @@ const TradingPage = () => {
       {/* Quick Guide FAB */}
       <button
         onClick={() => setShowWelcome(true)}
-        className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 bg-[#0a0a10] hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-500 hover:text-zinc-200 text-[10px] font-bold uppercase tracking-widest rounded-lg backdrop-blur-sm transition-all shadow-lg"
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0a0a10]/90 hover:bg-white/[0.04] border border-white/[0.06] hover:border-white/[0.12] text-zinc-400 hover:text-zinc-200 text-[11px] font-medium rounded-md backdrop-blur-sm transition-colors duration-150"
       >
-        <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-zinc-700 text-zinc-600 font-mono text-[9px]">?</span>
+        <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-white/[0.08] text-zinc-500 font-mono text-[9px]">?</span>
         Help
       </button>
     </PageTransition>

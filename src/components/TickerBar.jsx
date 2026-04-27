@@ -684,8 +684,8 @@ const TickerBar = () => {
   // ── Stat column helper ──────────────────────────────────────────────────
   const Stat = ({ value, label, valueClass = "text-zinc-200", tooltip }) => (
     <div className="flex flex-col justify-center px-4 shrink-0 h-full">
-      <div className={`text-xs font-mono font-semibold whitespace-nowrap ${valueClass}`}>{value}</div>
-      <div className="flex items-center text-[10px] text-zinc-600 whitespace-nowrap mt-0.5 uppercase tracking-wide gap-0.5">
+      <div className={`text-xs font-mono font-medium tabular-nums whitespace-nowrap ${valueClass}`}>{value}</div>
+      <div className="flex items-center text-[10px] text-zinc-500 whitespace-nowrap mt-0.5 tracking-wide gap-0.5">
         {label}
         {tooltip && <div onClick={e => e.stopPropagation()}>{tooltip}</div>}
       </div>
@@ -693,14 +693,14 @@ const TickerBar = () => {
   );
 
   return (
-    <div className="h-11 bg-[#050505] border-b border-zinc-800/80 flex items-stretch px-0 shrink-0 overflow-x-auto no-scrollbar">
+    <div className="h-10 bg-[#050505] border-b border-zinc-800/80 flex items-stretch px-0 shrink-0 overflow-x-auto no-scrollbar">
       {/* ── Market name (static) + Switch button ───────────────────────── */}
-      <div className="relative shrink-0 flex items-center gap-2 px-4 border-r border-zinc-800/50">
+      <div className="relative shrink-0 flex items-center gap-2 px-4 border-r border-zinc-800/80">
         {/* Market name — not clickable, just display */}
-        <span className="text-sm font-bold text-white tracking-tight">
+        <span className="text-sm font-semibold text-white tracking-tight">
           {marketData?.displayName || marketName.replace("-PERP", "")}
         </span>
-        <span className="text-[9px] font-bold text-zinc-600 border border-zinc-700/60 px-1 py-0.5 rounded font-mono">PERP</span>
+        <span className="text-[9px] font-medium text-zinc-500 border border-zinc-800 px-1 py-0.5 rounded font-mono">PERP</span>
 
         {/* Dedicated Switch button */}
         <button
@@ -712,7 +712,7 @@ const TickerBar = () => {
             }
             setIsModalOpen(prev => !prev);
           }}
-          className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 text-[10px] font-bold uppercase tracking-wide transition-all"
+          className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.08] hover:border-white/[0.14] text-zinc-300 hover:text-white text-[10px] font-medium tracking-wide transition-colors duration-150"
         >
           Switch
           <ChevronDown size={10} className={`transition-transform duration-150 ${isModalOpen ? "rotate-180" : ""}`} />
@@ -730,16 +730,16 @@ const TickerBar = () => {
 
       {/* ── Mark price (primary, large) ──────────────────────────────────── */}
       <div className="flex flex-col justify-center px-4 shrink-0">
-        <div className={`text-sm font-mono font-bold whitespace-nowrap ${changeIsPositive ? "text-emerald-400" : "text-red-400"}`}>
+        <div className={`text-sm font-mono font-semibold tabular-nums whitespace-nowrap ${changeIsPositive ? "text-emerald-400" : "text-red-400"}`}>
           ${marketData?.price || "0.00"}
         </div>
         <div className="flex items-center gap-1 mt-0.5">
-          <span className={`flex items-center gap-0.5 font-mono font-semibold text-[10px] ${changeIsPositive ? "text-emerald-500" : "text-red-500"}`}>
+          <span className={`flex items-center gap-0.5 font-mono font-medium text-[10px] tabular-nums ${changeIsPositive ? "text-emerald-500" : "text-red-500"}`}>
             {changeIsPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
             {marketData?.change24h || "0.00%"}
           </span>
           <span className="text-zinc-700 text-[10px]">·</span>
-          <span className="text-zinc-600 text-[10px] uppercase tracking-wide">Mark</span>
+          <span className="text-zinc-500 text-[10px] tracking-wide">Mark</span>
           <div onClick={e => e.stopPropagation()}>
             <InfoTooltip title="Mark Price ($/hour)" description="The current trading price for GPU compute hours from the vAMM." />
           </div>
