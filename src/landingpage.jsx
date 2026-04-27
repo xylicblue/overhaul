@@ -104,45 +104,24 @@ const AnimatedSection = ({ children, className = "", variants = staggerContainer
 /* ─── Card Data ─── */
 const whyNowCardsData = [
   {
+    num: "01",
     title: "Explosive Demand",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-3.75-2.25M21 12l-3.75 2.25" />
-      </svg>
-    ),
-    summary: "The demand for computational resources, driven by AI and LLMs, is growing at an unprecedented rate.",
-    details: "No AI model or industrial process can run without compute. The gap between supply and demand is widening.",
+    body: "AI training and inference are scaling GPU spend faster than fab capacity, power, and interconnect can deliver. The supply gap is structural, not cyclical.",
   },
   {
+    num: "02",
     title: "Market Volatility",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.362-6.867 8.267 8.267 0 013 2.48Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
-      </svg>
-    ),
-    summary: "GPU prices and cloud costs face extreme volatility, making financial planning a high-stakes gamble.",
-    details: "Compute markets are opaque and volatile. Supply chain disruptions and geopolitical factors drive cost swings.",
+    body: "H100 rental rates have moved by an order of magnitude across providers and quarters. Buyers can't underwrite long-running jobs; operators can't commit forward capacity.",
   },
   {
+    num: "03",
     title: "Capital Constraints",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V6.375c0-.621.504-1.125 1.125-1.125h.375m16.5 0h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m0 0h-.375a1.125 1.125 0 01-1.125-1.125V6.375c0-.621.504-1.125 1.125-1.125h.375M3 8.25v1.5m18-1.5v1.5m-12-1.5h.008v.008H9v-.008zm4.5 0h.008v.008h-.008v-.008zm4.5 0h.008v.008h-.008v-.008zm-9 4.5h.008v.008H9v-.008zm4.5 0h.008v.008h-.008v-.008zm4.5 0h.008v.008h-.008v-.008z" />
-      </svg>
-    ),
-    summary: "Perceived risk and uncertainty in AI infrastructure leads to high financing costs.",
-    details: "Hedging instruments reduce perceived risk, lower financing costs, and unlock larger infrastructure commitments.",
+    body: "GPU clusters are multi-year, multi-hundred-million-dollar commitments. With no instruments to hedge price or utilization, the cost of capital sits structurally higher than it should.",
   },
   {
-    title: "Need for Hedging",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z" />
-      </svg>
-    ),
-    summary: "A futures market provides essential financial tools for price discovery and risk management.",
-    details: "High-growth companies rely on steady prices. Compute infrastructure requires massive upfront investment and long-term planning.",
+    num: "04",
+    title: "Missing market infrastructure",
+    body: "Oil, power, and grain trade on standardized forward curves. Compute - the input AI is built on - has no equivalent. We provide the contracts, settlement, and price discovery layer.",
   },
 ];
 
@@ -162,13 +141,13 @@ const GPU_INDEX_MARKETS = [
     badge: "NEW",
     badgeColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
   },
-  {
-    id: "H200-PERP",
-    name: "H200",
-    full: "NVIDIA H200 SXM",
-    badge: null,
-    badgeColor: "",
-  },
+  // {
+  //   id: "H200-PERP",
+  //   name: "H200",
+  //   full: "NVIDIA H200 SXM",
+  //   badge: null,
+  //   badgeColor: "",
+  // },
   {
     id: "T4-PERP",
     name: "T4",
@@ -176,6 +155,16 @@ const GPU_INDEX_MARKETS = [
     badge: "BETA",
     badgeColor: "text-zinc-400 bg-zinc-500/10 border-zinc-500/25",
   },
+];
+
+// Markets shown in the hero widget ticker — only IDs that exist in SPARKLINE_CONFIG
+const HERO_TICKER_MARKETS = [
+  { id: "H100-PERP",          name: "H100", sub: "Index"     },
+  { id: "B200-PERP",          name: "B200", sub: "Index"     },
+  { id: "T4-PERP",            name: "T4",   sub: "Index"     },
+  { id: "ORACLE-B200-PERP",   name: "B200", sub: "Oracle"    },
+  { id: "COREWEAVE-B200-PERP",name: "B200", sub: "CoreWeave" },
+  // { id: "H100-non-HyperScalers-PERP", name: "H100", sub: "Neocloud" },
 ];
 
 const LandingPage = () => {
@@ -202,7 +191,6 @@ const LandingPage = () => {
   /* ─── Refs for scroll-driven sections ─── */
   const heroRef = useRef(null);
   const chartRef = useRef(null);
-  const horizontalRef = useRef(null);
   const pageRef = useRef(null);
   const docsRef = useRef(null);
   const methodologyRef = useRef(null);
@@ -227,23 +215,6 @@ const LandingPage = () => {
   });
   const chartScale = useTransform(chartScrollProgress, [0, 1], [0.85, 1]);
   const chartOpacity = useTransform(chartScrollProgress, [0, 0.6], [0.3, 1]);
-
-  /* ─── 4. Horizontal Scroll for "Why Now" ─── */
-  const { scrollYProgress: horizontalScrollProgress } = useScroll({
-    target: horizontalRef,
-    offset: ["start start", "end end"],
-  });
-  const horizontalX = useTransform(horizontalScrollProgress, [0, 1], ["0%", "-20%"]);
-
-  /* ─── 6. Platform Preview Cinematic Reveal ─── */
-  const previewRef = useRef(null);
-  const { scrollYProgress: previewProgress } = useScroll({
-    target: previewRef,
-    offset: ["start end", "end center"],
-  });
-  const previewRotateX = useTransform(previewProgress, [0, 1], [8, 0]);
-  const previewScale = useTransform(previewProgress, [0, 1], [0.9, 1]);
-  const previewOpacity = useTransform(previewProgress, [0, 0.4], [0, 1]);
 
   /* ─── Effects ─── */
   useEffect(() => {
@@ -311,17 +282,23 @@ const LandingPage = () => {
   const [indexPrices, setIndexPrices] = useState({});
   useEffect(() => {
     (async () => {
-      const [h100, b200, h200, t4] = await Promise.all([
+      const [h100, b200, t4, oracleB200, coreweaveB200, h100Neocloud] = await Promise.all([
+        // GPU index markets
         supabase.from("price_data").select("price").order("timestamp", { ascending: false }).limit(1).single(),
         supabase.from("b200_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("h200_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
         supabase.from("t4_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
+        // Provider markets (mirror SPARKLINE_CONFIG providerFilter values)
+        supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "Oracle").order("created_at", { ascending: false }).limit(1).single(),
+        supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "CoreWeave").order("created_at", { ascending: false }).limit(1).single(),
+        supabase.from("price_data").select("price").order("timestamp", { ascending: false }).limit(1).single(),
       ]);
       setIndexPrices({
-        "H100-PERP": h100.data?.price != null ? parseFloat(h100.data.price) : null,
-        "B200-PERP": b200.data?.index_price != null ? parseFloat(b200.data.index_price) : null,
-        "H200-PERP": h200.data?.index_price != null ? parseFloat(h200.data.index_price) : null,
-        "T4-PERP":   t4.data?.index_price  != null ? parseFloat(t4.data.index_price)  : null,
+        "H100-PERP":           h100.data?.price                   != null ? parseFloat(h100.data.price)                         : null,
+        "B200-PERP":           b200.data?.index_price             != null ? parseFloat(b200.data.index_price)                   : null,
+        "T4-PERP":             t4.data?.index_price               != null ? parseFloat(t4.data.index_price)                     : null,
+        "ORACLE-B200-PERP":    oracleB200.data?.effective_price   != null ? parseFloat(oracleB200.data.effective_price)         : null,
+        "COREWEAVE-B200-PERP": coreweaveB200.data?.effective_price != null ? parseFloat(coreweaveB200.data.effective_price)    : null,
+        "H100-non-HyperScalers-PERP": h100Neocloud.data?.price != null ? parseFloat(h100Neocloud.data.price) : null,
       });
     })();
   }, []);
@@ -620,153 +597,166 @@ const LandingPage = () => {
       </motion.header>
 
 
-      {/* ═══ HERO SECTION — Interactive: 3D tilt + chart line + magnetic buttons ═══ */}
+      {/* ═══ HERO ═══ */}
       <section
         ref={heroRef}
-        className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden"
-        onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const x = (e.clientX - rect.left) / rect.width - 0.5;
-          const y = (e.clientY - rect.top) / rect.height - 0.5;
-          setHeroMouse({ x, y, clientX: e.clientX, clientY: e.clientY, rect });
-        }}
-        onMouseLeave={() => setHeroMouse({ x: 0, y: 0, clientX: 0, clientY: 0, rect: null })}
+        className="relative min-h-screen pt-28 md:pt-32 pb-20 flex items-center"
       >
-        {/* Cursor spotlight */}
-        {heroMouse.rect && (
-          <div
-            className="absolute pointer-events-none z-0"
-            style={{
-              left: heroMouse.clientX - heroMouse.rect.left - 200,
-              top: heroMouse.clientY - heroMouse.rect.top - 200,
-              width: 400,
-              height: 400,
-              background: "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)",
-              transition: "left 0.15s ease-out, top 0.15s ease-out",
-            }}
-          />
-        )}
-
-        {/* Background blobs — lag behind on scroll */}
-        <motion.div className="absolute inset-0 pointer-events-none" style={{ y: heroBgY }}>
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-blue-600/[0.07] rounded-full blur-[120px] animate-gradient-shift" />
-          <div className="absolute bottom-0 right-0 w-[600px] h-[400px] bg-purple-600/[0.04] rounded-full blur-[100px]" />
-        </motion.div>
-
-
-        {/* ─── Animated Chart Line (SVG background) ─── */}
-        <motion.svg
-          className="absolute inset-0 w-full h-full pointer-events-none z-[1]"
-          viewBox="0 0 1400 800"
-          preserveAspectRatio="none"
-          initial="hidden"
-          animate="visible"
-        >
-          <defs>
-            <linearGradient id="chartLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(59,130,246,0)" />
-              <stop offset="30%" stopColor="rgba(59,130,246,0.15)" />
-              <stop offset="70%" stopColor="rgba(59,130,246,0.2)" />
-              <stop offset="100%" stopColor="rgba(59,130,246,0.05)" />
-            </linearGradient>
-            <filter id="chartGlow">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-          <motion.path
-            d="M0,500 C100,480 200,520 300,460 C400,400 450,440 550,380 C650,320 700,350 800,310 C900,270 950,290 1050,250 C1150,210 1200,230 1300,200 C1350,185 1400,190 1400,190"
-            fill="none"
-            stroke="url(#chartLineGrad)"
-            strokeWidth="2"
-            filter="url(#chartGlow)"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 2.5, ease: "easeInOut", delay: 0.8 }}
-          />
-          {/* Subtle fill area under the line */}
-          <motion.path
-            d="M0,500 C100,480 200,520 300,460 C400,400 450,440 550,380 C650,320 700,350 800,310 C900,270 950,290 1050,250 C1150,210 1200,230 1300,200 C1350,185 1400,190 1400,190 L1400,800 L0,800 Z"
-            fill="url(#chartLineGrad)"
-            opacity="0.03"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.03 }}
-            transition={{ duration: 2, delay: 1.5 }}
-          />
-        </motion.svg>
-
-        {/* Hero content — 3D tilt on mouse + moves up faster on scroll */}
         <motion.div
-          className="container mx-auto px-6 relative z-10 text-center"
-          style={{
-            y: heroTextY,
-            opacity: heroTextOpacity,
-            rotateX: heroMouse.y * -8,
-            rotateY: heroMouse.x * 8,
-            transformPerspective: 1200,
-          }}
+          className="container mx-auto px-6 lg:px-12 max-w-7xl relative z-10"
+          style={{ y: heroTextY, opacity: heroTextOpacity }}
         >
-          <motion.div variants={staggerContainer} initial="hidden" animate="visible">
-            {/* Headline */}
-            <motion.h1 variants={blurFadeIn} className="text-5xl md:text-7xl font-semibold mb-6 tracking-tight leading-[1.1] text-white">
-              A New Marketplace <br />for Compute
-            </motion.h1>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-14 lg:gap-12 items-center">
 
-            {/* Subheading */}
-            <motion.p variants={fadeUp} className="text-lg md:text-xl text-zinc-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-              Trade against live cloud GPU prices. We are building the foundational
-              infrastructure for a futures market where compute capacity is
-              priced, risk-managed, and traded like a commodity.
-            </motion.p>
+            {/* ─── LEFT: Content ────────────────────────────────────────── */}
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              className="lg:col-span-7"
+            >
+              {/* Eyebrow */}
+              <motion.div variants={fadeUpSubtle} className="flex items-center gap-2.5 mb-7">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                </span>
+                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-[0.22em]">
+                  GPU Compute Futures · Live on Sepolia
+                </span>
+              </motion.div>
 
-            {/* CTAs */}
-            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link to="contact" smooth={true} offset={-80}
-                className="px-8 py-3.5 rounded-full bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-all duration-200 cursor-pointer">
-                Join Interest List
-              </Link>
-              <Routerlink to="/trade"
-                className="group px-8 py-3.5 rounded-full border border-white/[0.1] bg-white/[0.04] text-white font-semibold text-sm hover:bg-white/[0.08] hover:border-white/[0.15] transition-all duration-200 flex items-center gap-2">
-                <span>Trade Now</span>
-                <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Routerlink>
+              {/* Headline — declarative, specific */}
+              <motion.h1
+                variants={blurFadeIn}
+                className="text-[42px] sm:text-5xl md:text-[58px] lg:text-[68px] font-semibold text-white tracking-[-0.025em] leading-[1.04] mb-6"
+              >
+                A futures exchange<br className="hidden sm:block" /> for GPU compute.
+              </motion.h1>
+
+              {/* Subheading — what it is, in one sentence */}
+              <motion.p
+                variants={fadeUp}
+                className="text-base md:text-lg text-zinc-400 leading-relaxed max-w-xl mb-10"
+              >
+                Perpetual contracts on H100, H200, B200, and T4 rental rates -
+                settled live against aggregated cloud provider indices.
+              </motion.p>
+
+              {/* CTAs — deliberate, not pill-shaped */}
+              <motion.div
+                variants={fadeUp}
+                className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 mb-14"
+              >
+                <Routerlink
+                  to="/trade"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-white text-zinc-900 font-semibold text-sm hover:bg-zinc-200 transition-colors duration-150"
+                >
+                  Open Trading App
+                </Routerlink>
+                <Routerlink
+                  to="/markets"
+                  className="group inline-flex items-center gap-1.5 text-sm font-medium text-zinc-300 hover:text-white transition-colors px-2 py-3"
+                >
+                  View Markets
+                  <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Routerlink>
+              </motion.div>
+
+              {/* Status strip — concrete proof points */}
+              <motion.div
+                variants={fadeUpSubtle}
+                className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-zinc-500"
+              >
+                <span>16 markets live</span>
+                <span className="w-px h-3 bg-white/[0.08]" />
+                <span>Onchain settlement</span>
+                <span className="w-px h-3 bg-white/[0.08]" />
+                <span>
+                  Audited by <span className="text-zinc-300">Cyfrin</span>
+                  {" "}&{" "}<span className="text-zinc-300">BattleChain</span>
+                </span>
+              </motion.div>
             </motion.div>
 
-            {/* Trust line */}
-            <motion.div variants={staggerContainer} className="mt-16 flex flex-wrap justify-center items-center gap-x-6 gap-y-2">
-              {["Live Price Indices", "GPU Compute Futures", "Transparent Methodology"].map((text, i) => (
-                <React.Fragment key={text}>
-                  {i > 0 && <motion.span variants={fadeUpSubtle} className="w-1 h-1 rounded-full bg-zinc-700" />}
-                  <motion.span variants={fadeUpSubtle} className="text-sm font-medium text-zinc-300 uppercase tracking-wider">{text}</motion.span>
-                </React.Fragment>
-              ))}
-            </motion.div>
-          </motion.div>
-        </motion.div>
+            {/* ─── RIGHT: Live exchange snippet ──────────────────────── */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+              className="lg:col-span-5"
+            >
+              <div className="rounded-xl border border-white/[0.08] bg-[#0c0c12] overflow-hidden shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)]">
 
-        {/* Scroll indicator */}
-        <motion.div 
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10"
-          style={{ opacity: useTransform(heroScrollProgress, [0, 0.2], [1, 0]) }}
-        >
-          <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Scroll</span>
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
-          >
-            <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
-          </motion.div>
+                {/* Window header */}
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.05] bg-[#08080c]">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                    </span>
+                    <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-[0.18em]">
+                      Live Markets
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-wider">$ / GPU · hr</span>
+                </div>
+
+                {/* Market rows — infinite auto-scroll */}
+                <div className="overflow-hidden" style={{ height: "189px" }}>
+                  <motion.div
+                    animate={{ y: ["0%", "-50%"] }}
+                    transition={{ duration: 16, repeat: Infinity, ease: "linear", repeatType: "loop" }}
+                  >
+                    {[...HERO_TICKER_MARKETS, ...HERO_TICKER_MARKETS].map((m, i) => (
+                      <div
+                        key={`${m.id}-${i}`}
+                        className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.04]"
+                      >
+                        <div className="w-12 shrink-0">
+                          <div className="text-sm font-semibold text-white leading-none">{m.name}</div>
+                          <div className="text-[9px] text-zinc-600 mt-1.5 leading-none font-mono tracking-wide">{m.sub}</div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <Sparkline marketId={m.id} width={120} height={26} block />
+                        </div>
+                        <div className="text-right w-20 shrink-0 font-mono">
+                          <div className="text-sm font-semibold text-white">
+                            {indexPrices[m.id] != null
+                              ? `$${indexPrices[m.id].toFixed(2)}`
+                              : <span className="text-zinc-700">—</span>}
+                          </div>
+                          <div className="text-[9px] text-zinc-600 mt-1 leading-none">Index</div>
+                        </div>
+                      </div>
+                    ))}
+                  </motion.div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between px-4 py-2.5 border-t border-white/[0.05] bg-[#08080c]">
+                  <span className="text-[10px] text-zinc-600">Updated continuously</span>
+                  <Routerlink
+                    to="/markets"
+                    className="group inline-flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-white transition-colors"
+                  >
+                    View all
+                    <svg className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </Routerlink>
+                </div>
+              </div>
+            </motion.div>
+
+          </div>
         </motion.div>
       </section>
 
-      {/* ═══ MARKETS PREVIEW ═══ */}
+      {/* ═══ MARKETS PREVIEW (disabled — flip `false` to `true` to re-enable) ═══ */}
+      {false && (
       <section className="relative z-10 py-20 md:py-28 overflow-hidden">
         {/* Hairline separator */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" />
@@ -892,99 +882,123 @@ const LandingPage = () => {
           </AnimatedSection>
         </div>
       </section>
+      )}
 
       <div className="section-divider max-w-5xl mx-auto" />
 
 
-      {/* ═══ PRICE INDEX CHART — with scroll scale-in ═══ */}
-      <section id="what-we-do" className="py-24 relative z-10">
-        <div className="container mx-auto px-6">
+      {/* ═══ PRICE INDEX CHART ═══ */}
+      <section id="what-we-do" className="py-20 md:py-24 relative z-10">
+        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
           <AnimatedSection className="flex flex-col items-center">
-            
-            {/* Section Header */}
-            <motion.div variants={blurFadeIn} className="text-center mb-12">
-              <h2 className="text-4xl md:text-5xl font-semibold text-white tracking-tight mb-4">
-                Real-Time GPU Price Indices
+
+            {/* Section header — restrained, product-driven */}
+            <motion.div variants={blurFadeIn} className="text-center mb-10">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 mb-3">
+                Indices
+              </p>
+              <h2 className="text-3xl md:text-[38px] font-semibold text-white tracking-[-0.02em] leading-[1.1] mb-3">
+                Live GPU price indices.
               </h2>
-              <p className="text-zinc-400 max-w-2xl mx-auto text-lg leading-relaxed">
-                Live pricing data aggregated from major cloud providers,
-                updated continuously to reflect the true cost of compute.
+              <p className="text-zinc-400 text-[15px] leading-relaxed max-w-lg mx-auto">
+                Composite indices from major cloud providers. Updated continuously.
               </p>
             </motion.div>
 
-            {/* GPU Model Selector */}
-            <motion.div variants={fadeUp} className="relative z-20 w-full max-w-5xl mx-auto mb-10">
-              <div className="flex flex-col items-center gap-6 relative z-10">
-                <div className="flex items-center p-1 bg-white/[0.03] rounded-full border border-white/[0.08]">
-                  {["H100", "B200", "H200", "T4", "A100"].map((model) => (
-                    <button key={model}
-                      onClick={() => {
-                        setSelectedModel(model);
-                        const firstMarket = model === "H100" ? "H100-PERP" : model === "A100" ? "A100-PERP" : model === "H200" ? "H200-PERP" : model === "B200" ? "B200-PERP" : "T4-PERP";
-                        setSelectedMarket(firstMarket);
-                      }}
-                      className={`relative px-5 md:px-7 py-2.5 rounded-full text-xs md:text-sm font-medium transition-all duration-300 whitespace-nowrap ${selectedModel === model ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}>
-                      {selectedModel === model && (
-                        <motion.div layoutId="modelActive" className="absolute inset-0 bg-white/[0.08] rounded-full border border-white/[0.06]"
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />
-                      )}
-                      <span className="relative z-10">{model}</span>
-                    </button>
-                  ))}
+            {/* Model selector — segmented control, not pill */}
+            <motion.div variants={fadeUp} className="relative z-20 w-full max-w-5xl mx-auto">
+              <div className="flex flex-col items-center gap-3">
+
+                {/* Primary tabs */}
+                <div className="inline-flex items-center p-1 bg-white/[0.025] rounded-lg border border-white/[0.05]">
+                  {["H100", "B200", "H200", "T4", "A100"].map((model) => {
+                    const isActive = selectedModel === model;
+                    return (
+                      <button
+                        key={model}
+                        onClick={() => {
+                          setSelectedModel(model);
+                          const firstMarket = model === "H100" ? "H100-PERP" : model === "A100" ? "A100-PERP" : model === "H200" ? "H200-PERP" : model === "B200" ? "B200-PERP" : "T4-PERP";
+                          setSelectedMarket(firstMarket);
+                        }}
+                        className={`relative px-5 md:px-6 py-2 rounded-md text-[12px] md:text-[13px] font-semibold transition-colors duration-150 whitespace-nowrap ${
+                          isActive ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="modelActive"
+                            className="absolute inset-0 bg-white/[0.06] rounded-md"
+                            transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+                          />
+                        )}
+                        <span className="relative z-10">{model}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Sub-market pills */}
-                <AnimatePresence mode="wait">
-                  {selectedModel !== "A100" && selectedModel !== "T4" && (
-                    <motion.div key={selectedModel}
-                      initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.2 }}>
-                      <div className="flex flex-wrap justify-center gap-2">
-                        {(selectedModel === "H100" ? [
-                          { name: "H100-PERP", label: "Global Weighted Average" },
-                          { name: "H100-non-HyperScalers-PERP", label: "Neocloud Index" },
-                        ] : selectedModel === "H200" ? [
-                          { name: "H200-PERP", label: "Global Average" },
-                          { name: "ORACLE-H200-PERP", label: "Oracle Cloud" },
-                          { name: "AWS-H200-PERP", label: "AWS" },
-                          { name: "COREWEAVE-H200-PERP", label: "CoreWeave" },
-                          { name: "GCP-H200-PERP", label: "Google Cloud" },
-                        ] : [
-                          { name: "B200-PERP", label: "Global Average" },
-                          { name: "ORACLE-B200-PERP", label: "Oracle Cloud" },
-                          { name: "AWS-B200-PERP", label: "AWS" },
-                          { name: "COREWEAVE-B200-PERP", label: "CoreWeave" },
-                          { name: "GCP-B200-PERP", label: "Google Cloud" },
-                        ]).map((market) => (
-                          <button key={market.name} onClick={() => setSelectedMarket(market.name)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-                              selectedMarket === market.name
-                                ? "bg-blue-600 text-white"
-                                : "bg-white/[0.04] text-zinc-500 hover:bg-white/[0.08] hover:text-zinc-300 border border-white/[0.06]"
-                            }`}>
-                            {market.label}
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Sub-market chips — subtle, restrained, fixed-height container to prevent layout jump */}
+                <div className="min-h-[34px] flex items-center justify-center">
+                  <AnimatePresence mode="wait">
+                    {selectedModel !== "A100" && selectedModel !== "T4" && (
+                      <motion.div
+                        key={selectedModel}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <div className="flex flex-wrap justify-center gap-1.5">
+                          {(selectedModel === "H100" ? [
+                            { name: "H100-PERP", label: "Global Weighted Average" },
+                            { name: "H100-non-HyperScalers-PERP", label: "Neocloud Index" },
+                          ] : selectedModel === "H200" ? [
+                            { name: "H200-PERP", label: "Global Average" },
+                            { name: "ORACLE-H200-PERP", label: "Oracle Cloud" },
+                            { name: "AWS-H200-PERP", label: "AWS" },
+                            { name: "COREWEAVE-H200-PERP", label: "CoreWeave" },
+                            { name: "GCP-H200-PERP", label: "Google Cloud" },
+                          ] : [
+                            { name: "B200-PERP", label: "Global Average" },
+                            { name: "ORACLE-B200-PERP", label: "Oracle Cloud" },
+                            { name: "AWS-B200-PERP", label: "AWS" },
+                            { name: "COREWEAVE-B200-PERP", label: "CoreWeave" },
+                            { name: "GCP-B200-PERP", label: "Google Cloud" },
+                          ]).map((market) => {
+                            const isActive = selectedMarket === market.name;
+                            return (
+                              <button
+                                key={market.name}
+                                onClick={() => setSelectedMarket(market.name)}
+                                className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 border ${
+                                  isActive
+                                    ? "bg-white/[0.06] text-white border-white/[0.1]"
+                                    : "bg-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.025] border-transparent"
+                                }`}
+                              >
+                                {market.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </motion.div>
 
-            {/* Chart Container — scroll-linked scale-in + ambient glow */}
+            {/* Chart panel — clean, no ambient glow, no top accent */}
             <motion.div
               ref={chartRef}
               style={{ scale: chartScale, opacity: chartOpacity }}
-              className="w-full max-w-5xl h-[400px] md:h-[500px] relative px-4 md:px-0"
+              className="w-full max-w-5xl h-[400px] md:h-[480px] relative mt-6"
             >
-              {/* Ambient glow behind the card */}
-              <div className="absolute -inset-4 bg-blue-600/[0.06] rounded-3xl blur-2xl pointer-events-none" />
-              
-              {/* Trade action — sits above the card, top-right */}
+              {/* Trade action — minimal text link, top-right */}
               <Routerlink
                 to={`/trade?market=${selectedMarket}`}
-                className="absolute -top-11 right-0 group hidden md:flex items-center gap-2 px-4 py-2 rounded-lg border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/[0.16] transition-all duration-200 text-[11px] font-medium text-zinc-400 hover:text-zinc-100 tracking-wide"
+                className="absolute -top-9 right-0 group hidden md:inline-flex items-center gap-1.5 text-[12px] font-medium text-zinc-400 hover:text-white transition-colors duration-150"
               >
                 Trade {selectedModel}
                 <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -992,39 +1006,31 @@ const LandingPage = () => {
                 </svg>
               </Routerlink>
 
-              <div className="relative w-full h-full bg-[#0d0d14] border border-white/[0.08] rounded-2xl overflow-visible">
-                {/* Top accent line */}
-                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent z-10 pointer-events-none" />
+              <div className="relative w-full h-full bg-[#0c0c12] border border-white/[0.07] rounded-xl overflow-visible">
                 <PriceIndexChart market={selectedMarket} />
               </div>
             </motion.div>
 
-            {/* Methodology Link */}
-            <motion.div variants={fadeUp} className="w-full max-w-3xl mx-auto mt-16 px-6 relative z-10">
-              <div className="flex flex-col items-center text-center">
-                <motion.div variants={scaleFade} className="w-12 h-12 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mb-6">
-                  <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                  </svg>
-                </motion.div>
-                <h4 className="text-2xl md:text-3xl font-semibold text-white mb-4 tracking-tight">
-                  Transparent, Rigorous Methodology
-                </h4>
-                <p className="text-zinc-400 leading-relaxed max-w-2xl text-base md:text-lg mb-8">
-                  Our GPU indices are calculated using real-time pricing from qualified providers, 
-                  revenue-weighted adjustments, and performance normalization.
-                </p>
-                <Routerlink to={`/methodology/${selectedModel.toLowerCase()}`}
-                  className="group inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-white/[0.12] transition-all duration-200">
-                  <span className="text-zinc-200 group-hover:text-white transition-colors text-sm font-medium">
-                    View {selectedModel} Methodology
-                  </span>
-                  <svg className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors group-hover:translate-x-0.5 transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Routerlink>
-              </div>
+            {/* Methodology footer — inline note + link, no icon block */}
+            <motion.div
+              variants={fadeUp}
+              className="w-full max-w-5xl mt-10 pt-6 border-t border-white/[0.05] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3"
+            >
+              <p className="text-zinc-500 text-[13px] leading-relaxed max-w-xl">
+                Indices are computed from real-time provider pricing with revenue-weighted
+                adjustments and performance normalization.
+              </p>
+              <Routerlink
+                to={`/methodology/${selectedModel.toLowerCase()}`}
+                className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-300 hover:text-white transition-colors duration-150 shrink-0"
+              >
+                View {selectedModel} methodology
+                <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Routerlink>
             </motion.div>
+
           </AnimatedSection>
         </div>
       </section>
@@ -1032,184 +1038,253 @@ const LandingPage = () => {
       <div className="section-divider max-w-5xl mx-auto" />
 
 
-      {/* ═══ PLATFORM PREVIEW — Cinematic Floating Reveal ═══ */}
-      <section className="relative z-10 -mt-8 pb-32" style={{ perspective: "1200px" }}>
-        <div className="container mx-auto px-6">
-          <motion.div
-            ref={previewRef}
-            className="relative w-full max-w-5xl mx-auto"
-            style={{
-              rotateX: previewRotateX,
-              scale: previewScale,
-              opacity: previewOpacity,
-              transformOrigin: "center top",
-            }}
-          >
-            {/* Ambient glow */}
-            <div className="absolute -inset-6 bg-blue-600/[0.08] rounded-3xl blur-3xl pointer-events-none" />
-            <div className="absolute -inset-12 bg-blue-500/[0.03] rounded-3xl blur-[60px] pointer-events-none" />
-            
-            {/* Browser frame */}
-            <div className="relative rounded-2xl overflow-hidden border border-white/[0.1] shadow-2xl shadow-blue-950/40">
-              {/* Top bar (faux browser chrome) */}
-              <div className="flex items-center gap-2 px-4 py-3 bg-[#111118] border-b border-white/[0.06]">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-                  <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
-                  <div className="w-3 h-3 rounded-full bg-[#28c840]" />
-                </div>
-                <div className="flex-1 flex justify-center">
-                  <div className="flex items-center gap-2 px-5 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-xs text-zinc-500">
-                    <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    bytestrike.com/trade
-                  </div>
-                </div>
-                <div className="w-16" />
-              </div>
+      {/* ═══ TRADING INTERFACE PREVIEW ═══ */}
+      <section className="relative z-10 py-20 md:py-24">
+        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
 
-              {/* Screenshot */}
-              <img
-                src={tradingPreview}
-                alt="ByteStrike Trading Platform"
-                className="w-full h-auto block"
-                loading="lazy"
-              />
-
-              {/* Bottom fade */}
-              <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f]/70 to-transparent pointer-events-none" />
-            </div>
-
-            {/* CTA floating over bottom fade */}
-            <div className="absolute bottom-8 left-0 right-0 flex justify-center z-10">
+          {/* Section header — eyebrow + tight heading + corner CTA */}
+          <AnimatedSection className="mb-8 flex items-end justify-between flex-wrap gap-4">
+            <motion.div variants={fadeUpSubtle}>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 mb-3">
+                Interface
+              </p>
+              <h2 className="text-2xl md:text-[28px] font-semibold text-white tracking-[-0.015em] leading-[1.1]">
+                Our Trading Platform.
+              </h2>
+            </motion.div>
+            <motion.div variants={fadeUpSubtle}>
               <Routerlink
                 to="/trade"
-                className="group inline-flex items-center gap-3 px-8 py-3.5 rounded-full bg-white hover:bg-zinc-200 text-zinc-900 font-semibold text-sm transition-all duration-200 shadow-lg shadow-black/30"
+                className="group inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors"
               >
-                <span>Start Trading</span>
-                <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                Open trading app
+                <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 17L17 7M17 7H8M17 7V16" />
                 </svg>
               </Routerlink>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      <div className="section-divider max-w-5xl mx-auto" />
-
-      {/* ═══ WHY NOW — Horizontal Scroll Section ═══ */}
-      <section id="why-it-matters" className="relative z-10">
-        {/* This outer div is tall to give us scroll travel */}
-        <div ref={horizontalRef} className="relative" style={{ height: "200vh" }}>
-          {/* Sticky container stays in view while we scroll through 300vh */}
-          <div className="sticky top-0 h-screen flex flex-col justify-center overflow-hidden">
-            
-            {/* Section header */}
-            <AnimatedSection className="text-center mb-12 px-6">
-              <motion.h2 variants={blurFadeIn} className="text-4xl md:text-5xl font-semibold mb-6 text-white tracking-tight">
-                Why Now? The Inevitable Shift
-              </motion.h2>
-              <motion.p variants={fadeUp} className="text-zinc-400 max-w-2xl mx-auto text-lg">
-                Compute is the new oil. The market needs sophisticated financial
-                tools to manage the explosive growth and volatility of AI
-                infrastructure.
-              </motion.p>
-            </AnimatedSection>
-
-            {/* Horizontal scrolling cards */}
-            <motion.div
-              className="flex gap-8 pl-8 md:pl-16 lg:pl-24 will-change-transform"
-              style={{ x: horizontalX }}
-            >
-              {whyNowCardsData.map((card, index) => (
-                <div
-                  key={index}
-                  className="flex-shrink-0 w-[340px] md:w-[400px] relative"
-                >                  <div className="h-full p-8 rounded-2xl bg-white/[0.025] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] transition-all duration-300 group relative">
-                    {/* Icon */}
-                    <div className="w-12 h-12 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-400 mb-6 group-hover:scale-110 transition-transform duration-300">
-                      {React.cloneElement(card.icon, { className: "w-6 h-6" })}
-                    </div>
-                    {/* Title */}
-                    <h3 className="text-xl font-semibold text-white mb-3">{card.title}</h3>
-                    {/* Summary */}
-                    <p className="text-zinc-400 text-sm leading-relaxed mb-4">{card.summary}</p>
-                    {/* Details */}
-                    <p className="text-zinc-500 text-xs leading-relaxed pt-4 border-t border-white/[0.06]">{card.details}</p>
-                  </div>
-                </div>
-              ))}
-
-              {/* Extra padding so last card is fully visible */}
-              <div className="flex-shrink-0 w-24" />
             </motion.div>
-          </div>
+          </AnimatedSection>
+
+          {/* Embedded trading interface frame */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            className="rounded-lg border border-white/[0.08] bg-[#0c0c12] overflow-hidden"
+          >
+            {/* App chrome — minimal terminal-style top bar */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-[#08080c]">
+              <div className="flex items-center gap-3">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                </span>
+                <span className="text-[11px] font-semibold text-zinc-300 font-mono tracking-wide">H100-PERP</span>
+                <span className="hidden sm:inline text-[10px] text-zinc-600 font-mono uppercase tracking-wider">Perpetual · 1h</span>
+              </div>
+              <div className="flex items-center gap-3 font-mono">
+                <span className="hidden md:inline text-[10px] text-zinc-600 uppercase tracking-wider">Last</span>
+                <span className="text-[11px] font-semibold text-white tabular-nums">3.77</span>
+                <span className="text-[10px] font-medium text-emerald-400 tabular-nums">+0.10%</span>
+              </div>
+            </div>
+
+            {/* Screenshot — embedded directly, no fades or overlays */}
+            <img
+              src={tradingPreview}
+              alt="ByteStrike Trading Interface"
+              className="w-full h-auto block"
+              loading="lazy"
+            />
+          </motion.div>
+
         </div>
       </section>
 
       <div className="section-divider max-w-5xl mx-auto" />
 
+      {/* ═══ MARKET CONTEXT ═══ */}
+      <section id="why-it-matters" className="relative z-10 py-20 md:py-28">
+        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
 
-      {/* ═══ CONTACT FORM ═══ */}
-      <section id="contact" className="py-24 relative z-10">
-        <div className="container mx-auto px-6 max-w-3xl relative z-10">
-          <AnimatedSection className="text-center mb-12">
-            <motion.h2 variants={blurFadeIn} className="text-4xl md:text-5xl font-semibold text-white tracking-tight mb-6">
-              Contact
+          {/* Section header — statement, not a question */}
+          <AnimatedSection className="mb-12 md:mb-14 max-w-3xl mx-auto text-center">
+            <motion.p
+              variants={fadeUpSubtle}
+              className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 mb-3"
+            >
+              Market Context
+            </motion.p>
+            <motion.h2
+              variants={blurFadeIn}
+              className="text-3xl md:text-[40px] font-semibold text-white tracking-[-0.02em] leading-[1.1] mb-4"
+            >
+              Compute markets are missing<br className="hidden sm:block" /> their financial layer.
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-zinc-400 text-lg max-w-2xl mx-auto leading-relaxed">
-              We are conducting market discovery. If you are a potential
-              user, supplier, or infrastructure operator, we invite you to
-              share your interest.
+            <motion.p
+              variants={fadeUp}
+              className="text-zinc-400 text-[15px] leading-relaxed max-w-xl mx-auto"
+            >
+              Compute is the new oil. The market needs sophisticated financial tools to manage the explosive growth and volatility of AI infrastructure.
             </motion.p>
           </AnimatedSection>
 
-          <AnimatedSection>
-            <motion.div variants={scaleFade} className="bg-white/[0.025] border border-white/[0.06] rounded-2xl p-8 md:p-10">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <motion.div variants={fadeUpSubtle}>
-                    <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">Name</label>
-                    <input type="text" name="name" required
-                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
-                      placeholder="Your name" value={formData.name} onChange={handleFormChange} />
-                  </motion.div>
-                  <motion.div variants={fadeUpSubtle}>
-                    <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">Email</label>
-                    <input type="email" name="email" required
-                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
-                      placeholder="you@company.com" value={formData.email} onChange={handleFormChange} />
-                  </motion.div>
+          {/* Cards — bordered grid, hairline separators */}
+          <AnimatedSection
+            variants={staggerContainer}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-white/[0.05] rounded-xl overflow-hidden border border-white/[0.05]"
+          >
+            {whyNowCardsData.map((card) => (
+              <motion.div
+                key={card.num}
+                variants={fadeUpSubtle}
+                className="bg-[#0a0a0f] hover:bg-[#0c0c14] transition-colors duration-150 p-6 md:p-7 flex flex-col gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono font-semibold text-zinc-600 tabular-nums">
+                    {card.num}
+                  </span>
+                  <span className="flex-1 h-px bg-white/[0.06]" />
                 </div>
+                <h3 className="text-[15px] font-semibold text-white leading-snug">
+                  {card.title}
+                </h3>
+                <p className="text-zinc-500 text-[13px] leading-relaxed">
+                  {card.body}
+                </p>
+              </motion.div>
+            ))}
+          </AnimatedSection>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <motion.div variants={fadeUpSubtle}>
-                    <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">Role / Industry</label>
-                    <input type="text" name="role"
-                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
-                      placeholder="e.g. Infrastructure Lead" value={formData.role} onChange={handleFormChange} />
-                  </motion.div>
-                  <motion.div variants={fadeUpSubtle}>
-                    <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">Interest (Optional)</label>
-                    <input type="text" name="interest"
-                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
-                      placeholder="Tell us more" value={formData.interest} onChange={handleFormChange} />
-                  </motion.div>
-                </div>
+        </div>
+      </section>
 
-                <motion.div variants={fadeUpSubtle} className="text-center pt-4">
-                  <button type="submit" disabled={isSubmitting}
-                    className="group inline-flex items-center gap-3 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-full transition-all duration-200 disabled:opacity-50">
-                    <span>{isSubmitting ? "Sending..." : "Request Access"}</span>
-                    <svg className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
+      <div className="section-divider max-w-5xl mx-auto" />
+
+
+      {/* ═══ REQUEST ACCESS ═══ */}
+      <section id="contact" className="py-20 md:py-28 relative z-10">
+        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+          <AnimatedSection variants={staggerContainer}>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
+
+              {/* ─── LEFT: Context ─── */}
+              <motion.div variants={fadeUp} className="lg:col-span-5 lg:sticky lg:top-32">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 mb-3">
+                  Get in Touch
+                </p>
+                <h2 className="text-3xl md:text-[40px] font-semibold text-white tracking-[-0.02em] leading-[1.1] mb-4">
+                  Questions & Feedback.
+                </h2>
+                <p className="text-zinc-400 text-[15px] leading-relaxed max-w-md">
+                  Share thoughts, suggestions, or anything you'd like us to consider as we
+                  build out the platform. We read every message.
+                </p>
+
+                {/* Direct email alternative */}
+                <div className="mt-10 pt-6 border-t border-white/[0.05]">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600 mb-2">
+                    Or reach us directly
+                  </div>
+                  <a
+                    href="mailto:gabejaffe@byte-strike.com"
+                    className="group inline-flex items-center gap-1.5 text-sm font-medium text-zinc-300 hover:text-white transition-colors"
+                  >
+                    gabejaffe@byte-strike.com
+                    <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
-                  </button>
-                </motion.div>
-              </form>
-            </motion.div>
+                  </a>
+                </div>
+              </motion.div>
+
+              {/* ─── RIGHT: Form panel ─── */}
+              <motion.div variants={fadeUp} className="lg:col-span-7">
+                <div className="bg-white/[0.02] border border-white/[0.07] rounded-xl p-6 md:p-8">
+
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Row 1 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="contact-name" className="block text-[12px] font-medium text-zinc-400 mb-1.5">
+                          Name
+                        </label>
+                        <input
+                          id="contact-name"
+                          type="text"
+                          name="name"
+                          required
+                          value={formData.name}
+                          onChange={handleFormChange}
+                          placeholder="Your name"
+                          className="w-full bg-white/[0.02] border border-white/[0.08] rounded-md px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white/[0.25] focus:bg-white/[0.03] transition-colors duration-150"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="contact-email" className="block text-[12px] font-medium text-zinc-400 mb-1.5">
+                          Work / Personal email
+                        </label>
+                        <input
+                          id="contact-email"
+                          type="email"
+                          name="email"
+                          required
+                          value={formData.email}
+                          onChange={handleFormChange}
+                          placeholder="you@company.com"
+                          className="w-full bg-white/[0.02] border border-white/[0.08] rounded-md px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white/[0.25] focus:bg-white/[0.03] transition-colors duration-150"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 2 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="contact-role" className="block text-[12px] font-medium text-zinc-400 mb-1.5">
+                          Role
+                        </label>
+                        <input
+                          id="contact-role"
+                          type="text"
+                          name="role"
+                          value={formData.role}
+                          onChange={handleFormChange}
+                          placeholder="e.g. Infrastructure Lead"
+                          className="w-full bg-white/[0.02] border border-white/[0.08] rounded-md px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white/[0.25] focus:bg-white/[0.03] transition-colors duration-150"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="contact-interest" className="block text-[12px] font-medium text-zinc-400 mb-1.5">
+                          Message <span className="text-zinc-600 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          id="contact-interest"
+                          type="text"
+                          name="interest"
+                          value={formData.interest}
+                          onChange={handleFormChange}
+                          placeholder="Share your thoughts or questions"
+                          className="w-full bg-white/[0.02] border border-white/[0.08] rounded-md px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white/[0.25] focus:bg-white/[0.03] transition-colors duration-150"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Submit row */}
+                    <div className="pt-3 mt-2 border-t border-white/[0.05] flex items-center justify-end">
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="inline-flex items-center justify-center px-5 py-2.5 rounded-md bg-white text-zinc-900 font-semibold text-sm hover:bg-zinc-200 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSubmitting ? "Sending…" : "Send message"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+
+            </div>
           </AnimatedSection>
         </div>
       </section>
@@ -1241,17 +1316,17 @@ const LandingPage = () => {
                 {
                   num: "01",
                   label: "The Problem",
-                  body: "AI runs on GPU hours. The market for them is enormous, and primitive. Spot prices swing 10×. Enterprises overpay on long-term contracts. Operators sit on idle capacity. There's no standardized instrument, no forward curve, no way to hedge directional exposure.",
+                  body: "AI runs on GPU hours. The market for them is enormous, and primitive. Spot prices swing 10×. Enterprises overpay on long-term contracts. Operators sit on idle capacity. There is no standardized instrument, no forward curve, no way to hedge directional exposure.",
                 },
                 {
                   num: "02",
                   label: "What We Do",
-                  body: "ByteStrike gives compute the financial rails it's missing. Enterprises lock in prices ahead of training runs. Operators hedge utilization and monetize forward capacity. Allocators gain exposure to the AI build-out without owning hardware. Contracts are standardized, settlement is instant and onchain, and counterparty risk is managed at the exchange layer.",
+                  body: "ByteStrike gives compute the financial rails it's missing. Enterprises lock in prices ahead of training runs. Operators hedge utilization and monetize idle capacity. Allocators gain AI exposure without owning hardware. Settlement is onchain; counterparty risk is managed at the exchange layer.",
                 },
                 {
                   num: "03",
                   label: "Why Now",
-                  body: "Hyperscalers and neoclouds will spend hundreds of billions on GPUs this cycle. That capex needs price discovery, risk transfer, and liquidity. The commodities that shaped the last century - oil, power, grain - all got their markets. Compute is next, and it's bigger than any of them.",
+                  body: "Hyperscalers and neoclouds will spend hundreds of billions on GPUs this cycle. That capital demands price discovery, risk transfer, and liquidity. The commodities that shaped the last century - oil, power, grain - each found their market. Compute is next, and it's bigger than any of them.",
                 },
               ].map(({ num, label, body }, i) => (
                 <motion.div
