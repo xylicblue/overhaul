@@ -13,7 +13,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
   // Persist time range selection to localStorage
   const [timeRange, setTimeRange] = useState(() => {
     const saved = localStorage.getItem("chart_time_range");
-    return saved || "3d";
+    return saved || "15d";
   });
 
   // Save time range to localStorage when it changes
