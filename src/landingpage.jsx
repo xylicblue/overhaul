@@ -18,7 +18,8 @@ import {
 } from "framer-motion";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import ceoPortrait from "./assets/gabe.jpg";
-import tradingPreview from "./assets/tradingpic.png";
+import cyfrinWordmark from "./assets/cyfrin-wordmark.svg";
+import battlechainLogo from "./assets/battlechainlogo.png";
 import ProfileDropdown from "./dropdown";
 import NotificationBell from "./components/NotificationBell";
 import { useAuthModal } from "./context/AuthModalContext";
@@ -684,9 +685,28 @@ const LandingPage = () => {
                 <span className="w-px h-3 bg-white/[0.08]" />
                 <span>Onchain settlement</span>
                 <span className="w-px h-3 bg-white/[0.08]" />
-                <span>
-                  Audited by <span className="text-zinc-300">Cyfrin</span>
-                  {" "}&{" "}<span className="text-zinc-300">BattleChain</span>
+                <span className="inline-flex items-center gap-2">
+                  <span>Audited by</span>
+                  <a
+                    href="https://www.cyfrin.io/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Cyfrin"
+                    className="inline-flex items-center opacity-80 hover:opacity-100 transition-opacity duration-150"
+                  >
+                    <img src={cyfrinWordmark} alt="Cyfrin" className="h-3.5 w-auto" loading="lazy" />
+                  </a>
+                  <span className="text-zinc-700">&</span>
+                  <a
+                    href="https://www.battlechain.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="BattleChain"
+                    className="inline-flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors duration-150"
+                  >
+                    <img src={battlechainLogo} alt="" className="h-3.5 w-3.5 object-contain" loading="lazy" />
+                    <span className="font-medium">BattleChain</span>
+                  </a>
                 </span>
               </motion.div>
             </motion.div>
@@ -1075,38 +1095,116 @@ const LandingPage = () => {
             </motion.div>
           </AnimatedSection>
 
-          {/* Embedded trading interface frame */}
+          {/* Embedded trading interface frame — real product slice */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-            className="rounded-lg border border-white/[0.08] bg-[#0c0c12] overflow-hidden"
+            className="rounded-lg border border-white/[0.08] bg-[#0a0a10] overflow-hidden"
           >
             {/* App chrome — minimal terminal-style top bar */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-[#08080c]">
-              <div className="flex items-center gap-3">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50" />
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                 </span>
-                <span className="text-[11px] font-semibold text-zinc-300 font-mono tracking-wide">H100-PERP</span>
-                <span className="hidden sm:inline text-[10px] text-zinc-600 font-mono uppercase tracking-wider">Perpetual · 1h</span>
+                <span className="text-[11px] font-semibold text-zinc-300 font-mono tracking-wide truncate">H100-PERP</span>
+                <span className="hidden sm:inline text-[10px] text-zinc-600 font-mono uppercase tracking-[0.14em]">Perp · Index</span>
               </div>
-              <div className="flex items-center gap-3 font-mono">
-                <span className="hidden md:inline text-[10px] text-zinc-600 uppercase tracking-wider">Last</span>
-                <span className="text-[11px] font-semibold text-white tabular-nums">3.77</span>
+              <div className="flex items-center gap-3 font-mono shrink-0">
+                <span className="hidden sm:inline text-[9px] text-zinc-600 uppercase tracking-[0.14em]">Last</span>
+                <span className="text-[11px] font-semibold text-white tabular-nums">
+                  {indexPrices?.["H100-PERP"] != null ? `$${Number(indexPrices["H100-PERP"]).toFixed(2)}` : "$3.77"}
+                </span>
                 <span className="text-[10px] font-medium text-emerald-400 tabular-nums">+0.10%</span>
               </div>
             </div>
 
-            {/* Screenshot — embedded directly, no fades or overlays */}
-            <img
-              src={tradingPreview}
-              alt="ByteStrike Trading Interface"
-              className="w-full h-auto block"
-              loading="lazy"
-            />
+            {/* Body — asymmetric chart + order slice */}
+            <div className="grid grid-cols-12">
+
+              {/* Chart — 8 cols, compact mode (no internal header), single blue line */}
+              <div className="col-span-12 lg:col-span-8 h-[340px] lg:h-[400px] border-b lg:border-b-0 lg:border-r border-white/[0.06] relative">
+                <PriceIndexChart market="H100-PERP" compact />
+              </div>
+
+              {/* Order slice — 4 cols */}
+              <div className="col-span-12 lg:col-span-4 flex flex-col">
+
+                {/* Slice header */}
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                    New Order
+                  </span>
+                  <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-600">
+                    Market · Cross
+                  </span>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 p-4 flex flex-col gap-3.5">
+
+                  {/* Long / Short */}
+                  <div className="grid grid-cols-2 gap-px bg-zinc-800/80 rounded-md overflow-hidden p-px">
+                    <div className="py-1.5 text-center text-[11px] font-semibold rounded bg-emerald-500/[0.10] text-emerald-400 border border-emerald-500/[0.18]">
+                      Long
+                    </div>
+                    <div className="py-1.5 text-center text-[11px] font-semibold text-zinc-500 rounded">
+                      Short
+                    </div>
+                  </div>
+
+                  {/* Size */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">Size</span>
+                      <span className="text-[9px] font-mono text-zinc-600">USDC</span>
+                    </div>
+                    <div className="px-3 py-2 bg-white/[0.02] border border-white/[0.06] rounded-md">
+                      <span className="text-[13px] font-mono tabular-nums text-white">1,250.00</span>
+                    </div>
+                  </div>
+
+                  {/* Leverage */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">Leverage</span>
+                      <span className="text-[11px] font-mono tabular-nums text-zinc-300">5×</span>
+                    </div>
+                    <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                      <div className="h-full w-[44%] bg-zinc-300/80 rounded-full" />
+                    </div>
+                    <div className="flex justify-between text-[9px] font-mono text-zinc-700 mt-0.5">
+                      <span>1×</span><span>3×</span><span>5×</span><span>10×</span>
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  <div className="border-t border-white/[0.06] pt-3 space-y-1.5">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-zinc-500">Margin</span>
+                      <span className="font-mono text-zinc-200 tabular-nums">$250.00</span>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-zinc-500">Est. liq.</span>
+                      <span className="font-mono text-zinc-200 tabular-nums">$3.02</span>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-zinc-500">Fee</span>
+                      <span className="font-mono text-zinc-200 tabular-nums">$0.625</span>
+                    </div>
+                  </div>
+
+                  {/* CTA */}
+                  <div className="mt-auto h-9 rounded-md bg-emerald-500/[0.10] border border-emerald-500/[0.20] text-emerald-400 text-[12px] font-semibold flex items-center justify-center">
+                    Place Long Order
+                  </div>
+
+                </div>
+              </div>
+            </div>
           </motion.div>
 
         </div>

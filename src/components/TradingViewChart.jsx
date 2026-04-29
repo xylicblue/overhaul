@@ -89,8 +89,6 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
           // Enable features
           enabled_features: [
             "study_templates",
-            "use_localstorage_for_settings",
-            "save_chart_properties_to_local_storage",
             "side_toolbar_in_fullscreen_mode",
             "header_in_fullscreen_mode",
             "items_favoriting",
@@ -128,14 +126,14 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
             "mainSeriesProperties.candleStyle.wickUpColor": "#26a69a",
             "mainSeriesProperties.candleStyle.wickDownColor": "#ef5350",
             
-            // Line style — TradingView signature blue
-            "mainSeriesProperties.lineStyle.color": "#2962FF",
+            // Line style — refined institutional blue
+            "mainSeriesProperties.lineStyle.color": "#3b82f6",
             "mainSeriesProperties.lineStyle.linewidth": 2,
-            
+
             // Area style
-            "mainSeriesProperties.areaStyle.color1": "rgba(41, 98, 255, 0.28)",
-            "mainSeriesProperties.areaStyle.color2": "rgba(41, 98, 255, 0.05)",
-            "mainSeriesProperties.areaStyle.linecolor": "#2962FF",
+            "mainSeriesProperties.areaStyle.color1": "rgba(59, 130, 246, 0.22)",
+            "mainSeriesProperties.areaStyle.color2": "rgba(59, 130, 246, 0.02)",
+            "mainSeriesProperties.areaStyle.linecolor": "#3b82f6",
             "mainSeriesProperties.areaStyle.linewidth": 2,
           },
           
@@ -172,6 +170,20 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
           // Set default chart type based on priceType
           // 1 = Candles, 2 = Line
           chart.setChartType(priceType === "index" ? 2 : 1);
+
+          // Force-apply line/area color so cached user customization can't override the brand default
+          try {
+            widget.applyOverrides({
+              "mainSeriesProperties.lineStyle.color": "#3b82f6",
+              "mainSeriesProperties.lineStyle.linewidth": 2,
+              "mainSeriesProperties.areaStyle.color1": "rgba(59, 130, 246, 0.22)",
+              "mainSeriesProperties.areaStyle.color2": "rgba(59, 130, 246, 0.02)",
+              "mainSeriesProperties.areaStyle.linecolor": "#3b82f6",
+              "mainSeriesProperties.areaStyle.linewidth": 2,
+            });
+          } catch (e) {
+            console.warn("[TradingViewChart] applyOverrides failed:", e);
+          }
           
           // ── Listen for resolution changes and adjust visible range ──
           chart.onIntervalChanged().subscribe(null, (interval) => {

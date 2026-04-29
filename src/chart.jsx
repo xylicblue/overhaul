@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Chart from "react-apexcharts";
 import { supabase } from "./creatclient";
 
-const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
+const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = false }) => {
   const [loading, setLoading] = useState(true);
   const [currentPrice, setCurrentPrice] = useState(initialPrice);
   const [priceChange, setPriceChange] = useState(null);
@@ -326,6 +326,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     };
   }, [timeRange, market, config.tableName, config.fallbackTable]);
 
+  const lineColor      = compact ? "#3b82f6" : (isPriceUp ? "#00d4aa" : "#f23645");
   const accentColor    = isPriceUp ? "#00d4aa" : "#f23645";
   const accentColorDim = isPriceUp ? "rgba(0,212,170,0.12)" : "rgba(242,54,69,0.12)";
   const accentBorder   = isPriceUp ? "rgba(0,212,170,0.22)" : "rgba(242,54,69,0.22)";
@@ -344,14 +345,14 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     stroke: {
       curve: "straight",
       width: 1.8,
-      colors: [accentColor],
+      colors: [lineColor],
       lineCap: "round",
     },
     markers: {
       size: 0,
       hover: {
         size: 4,
-        fillColor: accentColor,
+        fillColor: lineColor,
         strokeColor: "#0a0a12",
         strokeWidth: 2,
       },
@@ -365,9 +366,9 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
         opacityTo: 0,
         stops: [0, 75, 100],
         colorStops: [
-          { offset: 0,   color: accentColor, opacity: 0.13 },
-          { offset: 75,  color: accentColor, opacity: 0.02 },
-          { offset: 100, color: accentColor, opacity: 0 },
+          { offset: 0,   color: lineColor, opacity: 0.13 },
+          { offset: 75,  color: lineColor, opacity: 0.02 },
+          { offset: 100, color: lineColor, opacity: 0 },
         ],
       },
     },
@@ -433,7 +434,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
       yaxis: currentPrice
         ? [{
             y: currentPrice,
-            borderColor: accentColor,
+            borderColor: lineColor,
             borderWidth: 1,
             strokeDashArray: 3,
             opacity: 0.45,
@@ -494,6 +495,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
 
       {/* ── Header ── */}
+      {!compact && (
       <div style={{
         display: "flex",
         alignItems: "flex-start",
@@ -584,6 +586,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null }) => {
           ))}
         </div>
       </div>
+      )}
 
       {/* ── Chart area ── */}
       <div style={{ flex: 1, minHeight: 0, width: "100%", position: "relative" }}>
