@@ -19,7 +19,7 @@ import {
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import ceoPortrait from "./assets/gabe.jpg";
 import cyfrinWordmark from "./assets/cyfrin-wordmark.svg";
-import battlechainLogo from "./assets/battlechainlogo.png";
+import battlechainLogo from "./assets/nav-mark.svg";
 import ProfileDropdown from "./dropdown";
 import NotificationBell from "./components/NotificationBell";
 import { useAuthModal } from "./context/AuthModalContext";
@@ -642,7 +642,7 @@ const LandingPage = () => {
                 variants={blurFadeIn}
                 className="text-[42px] sm:text-5xl md:text-[58px] lg:text-[68px] font-semibold text-white tracking-[-0.025em] leading-[1.04] mb-6"
               >
-                A futures exchange<br className="hidden sm:block" /> for GPU compute.
+                A Futures Exchange<br className="hidden sm:block" /> For Gpu Compute.
               </motion.h1>
 
               {/* Subheading — what it is, in one sentence */}
@@ -704,7 +704,7 @@ const LandingPage = () => {
                     aria-label="BattleChain"
                     className="inline-flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors duration-150"
                   >
-                    <img src={battlechainLogo} alt="" className="h-3.5 w-3.5 object-contain" loading="lazy" />
+                    <img src={battlechainLogo} alt="" className="h-3.5 w-auto" loading="lazy" />
                     <span className="font-medium">BattleChain</span>
                   </a>
                 </span>
@@ -928,7 +928,7 @@ const LandingPage = () => {
                 Indices
               </p>
               <h2 className="text-3xl md:text-[38px] font-semibold text-white tracking-[-0.02em] leading-[1.1] mb-3">
-                Live GPU price indices.
+                Live GPU Price Indices.
               </h2>
               <p className="text-zinc-400 text-[15px] leading-relaxed max-w-lg mx-auto">
                 Composite indices from major cloud providers. Updated continuously.
@@ -1228,7 +1228,7 @@ const LandingPage = () => {
               variants={blurFadeIn}
               className="text-3xl md:text-[40px] font-semibold text-white tracking-[-0.02em] leading-[1.1] mb-4"
             >
-              Compute markets are missing<br className="hidden sm:block" /> their financial layer.
+              Compute Markets Are Missing<br className="hidden sm:block" /> Their Financial Layer.
             </motion.h2>
             <motion.p
               variants={fadeUp}
@@ -1409,7 +1409,7 @@ const LandingPage = () => {
             <motion.div variants={fadeUp} className="mb-12">
               <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-4">About Us</p>
               <h2 className="text-4xl md:text-5xl font-semibold text-white tracking-tight leading-[1.1] mb-5">
-                The financial layer<br className="hidden sm:block" /> for compute.
+                The Financial Layer<br className="hidden sm:block" /> For Compute.
               </h2>
               <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-2xl">
                 ByteStrike is a licensed futures exchange for GPU compute hours. We turn AI's most strategic commodity into a tradable, hedgeable asset.
@@ -1456,17 +1456,24 @@ const LandingPage = () => {
             </div>
 
             {/* Contact footer */}
-            <motion.div
-              variants={fadeUp}
-              className="mt-12 pt-8 border-t border-white/[0.06] flex items-center justify-between flex-wrap gap-4"
-            >
-              <p className="text-xs text-zinc-600 uppercase tracking-widest font-medium">Get in touch</p>
-              <a
-                href="mailto:gabejaffe@byte-strike.com"
-                className="text-sm text-zinc-400 hover:text-white transition-colors"
-              >
-                gabejaffe@byte-strike.com →
-              </a>
+            <motion.div variants={fadeUp} className="mt-12">
+              <div className="flex items-center justify-between flex-wrap gap-4 px-5 py-4 rounded-lg border border-white/[0.06] bg-white/[0.015]">
+                <div className="flex items-center gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                    Get in touch
+                  </p>
+                </div>
+                <a
+                  href="mailto:gabejaffe@byte-strike.com"
+                  className="group inline-flex items-center gap-2 text-[13px] font-medium text-zinc-300 hover:text-white transition-colors duration-150"
+                >
+                  gabejaffe@byte-strike.com
+                  <svg className="w-3 h-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 17L17 7M17 7H8M17 7V16" />
+                  </svg>
+                </a>
+              </div>
             </motion.div>
 
           </AnimatedSection>
