@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { Link as Routerlink, useNavigate } from "react-router-dom";
 import PriceIndexChart from "./chart";
 import { supabase } from "./creatclient";
-import { submitInterest } from "./services/api";
+import { submitInterest } from "./services/api"; // still used by landingpage2 / swap
 import Footer from "./components/Footer";
 import {
   motion,
@@ -314,16 +314,28 @@ const LandingPage = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const result = await submitInterest(formData);
-      if (result.duplicate) {
-        toast.success("This email is already registered! We'll keep you updated.");
-      } else {
-        toast.success("Thank you for your interest!");
+      const { error } = await supabase.from("contact_submissions").insert({
+        name:    formData.name,
+        email:   formData.email,
+        role:    formData.role || null,
+        message: formData.interest || null,
+      });
+
+      if (error) {
+        // Unique-violation — email already submitted
+        if (error.code === "23505") {
+          toast.success("This email is already registered! We'll keep you updated.");
+          setFormData({ name: "", email: "", role: "", interest: "" });
+          return;
+        }
+        throw error;
       }
+
+      toast.success("Thank you! We'll be in touch.");
       setFormData({ name: "", email: "", role: "", interest: "" });
     } catch (error) {
-      console.error("Error submitting form:", error.message);
-      toast.error("Sorry, there was an error. Please try again.");
+      console.error("Contact form error:", error.message);
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
