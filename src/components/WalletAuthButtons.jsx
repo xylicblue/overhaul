@@ -4,7 +4,7 @@ import { useWalletAuth } from "../hooks/useWalletAuth";
 
 // Ethereum (MetaMask) SVG icon
 const EthereumIcon = () => (
-  <svg className="h-5 w-5" viewBox="0 0 256 417" preserveAspectRatio="xMidYMid">
+  <svg className="h-4 w-4" viewBox="0 0 256 417" preserveAspectRatio="xMidYMid">
     <path fill="#343434" d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" />
     <path fill="#8C8C8C" d="M127.962 0L0 212.32l127.962 75.639V154.158z" />
     <path fill="#3C3C3B" d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.601L256 236.587z" />
@@ -16,7 +16,7 @@ const EthereumIcon = () => (
 
 // Solana SVG icon
 const SolanaIcon = () => (
-  <svg className="h-5 w-5" viewBox="0 0 397.7 311.7" preserveAspectRatio="xMidYMid">
+  <svg className="h-4 w-4" viewBox="0 0 397.7 311.7" preserveAspectRatio="xMidYMid">
     <linearGradient id="sol-a" x1="360.879" y1="351.455" x2="141.213" y2="-69.294" gradientUnits="userSpaceOnUse" gradientTransform="matrix(1 0 0 -1 0 314)">
       <stop offset="0" stopColor="#00FFA3" />
       <stop offset="1" stopColor="#DC1FFF" />
@@ -58,15 +58,15 @@ const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full" }) => {
 
   if (variant === "compact") {
     return (
-      <div className="flex gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={handleEthSignIn}
           disabled={loading}
-          className="flex-1 py-3 px-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2.5 text-sm group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] rounded-md text-[12px] font-medium transition-colors duration-150 flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <EthereumIcon />
-          <span className="text-zinc-300 group-hover:text-white transition-colors">
+          <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors duration-150">
             {loading ? "..." : "Ethereum"}
           </span>
         </button>
@@ -74,10 +74,10 @@ const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full" }) => {
           type="button"
           onClick={handleSolSignIn}
           disabled={loading}
-          className="flex-1 py-3 px-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2.5 text-sm group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] rounded-md text-[12px] font-medium transition-colors duration-150 flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <SolanaIcon />
-          <span className="text-zinc-300 group-hover:text-white transition-colors">
+          <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors duration-150">
             {loading ? "..." : "Solana"}
           </span>
         </button>
@@ -87,15 +87,15 @@ const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full" }) => {
 
   // Full variant (stacked buttons)
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <button
         type="button"
         onClick={handleEthSignIn}
         disabled={loading}
-        className="w-full py-3.5 px-4 bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-3 text-sm group disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] rounded-md text-[12px] font-medium transition-colors duration-150 flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <EthereumIcon />
-        <span className="text-zinc-300 group-hover:text-white transition-colors">
+        <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors duration-150">
           {loading ? "Connecting..." : "Sign in with Ethereum"}
         </span>
       </button>
@@ -103,10 +103,10 @@ const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full" }) => {
         type="button"
         onClick={handleSolSignIn}
         disabled={loading}
-        className="w-full py-3.5 px-4 bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-3 text-sm group disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] rounded-md text-[12px] font-medium transition-colors duration-150 flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <SolanaIcon />
-        <span className="text-zinc-300 group-hover:text-white transition-colors">
+        <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors duration-150">
           {loading ? "Connecting..." : "Sign in with Solana"}
         </span>
       </button>

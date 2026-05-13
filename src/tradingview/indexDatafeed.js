@@ -341,7 +341,7 @@ export const IndexDatafeed = {
       priceField: "price",
     };
     
-    const timestampField = config.timestampField || "timestamp";
+    const timestampField = config.timestampField || "created_at";
     console.log("[IndexDatafeed] getBars:", symbolName, resolution, firstDataRequest ? "(first request)" : "");
 
     // Check bars cache first (processed bars by resolution)
@@ -414,8 +414,8 @@ export const IndexDatafeed = {
       priceField: "price",
     };
     
-    // Use configurable timestamp field (default to "timestamp")
-    const timestampField = config.timestampField || "timestamp";
+    // Use configurable timestamp field (default to "created_at" — matches Supabase auto-column)
+    const timestampField = config.timestampField || "created_at";
     
     console.log("[IndexDatafeed] subscribeBars:", symbolName, "table:", config.tableName, subscriberUID);
 

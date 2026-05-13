@@ -338,8 +338,8 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
             </div>
           )}
           {!favLoading && filteredMarkets.map((market, index) => {
-            const price      = market.markPrice || market.oraclePrice || 0;
-            const change24h  = market.change24h || 0;
+            const price      = Number(market.markPrice || market.oraclePrice) || 0;
+            const change24h  = Number(market.change24h) || 0;
             const isPositive = change24h >= 0;
             const isActive   = market.name === currentMarket;
             const isFav      = favorites.has(market.name);
@@ -503,8 +503,8 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
 
           {/* Rows */}
           {!favLoading && filteredMarkets.map((market, index) => {
-            const price      = market.markPrice || market.oraclePrice || 0;
-            const change24h  = market.change24h || 0;
+            const price      = Number(market.markPrice || market.oraclePrice) || 0;
+            const change24h  = Number(market.change24h) || 0;
             const isPositive = change24h >= 0;
             const isActive   = market.name === currentMarket;
             const isSelected = index === selectedIndex;

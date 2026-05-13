@@ -1449,7 +1449,7 @@ const LandingPage = () => {
                 The Financial Layer<br className="hidden sm:block" /> For Compute.
               </h2>
               <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-2xl">
-                ByteStrike is a licensed futures exchange for GPU compute hours. We turn AI's most strategic commodity into a tradable, hedgeable asset.
+                ByteStrike is a futures exchange for GPU compute hours. We turn AI's most strategic commodity into a tradable, hedgeable asset.
               </p>
             </motion.div>
 

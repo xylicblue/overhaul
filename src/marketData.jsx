@@ -6,6 +6,8 @@ import { useOraclePrice } from "./hooks/useOracle";
 import { DEFAULT_MARKET_KEY, getActiveMarkets, getMarketByName } from "./contracts/addresses";
 import { getMarketStat24h } from "./services/api";
 import VAMMABI from "./contracts/abis/vAMM.json";
+import { supabase } from "./creatclient";
+import { SPARKLINE_CONFIG } from "./config/marketsConfig";
 
 const SEPOLIA_CHAIN_ID = 11155111;
 const DEPLOYED_MARKETS = getActiveMarkets().map((market) => ({
@@ -132,6 +134,7 @@ export const getMarketDetails = (marketName) => {
 export const useMarketRealTimeData = (marketName) => {
   const [data, setData] = useState(null);
   const [stats24h, setStats24h] = useState(null);
+  const [dbIndexPrice, setDbIndexPrice] = useState(null);
   const market = DEPLOYED_MARKETS.find((m) => m.name === marketName) || getMarketByName(marketName);
 
   const vammAddress = market?.vammAddress || market?.vamm;
@@ -163,13 +166,40 @@ export const useMarketRealTimeData = (marketName) => {
     };
   }, [marketId]);
 
+  // Fallback: fetch latest index price from Supabase price tables when on-chain oracle returns 0
+  useEffect(() => {
+    const cfg = SPARKLINE_CONFIG[marketName];
+    if (!cfg) return;
+    let cancelled = false;
+    const fetchDbPrice = async () => {
+      try {
+        const timeField = cfg.timeField || "created_at";
+        let q = supabase
+          .from(cfg.table)
+          .select(cfg.priceField)
+          .order(timeField, { ascending: false })
+          .limit(1);
+        if (cfg.providerFilter) q = q.eq("provider_name", cfg.providerFilter);
+        const { data: rows } = await q;
+        if (!cancelled && rows?.[0]) {
+          const val = parseFloat(rows[0][cfg.priceField]);
+          if (val > 0) setDbIndexPrice(val);
+        }
+      } catch (_) {}
+    };
+    fetchDbPrice();
+    const id = setInterval(fetchDbPrice, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [marketName]);
+
   useEffect(() => {
     if (!market || priceLoading || !markPrice) return;
 
     const markPriceNum = parseFloat(markPrice);
     const twapNum = twap ? parseFloat(twap) : markPriceNum;
     const parsedOraclePrice = oraclePrice ? parseFloat(oraclePrice) : 0;
-    const oraclePriceNum = parsedOraclePrice > 0 ? parsedOraclePrice : markPriceNum;
+    // If on-chain oracle returns 0 (not yet initialized), fall back to Supabase price table
+    const oraclePriceNum = parsedOraclePrice > 0 ? parsedOraclePrice : (dbIndexPrice || markPriceNum);
     const premium = oraclePriceNum > 0 ? ((markPriceNum - oraclePriceNum) / oraclePriceNum) * 100 : 0;
     const fundingRateAnnualized = premium * 3 * 365;
     const change24hValue = stats24h?.change_24h_percent != null
@@ -222,6 +252,7 @@ export const useMarketRealTimeData = (marketName) => {
     twapLoading,
     oracleLoading,
     stats24h,
+    dbIndexPrice,
   ]);
 
   if (!market) {
