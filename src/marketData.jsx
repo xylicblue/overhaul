@@ -203,16 +203,20 @@ export const useMarketRealTimeData = (marketName) => {
     // Index price for DISPLAY: prefer live contract oracle, fall back to Supabase price table
     const oraclePriceNum = contractOracleAvailable ? parsedOraclePrice : (dbIndexPrice || markPriceNum);
 
-    // Funding uses the CONTRACT oracle only — when the oracle isn't live, premium is 0.
-    // Using a DB-sourced price here would produce a fake premium and mislead funding display.
+    // Premium for display/calculations (only when contract oracle is live)
     const premiumDecimal = contractOracleAvailable && oraclePriceNum > 0
       ? (markPriceNum - oraclePriceNum) / oraclePriceNum
       : 0;
     const premium = premiumDecimal * 100; // in %
 
-    // Funding rate per 8h = kFunding (contract coefficient) × premium
+    // Funding rate per 8h = kFunding × premium — but only shown after pokeFunding has
+    // been called at least once (lastFundingTime > 0). Before that, no funding has been
+    // settled on-chain, so displaying a predicted rate would be misleading.
     const kFunding = parseFloat(kFundingX18 || '0');
-    const fundingRateDecimal = kFunding * premiumDecimal;
+    const fundingEverApplied = lastFundingTime > 0;
+    const fundingRateDecimal = fundingEverApplied && contractOracleAvailable
+      ? kFunding * premiumDecimal
+      : 0;
     const fundingRatePct = fundingRateDecimal * 100;
     const fundingRateAnnualized = fundingRatePct * 3 * 365;
 
