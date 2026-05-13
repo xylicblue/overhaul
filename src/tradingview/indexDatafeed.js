@@ -30,11 +30,36 @@ const marketConfig = {
     displayName: "H100 GPU Index",
     tableName: "price_data",
     priceField: "price",
+    timestampField: "timestamp",
   },
   "B200-PERP": {
     displayName: "B200 GPU Index",
     tableName: "b200_index_prices",
     priceField: "index_price",
+  },
+  "AWS-B200-PERP": {
+    displayName: "AWS B200 Index",
+    tableName: "b200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "AWS",
+  },
+  "ORACLE-B200-PERP": {
+    displayName: "Oracle B200 Index",
+    tableName: "b200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "Oracle",
+  },
+  "COREWEAVE-B200-PERP": {
+    displayName: "CoreWeave B200 Index",
+    tableName: "b200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "CoreWeave",
+  },
+  "GCP-B200-PERP": {
+    displayName: "GCP B200 Index",
+    tableName: "b200_provider_prices",
+    priceField: "effective_price",
+    providerFilter: "Google Cloud",
   },
   "H200-PERP": {
     displayName: "H200 GPU Index",
@@ -54,34 +79,9 @@ const marketConfig = {
   },
   "H100-non-HyperScalers-PERP": {
     displayName: "Neocloud Index",
-    tableName: "h100_non_hyperscalers_perp_prices",
+    tableName: "price_data",
     priceField: "price",
-  },
-  
-  // Provider-specific B200 markets
-  "ORACLE-B200-PERP": {
-    displayName: "Oracle B200 Index",
-    tableName: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Oracle",
-  },
-  "AWS-B200-PERP": {
-    displayName: "AWS B200 Index",
-    tableName: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "AWS",
-  },
-  "COREWEAVE-B200-PERP": {
-    displayName: "CoreWeave B200 Index",
-    tableName: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "CoreWeave",
-  },
-  "GCP-B200-PERP": {
-    displayName: "GCP B200 Index",
-    tableName: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Google Cloud",
+    timestampField: "timestamp",
   },
   
   // Provider-specific H200 markets
@@ -137,12 +137,23 @@ const marketConfig = {
   },
 };
 
+marketConfig["H100-GPU-PERP"] = marketConfig["H100-PERP"];
+marketConfig["H100-HyperScalers-PERP"] = {
+  displayName: "H100 HyperScalers Index",
+  tableName: "h100_hyperscaler_prices",
+  priceField: "effective_price",
+};
+marketConfig["B200-PERP-V2"] = marketConfig["B200-PERP"];
+marketConfig["H200-PERP-V2"] = marketConfig["H200-PERP"];
+marketConfig["H100-non-HyperScalers-PERP-V2"] = marketConfig["H100-non-HyperScalers-PERP"];
+
 // Map of symbol names to their display info
 function getSymbolInfo(symbolName) {
   const config = marketConfig[symbolName] || {
     displayName: symbolName,
     tableName: "price_data",
     priceField: "price",
+    timestampField: "timestamp",
   };
 
   return {
@@ -187,7 +198,7 @@ async function preloadSymbolData(symbolName, config) {
   }
 
   console.log("[IndexDatafeed] Preloading data for:", symbolName);
-  const timestampField = config.timestampField || "timestamp";
+  const timestampField = config.timestampField || "created_at";
   
   // Fetch ALL available data (no time filter - let database return everything)
   let query = supabase

@@ -8,117 +8,20 @@ import {
 import { parseUnits, formatUnits } from "ethers";
 import {
   SEPOLIA_CONTRACTS,
-  MARKET_IDS,
   COLLATERAL_TOKENS,
+  getActiveMarkets,
 } from "../contracts/addresses";
 import ClearingHouseABI from "../contracts/abis/ClearingHouse.json";
 import CollateralVaultABI from "../contracts/abis/CollateralVault.json";
 
 const SEPOLIA_CHAIN_ID = 11155111;
-const MARKET_POSITION_CONFIG = [
-  {
-    key: "H100-PERP",
-    marketId: MARKET_IDS["H100-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxy, // ⭐ Active vAMM ($3.79/hour)
-    displayName: "H100 GPU ($3.79/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "H100-non-HyperScalers-PERP",
-    marketId: MARKET_IDS["H100-non-HyperScalers-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, // ⭐ Neocloud vAMM ($2.95/hour)
-    displayName: "Neocloud ($2.95/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-
-  {
-    key: "B200-PERP",
-    marketId: MARKET_IDS["B200-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyB200, // ⭐ B200 vAMM ($7.15/hour)
-    displayName: "B200 GPU ($7.15/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "H200-PERP",
-    marketId: MARKET_IDS["H200-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyH200, // ⭐ H200 vAMM ($3.53/hour)
-    displayName: "H200 GPU ($3.53/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  // H200 Provider-Specific Markets
-  {
-    key: "ORACLE-H200-PERP",
-    marketId: MARKET_IDS["ORACLE-H200-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleH200,
-    displayName: "Oracle H200 ($2.92/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "AWS-H200-PERP",
-    marketId: MARKET_IDS["AWS-H200-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH200,
-    displayName: "AWS H200 ($2.65/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "COREWEAVE-H200-PERP",
-    marketId: MARKET_IDS["COREWEAVE-H200-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200,
-    displayName: "CoreWeave H200 ($2.57/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "GCP-H200-PERP",
-    marketId: MARKET_IDS["GCP-H200-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH200,
-    displayName: "GCP H200 ($4.55/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "AZURE-H200-PERP",
-    marketId: MARKET_IDS["AZURE-H200-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH200,
-    displayName: "Azure H200 ($5.05/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  // H100 Provider-Specific Markets
-  {
-    key: "AWS-H100-PERP",
-    marketId: MARKET_IDS["AWS-H100-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH100,
-    displayName: "AWS H100 ($3.85/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "AZURE-H100-PERP",
-    marketId: MARKET_IDS["AZURE-H100-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH100,
-    displayName: "Azure H100 ($2.12/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "GCP-H100-PERP",
-    marketId: MARKET_IDS["GCP-H100-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH100,
-    displayName: "GCP H100 ($3.88/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  // T4 Market
-  {
-    key: "T4-PERP",
-    marketId: MARKET_IDS["T4-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyT4,
-    displayName: "T4 GPU ($0.45/hr)",
-    baseAssetSymbol: "GPU-HRS",
-  },
-  {
-    key: "ETH-PERP",
-    marketId: MARKET_IDS["ETH-PERP"],
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyOld, // Deprecated test market
-    displayName: "Test Market (Deprecated)",
-    baseAssetSymbol: "ETH",
-  },
-];
+const MARKET_POSITION_CONFIG = getActiveMarkets().map((market) => ({
+  key: market.name,
+  marketId: market.id,
+  vammAddress: market.vamm,
+  displayName: market.displayName,
+  baseAssetSymbol: "GPU-HRS",
+}));
 /**
  * Get user's position for a specific market
  * @param {string} marketId - Market ID (keccak256 of market name)

@@ -8,6 +8,7 @@ import {
 import { parseUnits, formatUnits } from "ethers";
 import { toast } from "react-hot-toast";
 import { SEPOLIA_CONTRACTS, COLLATERAL_TOKENS } from "../contracts/addresses";
+import CollateralVaultABI from "../contracts/abis/CollateralVault.json";
 import { useDeposit, useWithdraw } from "../hooks/useClearingHouse";
 import { CheckCircle2, AlertCircle, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
@@ -49,7 +50,7 @@ export function CollateralManager() {
     args: [address, SEPOLIA_CONTRACTS.collateralVault], query: { enabled: !!address, refetchInterval: 5000 },
   });
   const { data: vaultBalance, refetch: refetchVaultBalance } = useReadContract({
-    address: SEPOLIA_CONTRACTS.collateralVault, abi: ERC20_ABI, functionName: "balanceOf",
+    address: SEPOLIA_CONTRACTS.collateralVault, abi: CollateralVaultABI.abi, functionName: "balanceOf",
     args: [address, selectedToken.address], query: { enabled: !!address, refetchInterval: 5000 },
   });
 

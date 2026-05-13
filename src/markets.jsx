@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "./creatclient";
-import { MARKET_IDS } from "./contracts/addresses";
+import { MARKET_IDS, getActiveMarkets } from "./contracts/addresses";
+import { getMarketStats24h } from "./services/api";
 import PageTransition from "./components/PageTransition";
 import { HiMagnifyingGlass } from "react-icons/hi2";
 import Sparkline from "./components/Sparkline";
@@ -9,168 +10,43 @@ import Sparkline from "./components/Sparkline";
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
-const MARKETS_CONFIG = [
-  {
-    id: "H100-PERP",
-    name: "H100",
-    fullName: "NVIDIA H100 GPU Index",
-    category: "gpu",
-    table: "price_data",
-    priceField: "price",
-    timeField: "timestamp",
-    description: "Composite index tracking H100 SXM5 hourly rental rates across major cloud and neocloud providers.",
-  },
-  {
-    id: "B200-PERP",
-    name: "B200",
-    fullName: "NVIDIA B200 GPU Index",
-    category: "gpu",
-    table: "b200_index_prices",
-    priceField: "index_price",
-    description: "Blackwell-generation index aggregating B200 spot prices from hyperscalers and specialty GPU clouds.",
-  },
-  {
-    id: "H200-PERP",
-    name: "H200",
-    fullName: "NVIDIA H200 GPU Index",
-    category: "gpu",
-    table: "h200_index_prices",
-    priceField: "index_price",
-    description: "Next-gen Hopper index covering H200 SXM5 instances with HBM3e memory across top-tier providers.",
-  },
-  {
-    id: "T4-PERP",
-    name: "T4",
-    fullName: "NVIDIA T4 GPU Index",
-    category: "gpu",
-    table: "t4_index_prices",
-    priceField: "index_price",
-    description: "Cost-effective inference index tracking T4 Tensor Core GPU spot rates across major clouds.",
-  },
-  {
-    id: "ORACLE-B200-PERP",
-    name: "Oracle B200",
-    fullName: "Oracle Cloud B200",
-    category: "hyperscaler",
-    table: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Oracle",
-    description: "Oracle Cloud Infrastructure B200 bare-metal instance pricing in real‑time.",
-  },
-  {
-    id: "AWS-B200-PERP",
-    name: "AWS B200",
-    fullName: "Amazon Web Services B200",
-    category: "hyperscaler",
-    table: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "AWS",
-    description: "Amazon EC2 B200-powered instance on-demand pricing aggregated across US regions.",
-  },
-  {
-    id: "GCP-B200-PERP",
-    name: "GCP B200",
-    fullName: "Google Cloud B200",
-    category: "hyperscaler",
-    table: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Google Cloud",
-    description: "Google Cloud A3 Ultra B200 GPU instance pricing across multi-region deployments.",
-  },
-  {
-    id: "COREWEAVE-B200-PERP",
-    name: "CoreWeave B200",
-    fullName: "CoreWeave B200",
-    category: "hyperscaler",
-    table: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "CoreWeave",
-    description: "CoreWeave's purpose-built B200 GPU cloud pricing — the leading neocloud for AI workloads.",
-  },
-  {
-    id: "ORACLE-H200-PERP",
-    name: "Oracle H200",
-    fullName: "Oracle Cloud H200",
-    category: "hyperscaler",
-    table: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Oracle",
-    description: "Oracle Cloud Infrastructure H200 bare-metal compute pricing in real‑time.",
-  },
-  {
-    id: "AWS-H200-PERP",
-    name: "AWS H200",
-    fullName: "Amazon Web Services H200",
-    category: "hyperscaler",
-    table: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "AWS",
-    description: "Amazon EC2 H200 on-demand instance pricing across US and EU regions.",
-  },
-  {
-    id: "GCP-H200-PERP",
-    name: "GCP H200",
-    fullName: "Google Cloud H200",
-    category: "hyperscaler",
-    table: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Google Cloud",
-    description: "Google Cloud A3 Mega H200 GPU instance pricing, aggregated across global regions.",
-  },
-  {
-    id: "COREWEAVE-H200-PERP",
-    name: "CoreWeave H200",
-    fullName: "CoreWeave H200",
-    category: "hyperscaler",
-    table: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "CoreWeave",
-    description: "CoreWeave H200 high-memory GPU cloud pricing for large-scale LLM training and inference.",
-  },
-  {
-    id: "AZURE-H200-PERP",
-    name: "Azure H200",
-    fullName: "Azure H200",
-    category: "hyperscaler",
-    table: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Azure",
-    description: "Microsoft Azure ND H200 v5 instance pricing for enterprise-scale AI workloads.",
-  },
-  {
-    id: "AWS-H100-PERP",
-    name: "AWS H100",
-    fullName: "Amazon Web Services H100",
-    category: "hyperscaler",
-    table: "h100_hyperscaler_prices",
-    priceField: "effective_price",
-    providerFilter: "Amazon Web Services",
-    description: "Amazon EC2 p5 H100 instance on-demand pricing aggregated across US and EU AWS regions.",
-  },
-  {
-    id: "AZURE-H100-PERP",
-    name: "Azure H100",
-    fullName: "Microsoft Azure H100",
-    category: "hyperscaler",
-    table: "h100_hyperscaler_prices",
-    priceField: "effective_price",
-    providerFilter: "Microsoft Azure",
-    description: "Microsoft Azure ND H100 v5 instance pricing for enterprise AI and HPC workloads.",
-  },
-  {
-    id: "GCP-H100-PERP",
-    name: "GCP H100",
-    fullName: "Google Cloud H100",
-    category: "hyperscaler",
-    table: "h100_hyperscaler_prices",
-    priceField: "effective_price",
-    providerFilter: "Google Cloud",
-    description: "Google Cloud A3 H100 GPU instance pricing across multi-region US and European deployments.",
-  },
-];
+const PRICE_TABLES = {
+  "A100-PERP": { table: "a100_index_prices", priceField: "index_price" },
+  "B200-PERP-V2": { table: "b200_index_prices", priceField: "index_price" },
+  "AWS-B200-PERP": { table: "b200_provider_prices", priceField: "effective_price", providerFilter: "AWS" },
+  "ORACLE-B200-PERP": { table: "b200_provider_prices", priceField: "effective_price", providerFilter: "Oracle" },
+  "COREWEAVE-B200-PERP": { table: "b200_provider_prices", priceField: "effective_price", providerFilter: "CoreWeave" },
+  "GCP-B200-PERP": { table: "b200_provider_prices", priceField: "effective_price", providerFilter: "Google Cloud" },
+  "H200-PERP-V2": { table: "h200_index_prices", priceField: "index_price" },
+  "T4-PERP": { table: "t4_index_prices", priceField: "index_price" },
+  "H100-GPU-PERP": { table: "price_data", priceField: "price", timeField: "timestamp" },
+  "H100-HyperScalers-PERP": { table: "h100_hyperscaler_prices", priceField: "effective_price" },
+  "H100-non-HyperScalers-PERP-V2": { table: "price_data", priceField: "price", timeField: "timestamp" },
+  "AWS-H100-PERP": { table: "h100_hyperscaler_prices", priceField: "effective_price", providerFilter: "Amazon Web Services" },
+  "AZURE-H100-PERP": { table: "h100_hyperscaler_prices", priceField: "effective_price", providerFilter: "Microsoft Azure" },
+  "GCP-H100-PERP": { table: "h100_hyperscaler_prices", priceField: "effective_price", providerFilter: "Google Cloud" },
+  "AWS-H200-PERP": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "AWS" },
+  "AZURE-H200-PERPETUAL": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "Azure" },
+  "COREWEAVE-H200-PERP": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "CoreWeave" },
+  "GCP-H200-PERP": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "Google Cloud" },
+  "ORACLE-H200-PERP": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "Oracle" },
+};
+
+const MARKETS_CONFIG = getActiveMarkets()
+  .filter((market) => !market.isAlias)
+  .map((market) => ({
+    id: market.name,
+    name: market.displayName,
+    fullName: market.fullName,
+    category: market.category === "gpu" ? "gpu" : "hyperscaler",
+    description: market.description,
+    ...(PRICE_TABLES[market.name] || { table: "price_data", priceField: "price", timeField: "timestamp" }),
+  }));
 
 const BADGE_META = {
+  "H100-GPU-PERP": { label: "HOT",  color: "text-yellow-400  bg-yellow-500/10  border-yellow-500/30"  },
   "H100-PERP": { label: "HOT",  color: "text-yellow-400  bg-yellow-500/10  border-yellow-500/30"  },
+  "B200-PERP-V2": { label: "NEW",  color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
   "B200-PERP": { label: "NEW",  color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
   "T4-PERP":   { label: "BETA", color: "text-zinc-400    bg-zinc-500/10    border-zinc-500/30"    },
 };
@@ -483,18 +359,16 @@ const MarketsPage = () => {
 
         (async () => {
           try {
-            const { data: statsData, error } = await supabase.from("market_stats_24h").select("*");
-            if (!error && statsData) {
-              const stats = {};
-              statsData.forEach(stat => {
-                stats[stat.market_id] = {
-                  volume:       parseFloat(stat.volume_24h_usd     || 0),
-                  change:       parseFloat(stat.change_24h_percent || 0),
-                  openInterest: parseFloat(stat.open_interest_usd  || 0),
-                };
-              });
-              return stats;
-            }
+            const statsData = await getMarketStats24h();
+            const stats = {};
+            statsData.forEach(stat => {
+              stats[stat.market_id] = {
+                volume:       parseFloat(stat.volume_24h_usd     || 0),
+                change:       parseFloat(stat.change_24h_percent || 0),
+                openInterest: parseFloat(stat.open_interest_usd  || 0),
+              };
+            });
+            return stats;
           } catch (err) {
             console.error("Error fetching indexer stats:", err);
           }

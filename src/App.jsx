@@ -73,6 +73,7 @@ const SwipeToast = ({ t }) => {
 // ── Wagmi / RainbowKit setup ─────────────────────────────────────────────────
 const chains    = [sepolia, mainnet];
 const projectId = "d07e63a0686f7431f5c7198cb53afa7d";
+const sepoliaRpcUrl = import.meta.env.VITE_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
 
 const { connectors } = getDefaultWallets({
   appName: "ByteStrike",
@@ -86,7 +87,7 @@ const wagmiConfig = createConfig({
   chains,
   transports: {
     [mainnet.id]: http(),
-    [sepolia.id]: http("https://eth-sepolia.g.alchemy.com/v2/3qoSFfQA1ZOtTO-eyMjN0a1ijwT4AdQy"),
+    [sepolia.id]: http(sepoliaRpcUrl),
   },
 });
 

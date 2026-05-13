@@ -13,6 +13,7 @@ import { supabase } from "../creatclient";
 // Base URL: use proxy in production, direct Supabase in dev
 const API_BASE = import.meta.env.VITE_API_GATEWAY_URL || import.meta.env.VITE_SUPABASE_URL;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const MARKET_STATS_API_BASE = import.meta.env.VITE_MARKET_STATS_API_URL;
 
 // ── Helper: get current session token ────────────────────────────────────
 async function getAuthToken() {
@@ -156,4 +157,35 @@ export async function checkLocation() {
  */
 export async function getSumsubToken() {
   return callEdgeFunction("get-sumsub-token", {});
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MARKET STATS API — Prefer Railway indexer, fallback to direct Supabase
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function getMarketStats24h() {
+  if (MARKET_STATS_API_BASE) {
+    try {
+      const res = await fetch(`${MARKET_STATS_API_BASE.replace(/\/$/, "")}/api/markets/stats`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) {
+        throw new Error(`Market stats API error: ${res.status}`);
+      }
+      const payload = await res.json();
+      return payload.data || [];
+    } catch (error) {
+      console.warn("Market stats API unavailable, falling back to Supabase:", error);
+    }
+  }
+
+  const { data, error } = await supabase.from("market_stats_24h").select("*");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getMarketStat24h(marketId) {
+  const stats = await getMarketStats24h();
+  const needle = marketId?.toLowerCase();
+  return stats.find((stat) => stat.market_id?.toLowerCase() === needle) || null;
 }
