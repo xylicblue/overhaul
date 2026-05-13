@@ -143,7 +143,7 @@ export const useMarketRealTimeData = (marketName) => {
 
   const { price: markPrice, isLoading: priceLoading } = useMarkPrice(vammAddress, 5000);
   const { twap, isLoading: twapLoading } = useTWAP(vammAddress, 900);
-  const { cumulativeFunding, lastFundingTime } = useFundingRate(vammAddress);
+  const { cumulativeFunding, lastFundingTime, kFundingX18 } = useFundingRate(vammAddress);
   const { price: oraclePrice, isLoading: oracleLoading } = useOraclePrice(oracleAddress, 10000);
 
   useEffect(() => {
@@ -198,10 +198,24 @@ export const useMarketRealTimeData = (marketName) => {
     const markPriceNum = parseFloat(markPrice);
     const twapNum = twap ? parseFloat(twap) : markPriceNum;
     const parsedOraclePrice = oraclePrice ? parseFloat(oraclePrice) : 0;
-    // If on-chain oracle returns 0 (not yet initialized), fall back to Supabase price table
-    const oraclePriceNum = parsedOraclePrice > 0 ? parsedOraclePrice : (dbIndexPrice || markPriceNum);
-    const premium = oraclePriceNum > 0 ? ((markPriceNum - oraclePriceNum) / oraclePriceNum) * 100 : 0;
-    const fundingRateAnnualized = premium * 3 * 365;
+    const contractOracleAvailable = parsedOraclePrice > 0;
+
+    // Index price for DISPLAY: prefer live contract oracle, fall back to Supabase price table
+    const oraclePriceNum = contractOracleAvailable ? parsedOraclePrice : (dbIndexPrice || markPriceNum);
+
+    // Funding uses the CONTRACT oracle only — when the oracle isn't live, premium is 0.
+    // Using a DB-sourced price here would produce a fake premium and mislead funding display.
+    const premiumDecimal = contractOracleAvailable && oraclePriceNum > 0
+      ? (markPriceNum - oraclePriceNum) / oraclePriceNum
+      : 0;
+    const premium = premiumDecimal * 100; // in %
+
+    // Funding rate per 8h = kFunding (contract coefficient) × premium
+    const kFunding = parseFloat(kFundingX18 || '0');
+    const fundingRateDecimal = kFunding * premiumDecimal;
+    const fundingRatePct = fundingRateDecimal * 100;
+    const fundingRateAnnualized = fundingRatePct * 3 * 365;
+
     const change24hValue = stats24h?.change_24h_percent != null
       ? parseFloat(stats24h.change_24h_percent)
       : (twapNum > 0 ? ((markPriceNum - twapNum) / twapNum) * 100 : 0);
@@ -217,11 +231,11 @@ export const useMarketRealTimeData = (marketName) => {
       markPriceRaw: markPriceNum,
       twapRaw: twapNum,
       oraclePriceRaw: oraclePriceNum,
-      fundingRateRaw: premium / 100,
+      fundingRateRaw: fundingRateDecimal,
       price: formatPrice(markPriceNum),
       indexPrice: oraclePriceNum.toFixed(2),
       vammPrice: formatPrice(twapNum),
-      fundingRate: premium >= 0 ? `+${premium.toFixed(4)}%` : `${premium.toFixed(4)}%`,
+      fundingRate: fundingRatePct >= 0 ? `+${fundingRatePct.toFixed(4)}%` : `${fundingRatePct.toFixed(4)}%`,
       fundingRateAnnualized: `${fundingRateAnnualized.toFixed(2)}% APR`,
       change24h: `${stats24h?.change_24h_percent == null ? "~" : ""}${change24hValue.toFixed(2)}%`,
       change24hValue,
@@ -248,6 +262,7 @@ export const useMarketRealTimeData = (marketName) => {
     oraclePrice,
     cumulativeFunding,
     lastFundingTime,
+    kFundingX18,
     priceLoading,
     twapLoading,
     oracleLoading,

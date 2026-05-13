@@ -101,23 +101,30 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
   const { data: cumulativeFunding } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
-    functionName: 'cumulativeFundingPerUnitX18', // Fixed: was cumulativeFundingRateX18
-    chainId: SEPOLIA_CHAIN_ID, // Force Sepolia chain
-    query: {
-      refetchInterval: 30000, // Refetch every 30s
-    },
+    functionName: 'cumulativeFundingPerUnitX18',
+    chainId: SEPOLIA_CHAIN_ID,
+    query: { refetchInterval: 30000 },
   });
 
   const { data: lastFundingTime } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
-    functionName: 'lastFundingTimestamp', // Fixed: was lastFundingTime
-    chainId: SEPOLIA_CHAIN_ID, // Force Sepolia chain
+    functionName: 'lastFundingTimestamp',
+    chainId: SEPOLIA_CHAIN_ID,
+  });
+
+  const { data: kFundingRaw } = useReadContract({
+    address: vammAddress,
+    abi: VAMMABI.abi,
+    functionName: 'kFundingX18',
+    chainId: SEPOLIA_CHAIN_ID,
+    query: { refetchInterval: 60000 },
   });
 
   return {
     cumulativeFunding: cumulativeFunding ? formatUnits(cumulativeFunding, 18) : '0',
     lastFundingTime: lastFundingTime ? Number(lastFundingTime) : 0,
+    kFundingX18: kFundingRaw ? formatUnits(kFundingRaw, 18) : '0',
     cumulativeFundingRaw: cumulativeFunding,
   };
 }
