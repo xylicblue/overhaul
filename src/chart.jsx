@@ -37,12 +37,14 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
       tableName: "price_data",  // Existing H100 table
       fallbackTable: null,
       priceField: "price", // Field name for price in the table
+      timestampField: "timestamp",
     },
     "H100-non-HyperScalers-PERP": {
       displayName: "Neocloud",
-      tableName: "h100_non_hyperscalers_perp_prices",
+      tableName: "price_data",
       fallbackTable: null,
       priceField: "price",
+      timestampField: "timestamp",
     },
     "B200-PERP": {
       displayName: "B200 GPU",
@@ -50,40 +52,40 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
       fallbackTable: null,
       priceField: "index_price", // B200 uses index_price field
     },
-    "H200-PERP": {
-      displayName: "H200 GPU",
-      tableName: "h200_index_prices",
-      fallbackTable: null,
-      priceField: "index_price", // H200 uses index_price field (from push_to_supabase.py)
-    },
     // Provider-specific B200 markets - query b200_provider_prices with provider filter
-    "ORACLE-B200-PERP": {
-      displayName: "Oracle B200",
-      tableName: "b200_provider_prices",
-      fallbackTable: null,
-      priceField: "effective_price",
-      providerFilter: "Oracle", // Filter by provider_name
-    },
     "AWS-B200-PERP": {
       displayName: "AWS B200",
       tableName: "b200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
-      providerFilter: "AWS", // Filter by provider_name
+      providerFilter: "AWS",
+    },
+    "ORACLE-B200-PERP": {
+      displayName: "Oracle B200",
+      tableName: "b200_provider_prices",
+      fallbackTable: null,
+      priceField: "effective_price",
+      providerFilter: "Oracle",
     },
     "COREWEAVE-B200-PERP": {
       displayName: "CoreWeave B200",
       tableName: "b200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
-      providerFilter: "CoreWeave", // Filter by provider_name
+      providerFilter: "CoreWeave",
     },
     "GCP-B200-PERP": {
       displayName: "GCP B200",
       tableName: "b200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
-      providerFilter: "Google Cloud", // Filter by provider_name (stored as "Google Cloud" in DB)
+      providerFilter: "Google Cloud",
+    },
+    "H200-PERP": {
+      displayName: "H200 GPU",
+      tableName: "h200_index_prices",
+      fallbackTable: null,
+      priceField: "index_price", // H200 uses index_price field (from push_to_supabase.py)
     },
     // Provider-specific H200 markets - query h200_provider_prices with provider filter
     "ORACLE-H200-PERP": {
@@ -159,12 +161,24 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
       priceField: "index_price",
     },
   };
+
+  marketConfig["H100-GPU-PERP"] = marketConfig["H100-PERP"];
+  marketConfig["H100-HyperScalers-PERP"] = {
+    displayName: "H100 HyperScalers",
+    tableName: "h100_hyperscaler_prices",
+    fallbackTable: null,
+    priceField: "effective_price",
+  };
+  marketConfig["B200-PERP-V2"] = marketConfig["B200-PERP"];
+  marketConfig["H200-PERP-V2"] = marketConfig["H200-PERP"];
+  marketConfig["H100-non-HyperScalers-PERP-V2"] = marketConfig["H100-non-HyperScalers-PERP"];
   
   const config = marketConfig[market] || {
     displayName: market,
     tableName: "price_data",
     fallbackTable: null,
     priceField: "price",
+    timestampField: "timestamp",
   };
 
   useEffect(() => {
@@ -184,7 +198,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
         }
 
         // Strategy 1: Try market-specific table (primary source)
-        const timestampField = config.timestampField || "timestamp";
+        const timestampField = config.timestampField || "created_at";
         let query = supabase
           .from(config.tableName)
           .select(`${config.priceField}, ${timestampField}`);
@@ -626,5 +640,3 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
 };
 
 export default PriceIndexChart;
-
-

@@ -193,7 +193,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
   const listRef                                         = useRef(null);
 
   // ── Filtered list (must be defined before effects that reference it) ──────
-  const PIN_ORDER = ["H100-PERP", "B200-PERP"];
+  const PIN_ORDER = ["H100-GPU-PERP", "B200-PERP-V2"];
   const filteredMarkets = useMemo(() => {
     const filtered = markets.filter(m => {
       const q = searchTerm.toLowerCase();

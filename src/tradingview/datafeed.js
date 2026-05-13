@@ -87,6 +87,34 @@ const symbolsInfo = {
   },
 };
 
+[
+  ["H100-GPU-PERP", "NVIDIA H100 GPU Index Perpetual"],
+  ["B200-PERP-V2", "NVIDIA B200 GPU Index Perpetual"],
+  ["AWS-B200-PERP", "AWS B200 GPU Perpetual"],
+  ["ORACLE-B200-PERP", "Oracle Cloud B200 GPU Perpetual"],
+  ["COREWEAVE-B200-PERP", "CoreWeave B200 GPU Perpetual"],
+  ["GCP-B200-PERP", "Google Cloud B200 GPU Perpetual"],
+  ["H200-PERP-V2", "NVIDIA H200 GPU Index Perpetual"],
+  ["ORACLE-H200-PERP", "Oracle Cloud H200 GPU Perpetual"],
+  ["AWS-H200-PERP", "AWS H200 GPU Perpetual"],
+  ["COREWEAVE-H200-PERP", "CoreWeave H200 GPU Perpetual"],
+  ["GCP-H200-PERP", "Google Cloud H200 GPU Perpetual"],
+  ["AZURE-H200-PERPETUAL", "Azure H200 GPU Perpetual"],
+  ["H100-HyperScalers-PERP", "H100 HyperScalers GPU Perpetual"],
+  ["H100-non-HyperScalers-PERP-V2", "H100 Neocloud GPU Perpetual"],
+  ["AWS-H100-PERP", "AWS H100 GPU Perpetual"],
+  ["AZURE-H100-PERP", "Azure H100 GPU Perpetual"],
+  ["GCP-H100-PERP", "Google Cloud H100 GPU Perpetual"],
+  ["T4-PERP", "NVIDIA T4 GPU Index Perpetual"],
+].forEach(([symbol, description]) => {
+  symbolsInfo[symbol] = {
+    ...(symbolsInfo[symbol] || symbolsInfo["H100-PERP"]),
+    name: symbol,
+    ticker: symbol,
+    description,
+  };
+});
+
 // Store active subscriptions
 const subscriptions = new Map();
 

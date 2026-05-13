@@ -18,8 +18,9 @@ const __dirname = dirname(__filename);
 const envPath = join(__dirname, '..', '.env.local');
 dotenv.config({ path: envPath });
 
-const serviceKey = process.env.VITE_SUPABASE_SERVICE_KEY;
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const serviceKey = process.env.VITE_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const rpcUrl = process.env.VITE_SEPOLIA_RPC_URL || process.env.SEPOLIA_RPC_URL || process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
 
 console.log('');
 console.log('═══════════════════════════════════════════════════');
@@ -55,7 +56,7 @@ if (!serviceKey) {
 
 console.log('✅ Configuration loaded');
 console.log(`📍 Network: Sepolia Testnet`);
-console.log(`🔗 RPC: https://ethereum-sepolia-rpc.publicnode.com`);
+console.log(`🔗 RPC: ${rpcUrl}`);
 console.log(`💾 Database: ${supabaseUrl}`);
 console.log('');
 console.log('Starting indexer with:');
@@ -78,9 +79,7 @@ startIndexer({
   console.log('');
   console.log('✅ Indexer is now running!');
   console.log('');
-  console.log('Tracking markets:');
-  console.log('  • H100-PERP (active)');
-  console.log('  • ETH-PERP-V2 (active)');
+  console.log('Tracking markets: all non-alias Sepolia markets from src/contracts/addresses.js');
   console.log('');
   console.log('Data being collected:');
   console.log('  📊 Swap events → swap_events table');

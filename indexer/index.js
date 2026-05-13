@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem';
 import { sepolia } from 'viem/chains';
 import * as dotenv from 'dotenv';
+import { SEPOLIA_CONTRACTS as DEPLOYED_CONTRACTS, getActiveMarkets } from '../src/contracts/addresses.js';
 
 // Load environment variables
 dotenv.config();
@@ -24,16 +25,16 @@ const CONFIG = {
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_KEY,
 
   // Blockchain
-  rpcUrl: process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com',
+  rpcUrl: process.env.RPC_URL || process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com',
   chainId: 11155111, // Sepolia
 
-  // Contracts (Sepolia) — updated to V5 addresses
+  // Contracts (Sepolia)
   contracts: {
-    clearingHouse:  '0x18F863b1b0A3Eca6B2235dc1957291E357f490B0', // V5 ClearingHouse proxy
-    collateralVault:'0x86A10164eB8F55EA6765185aFcbF5e073b249Dd2',
-    vammProxy:       '0xF7210ccC245323258CC15e0Ca094eBbe2DC2CD85', // H100-PERP
-    vammProxyOld:    '0xF8908F7B4a1AaaD69bF0667FA83f85D3d0052739',
-    oracle:          '0x3cA2Da03e4b6dB8fe5a24c22Cf5EB2A34B59cbad',
+    clearingHouse: DEPLOYED_CONTRACTS.clearingHouse,
+    collateralVault: DEPLOYED_CONTRACTS.collateralVault,
+    marketRegistry: DEPLOYED_CONTRACTS.marketRegistry,
+    cuOracle: DEPLOYED_CONTRACTS.cuOracle,
+    collateralOracle: DEPLOYED_CONTRACTS.collateralOracle,
   },
 
   // Indexer settings
@@ -55,56 +56,43 @@ const CONFIG = {
 
 // ==================== MARKETS ====================
 
-const MARKETS = [
-  {
-    id: '0x2bc0c3f3ef82289c7da8a9335c83ea4f2b5b8bd62b67c4f4e0dba00b304c2937', // H100-PERP
-    name: 'H100-PERP',
-    displayName: 'H100 GPU',
-    vammAddress: CONFIG.contracts.vammProxy,
-    tableName: 'price_data',
-    active: true,
-  },
-  {
-    id: '0xf4aa47cc83b0d01511ca8025a996421dda6fbab1764466da4b0de6408d3db2e2', // H100-HyperScalers-PERP
-    name: 'H100-HyperScalers-PERP',
-    displayName: 'H100 HyperScalers',
-    vammAddress: '0xFE1df531084Dcf0Fe379854823bC5d402932Af99',
-    tableName: 'h100_hyperscalers_perp_prices',
-    active: true,
-  },
-  {
-    id: '0x9d2d658888da74a10ac9263fc14dcac4a834dd53e8edf664b4cc3b2b4a23f214', // H100-non-HyperScalers-PERP
-    name: 'H100-non-HyperScalers-PERP',
-    displayName: 'H100 non-HyperScalers',
-    vammAddress: '0x19574B8C91717389231DA5b0579564d6F81a79B0',
-    tableName: 'h100_non_hyperscalers_perp_prices',
-    active: true,
-  },
-  {
-    id: '0xb1bae2ea6c465ce4acb7d8a4a16a8899c9cc94ac35b5a82403875c6b2aa34f3e', // T4-PERP
-    name: 'T4-PERP',
-    displayName: 'T4 GPU',
-    vammAddress: '0x910C730dBEd5384fbF83bf1F387609bf83E8ffDd',
-    tableName: 't4_index_prices',
-    active: true,
-  },
-  {
-    id: '0x385badc5603eb47056a6bdcd6ac81a50df49d7a4e8a7451405e580bd12087a28', // ETH-PERP-V2 (deprecated alias)
-    name: 'ETH-PERP-V2',
-    displayName: 'H100 GPU',
-    vammAddress: CONFIG.contracts.vammProxy,
-    // Alias to H100-PERP data
-    tableName: 'price_data',
-    active: true,
-  },
-  {
-    id: '0x352291f10e3a0d4a9f7beb3b623eac0b06f735c95170f956bc68b2f8b504a35d', // ETH-PERP (deprecated)
-    name: 'ETH-PERP',
-    displayName: 'Test Market [OLD]',
-    vammAddress: CONFIG.contracts.vammProxyOld,
-    active: false, // Skip deprecated markets
-  },
-];
+const PRICE_TABLES = {
+  'A100-PERP': { tableName: 'a100_index_prices', priceField: 'index_price', timeField: 'recorded_at' },
+  'B200-PERP-V2': { tableName: 'b200_index_prices', priceField: 'index_price' },
+  'AWS-B200-PERP': { tableName: 'b200_provider_prices', priceField: 'effective_price', providerFilter: 'AWS' },
+  'ORACLE-B200-PERP': { tableName: 'b200_provider_prices', priceField: 'effective_price', providerFilter: 'Oracle' },
+  'COREWEAVE-B200-PERP': { tableName: 'b200_provider_prices', priceField: 'effective_price', providerFilter: 'CoreWeave' },
+  'GCP-B200-PERP': { tableName: 'b200_provider_prices', priceField: 'effective_price', providerFilter: 'Google Cloud' },
+  'H200-PERP-V2': { tableName: 'h200_index_prices', priceField: 'index_price' },
+  'ORACLE-H200-PERP': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Oracle' },
+  'ORACLE-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Oracle' },
+  'AWS-H200-PERP': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'AWS' },
+  'AWS-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'AWS' },
+  'COREWEAVE-H200-PERP': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'CoreWeave' },
+  'COREWEAVE-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'CoreWeave' },
+  'GCP-H200-PERP': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Google Cloud' },
+  'GCP-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Google Cloud' },
+  'AZURE-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Azure' },
+  'T4-PERP': { tableName: 't4_index_prices', priceField: 'index_price' },
+  'H100-GPU-PERP': { tableName: 'price_data', priceField: 'price', timeField: 'timestamp' },
+  'H100-HyperScalers-PERP': { tableName: 'h100_hyperscaler_prices', priceField: 'effective_price' },
+  'H100-non-HyperScalers-PERP-V2': { tableName: 'price_data', priceField: 'price', timeField: 'timestamp' },
+  'AWS-H100-PERP': { tableName: 'h100_hyperscaler_prices', priceField: 'effective_price', providerFilter: 'Amazon Web Services' },
+  'AZURE-H100-PERP': { tableName: 'h100_hyperscaler_prices', priceField: 'effective_price', providerFilter: 'Microsoft Azure' },
+  'GCP-H100-PERP': { tableName: 'h100_hyperscaler_prices', priceField: 'effective_price', providerFilter: 'Google Cloud' },
+};
+
+const MARKETS = getActiveMarkets()
+  .filter((market) => !market.isAlias)
+  .map((market) => ({
+    id: market.id,
+    name: market.name,
+    displayName: market.displayName,
+    vammAddress: market.vamm,
+    oracleAddress: market.oracle,
+    ...(PRICE_TABLES[market.name] || { tableName: 'price_data', priceField: 'price', timeField: 'timestamp' }),
+    active: market.active,
+  }));
 
 // ==================== ABIs ====================
 
@@ -250,19 +238,27 @@ async function getMarkPrice(vammAddress) {
   }
 }
 
-async function getIndexPriceFromDB(tableName) {
-  if (!tableName) return null;
+async function getIndexPriceFromDB(market) {
+  if (!market?.tableName) return null;
+  const timeField = market.timeField || 'created_at';
   try {
-    const { data, error } = await supabase
-      .from(tableName)
-      .select('price')
-      .order('timestamp', { ascending: false })
+    let query = supabase
+      .from(market.tableName)
+      .select(`${market.priceField}, ${timeField}`);
+
+    if (market.providerFilter) {
+      query = query.eq('provider_name', market.providerFilter);
+    }
+
+    const { data, error } = await query
+      .order(timeField, { ascending: false })
       .limit(1)
       .single();
+
     if (error || !data) return null;
-    return parseFloat(data.price);
+    return parseFloat(data[market.priceField]);
   } catch (error) {
-    console.error(`Error fetching index price from DB (${tableName}):`, error.message);
+    console.error(`Error fetching index price from DB (${market.tableName}):`, error.message);
     return null;
   }
 }
@@ -273,27 +269,9 @@ async function getIndexPriceFromDB(tableName) {
  * Map market ID bytes32 → human-readable label.
  * Falls back to truncated marketId if not found.
  */
-const MARKET_ID_TO_LABEL = {
-  '0x2bc0c3f3ef82289c7da8a9335c83ea4f2b5b8bd62b67c4f4e0dba00b304c2937': 'H100-PERP',
-  '0xf4aa47cc83b0d01511ca8025a996421dda6fbab1764466da4b0de6408d3db2e2': 'H100-HyperScalers-PERP',
-  '0x9d2d658888da74a10ac9263fc14dcac4a834dd53e8edf664b4cc3b2b4a23f214': 'H100-non-HyperScalers-PERP',
-  '0xb4be6bdaf765a9dc45759a99c834b32d12825dce59bc28052946c1f1267a999b': 'B200-PERP',
-  '0x3b9736717eab3427f776c56345a626690c13be77aa87cb6858bf92d50ad0c998': 'H200-PERP',
-  '0x78b1dd5626222aef5d91e323da7cbe8941adb4eaaf0d1e90ac2dcee2680be01f': 'Oracle-B200-PERP',
-  '0x7e0ed16d08b6e36ae874386fd9c02a530e31026876a299a5ac59e9a8a7859c8e': 'AWS-B200-PERP',
-  '0x05b98a16e85afdd21369f8dde4ae197e2b445f37445b0e382ebcfdd10b711306': 'CoreWeave-B200-PERP',
-  '0xd0394d4ba76fe79cd0b954eb8e205df0cc4f08fb654dc916f5728d31c19f9305': 'GCP-B200-PERP',
-  '0x61f05fafb6842941c9a7d6839378de32d97a2de181b4db0e276b8d2093b61866': 'Oracle-H200-PERP',
-  '0x12aa394c59dbf446e7ba1d3ab66f4629761c27d0dbacf484da0f4b205260c8fc': 'AWS-H200-PERP',
-  '0xf8444beb26f5f34e8d5ec6c988b1023100cd68287fa48066b54e428188ffa447': 'CoreWeave-H200-PERP',
-  '0xb654d9eedc69b55e0fe883d03cae37d13fdacc319a5a1f507bb33875e0e14201': 'GCP-H200-PERP',
-  '0xc845b4b5cdd753d1ad772bc105e5c4ddddff19c3da674c69da5c9f1a810bb872': 'Azure-H200-PERP',
-  '0x69df00e859e1b007896c59653bb3ca35622fdf2bf46c2fd9fea7ffa7d88b6378': 'AWS-H100-PERP',
-  '0x2492e86fcfe9b174434dfca2c27205159a34cf4e90f0ec7a1605fae91a7e7bbd': 'Azure-H100-PERP',
-  '0x8c78c8c17cc7712fe1b17592a2c0a7f814f8ec784de0fbb4ae6573e3457e11dd': 'GCP-H100-PERP',
-  '0x7c611d543b87d4eecced3a16f8db373340d784390882ad3e2fd76f257a51cf55': 'A100-PERP',
-  '0xb1bae2ea6c465ce4acb7d8a4a16a8899c9cc94ac35b5a82403875c6b2aa34f3e': 'T4-PERP',
-};
+const MARKET_ID_TO_LABEL = Object.fromEntries(
+  MARKETS.map((market) => [market.id.toLowerCase(), market.name])
+);
 
 function marketLabel(marketId) {
   const id = marketId.toLowerCase();
@@ -479,26 +457,9 @@ async function storePriceSnapshot(market, markPrice, oraclePrice, blockNumber) {
     console.error('Error storing price snapshot:', error.message);
   }
 
-  // 2. Write to market-specific table if configured (for PriceIndexChart - ORACLE PRICES)
-  if (market.tableName) {
-    // Skip aliases from writing to the same table twice in the same loop run
-    if (market.name !== 'ETH-PERP-V2') {
-        const { error: specificError } = await supabase
-        .from(market.tableName)
-        .insert({
-            price: oraclePrice, // IMPORTANT: These tables are for INDEX/ORACLE prices, not vAMM mark prices
-            timestamp: timestamp,
-        });
-
-        if (specificError) {
-             console.error(`Error storing to ${market.tableName}:`, specificError.message);
-        } else {
-            console.log(`📸 ${market.name} -> ${market.tableName}: $${oraclePrice.toFixed(2)}`);
-        }
-    }
-  }
-
-  // 3. Write to vamm_price_history (unified table for AdvancedChart)
+  // 2. Write to vamm_price_history (unified table for AdvancedChart).
+  // The market-specific index tables are source-of-truth bot tables, so the
+  // indexer reads from them but does not write synthetic rows back into them.
   const { error: vammError } = await supabase
     .from('vamm_price_history')
     .insert({
@@ -846,7 +807,7 @@ function startClearingHouseWatchers() {
 
 async function snapshotPrice(market) {
   const markPrice = await getMarkPrice(market.vammAddress);
-  const oraclePrice = await getIndexPriceFromDB(market.tableName);
+  const oraclePrice = await getIndexPriceFromDB(market);
   const block = await publicClient.getBlockNumber();
 
   if (markPrice) {

@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMarketStore, AVAILABLE_MARKETS } from "./stores/useMarketStore";
+import { getMarketByName } from "./contracts/addresses";
 
 // useMarket: same API as before, backed by Zustand
 export const useMarket = () => {
@@ -20,7 +21,7 @@ export const MarketProvider = ({ children }) => {
 
   useEffect(() => {
     const marketParam = searchParams.get("market");
-    if (marketParam && AVAILABLE_MARKETS[marketParam]) {
+    if (marketParam && (AVAILABLE_MARKETS[marketParam] || getMarketByName(marketParam))) {
       selectMarket(marketParam);
     }
   }, [searchParams, selectMarket]);

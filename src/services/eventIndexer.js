@@ -7,42 +7,35 @@
 import { createClient } from '@supabase/supabase-js';
 import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem';
 import { sepolia } from 'viem/chains';
-import { SEPOLIA_CONTRACTS, MARKET_IDS } from '../contracts/addresses';
+import { getActiveMarkets } from '../contracts/addresses';
 import VAMMABI from '../contracts/abis/vAMM.json';
 
+const runtimeEnv = typeof process !== 'undefined' ? process.env : {};
+const viteEnv = import.meta.env || {};
+const env = (key) => viteEnv[key] || runtimeEnv[key];
+
 // Supabase client (will use service role key from env)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY; // Need to add this
+const supabaseUrl = env('VITE_SUPABASE_URL') || env('SUPABASE_URL');
+const supabaseServiceKey = env('VITE_SUPABASE_SERVICE_KEY') || env('SUPABASE_SERVICE_KEY');
 
 let supabase = null;
 
 // Public client for reading blockchain data
 const publicClient = createPublicClient({
   chain: sepolia,
-  transport: http('https://ethereum-sepolia-rpc.publicnode.com'),
+  transport: http(env('VITE_SEPOLIA_RPC_URL') || env('SEPOLIA_RPC_URL') || env('RPC_URL') || 'https://ethereum-sepolia-rpc.publicnode.com'),
 });
 
 // Market configurations
-const MARKETS = [
-  {
-    id: MARKET_IDS['H100-PERP'],
-    name: 'H100-PERP',
-    displayName: 'H100 GPU',
-    vammAddress: SEPOLIA_CONTRACTS.vammProxy,
-  },
-  {
-    id: MARKET_IDS['ETH-PERP-V2'],
-    name: 'ETH-PERP-V2',
-    displayName: 'H100 GPU',
-    vammAddress: SEPOLIA_CONTRACTS.vammProxy,
-  },
-  {
-    id: MARKET_IDS['ETH-PERP'],
-    name: 'ETH-PERP',
-    displayName: 'Test Market [OLD]',
-    vammAddress: SEPOLIA_CONTRACTS.vammProxyOld,
-  },
-];
+const MARKETS = getActiveMarkets()
+  .filter((market) => !market.isAlias)
+  .map((market) => ({
+    id: market.id,
+    name: market.name,
+    displayName: market.displayName,
+    vammAddress: market.vamm,
+    oracleAddress: market.oracle,
+  }));
 
 /**
  * Initialize Supabase client with service key
@@ -57,7 +50,7 @@ export function initializeIndexer(serviceKey = null) {
   if (!key) {
     console.warn('⚠️ No service key provided. Using anon key (limited permissions)');
     // Fallback to anon key for read-only operations
-    supabase = createClient(supabaseUrl, import.meta.env.VITE_SUPABASE_ANON_KEY);
+    supabase = createClient(supabaseUrl, env('VITE_SUPABASE_ANON_KEY') || env('SUPABASE_ANON_KEY'));
     return false; // Can't write
   }
 
@@ -85,15 +78,12 @@ async function getMarkPrice(vammAddress) {
 /**
  * Get oracle price
  */
-async function getOraclePrice() {
+async function getOraclePrice(oracleAddress) {
   try {
-    // Import dynamically to avoid circular dependencies
-    const { useOraclePrice } = await import('../hooks/useOracle');
-    // For indexer, we'll just fetch directly from contract
     const OracleABI = (await import('../contracts/abis/Oracle.json')).default;
 
     const price = await publicClient.readContract({
-      address: SEPOLIA_CONTRACTS.oracle,
+      address: oracleAddress,
       abi: OracleABI.abi,
       functionName: 'getPrice',
     });
@@ -286,7 +276,7 @@ export function startEventWatcher(market) {
  */
 export async function snapshotPrice(market) {
   const markPrice = await getMarkPrice(market.vammAddress);
-  const oraclePrice = await getOraclePrice();
+  const oraclePrice = await getOraclePrice(market.oracleAddress);
   const block = await publicClient.getBlockNumber();
 
   if (markPrice) {

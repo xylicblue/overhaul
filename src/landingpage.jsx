@@ -129,14 +129,14 @@ const whyNowCardsData = [
 
 const GPU_INDEX_MARKETS = [
   {
-    id: "H100-PERP",
+    id: "H100-GPU-PERP",
     name: "H100",
     full: "NVIDIA H100 SXM",
     badge: "HOT",
     badgeColor: "text-yellow-400 bg-yellow-500/10 border-yellow-500/25",
   },
   {
-    id: "B200-PERP",
+    id: "B200-PERP-V2",
     name: "B200",
     full: "NVIDIA Blackwell B200",
     badge: "NEW",
@@ -160,11 +160,11 @@ const GPU_INDEX_MARKETS = [
 
 // Markets shown in the hero widget ticker — only IDs that exist in SPARKLINE_CONFIG
 const HERO_TICKER_MARKETS = [
-  { id: "H100-PERP",          name: "H100", sub: "Index"     },
-  { id: "B200-PERP",          name: "B200", sub: "Index"     },
+  { id: "H100-GPU-PERP",      name: "H100", sub: "Index"     },
+  { id: "B200-PERP-V2",       name: "B200", sub: "Index"     },
   { id: "T4-PERP",            name: "T4",   sub: "Index"     },
-  { id: "ORACLE-B200-PERP",   name: "B200", sub: "Oracle"    },
-  { id: "COREWEAVE-B200-PERP",name: "B200", sub: "CoreWeave" },
+  { id: "ORACLE-H200-PERP",   name: "H200", sub: "Oracle"    },
+  { id: "COREWEAVE-H200-PERP",name: "H200", sub: "CoreWeave" },
   // { id: "H100-non-HyperScalers-PERP", name: "H100", sub: "Neocloud" },
 ];
 
@@ -180,7 +180,7 @@ const LandingPage = () => {
   const { openLogin, openSignup } = useAuthModal();
   const { disconnect } = useDisconnect();
   const queryClient = useQueryClient();
-  const [selectedMarket, setSelectedMarket] = useState("H100-PERP");
+  const [selectedMarket, setSelectedMarket] = useState("H100-GPU-PERP");
   const [selectedModel, setSelectedModel] = useState("H100");
 
   const [formData, setFormData] = useState({
@@ -283,23 +283,48 @@ const LandingPage = () => {
   const [indexPrices, setIndexPrices] = useState({});
   useEffect(() => {
     (async () => {
-      const [h100, b200, t4, oracleB200, coreweaveB200, h100Neocloud] = await Promise.all([
+      const [
+        h100,
+        b200,
+        t4,
+        oracleH200,
+        awsH200,
+        coreweaveH200,
+        gcpH200,
+        h100Neocloud,
+        awsB200,
+        oracleB200,
+        coreweaveB200,
+        gcpB200,
+      ] = await Promise.all([
         // GPU index markets
         supabase.from("price_data").select("price").order("timestamp", { ascending: false }).limit(1).single(),
         supabase.from("b200_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
         supabase.from("t4_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
         // Provider markets (mirror SPARKLINE_CONFIG providerFilter values)
+        supabase.from("h200_provider_prices").select("effective_price").eq("provider_name", "Oracle").order("created_at", { ascending: false }).limit(1).single(),
+        supabase.from("h200_provider_prices").select("effective_price").eq("provider_name", "AWS").order("created_at", { ascending: false }).limit(1).single(),
+        supabase.from("h200_provider_prices").select("effective_price").eq("provider_name", "CoreWeave").order("created_at", { ascending: false }).limit(1).single(),
+        supabase.from("h200_provider_prices").select("effective_price").eq("provider_name", "Google Cloud").order("created_at", { ascending: false }).limit(1).single(),
+        supabase.from("price_data").select("price").order("timestamp", { ascending: false }).limit(1).single(),
+        supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "AWS").order("created_at", { ascending: false }).limit(1).single(),
         supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "Oracle").order("created_at", { ascending: false }).limit(1).single(),
         supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "CoreWeave").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("price_data").select("price").order("timestamp", { ascending: false }).limit(1).single(),
+        supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "Google Cloud").order("created_at", { ascending: false }).limit(1).single(),
       ]);
       setIndexPrices({
-        "H100-PERP":           h100.data?.price                   != null ? parseFloat(h100.data.price)                         : null,
-        "B200-PERP":           b200.data?.index_price             != null ? parseFloat(b200.data.index_price)                   : null,
-        "T4-PERP":             t4.data?.index_price               != null ? parseFloat(t4.data.index_price)                     : null,
+        "H100-GPU-PERP":       h100.data?.price                   != null ? parseFloat(h100.data.price)                         : null,
+        "B200-PERP-V2":        b200.data?.index_price             != null ? parseFloat(b200.data.index_price)                   : null,
+        "AWS-B200-PERP":       awsB200.data?.effective_price      != null ? parseFloat(awsB200.data.effective_price)            : null,
         "ORACLE-B200-PERP":    oracleB200.data?.effective_price   != null ? parseFloat(oracleB200.data.effective_price)         : null,
         "COREWEAVE-B200-PERP": coreweaveB200.data?.effective_price != null ? parseFloat(coreweaveB200.data.effective_price)    : null,
-        "H100-non-HyperScalers-PERP": h100Neocloud.data?.price != null ? parseFloat(h100Neocloud.data.price) : null,
+        "GCP-B200-PERP":       gcpB200.data?.effective_price      != null ? parseFloat(gcpB200.data.effective_price)            : null,
+        "T4-PERP":             t4.data?.index_price               != null ? parseFloat(t4.data.index_price)                     : null,
+        "ORACLE-H200-PERP":    oracleH200.data?.effective_price   != null ? parseFloat(oracleH200.data.effective_price)         : null,
+        "AWS-H200-PERP":       awsH200.data?.effective_price      != null ? parseFloat(awsH200.data.effective_price)            : null,
+        "COREWEAVE-H200-PERP": coreweaveH200.data?.effective_price != null ? parseFloat(coreweaveH200.data.effective_price)    : null,
+        "GCP-H200-PERP":       gcpH200.data?.effective_price      != null ? parseFloat(gcpH200.data.effective_price)            : null,
+        "H100-non-HyperScalers-PERP-V2": h100Neocloud.data?.price != null ? parseFloat(h100Neocloud.data.price) : null,
       });
     })();
   }, []);
@@ -330,20 +355,20 @@ const LandingPage = () => {
   };
 
   const marketNameMap = {
-    "H100-PERP": "NVIDIA H100",
+    "H100-GPU-PERP": "NVIDIA H100",
     "A100-PERP": "NVIDIA A100",
-    "H200-PERP": "NVIDIA H200",
-    "B200-PERP": "NVIDIA Blackwell B200",
+    "H200-PERP-V2": "NVIDIA H200",
+    "B200-PERP-V2": "NVIDIA Blackwell B200",
+    "AWS-B200-PERP": "AWS B200",
+    "ORACLE-B200-PERP": "Oracle Cloud B200",
+    "COREWEAVE-B200-PERP": "CoreWeave B200",
+    "GCP-B200-PERP": "Google Cloud B200",
     "T4-PERP": "NVIDIA T4",
-    "H100-non-HyperScalers-PERP": "Neocloud H100",
+    "H100-non-HyperScalers-PERP-V2": "Neocloud H100",
     "ORACLE-H200-PERP": "Oracle Cloud H200",
     "AWS-H200-PERP": "AWS H200",
     "COREWEAVE-H200-PERP": "CoreWeave H200",
     "GCP-H200-PERP": "Google Cloud H200",
-    "ORACLE-B200-PERP": "Oracle Cloud B200",
-    "AWS-B200-PERP": "AWS B200",
-    "COREWEAVE-B200-PERP": "CoreWeave B200",
-    "GCP-B200-PERP": "Google Cloud B200",
   };
 
   return (
@@ -948,7 +973,7 @@ const LandingPage = () => {
                         key={model}
                         onClick={() => {
                           setSelectedModel(model);
-                          const firstMarket = model === "H100" ? "H100-PERP" : model === "A100" ? "A100-PERP" : model === "H200" ? "H200-PERP" : model === "B200" ? "B200-PERP" : "T4-PERP";
+                          const firstMarket = model === "H100" ? "H100-GPU-PERP" : model === "A100" ? "A100-PERP" : model === "H200" ? "H200-PERP-V2" : model === "B200" ? "B200-PERP-V2" : "T4-PERP";
                           setSelectedMarket(firstMarket);
                         }}
                         className={`relative px-5 md:px-6 py-2 rounded-md text-[12px] md:text-[13px] font-semibold transition-colors duration-150 whitespace-nowrap ${
@@ -981,18 +1006,18 @@ const LandingPage = () => {
                       >
                         <div className="flex flex-wrap justify-center gap-1.5">
                           {(selectedModel === "H100" ? [
-                            { name: "H100-PERP", label: "Global Weighted Average" },
-                            { name: "H100-non-HyperScalers-PERP", label: "Neocloud Index" },
+                            { name: "H100-GPU-PERP", label: "Global Weighted Average" },
+                            { name: "H100-non-HyperScalers-PERP-V2", label: "Neocloud Index" },
                           ] : selectedModel === "H200" ? [
-                            { name: "H200-PERP", label: "Global Average" },
+                            { name: "H200-PERP-V2", label: "Global Average" },
                             { name: "ORACLE-H200-PERP", label: "Oracle Cloud" },
                             { name: "AWS-H200-PERP", label: "AWS" },
                             { name: "COREWEAVE-H200-PERP", label: "CoreWeave" },
                             { name: "GCP-H200-PERP", label: "Google Cloud" },
                           ] : [
-                            { name: "B200-PERP", label: "Global Average" },
-                            { name: "ORACLE-B200-PERP", label: "Oracle Cloud" },
+                            { name: "B200-PERP-V2", label: "Global Average" },
                             { name: "AWS-B200-PERP", label: "AWS" },
+                            { name: "ORACLE-B200-PERP", label: "Oracle Cloud" },
                             { name: "COREWEAVE-B200-PERP", label: "CoreWeave" },
                             { name: "GCP-B200-PERP", label: "Google Cloud" },
                           ]).map((market) => {
@@ -1110,13 +1135,13 @@ const LandingPage = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50" />
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                 </span>
-                <span className="text-[11px] font-semibold text-zinc-300 font-mono tracking-wide truncate">H100-PERP</span>
+                <span className="text-[11px] font-semibold text-zinc-300 font-mono tracking-wide truncate">H100-GPU-PERP</span>
                 <span className="hidden sm:inline text-[10px] text-zinc-600 font-mono uppercase tracking-[0.14em]">Perp · Index</span>
               </div>
               <div className="flex items-center gap-3 font-mono shrink-0">
                 <span className="hidden sm:inline text-[9px] text-zinc-600 uppercase tracking-[0.14em]">Last</span>
                 <span className="text-[11px] font-semibold text-white tabular-nums">
-                  {indexPrices?.["H100-PERP"] != null ? `$${Number(indexPrices["H100-PERP"]).toFixed(2)}` : "$3.77"}
+                  {indexPrices?.["H100-GPU-PERP"] != null ? `$${Number(indexPrices["H100-GPU-PERP"]).toFixed(2)}` : "$3.77"}
                 </span>
                 <span className="text-[10px] font-medium text-emerald-400 tabular-nums">+0.10%</span>
               </div>
@@ -1127,7 +1152,7 @@ const LandingPage = () => {
 
               {/* Chart — 8 cols, compact mode (no internal header), single blue line */}
               <div className="col-span-12 lg:col-span-8 h-[340px] lg:h-[400px] border-b lg:border-b-0 lg:border-r border-white/[0.06] relative">
-                <PriceIndexChart market="H100-PERP" compact />
+                <PriceIndexChart market="H100-GPU-PERP" compact />
               </div>
 
               {/* Order slice — 4 cols */}
