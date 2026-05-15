@@ -734,7 +734,7 @@ const TickerBar = () => {
       {/* ── Secondary stats ──────────────────────────────────────────────── */}
       <div className="flex items-stretch overflow-x-auto no-scrollbar">
         <Stat
-          value={`$${marketData?.indexPrice || "0.00"}`}
+          value={marketData?.indexPrice && marketData.indexPrice !== "N/A" ? `$${marketData.indexPrice}` : "N/A"}
           label="Index Price"
           tooltip={<InfoTooltip title="Index Price (Oracle)" description="Reference price from external oracles tracking real GPU rental rates. Used to calculate funding rates." />}
         />

@@ -13,16 +13,24 @@ import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem';
 import { sepolia } from 'viem/chains';
 import * as dotenv from 'dotenv';
 import { SEPOLIA_CONTRACTS as DEPLOYED_CONTRACTS, getActiveMarkets } from '../src/contracts/addresses.js';
+import { toIndexerPriceSource } from '../src/config/marketsConfig.js';
 
 // Load environment variables
 dotenv.config();
+
+function normalizeSupabaseUrl(value) {
+  const url = value?.trim().replace(/^['"]|['"]$/g, "");
+  if (!url || /^https?:\/\//i.test(url)) return url;
+  if (/^[a-z0-9-]+\.supabase\.co\/?$/i.test(url)) return `https://${url.replace(/\/$/, "")}`;
+  return url;
+}
 
 // ==================== CONFIGURATION ====================
 
 const CONFIG = {
   // Supabase
-  supabaseUrl: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
-  supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_KEY,
+  supabaseUrl: normalizeSupabaseUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_KEY,
 
   // Blockchain
   rpcUrl: process.env.RPC_URL || process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com',
@@ -56,32 +64,6 @@ const CONFIG = {
 
 // ==================== MARKETS ====================
 
-const PRICE_TABLES = {
-  'A100-PERP': { tableName: 'a100_index_prices', priceField: 'index_price', timeField: 'recorded_at' },
-  'B200-PERP-V2': { tableName: 'b200_index_prices', priceField: 'index_price' },
-  'AWS-B200-PERP': { tableName: 'b200_provider_prices', priceField: 'effective_price', providerFilter: 'AWS' },
-  'ORACLE-B200-PERP': { tableName: 'b200_provider_prices', priceField: 'effective_price', providerFilter: 'Oracle' },
-  'COREWEAVE-B200-PERP': { tableName: 'b200_provider_prices', priceField: 'effective_price', providerFilter: 'CoreWeave' },
-  'GCP-B200-PERP': { tableName: 'b200_provider_prices', priceField: 'effective_price', providerFilter: 'Google Cloud' },
-  'H200-PERP-V2': { tableName: 'h200_index_prices', priceField: 'index_price' },
-  'ORACLE-H200-PERP': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Oracle' },
-  'ORACLE-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Oracle' },
-  'AWS-H200-PERP': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'AWS' },
-  'AWS-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'AWS' },
-  'COREWEAVE-H200-PERP': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'CoreWeave' },
-  'COREWEAVE-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'CoreWeave' },
-  'GCP-H200-PERP': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Google Cloud' },
-  'GCP-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Google Cloud' },
-  'AZURE-H200-PERPETUAL': { tableName: 'h200_provider_prices', priceField: 'effective_price', providerFilter: 'Azure' },
-  'T4-PERP': { tableName: 't4_index_prices', priceField: 'index_price' },
-  'H100-GPU-PERP': { tableName: 'price_data', priceField: 'price', timeField: 'timestamp' },
-  'H100-HyperScalers-PERP': { tableName: 'h100_hyperscaler_prices', priceField: 'effective_price' },
-  'H100-non-HyperScalers-PERP-V2': { tableName: 'price_data', priceField: 'price', timeField: 'timestamp' },
-  'AWS-H100-PERP': { tableName: 'h100_hyperscaler_prices', priceField: 'effective_price', providerFilter: 'Amazon Web Services' },
-  'AZURE-H100-PERP': { tableName: 'h100_hyperscaler_prices', priceField: 'effective_price', providerFilter: 'Microsoft Azure' },
-  'GCP-H100-PERP': { tableName: 'h100_hyperscaler_prices', priceField: 'effective_price', providerFilter: 'Google Cloud' },
-};
-
 const MARKETS = getActiveMarkets()
   .filter((market) => !market.isAlias)
   .map((market) => ({
@@ -90,7 +72,7 @@ const MARKETS = getActiveMarkets()
     displayName: market.displayName,
     vammAddress: market.vamm,
     oracleAddress: market.oracle,
-    ...(PRICE_TABLES[market.name] || { tableName: 'price_data', priceField: 'price', timeField: 'timestamp' }),
+    ...toIndexerPriceSource(market.name),
     active: market.active,
   }));
 
@@ -207,7 +189,7 @@ function initializeClients() {
     throw new Error('SUPABASE_URL or VITE_SUPABASE_URL not configured');
   }
   if (!CONFIG.supabaseServiceKey) {
-    throw new Error('SUPABASE_SERVICE_KEY or VITE_SUPABASE_SERVICE_KEY not configured');
+    throw new Error('SUPABASE_SERVICE_KEY, SUPABASE_SERVICE_ROLE_KEY, or VITE_SUPABASE_SERVICE_KEY not configured');
   }
 
   // Initialize Supabase

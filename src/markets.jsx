@@ -6,32 +6,11 @@ import { getMarketStats24h } from "./services/api";
 import PageTransition from "./components/PageTransition";
 import { HiMagnifyingGlass } from "react-icons/hi2";
 import Sparkline from "./components/Sparkline";
+import { getPriceSource } from "./config/marketsConfig";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
-const PRICE_TABLES = {
-  "A100-PERP": { table: "a100_index_prices", priceField: "index_price" },
-  "B200-PERP-V2": { table: "b200_index_prices", priceField: "index_price" },
-  "AWS-B200-PERP": { table: "b200_provider_prices", priceField: "effective_price", providerFilter: "AWS" },
-  "ORACLE-B200-PERP": { table: "b200_provider_prices", priceField: "effective_price", providerFilter: "Oracle" },
-  "COREWEAVE-B200-PERP": { table: "b200_provider_prices", priceField: "effective_price", providerFilter: "CoreWeave" },
-  "GCP-B200-PERP": { table: "b200_provider_prices", priceField: "effective_price", providerFilter: "Google Cloud" },
-  "H200-PERP-V2": { table: "h200_index_prices", priceField: "index_price" },
-  "T4-PERP": { table: "t4_index_prices", priceField: "index_price" },
-  "H100-GPU-PERP": { table: "price_data", priceField: "price", timeField: "timestamp" },
-  "H100-HyperScalers-PERP": { table: "h100_hyperscaler_prices", priceField: "effective_price" },
-  "H100-non-HyperScalers-PERP-V2": { table: "price_data", priceField: "price", timeField: "timestamp" },
-  "AWS-H100-PERP": { table: "h100_hyperscaler_prices", priceField: "effective_price", providerFilter: "Amazon Web Services" },
-  "AZURE-H100-PERP": { table: "h100_hyperscaler_prices", priceField: "effective_price", providerFilter: "Microsoft Azure" },
-  "GCP-H100-PERP": { table: "h100_hyperscaler_prices", priceField: "effective_price", providerFilter: "Google Cloud" },
-  "AWS-H200-PERP": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "AWS" },
-  "AZURE-H200-PERPETUAL": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "Azure" },
-  "COREWEAVE-H200-PERP": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "CoreWeave" },
-  "GCP-H200-PERP": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "Google Cloud" },
-  "ORACLE-H200-PERP": { table: "h200_provider_prices", priceField: "effective_price", providerFilter: "Oracle" },
-};
-
 const MARKETS_CONFIG = getActiveMarkets()
   .filter((market) => !market.isAlias)
   .map((market) => ({
@@ -40,7 +19,7 @@ const MARKETS_CONFIG = getActiveMarkets()
     fullName: market.fullName,
     category: market.category === "gpu" ? "gpu" : "hyperscaler",
     description: market.description,
-    ...(PRICE_TABLES[market.name] || { table: "price_data", priceField: "price", timeField: "timestamp" }),
+    ...getPriceSource(market.name),
   }));
 
 const BADGE_META = {

@@ -4,6 +4,7 @@
  */
 
 import { supabase } from "../creatclient";
+import { MARKETS } from "../contracts/addresses";
 
 // Configuration for the datafeed
 const configurationData = {
@@ -23,97 +24,33 @@ const configurationData = {
   ],
 };
 
-// Map of symbol names to their display info
-const symbolsInfo = {
-  "H100-PERP": {
-    name: "H100-PERP",
-    description: "NVIDIA H100 GPU Index Perpetual",
-    type: "gpu",
-    session: "24x7",
-    timezone: "Etc/UTC",
-    ticker: "H100-PERP",
-    minmov: 1,
-    pricescale: 100,
-    has_intraday: true,
-    has_weekly_and_monthly: true,
-    supported_resolutions: configurationData.supported_resolutions,
-    volume_precision: 2,
-    data_status: "streaming",
-  },
-  "B200-PERP": {
-    name: "B200-PERP",
-    description: "NVIDIA B200 GPU Index Perpetual",
-    type: "gpu",
-    session: "24x7",
-    timezone: "Etc/UTC",
-    ticker: "B200-PERP",
-    minmov: 1,
-    pricescale: 100,
-    has_intraday: true,
-    has_weekly_and_monthly: true,
-    supported_resolutions: configurationData.supported_resolutions,
-    volume_precision: 2,
-    data_status: "streaming",
-  },
-  "H200-PERP": {
-    name: "H200-PERP",
-    description: "NVIDIA H200 GPU Index Perpetual",
-    type: "gpu",
-    session: "24x7",
-    timezone: "Etc/UTC",
-    ticker: "H200-PERP",
-    minmov: 1,
-    pricescale: 100,
-    has_intraday: true,
-    has_weekly_and_monthly: true,
-    supported_resolutions: configurationData.supported_resolutions,
-    volume_precision: 2,
-    data_status: "streaming",
-  },
-  "A100-PERP": {
-    name: "A100-PERP",
-    description: "NVIDIA A100 GPU Index Perpetual",
-    type: "gpu",
-    session: "24x7",
-    timezone: "Etc/UTC",
-    ticker: "A100-PERP",
-    minmov: 1,
-    pricescale: 100,
-    has_intraday: true,
-    has_weekly_and_monthly: true,
-    supported_resolutions: configurationData.supported_resolutions,
-    volume_precision: 2,
-    data_status: "streaming",
-  },
-};
-
-[
-  ["H100-GPU-PERP", "NVIDIA H100 GPU Index Perpetual"],
-  ["B200-PERP-V2", "NVIDIA B200 GPU Index Perpetual"],
-  ["AWS-B200-PERP", "AWS B200 GPU Perpetual"],
-  ["ORACLE-B200-PERP", "Oracle Cloud B200 GPU Perpetual"],
-  ["COREWEAVE-B200-PERP", "CoreWeave B200 GPU Perpetual"],
-  ["GCP-B200-PERP", "Google Cloud B200 GPU Perpetual"],
-  ["H200-PERP-V2", "NVIDIA H200 GPU Index Perpetual"],
-  ["ORACLE-H200-PERP", "Oracle Cloud H200 GPU Perpetual"],
-  ["AWS-H200-PERP", "AWS H200 GPU Perpetual"],
-  ["COREWEAVE-H200-PERP", "CoreWeave H200 GPU Perpetual"],
-  ["GCP-H200-PERP", "Google Cloud H200 GPU Perpetual"],
-  ["AZURE-H200-PERPETUAL", "Azure H200 GPU Perpetual"],
-  ["H100-HyperScalers-PERP", "H100 HyperScalers GPU Perpetual"],
-  ["H100-non-HyperScalers-PERP-V2", "H100 Neocloud GPU Perpetual"],
-  ["AWS-H100-PERP", "AWS H100 GPU Perpetual"],
-  ["AZURE-H100-PERP", "Azure H100 GPU Perpetual"],
-  ["GCP-H100-PERP", "Google Cloud H100 GPU Perpetual"],
-  ["T4-PERP", "NVIDIA T4 GPU Index Perpetual"],
-].forEach(([symbol, description]) => {
-  symbolsInfo[symbol] = {
-    ...(symbolsInfo[symbol] || symbolsInfo["H100-PERP"]),
+function buildSymbolInfo(symbol, description) {
+  return {
     name: symbol,
-    ticker: symbol,
     description,
+    type: "gpu",
+    session: "24x7",
+    timezone: "Etc/UTC",
+    ticker: symbol,
+    minmov: 1,
+    pricescale: 100,
+    has_intraday: true,
+    has_weekly_and_monthly: true,
+    supported_resolutions: configurationData.supported_resolutions,
+    volume_precision: 2,
+    data_status: "streaming",
   };
-});
+}
+
+// Map of symbol names to their display info, derived from deployed market config.
+const symbolsInfo = Object.fromEntries(
+  Object.values(MARKETS)
+    .filter((market) => market.active)
+    .map((market) => [
+      market.name,
+      buildSymbolInfo(market.name, market.fullName || `${market.displayName} Perpetual`),
+    ])
+);
 
 // Store active subscriptions
 const subscriptions = new Map();
@@ -124,6 +61,14 @@ const CACHE_TTL = 60000; // 1 minute cache TTL
 
 // Maximum bars to fetch per request (optimization - keep low for fast initial load)
 const MAX_BARS_PER_REQUEST = 500;
+
+function getMarketNamesForHistory(symbolName) {
+  const names = new Set([symbolName]);
+  const market = MARKETS[symbolName];
+  if (market?.aliasFor) names.add(market.aliasFor);
+  if (symbolName === "H100-PERP") names.add("H100-GPU-PERP");
+  return Array.from(names);
+}
 
 /**
  * Convert resolution string to interval in seconds
@@ -260,10 +205,7 @@ export const Datafeed = {
 
     try {
       // Build market names to query
-      let marketNames = [symbolInfo.name];
-      if (symbolInfo.name === "H100-PERP") {
-        marketNames.push("H100-GPU-PERP");
-      }
+      const marketNames = getMarketNamesForHistory(symbolInfo.name);
 
       // Use Supabase .in() filter to fetch ALL matching market names in one query
       // For first request, fetch everything (no time filter) so we have the full picture;
@@ -327,60 +269,24 @@ export const Datafeed = {
     let lastBar = null;
 
     
-    const channel = supabase
-      .channel(`tv_${subscriberUID}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "vamm_price_history",
-          filter: `market=eq.${symbolInfo.name}`,
-        },
-        (payload) => {
-          const price = parseFloat(payload.new.price);
-          const timestamp = new Date(payload.new.timestamp).getTime();
-          const barTime = Math.floor(timestamp / (resolutionSeconds * 1000)) * (resolutionSeconds * 1000);
+    const channel = supabase.channel(`tv_${subscriberUID}`);
 
-          if (!lastBar || lastBar.time < barTime) {
-            
-            lastBar = {
-              time: barTime,
-              open: price,
-              high: price,
-              low: price,
-              close: price,
-              volume: 1,
-            };
-          } else {
-            
-            lastBar.high = Math.max(lastBar.high, price);
-            lastBar.low = Math.min(lastBar.low, price);
-            lastBar.close = price;
-            lastBar.volume += 1;
-          }
-
-          onRealtimeCallback(lastBar);
-        }
-      )
-      .subscribe();
-
-    
-    if (symbolInfo.name === "H100-PERP") {
+    for (const marketName of getMarketNamesForHistory(symbolInfo.name)) {
       channel.on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "vamm_price_history",
-          filter: `market=eq.H100-GPU-PERP`,
-        },
-        (payload) => {
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "vamm_price_history",
+            filter: `market=eq.${marketName}`,
+          },
+          (payload) => {
           const price = parseFloat(payload.new.price);
           const timestamp = new Date(payload.new.timestamp).getTime();
           const barTime = Math.floor(timestamp / (resolutionSeconds * 1000)) * (resolutionSeconds * 1000);
 
           if (!lastBar || lastBar.time < barTime) {
+            
             lastBar = {
               time: barTime,
               open: price,
@@ -390,6 +296,7 @@ export const Datafeed = {
               volume: 1,
             };
           } else {
+            
             lastBar.high = Math.max(lastBar.high, price);
             lastBar.low = Math.min(lastBar.low, price);
             lastBar.close = price;
@@ -400,6 +307,8 @@ export const Datafeed = {
         }
       );
     }
+
+    channel.subscribe();
 
     subscriptions.set(subscriberUID, channel);
   },

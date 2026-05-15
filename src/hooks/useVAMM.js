@@ -121,10 +121,19 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
     query: { refetchInterval: 60000 },
   });
 
+  const { data: frMaxBpsPerHourRaw } = useReadContract({
+    address: vammAddress,
+    abi: VAMMABI.abi,
+    functionName: 'frMaxBpsPerHour',
+    chainId: SEPOLIA_CHAIN_ID,
+    query: { refetchInterval: 60000 },
+  });
+
   return {
     cumulativeFunding: cumulativeFunding ? formatUnits(cumulativeFunding, 18) : '0',
     lastFundingTime: lastFundingTime ? Number(lastFundingTime) : 0,
     kFundingX18: kFundingRaw ? formatUnits(kFundingRaw, 18) : '0',
+    frMaxBpsPerHour: frMaxBpsPerHourRaw ? Number(frMaxBpsPerHourRaw) : 0,
     cumulativeFundingRaw: cumulativeFunding,
   };
 }

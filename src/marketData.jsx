@@ -6,10 +6,51 @@ import { useOraclePrice } from "./hooks/useOracle";
 import { DEFAULT_MARKET_KEY, getActiveMarkets, getMarketByName } from "./contracts/addresses";
 import { getMarketStat24h } from "./services/api";
 import VAMMABI from "./contracts/abis/vAMM.json";
-import { supabase } from "./creatclient";
-import { SPARKLINE_CONFIG } from "./config/marketsConfig";
 
 const SEPOLIA_CHAIN_ID = 11155111;
+const ORACLE_ABI = [
+  {
+    inputs: [],
+    name: "getPrice",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "cuOracle",
+    outputs: [{ internalType: "contract CuOracle", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "assetId",
+    outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+    stateMutability: "view",
+    type: "function",
+  },
+];
+const CU_ORACLE_ABI = [
+  {
+    inputs: [{ internalType: "bytes32", name: "_assetId", type: "bytes32" }],
+    name: "getLatestPrice",
+    outputs: [
+      {
+        components: [
+          { internalType: "uint256", name: "price", type: "uint256" },
+          { internalType: "uint256", name: "lastUpdatedAt", type: "uint256" },
+        ],
+        internalType: "struct CuOracle.PriceData",
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+];
+
 const DEPLOYED_MARKETS = getActiveMarkets().map((market) => ({
   name: market.name,
   displayName: market.displayName,
@@ -32,7 +73,7 @@ function formatPrice(value) {
   });
 }
 
-function emptyMarket(market, markPrice = 0, stats = null) {
+function emptyMarket(market, markPrice = 0, oraclePrice = 0, stats = null) {
   const change24hValue = stats?.change_24h_percent != null
     ? Number(stats.change_24h_percent)
     : 0;
@@ -47,7 +88,10 @@ function emptyMarket(market, markPrice = 0, stats = null) {
     vammAddress: market.vammAddress,
     marketId: market.marketId,
     markPrice,
+    markPriceRaw: markPrice,
+    oraclePriceRaw: oraclePrice || null,
     price: formatPrice(markPrice),
+    indexPrice: oraclePrice > 0 ? formatPrice(oraclePrice) : "N/A",
     change24h: `${change24hValue.toFixed(2)}%`,
     change24hValue,
     volume24h: stats?.volume_24h_usd
@@ -60,12 +104,32 @@ export const useMarketsData = () => {
   const [statsByMarket, setStatsByMarket] = useState({});
 
   const contracts = useMemo(
-    () => DEPLOYED_MARKETS.map((market) => ({
-      address: market.vammAddress,
-      abi: VAMMABI.abi,
-      functionName: "getMarkPrice",
-      chainId: SEPOLIA_CHAIN_ID,
-    })),
+    () => DEPLOYED_MARKETS.flatMap((market) => ([
+      {
+        address: market.vammAddress,
+        abi: VAMMABI.abi,
+        functionName: "getMarkPrice",
+        chainId: SEPOLIA_CHAIN_ID,
+      },
+      {
+        address: market.oracleAddress,
+        abi: ORACLE_ABI,
+        functionName: "getPrice",
+        chainId: SEPOLIA_CHAIN_ID,
+      },
+      {
+        address: market.oracleAddress,
+        abi: ORACLE_ABI,
+        functionName: "cuOracle",
+        chainId: SEPOLIA_CHAIN_ID,
+      },
+      {
+        address: market.oracleAddress,
+        abi: ORACLE_ABI,
+        functionName: "assetId",
+        chainId: SEPOLIA_CHAIN_ID,
+      },
+    ])),
     []
   );
 
@@ -75,6 +139,50 @@ export const useMarketsData = () => {
       refetchInterval: 5000,
     },
   });
+
+  const latestOracleContracts = useMemo(() => {
+    if (!data) return [];
+    return DEPLOYED_MARKETS.map((market, index) => {
+      const cuOracleResult = data[index * 4 + 2];
+      const assetIdResult = data[index * 4 + 3];
+      if (cuOracleResult?.status !== "success" || assetIdResult?.status !== "success") {
+        return null;
+      }
+      return {
+        address: cuOracleResult.result,
+        abi: CU_ORACLE_ABI,
+        functionName: "getLatestPrice",
+        args: [assetIdResult.result],
+        chainId: SEPOLIA_CHAIN_ID,
+      };
+    }).filter(Boolean);
+  }, [data]);
+
+  const { data: latestOracleData } = useReadContracts({
+    contracts: latestOracleContracts,
+    query: {
+      enabled: latestOracleContracts.length > 0,
+      refetchInterval: 5000,
+    },
+  });
+
+  const latestOracleByMarket = useMemo(() => {
+    if (!data || !latestOracleData) return {};
+    const entries = [];
+    let latestIndex = 0;
+    DEPLOYED_MARKETS.forEach((market, index) => {
+      const cuOracleResult = data[index * 4 + 2];
+      const assetIdResult = data[index * 4 + 3];
+      if (cuOracleResult?.status === "success" && assetIdResult?.status === "success") {
+        const latestResult = latestOracleData[latestIndex++];
+        if (latestResult?.status === "success") {
+          const rawPrice = latestResult.result?.price ?? latestResult.result?.[0];
+          entries.push([market.name, rawPrice]);
+        }
+      }
+    });
+    return Object.fromEntries(entries);
+  }, [data, latestOracleData]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,10 +208,15 @@ export const useMarketsData = () => {
   }, []);
 
   const markets = DEPLOYED_MARKETS.map((market, index) => {
-    const result = data?.[index];
-    const rawPrice = result?.status === "success" ? result.result : null;
-    const markPrice = rawPrice ? Number(formatUnits(rawPrice, 18)) : 0;
-    return emptyMarket(market, markPrice, statsByMarket[market.marketId]);
+    const markResult = data?.[index * 4];
+    const oracleResult = data?.[index * 4 + 1];
+    const rawMarkPrice = markResult?.status === "success" ? markResult.result : null;
+    const rawOraclePrice = oracleResult?.status === "success"
+      ? oracleResult.result
+      : latestOracleByMarket[market.name];
+    const markPrice = rawMarkPrice ? Number(formatUnits(rawMarkPrice, 18)) : 0;
+    const oraclePrice = rawOraclePrice ? Number(formatUnits(rawOraclePrice, 18)) : 0;
+    return emptyMarket(market, markPrice, oraclePrice, statsByMarket[market.marketId]);
   });
 
   return {
@@ -134,7 +247,6 @@ export const getMarketDetails = (marketName) => {
 export const useMarketRealTimeData = (marketName) => {
   const [data, setData] = useState(null);
   const [stats24h, setStats24h] = useState(null);
-  const [dbIndexPrice, setDbIndexPrice] = useState(null);
   const market = DEPLOYED_MARKETS.find((m) => m.name === marketName) || getMarketByName(marketName);
 
   const vammAddress = market?.vammAddress || market?.vamm;
@@ -143,7 +255,7 @@ export const useMarketRealTimeData = (marketName) => {
 
   const { price: markPrice, isLoading: priceLoading } = useMarkPrice(vammAddress, 5000);
   const { twap, isLoading: twapLoading } = useTWAP(vammAddress, 900);
-  const { cumulativeFunding, lastFundingTime, kFundingX18 } = useFundingRate(vammAddress);
+  const { cumulativeFunding, lastFundingTime, kFundingX18, frMaxBpsPerHour } = useFundingRate(vammAddress);
   const { price: oraclePrice, isLoading: oracleLoading } = useOraclePrice(oracleAddress, 10000);
 
   useEffect(() => {
@@ -166,49 +278,29 @@ export const useMarketRealTimeData = (marketName) => {
     };
   }, [marketId]);
 
-  // Fallback: fetch latest index price from Supabase price tables when on-chain oracle returns 0
-  useEffect(() => {
-    const cfg = SPARKLINE_CONFIG[marketName];
-    if (!cfg) return;
-    let cancelled = false;
-    const fetchDbPrice = async () => {
-      try {
-        const timeField = cfg.timeField || "created_at";
-        let q = supabase
-          .from(cfg.table)
-          .select(cfg.priceField)
-          .order(timeField, { ascending: false })
-          .limit(1);
-        if (cfg.providerFilter) q = q.eq("provider_name", cfg.providerFilter);
-        const { data: rows } = await q;
-        if (!cancelled && rows?.[0]) {
-          const val = parseFloat(rows[0][cfg.priceField]);
-          if (val > 0) setDbIndexPrice(val);
-        }
-      } catch (_) {}
-    };
-    fetchDbPrice();
-    const id = setInterval(fetchDbPrice, 30000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, [marketName]);
-
   useEffect(() => {
     if (!market || priceLoading || !markPrice) return;
 
     const markPriceNum = parseFloat(markPrice);
     const twapNum = twap ? parseFloat(twap) : markPriceNum;
     const parsedOraclePrice = oraclePrice ? parseFloat(oraclePrice) : 0;
-
-    // Index price: prefer live contract oracle, fall back to Supabase price table
-    const oraclePriceNum = parsedOraclePrice > 0 ? parsedOraclePrice : (dbIndexPrice || markPriceNum);
+    const oraclePriceNum = parsedOraclePrice > 0 ? parsedOraclePrice : 0;
 
     // Premium = (markPrice - indexPrice) / indexPrice
     const premiumDecimal = oraclePriceNum > 0 ? (markPriceNum - oraclePriceNum) / oraclePriceNum : 0;
     const premium = premiumDecimal * 100;
 
-    // Funding rate = kFunding × premium
+    // Funding / 8h, derived from contract parameters and clamped like vAMM funding.
     const kFunding = parseFloat(kFundingX18 || '0');
-    const fundingRateDecimal = kFunding * premiumDecimal;
+    const eightHours = 8;
+    const rawFundingRateDecimal = kFunding * premiumDecimal * (eightHours / 24);
+    const maxFundingRateDecimal = frMaxBpsPerHour > 0
+      ? (frMaxBpsPerHour * eightHours) / 10000
+      : Number.POSITIVE_INFINITY;
+    const fundingRateDecimal = Math.max(
+      -maxFundingRateDecimal,
+      Math.min(maxFundingRateDecimal, rawFundingRateDecimal)
+    );
     const fundingRatePct = fundingRateDecimal * 100;
     const fundingRateAnnualized = fundingRatePct * 3 * 365;
 
@@ -226,10 +318,10 @@ export const useMarketRealTimeData = (marketName) => {
       marketId,
       markPriceRaw: markPriceNum,
       twapRaw: twapNum,
-      oraclePriceRaw: oraclePriceNum,
+      oraclePriceRaw: oraclePriceNum || null,
       fundingRateRaw: fundingRateDecimal,
       price: formatPrice(markPriceNum),
-      indexPrice: oraclePriceNum.toFixed(2),
+      indexPrice: oraclePriceNum > 0 ? oraclePriceNum.toFixed(2) : "N/A",
       vammPrice: formatPrice(twapNum),
       fundingRate: fundingRatePct >= 0 ? `+${fundingRatePct.toFixed(4)}%` : `${fundingRatePct.toFixed(4)}%`,
       fundingRateAnnualized: `${fundingRateAnnualized.toFixed(2)}% APR`,
@@ -243,6 +335,8 @@ export const useMarketRealTimeData = (marketName) => {
       trades24h: stats24h?.trades_24h || 0,
       openInterest: "N/A",
       lastFundingTime,
+      cumulativeFunding,
+      frMaxBpsPerHour,
       premium: `${premium.toFixed(6)}%`,
       premiumRaw: premium,
       isPriceLoaded: !priceLoading,
@@ -259,11 +353,11 @@ export const useMarketRealTimeData = (marketName) => {
     cumulativeFunding,
     lastFundingTime,
     kFundingX18,
+    frMaxBpsPerHour,
     priceLoading,
     twapLoading,
     oracleLoading,
     stats24h,
-    dbIndexPrice,
   ]);
 
   if (!market) {

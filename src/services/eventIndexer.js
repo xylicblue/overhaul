@@ -14,9 +14,17 @@ const runtimeEnv = typeof process !== 'undefined' ? process.env : {};
 const viteEnv = import.meta.env || {};
 const env = (key) => viteEnv[key] || runtimeEnv[key];
 
+function normalizeSupabaseUrl(value) {
+  const url = value?.trim().replace(/^['"]|['"]$/g, "");
+  if (!url || /^https?:\/\//i.test(url)) return url;
+  if (/^[a-z0-9-]+\.supabase\.co\/?$/i.test(url)) return `https://${url.replace(/\/$/, "")}`;
+  return url;
+}
+
 // Supabase client (will use service role key from env)
-const supabaseUrl = env('VITE_SUPABASE_URL') || env('SUPABASE_URL');
-const supabaseServiceKey = env('VITE_SUPABASE_SERVICE_KEY') || env('SUPABASE_SERVICE_KEY');
+const supabaseUrl = normalizeSupabaseUrl(env('VITE_SUPABASE_URL') || env('SUPABASE_URL'));
+const supabaseServiceKey = env('VITE_SUPABASE_SERVICE_KEY') || env('SUPABASE_SERVICE_KEY') || env('SUPABASE_SERVICE_ROLE_KEY');
+const supabaseAnonKey = env('VITE_SUPABASE_ANON_KEY') || env('SUPABASE_ANON_KEY') || env('SUPABASE_ANON_PUBLIC_KEY');
 
 let supabase = null;
 
@@ -50,7 +58,7 @@ export function initializeIndexer(serviceKey = null) {
   if (!key) {
     console.warn('⚠️ No service key provided. Using anon key (limited permissions)');
     // Fallback to anon key for read-only operations
-    supabase = createClient(supabaseUrl, env('VITE_SUPABASE_ANON_KEY') || env('SUPABASE_ANON_KEY'));
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
     return false; // Can't write
   }
 

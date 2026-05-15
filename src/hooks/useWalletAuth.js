@@ -5,7 +5,16 @@ import { useState, useCallback } from "react";
 import { supabase } from "../creatclient";
 import toast from "react-hot-toast";
 
-const EDGE_FUNCTION_URL = `${import.meta.env.VITE_API_GATEWAY_URL || import.meta.env.VITE_SUPABASE_URL}/functions/v1/wallet-auth`;
+function normalizeSupabaseUrl(value) {
+  const url = value?.trim().replace(/^['"]|['"]$/g, "");
+  if (!url || /^https?:\/\//i.test(url)) return url;
+  if (/^[a-z0-9-]+\.supabase\.co\/?$/i.test(url)) return `https://${url.replace(/\/$/, "")}`;
+  return url;
+}
+
+const SUPABASE_URL = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL);
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_PUBLIC_KEY;
+const EDGE_FUNCTION_URL = `${import.meta.env.VITE_API_GATEWAY_URL || SUPABASE_URL}/functions/v1/wallet-auth`;
 
 /**
  * Call the wallet-auth edge function
@@ -15,7 +24,7 @@ async function callWalletAuth(payload) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      apikey: ANON_KEY,
     },
     body: JSON.stringify(payload),
   });

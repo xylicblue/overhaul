@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Chart from "react-apexcharts";
 import { supabase } from "./creatclient";
+import { toDatafeedConfig } from "./config/marketsConfig";
 
 const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = false }) => {
   const [loading, setLoading] = useState(true);
@@ -41,7 +42,7 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
     },
     "H100-non-HyperScalers-PERP": {
       displayName: "Neocloud",
-      tableName: "price_data",
+      tableName: "h100_non_hyperscalers_perp_prices",
       fallbackTable: null,
       priceField: "price",
       timestampField: "timestamp",
@@ -164,14 +165,13 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
 
   marketConfig["H100-GPU-PERP"] = marketConfig["H100-PERP"];
   marketConfig["H100-HyperScalers-PERP"] = {
-    displayName: "H100 HyperScalers",
-    tableName: "h100_hyperscaler_prices",
+    ...toDatafeedConfig("H100-HyperScalers-PERP", "H100 HyperScalers"),
     fallbackTable: null,
-    priceField: "effective_price",
   };
   marketConfig["B200-PERP-V2"] = marketConfig["B200-PERP"];
   marketConfig["H200-PERP-V2"] = marketConfig["H200-PERP"];
   marketConfig["H100-non-HyperScalers-PERP-V2"] = marketConfig["H100-non-HyperScalers-PERP"];
+  marketConfig["AZURE-H200-PERPETUAL"] = marketConfig["AZURE-H200-PERP"];
   
   const config = marketConfig[market] || {
     displayName: market,

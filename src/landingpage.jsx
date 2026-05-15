@@ -28,6 +28,7 @@ import { useDisconnect } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotificationStore } from "./stores/useNotificationStore";
 import { useTradingStore } from "./stores/useTradingStore";
+import { getPriceSource } from "./config/marketsConfig";
 
 /* ─── Animation Variants (trigger-once) ─── */
 const staggerContainer = {
@@ -283,49 +284,32 @@ const LandingPage = () => {
   const [indexPrices, setIndexPrices] = useState({});
   useEffect(() => {
     (async () => {
-      const [
-        h100,
-        b200,
-        t4,
-        oracleH200,
-        awsH200,
-        coreweaveH200,
-        gcpH200,
-        h100Neocloud,
-        awsB200,
-        oracleB200,
-        coreweaveB200,
-        gcpB200,
-      ] = await Promise.all([
-        // GPU index markets
-        supabase.from("price_data").select("price").order("timestamp", { ascending: false }).limit(1).single(),
-        supabase.from("b200_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("t4_index_prices").select("index_price").order("created_at", { ascending: false }).limit(1).single(),
-        // Provider markets (mirror SPARKLINE_CONFIG providerFilter values)
-        supabase.from("h200_provider_prices").select("effective_price").eq("provider_name", "Oracle").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("h200_provider_prices").select("effective_price").eq("provider_name", "AWS").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("h200_provider_prices").select("effective_price").eq("provider_name", "CoreWeave").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("h200_provider_prices").select("effective_price").eq("provider_name", "Google Cloud").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("price_data").select("price").order("timestamp", { ascending: false }).limit(1).single(),
-        supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "AWS").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "Oracle").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "CoreWeave").order("created_at", { ascending: false }).limit(1).single(),
-        supabase.from("b200_provider_prices").select("effective_price").eq("provider_name", "Google Cloud").order("created_at", { ascending: false }).limit(1).single(),
-      ]);
-      setIndexPrices({
-        "H100-GPU-PERP":       h100.data?.price                   != null ? parseFloat(h100.data.price)                         : null,
-        "B200-PERP-V2":        b200.data?.index_price             != null ? parseFloat(b200.data.index_price)                   : null,
-        "AWS-B200-PERP":       awsB200.data?.effective_price      != null ? parseFloat(awsB200.data.effective_price)            : null,
-        "ORACLE-B200-PERP":    oracleB200.data?.effective_price   != null ? parseFloat(oracleB200.data.effective_price)         : null,
-        "COREWEAVE-B200-PERP": coreweaveB200.data?.effective_price != null ? parseFloat(coreweaveB200.data.effective_price)    : null,
-        "GCP-B200-PERP":       gcpB200.data?.effective_price      != null ? parseFloat(gcpB200.data.effective_price)            : null,
-        "T4-PERP":             t4.data?.index_price               != null ? parseFloat(t4.data.index_price)                     : null,
-        "ORACLE-H200-PERP":    oracleH200.data?.effective_price   != null ? parseFloat(oracleH200.data.effective_price)         : null,
-        "AWS-H200-PERP":       awsH200.data?.effective_price      != null ? parseFloat(awsH200.data.effective_price)            : null,
-        "COREWEAVE-H200-PERP": coreweaveH200.data?.effective_price != null ? parseFloat(coreweaveH200.data.effective_price)    : null,
-        "GCP-H200-PERP":       gcpH200.data?.effective_price      != null ? parseFloat(gcpH200.data.effective_price)            : null,
-        "H100-non-HyperScalers-PERP-V2": h100Neocloud.data?.price != null ? parseFloat(h100Neocloud.data.price) : null,
-      });
+      const marketIds = Array.from(new Set([
+        ...GPU_INDEX_MARKETS.map((market) => market.id),
+        ...HERO_TICKER_MARKETS.map((market) => market.id),
+      ]));
+
+      const entries = await Promise.all(marketIds.map(async (marketId) => {
+        const source = getPriceSource(marketId);
+        const timeField = source.timeField || "created_at";
+        let query = supabase
+          .from(source.table)
+          .select(`${source.priceField}, ${timeField}`)
+          .order(timeField, { ascending: false })
+          .limit(1);
+
+        if (source.providerFilter) {
+          query = query.eq("provider_name", source.providerFilter);
+        }
+
+        const { data } = await query.single();
+        const value = data?.[source.priceField] != null
+          ? parseFloat(data[source.priceField])
+          : null;
+        return [marketId, value];
+      }));
+
+      setIndexPrices(Object.fromEntries(entries));
     })();
   }, []);
 
