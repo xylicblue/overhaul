@@ -700,12 +700,12 @@ const LandingPage = () => {
               {/* Status strip — concrete proof points */}
               <motion.div
                 variants={fadeUpSubtle}
-                className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-zinc-500"
+                className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-zinc-300"
               >
                 <span>16 markets live</span>
-                <span className="w-px h-3 bg-white/[0.08]" />
+                <span className="w-px h-3 bg-white/[0.15]" />
                 <span>Onchain settlement</span>
-                <span className="w-px h-3 bg-white/[0.08]" />
+                <span className="w-px h-3 bg-white/[0.15]" />
                 <span className="inline-flex items-center gap-2">
                   <span>Audited by</span>
                   <a
@@ -945,7 +945,7 @@ const LandingPage = () => {
 
             {/* Section header — restrained, product-driven */}
             <motion.div variants={blurFadeIn} className="text-center mb-10">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 mb-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-300 mb-3">
                 Indices
               </p>
               <h2 className="text-3xl md:text-[38px] font-semibold text-white tracking-[-0.02em] leading-[1.1] mb-3">
@@ -1096,7 +1096,7 @@ const LandingPage = () => {
           {/* Section header — eyebrow + tight heading + corner CTA */}
           <AnimatedSection className="mb-8 flex items-end justify-between flex-wrap gap-4">
             <motion.div variants={fadeUpSubtle}>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 mb-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-300 mb-3">
                 Interface
               </p>
               <h2 className="text-2xl md:text-[28px] font-semibold text-white tracking-[-0.015em] leading-[1.1]">
@@ -1241,7 +1241,7 @@ const LandingPage = () => {
           <AnimatedSection className="mb-12 md:mb-14 max-w-3xl mx-auto text-center">
             <motion.p
               variants={fadeUpSubtle}
-              className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 mb-3"
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-300 mb-3"
             >
               Market Context
             </motion.p>
@@ -1300,7 +1300,7 @@ const LandingPage = () => {
 
               {/* ─── LEFT: Context ─── */}
               <motion.div variants={fadeUp} className="lg:col-span-5 lg:sticky lg:top-32">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 mb-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-300 mb-3">
                   Get in Touch
                 </p>
                 <h2 className="text-3xl md:text-[40px] font-semibold text-white tracking-[-0.02em] leading-[1.1] mb-4">
@@ -1428,7 +1428,7 @@ const LandingPage = () => {
 
             {/* Header */}
             <motion.div variants={fadeUp} className="mb-12">
-              <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-4">About Us</p>
+              <p className="text-[11px] text-zinc-300 uppercase tracking-widest font-semibold mb-4">About Us</p>
               <h2 className="text-4xl md:text-5xl font-semibold text-white tracking-tight leading-[1.1] mb-5">
                 The Financial Layer<br className="hidden sm:block" /> For Compute.
               </h2>
