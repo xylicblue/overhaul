@@ -663,7 +663,7 @@ const LandingPage = () => {
                 variants={blurFadeIn}
                 className="text-[42px] sm:text-5xl md:text-[58px] lg:text-[68px] font-semibold text-white tracking-[-0.025em] leading-[1.04] mb-6"
               >
-                A Futures Exchange<br className="hidden sm:block" /> For Gpu Compute.
+                A Futures Exchange<br className="hidden sm:block" /> For AI Compute.
               </motion.h1>
 
               {/* Subheading — what it is, in one sentence */}
@@ -1067,7 +1067,7 @@ const LandingPage = () => {
               variants={fadeUp}
               className="w-full max-w-5xl mt-10 pt-6 border-t border-white/[0.05] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3"
             >
-              <p className="text-zinc-500 text-[13px] leading-relaxed max-w-xl">
+              <p className="text-zinc-300 text-[13px] leading-relaxed max-w-xl">
                 Indices are computed from real-time provider pricing with revenue-weighted
                 adjustments and performance normalization.
               </p>
@@ -1271,7 +1271,7 @@ const LandingPage = () => {
                 className="bg-[#0a0a0f] hover:bg-[#0c0c14] transition-colors duration-150 p-6 md:p-7 flex flex-col gap-3"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-mono font-semibold text-zinc-600 tabular-nums">
+                  <span className="text-[13px] font-mono font-semibold text-zinc-400 tabular-nums">
                     {card.num}
                   </span>
                   <span className="flex-1 h-px bg-white/[0.06]" />
@@ -1279,7 +1279,7 @@ const LandingPage = () => {
                 <h3 className="text-[15px] font-semibold text-white leading-snug">
                   {card.title}
                 </h3>
-                <p className="text-zinc-500 text-[13px] leading-relaxed">
+                <p className="text-zinc-300 text-[13px] leading-relaxed">
                   {card.body}
                 </p>
               </motion.div>
@@ -1317,10 +1317,10 @@ const LandingPage = () => {
                     Or reach us directly
                   </div>
                   <a
-                    href="mailto:gabejaffe@byte-strike.com"
+                    href="mailto:info@byte-strike.com"
                     className="group inline-flex items-center gap-1.5 text-sm font-medium text-zinc-300 hover:text-white transition-colors"
                   >
-                    gabejaffe@byte-strike.com
+                    info@byte-strike.com
                     <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
@@ -1467,11 +1467,11 @@ const LandingPage = () => {
                   className="border border-white/[0.06] bg-white/[0.02] rounded-xl p-6 flex flex-col gap-4"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] text-zinc-600 tabular-nums">{num}</span>
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{label}</span>
+                    <span className="font-mono text-[13px] font-semibold text-zinc-400 tabular-nums">{num}</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-300">{label}</span>
                   </div>
                   <div className="h-px bg-white/[0.05]" />
-                  <p className="text-zinc-400 text-sm leading-relaxed">{body}</p>
+                  <p className="text-zinc-300 text-sm leading-relaxed">{body}</p>
                 </motion.div>
               ))}
             </div>
