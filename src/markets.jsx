@@ -312,7 +312,7 @@ const MarketsPage = () => {
           try {
             const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const { data: trades, error } = await supabase
-              .from("trade_history")
+              .from("public_trade_activity")
               .select("market, size, price")
               .gt("created_at", yesterday);
 

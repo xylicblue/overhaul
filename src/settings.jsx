@@ -45,10 +45,10 @@ const NotificationSettings = ({ session }) => {
       if (!session?.user) return;
       const { data } = await supabase
         .from("profiles")
-        .select("notification_preferences")
+        .select("broadcast_notification_prefs")
         .eq("id", session.user.id)
         .single();
-      if (data?.notification_preferences) setPrefs(data.notification_preferences);
+      if (data?.broadcast_notification_prefs) setPrefs(data.broadcast_notification_prefs);
       setLoaded(true);
     };
     load();
@@ -59,7 +59,7 @@ const NotificationSettings = ({ session }) => {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ notification_preferences: newPrefs })
+      .update({ broadcast_notification_prefs: newPrefs })
       .eq("id", session.user.id);
     setSaving(false);
     if (error) toast.error("Failed to save preferences");

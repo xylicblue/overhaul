@@ -11,7 +11,7 @@ import ConfirmationModal from "./ConfirmationModal";
 import EmptyState, { CompactEmptyState } from "./EmptyState";
 import { Wallet, TrendingUp, TrendingDown, X, AlertCircle, Activity } from "lucide-react";
 import { supabase } from "../creatclient";
-import { recordTrade } from "../services/api";
+import { recordTradeWithRetry } from "../services/tradeQueue";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PositionPanel
@@ -227,28 +227,26 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
           : 0;
         const closeNotional   = closedSize * (currentPrice || entryPrice);
         const closingFee      = (closeNotional * feeBps) / 10000;
-        try {
-          await recordTrade(
-            {
-              userAddress: address,
-              market: position.marketName || position.marketKey || "H100-GPU-PERP",
-              side: isLong ? "Long" : "Short",
-              size: closedSize,
-              price: currentPrice || entryPrice,
-              notional: closeNotional,
-              txHash: hash,
-              pnl: closedPnL,
-              fundingEarned: fundingEarned * closeProportion,
-              feesPaid: feesPaid * closeProportion + closingFee,
-            },
-            {
-              market: position.marketName || position.marketKey || "H100-PERP",
-              price: currentPrice || entryPrice,
-              twap: currentPrice || entryPrice,
-              timestamp: new Date().toISOString(),
-            }
-          );
-        } catch (e) { console.warn("Failed to record close trade:", e); }
+        await recordTradeWithRetry(
+          {
+            userAddress: address,
+            market: position.marketName || position.marketKey || "H100-GPU-PERP",
+            side: isLong ? "Long" : "Short",
+            size: closedSize,
+            price: currentPrice || entryPrice,
+            notional: closeNotional,
+            txHash: hash,
+            pnl: closedPnL,
+            fundingEarned: fundingEarned * closeProportion,
+            feesPaid: feesPaid * closeProportion + closingFee,
+          },
+          {
+            market: position.marketName || position.marketKey || "H100-PERP",
+            price: currentPrice || entryPrice,
+            twap: currentPrice || entryPrice,
+            timestamp: new Date().toISOString(),
+          }
+        );
       };
       save();
     }

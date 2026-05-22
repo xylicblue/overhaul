@@ -62,11 +62,11 @@ export const useNotificationStore = create(
       // Fetch preferences
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("notification_preferences")
+        .select("broadcast_notification_prefs")
         .eq("id", userId)
         .single();
-      if (profileData?.notification_preferences) {
-        set({ prefs: profileData.notification_preferences });
+      if (profileData?.broadcast_notification_prefs) {
+        set({ prefs: profileData.broadcast_notification_prefs });
       }
 
       // Fetch notifications
@@ -136,8 +136,8 @@ export const useNotificationStore = create(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${userId}` },
           (payload) => {
-            if (payload.new?.notification_preferences) {
-              set({ prefs: payload.new.notification_preferences });
+            if (payload.new?.broadcast_notification_prefs) {
+              set({ prefs: payload.new.broadcast_notification_prefs });
             }
           }
         )

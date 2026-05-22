@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from "react";
+import React, { lazy, Suspense, useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster, ToastBar, toast } from "react-hot-toast";
@@ -8,6 +8,8 @@ import "@rainbow-me/rainbowkit/styles.css";
 import "./App.css";
 
 import { RainbowKitProvider, getDefaultWallets } from "@rainbow-me/rainbowkit";
+import { useSessionRefresh } from "./hooks/useSessionRefresh.jsx";
+import { drainPendingTrades } from "./services/tradeQueue";
 import { createConfig, WagmiProvider, http } from "wagmi";
 import { mainnet, sepolia } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -112,6 +114,28 @@ function ScrollToTop() {
   return null;
 }
 
+// ── Session refresh + pending trades drain ───────────────────────────────────
+// Both run as invisible background components inside the app tree so they have
+// access to the Zustand store (auth modal) and the Toaster.
+function SessionManager() {
+  useSessionRefresh();
+  return null;
+}
+
+function PendingTradesDrain() {
+  useEffect(() => {
+    drainPendingTrades().then((count) => {
+      if (count > 0) {
+        // Dynamic import to avoid circular dep — toast is available by now
+        import("react-hot-toast").then(({ default: toast }) =>
+          toast.success(`Synced ${count} pending trade record${count > 1 ? "s" : ""}.`)
+        );
+      }
+    });
+  }, []);
+  return null;
+}
+
 // ── App ──────────────────────────────────────────────────────────────────────
 function App() {
   return (
@@ -121,6 +145,8 @@ function App() {
           <AuthModalProvider>
             <Router>
               <ScrollToTop />
+              <SessionManager />
+              <PendingTradesDrain />
               {/* AuthModal stays eager — it can be triggered from any page */}
               <AuthModal />
               <div className="App">

@@ -88,6 +88,40 @@ async function signWithSolana(message) {
 }
 
 /**
+ * Silently refresh the session for an already-known wallet address.
+ * Skips the "request accounts" step — jumps straight to nonce → sign → verify.
+ * Throws if the wallet is locked, disconnected, or the user rejects the signature.
+ *
+ * @param {string} address - The wallet address (already known from the expired session)
+ * @param {string} chain   - "ethereum" | "solana"
+ */
+export async function silentRefresh(address, chain) {
+  // 1. Get a fresh nonce
+  const { message } = await callWalletAuth({ action: "get-nonce", address, chain });
+
+  // 2. Sign with the wallet — this will pop up the wallet extension
+  let signature;
+  if (chain === "ethereum") {
+    const result = await signWithEthereum(message);
+    signature = result.signature;
+  } else {
+    const result = await signWithSolana(message);
+    signature = result.signature;
+  }
+
+  // 3. Verify signature and get a fresh JWT
+  const session = await callWalletAuth({ action: "verify", address, signature, chain });
+
+  // 4. Install the new session into the Supabase client
+  const { error } = await supabase.auth.setSession({
+    access_token:  session.access_token,
+    refresh_token: session.refresh_token,
+  });
+
+  if (error) throw error;
+}
+
+/**
  * useWalletAuth hook
  *
  * Returns:
