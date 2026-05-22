@@ -333,28 +333,106 @@ export const TradingPanel = ({ selectedMarket }) => {
 
           {/* Leverage */}
           <div>
-            <div className="flex items-baseline justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Leverage</label>
-              <span className={`text-[12px] font-mono font-medium tabular-nums ${sideAccent}`}>
+              <div
+                className={`px-2 py-0.5 rounded text-[13px] font-mono font-bold tabular-nums border ${
+                  isLong
+                    ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+                    : "bg-red-500/10 border-red-500/25 text-red-400"
+                }`}
+              >
                 {leverage}×
-              </span>
+              </div>
             </div>
-            <input
-              type="range"
-              min="1"
-              max="10"
-              step="1"
-              value={leverage}
-              onChange={e => setLeverage(parseInt(e.target.value))}
-              className={`w-full h-1 bg-zinc-800 rounded-full appearance-none cursor-pointer ${
-                isLong ? "accent-emerald-500" : "accent-red-500"
-              }`}
-            />
-            <div className="flex justify-between mt-1 text-[9px] font-mono text-zinc-600 tabular-nums">
-              <span>1×</span>
-              <span>3×</span>
-              <span>5×</span>
-              <span>10×</span>
+
+            {/* Track area */}
+            <div className="relative pb-5">
+              <div className="relative h-[5px] bg-zinc-800 rounded-full">
+
+                {/* Filled portion */}
+                <div
+                  className={`absolute inset-y-0 left-0 rounded-full ${isLong ? "bg-emerald-500" : "bg-red-500"}`}
+                  style={{ width: `${((leverage - 1) / 9) * 100}%` }}
+                />
+
+                {/* Tick dots at key leverage values */}
+                {[1, 2, 3, 5, 7, 10].map((v) => {
+                  const pct    = ((v - 1) / 9) * 100;
+                  const filled = v <= leverage;
+                  return (
+                    <div
+                      key={v}
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full border pointer-events-none"
+                      style={{
+                        left:            `${pct}%`,
+                        backgroundColor: filled ? (isLong ? "#10b981" : "#ef4444") : "#09090b",
+                        borderColor:     filled ? (isLong ? "#10b981" : "#ef4444") : "#3f3f46",
+                      }}
+                    />
+                  );
+                })}
+
+                {/* Custom thumb — glowing ring */}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[15px] h-[15px] rounded-full border-2 bg-[#09090b] pointer-events-none z-10"
+                  style={{
+                    left:        `${((leverage - 1) / 9) * 100}%`,
+                    borderColor: isLong ? "#10b981" : "#ef4444",
+                    boxShadow:   `0 0 0 3px ${isLong ? "rgba(16,185,129,0.18)" : "rgba(239,68,68,0.18)"}`,
+                  }}
+                />
+
+                {/* Native input — invisible, handles all drag + click interaction */}
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={leverage}
+                  onChange={(e) => setLeverage(parseInt(e.target.value))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                />
+              </div>
+
+              {/* Tick labels — clickable, snap to that value */}
+              <div className="relative h-4 mt-2">
+                {[
+                  { v: 1,  pct: 0   },
+                  { v: 2,  pct: ((2  - 1) / 9) * 100 },
+                  { v: 3,  pct: ((3  - 1) / 9) * 100 },
+                  { v: 5,  pct: ((5  - 1) / 9) * 100 },
+                  { v: 7,  pct: ((7  - 1) / 9) * 100 },
+                  { v: 10, pct: 100 },
+                ].map(({ v, pct }) => {
+                  const isSelected = v === leverage;
+                  const isPassed   = v < leverage;
+                  const posStyle   =
+                    v === 1
+                      ? { position: "absolute", left: 0 }
+                      : v === 10
+                      ? { position: "absolute", right: 0 }
+                      : { position: "absolute", left: `${pct}%`, transform: "translateX(-50%)" };
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => setLeverage(v)}
+                      className={`text-[11px] font-mono tabular-nums transition-colors duration-100 ${
+                        isSelected
+                          ? isLong
+                            ? "text-emerald-400 font-semibold"
+                            : "text-red-400 font-semibold"
+                          : isPassed
+                          ? "text-zinc-400 hover:text-zinc-200"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                      style={posStyle}
+                    >
+                      {v}×
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

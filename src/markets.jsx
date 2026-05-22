@@ -81,9 +81,6 @@ const GpuIndexCard = ({ market, price, change24h, volume24h, openInterest, index
       style={{ animation: `fadeSlideIn 0.4s ease-out ${index * 0.07}s both` }}
       onClick={() => (window.location.href = `/trade?market=${market.id}`)}
     >
-      {/* Top blue accent */}
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
-
       <div className="p-5 md:p-6 flex flex-col gap-5 flex-1">
 
         {/* ── Header ── */}
@@ -97,7 +94,7 @@ const GpuIndexCard = ({ market, price, change24h, volume24h, openInterest, index
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-zinc-500">{market.fullName}</p>
+            <p className="text-[11px] text-zinc-400">{market.fullName}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="text-[9px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.5 rounded">PERP</span>
@@ -116,13 +113,13 @@ const GpuIndexCard = ({ market, price, change24h, volume24h, openInterest, index
             <div className="text-[28px] leading-none font-mono font-semibold text-white tracking-tight">
               {price != null ? `$${price.toFixed(2)}` : <span className="text-zinc-600">—</span>}
             </div>
-            <div className="text-[10px] text-zinc-600 mt-1 uppercase tracking-widest">per GPU · hr</div>
+            <div className="text-[10px] text-zinc-500 mt-1 uppercase tracking-widest">per GPU · hr</div>
           </div>
           <div className={`text-right ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
             <div className="text-sm font-mono font-semibold">
               {isPositive ? "+" : ""}{(change24h || 0).toFixed(2)}%
             </div>
-            <div className="text-[10px] text-zinc-600 mt-1 uppercase tracking-widest">24h change</div>
+            <div className="text-[10px] text-zinc-500 mt-1 uppercase tracking-widest">24h change</div>
           </div>
         </div>
 
@@ -130,12 +127,12 @@ const GpuIndexCard = ({ market, price, change24h, volume24h, openInterest, index
         <div className="flex items-center gap-4 pt-4 border-t border-white/[0.05] mt-auto">
           <div>
             <div className="text-xs font-mono text-zinc-300">{fmtUsd(volume24h)}</div>
-            <div className="text-[9px] text-zinc-600 uppercase tracking-wide mt-0.5">24h Vol</div>
+            <div className="text-[9px] text-zinc-500 uppercase tracking-wide mt-0.5">24h Vol</div>
           </div>
           <div className="w-px h-7 bg-white/[0.06]" />
           <div>
             <div className="text-xs font-mono text-zinc-300">{fmtUsd(openInterest)}</div>
-            <div className="text-[9px] text-zinc-600 uppercase tracking-wide mt-0.5">Open Interest</div>
+            <div className="text-[9px] text-zinc-500 uppercase tracking-wide mt-0.5">Open Interest</div>
           </div>
           <Link
             to={`/trade?market=${market.id}`}
@@ -176,7 +173,7 @@ const HyperscalerRow = ({ market, price, change24h, volume24h, openInterest, ind
           </span>
           <div className="min-w-0">
             <div className="text-sm font-medium text-white leading-tight">{market.name}</div>
-            <div className="text-[10px] text-zinc-600 mt-0.5 truncate">{market.fullName}</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5 truncate">{market.fullName}</div>
           </div>
         </div>
       </td>
@@ -191,7 +188,7 @@ const HyperscalerRow = ({ market, price, change24h, volume24h, openInterest, ind
         <div className="text-sm font-mono font-medium text-white">
           {price != null ? `$${price.toFixed(2)}` : <span className="text-zinc-600">—</span>}
         </div>
-        <div className="text-[9px] text-zinc-600 mt-0.5">/hr</div>
+        <div className="text-[9px] text-zinc-500 mt-0.5">/hr</div>
       </td>
 
       {/* 24h */}
@@ -429,7 +426,7 @@ const MarketsPage = () => {
   const currentHyperscaler = activeTab === "all" ? filteredHyperscaler : filteredHyperscaler;
 
   return (
-    <PageTransition className="min-h-screen bg-[#0a0a0f] pt-16 pb-20">
+    <PageTransition className="min-h-screen bg-[#06060a] pt-16 pb-20">
       <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12">
 
         {/* ── Page Header ─────────────────────────────────────────────────── */}
@@ -439,32 +436,32 @@ const MarketsPage = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-[0.18em]">Live Data</span>
+            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-[0.18em]">Live Data</span>
           </div>
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <div>
               <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight mb-2">Markets</h1>
-              <p className="text-zinc-500 text-sm md:text-base max-w-lg leading-relaxed">
-                GPU compute perpetual futures — real-time pricing from global cloud providers.
+              <p className="text-zinc-400 text-sm md:text-base max-w-lg leading-relaxed">
+                GPU compute perpetual futures. Real-time pricing from global cloud providers.
               </p>
             </div>
             {/* Stats strip */}
             <div className="flex items-center gap-5 text-right shrink-0">
               <div>
                 <div className="text-xl font-semibold text-white font-mono">{stats.totalMarkets}</div>
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mt-0.5">Markets</div>
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Markets</div>
               </div>
               <div className="w-px h-10 bg-white/[0.06]" />
               <div>
                 <div className={`text-xl font-semibold font-mono ${isPositiveAvg ? "text-emerald-400" : "text-red-400"}`}>
                   {isPositiveAvg ? "+" : ""}{stats.avgChange.toFixed(2)}%
                 </div>
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mt-0.5">Avg 24h</div>
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Avg 24h</div>
               </div>
               <div className="w-px h-10 bg-white/[0.06]" />
               <div>
                 <div className="text-xl font-semibold text-white font-mono">{fmtUsd(stats.totalVolume)}</div>
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mt-0.5">24h Volume</div>
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">24h Volume</div>
               </div>
             </div>
           </div>
@@ -534,7 +531,7 @@ const MarketsPage = () => {
           <div className="mb-12">
             {activeTab === "all" && (
               <div className="flex items-center gap-3 mb-5">
-                <span className="text-[10px] font-bold text-blue-400/70 uppercase tracking-[0.18em]">GPU Indices</span>
+                <span className="text-[11px] font-semibold text-zinc-300 uppercase tracking-[0.18em]">GPU Indices</span>
                 <div className="flex-1 h-px bg-white/[0.05]" />
                 <span className="text-[10px] text-zinc-600">{filteredGpu.length} markets</span>
               </div>
@@ -563,7 +560,7 @@ const MarketsPage = () => {
           <div>
             {activeTab === "all" && (
               <div className="flex items-center gap-3 mb-5">
-                <span className="text-[10px] font-bold text-purple-400/70 uppercase tracking-[0.18em]">Hyperscaler</span>
+                <span className="text-[11px] font-semibold text-zinc-300 uppercase tracking-[0.18em]">Hyperscaler</span>
                 <div className="flex-1 h-px bg-white/[0.05]" />
                 <span className="text-[10px] text-zinc-600">{filteredHyperscaler.length} markets</span>
               </div>
@@ -579,8 +576,8 @@ const MarketsPage = () => {
                   <col className="w-[130px] hidden lg:table-column" />
                   <col className="w-[80px]" />
                 </colgroup>
-                <thead className="bg-zinc-900/40 border-b border-white/[0.06]">
-                  <tr className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                <thead className="bg-white/[0.02] border-b border-white/[0.06]">
+                  <tr className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
                     <th className="py-3 pl-5 pr-3 md:pl-6 text-left">Market</th>
                     <th className="py-3 px-3 md:px-4 text-left">Trend</th>
                     <th className="py-3 px-3 md:px-4 text-left">Price</th>
