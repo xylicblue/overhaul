@@ -15,9 +15,11 @@ id = "13012326d9a444dea99ecde90ffa391a"
 [vars]
 ALLOWED_ORIGINS = "https://bytestrike.io,https://www.bytestrike.io,https://byte-strike.com,https://www.byte-strike.com,http://localhost:5173,http://localhost:3000"
 # Public market data cache TTL in seconds
-CACHE_TTL = "30"
+CACHE_TTL = "5"
+# Axiom dataset name (must match what you created in Axiom dashboard)
+AXIOM_DATASET = "bytestrike-logs"
 
 # Secrets (set with: wrangler secret put <NAME>)
 # SUPABASE_URL = "https://basxvmmtxwlxylpukqjj.supabase.co"
 # SUPABASE_ANON_KEY = "<your-anon-key>"
-# SUPABASE_SERVICE_ROLE_KEY = "<your-service-role-key>"
+# AXIOM_TOKEN = "<your-axiom-api-token>"   ← wrangler secret put AXIOM_TOKEN
