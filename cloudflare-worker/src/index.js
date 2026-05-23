@@ -124,7 +124,7 @@ async function handleRequest(request, env, ctx, requestId) {
   const corsHeaders = {
     "Access-Control-Allow-Origin":   isAllowedOrigin ? origin : allowedOrigins[0] || "",
     "Access-Control-Allow-Methods":  "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers":  "authorization, x-client-info, apikey, content-type, prefer, x-request-id",
+    "Access-Control-Allow-Headers":  "authorization, x-client-info, apikey, content-type, prefer, x-request-id, x-supabase-api-version, accept-profile, accept-language",
     "Access-Control-Max-Age":        "86400",
     "Access-Control-Expose-Headers": "x-ratelimit-remaining, x-ratelimit-reset, x-cache, x-request-id",
   };
@@ -191,6 +191,13 @@ async function handleRequest(request, env, ctx, requestId) {
     });
   }
 
+  // WebSocket upgrade — proxy directly to Supabase
+  // Workers support WebSocket proxying via fetch; the runtime bridges the connection automatically
+  if (request.headers.get("upgrade") === "websocket") {
+    const wsUrl = new URL(url.pathname + url.search, supabaseUrl);
+    return fetch(wsUrl.toString(), { headers: request.headers, method: request.method });
+  }
+
   // Rate limiting
   const clientIP     = request.headers.get("CF-Connecting-IP") || "unknown";
   const tier         = classifyRequest(url.pathname, method);
@@ -222,7 +229,7 @@ async function handleRequest(request, env, ctx, requestId) {
   const proxyUrl = new URL(url.pathname + url.search, supabaseUrl);
 
   const proxyHeaders = new Headers();
-  for (const h of ["authorization", "content-type", "prefer", "x-client-info", "accept"]) {
+  for (const h of ["authorization", "content-type", "prefer", "x-client-info", "accept", "x-supabase-api-version", "accept-profile", "accept-language"]) {
     const val = request.headers.get(h);
     if (val) proxyHeaders.set(h, val);
   }
@@ -234,11 +241,11 @@ async function handleRequest(request, env, ctx, requestId) {
   }
 
   // KV cache check
+  // CACHEABLE_TABLES are all public market data — safe to cache for everyone including
+  // authenticated users, since RLS doesn't change the response for these tables.
+  // Non-cacheable authenticated requests (profiles, trades etc) are never in CACHEABLE_TABLES.
   const cacheTtl = parseInt(env.CACHE_TTL || "30", 10);
-  const authHeader = request.headers.get("authorization") || "";
-  const isAuthenticatedRequest =
-    authHeader.startsWith("Bearer ") && authHeader !== `Bearer ${env.SUPABASE_ANON_KEY}`;
-  const cacheable = isCacheableRequest(url.pathname, method) && cacheTtl > 0 && !isAuthenticatedRequest;
+  const cacheable = isCacheableRequest(url.pathname, method) && cacheTtl > 0;
 
   if (cacheable && kv) {
     try {
