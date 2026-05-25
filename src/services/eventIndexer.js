@@ -8,7 +8,6 @@ import { createClient } from '@supabase/supabase-js';
 import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem';
 import { sepolia } from 'viem/chains';
 import { getActiveMarkets } from '../contracts/addresses';
-import VAMMABI from '../contracts/abis/vAMM.json';
 
 const runtimeEnv = typeof process !== 'undefined' ? process.env : {};
 const viteEnv = import.meta.env || {};
@@ -45,6 +44,30 @@ const MARKETS = getActiveMarkets()
     oracleAddress: market.oracle,
   }));
 
+const VAMM_READ_ABI = [
+  {
+    type: 'function',
+    name: 'getMarkPrice',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'totalLongOI',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'totalShortOI',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+  },
+];
+
 /**
  * Initialize Supabase client with service key
  */
@@ -73,12 +96,57 @@ async function getMarkPrice(vammAddress) {
   try {
     const price = await publicClient.readContract({
       address: vammAddress,
-      abi: VAMMABI.abi,
+      abi: VAMM_READ_ABI,
       functionName: 'getMarkPrice',
     });
     return parseFloat(formatUnits(price, 18));
   } catch (error) {
     console.error('Error fetching mark price:', error);
+    return null;
+  }
+}
+
+async function getOpenInterestUsd(market) {
+  try {
+    const [longOI, shortOI, markPrice] = await Promise.all([
+      publicClient.readContract({
+        address: market.vammAddress,
+        abi: VAMM_READ_ABI,
+        functionName: 'totalLongOI',
+      }),
+      publicClient.readContract({
+        address: market.vammAddress,
+        abi: VAMM_READ_ABI,
+        functionName: 'totalShortOI',
+      }),
+      publicClient.readContract({
+        address: market.vammAddress,
+        abi: VAMM_READ_ABI,
+        functionName: 'getMarkPrice',
+      }),
+    ]);
+
+    const openInterestX18 = ((longOI + shortOI) * markPrice) / 10n ** 18n;
+    return parseFloat(formatUnits(openInterestX18, 18));
+  } catch (error) {
+    console.error(`Error fetching open interest for ${market.name}:`, error);
+    return null;
+  }
+}
+
+async function getExistingOpenInterestUsd(marketId) {
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('market_stats_24h')
+      .select('open_interest_usd')
+      .eq('market_id', marketId)
+      .maybeSingle();
+
+    if (error) return null;
+    return data?.open_interest_usd ?? null;
+  } catch {
     return null;
   }
 }
@@ -310,6 +378,11 @@ export async function updateMarketStats(market) {
 
     if (data && data.length > 0) {
       const stats = data[0];
+      const openInterestUsd = await getOpenInterestUsd(market);
+      const existingOpenInterestUsd = openInterestUsd == null
+        ? await getExistingOpenInterestUsd(market.id)
+        : null;
+      const nextOpenInterestUsd = openInterestUsd ?? existingOpenInterestUsd ?? 0;
 
       // Upsert into market_stats_24h
       const { error: upsertError } = await supabase
@@ -325,7 +398,7 @@ export async function updateMarketStats(market) {
           trades_24h: stats.trades_24h,
           high_24h: stats.high_24h,
           low_24h: stats.low_24h,
-          open_interest_usd: stats.open_interest_usd ?? 0,
+          open_interest_usd: nextOpenInterestUsd,
           last_updated: new Date().toISOString(),
         }, {
           onConflict: 'market_id',
@@ -336,7 +409,7 @@ export async function updateMarketStats(market) {
         return;
       }
 
-      console.log(`📈 Updated stats for ${market.name}: $${stats.volume_24h_usd} volume, ${stats.change_24h_percent}% change`);
+      console.log(`📈 Updated stats for ${market.name}: $${stats.volume_24h_usd} volume, ${stats.change_24h_percent}% change, $${nextOpenInterestUsd} OI`);
     }
   } catch (error) {
     console.error('Error updating market stats:', error);

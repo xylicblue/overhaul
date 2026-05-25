@@ -755,6 +755,11 @@ const TickerBar = () => {
           label="24h Volume"
           tooltip={<InfoTooltip title="24h Volume" description="Total trading volume in USD over the last 24 hours." />}
         />
+        <Stat
+          value={marketData?.openInterest || "$0.00"}
+          label="Open Interest"
+          tooltip={<InfoTooltip title="Open Interest" description="Total outstanding long and short notional for this market." />}
+        />
       </div>
     </div>
   );

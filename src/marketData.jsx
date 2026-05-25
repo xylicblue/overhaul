@@ -73,6 +73,13 @@ function formatPrice(value) {
   });
 }
 
+function formatUsd(value) {
+  return `$${Number(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 function emptyMarket(market, markPrice = 0, oraclePrice = 0, stats = null) {
   const change24hValue = stats?.change_24h_percent != null
     ? Number(stats.change_24h_percent)
@@ -97,6 +104,7 @@ function emptyMarket(market, markPrice = 0, oraclePrice = 0, stats = null) {
     volume24h: stats?.volume_24h_usd
       ? `$${Number(stats.volume_24h_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : "$0.00",
+    openInterest: formatUsd(stats?.open_interest_usd),
   };
 }
 
@@ -333,7 +341,7 @@ export const useMarketRealTimeData = (marketName) => {
       high24h: stats24h?.high_24h ? `$${parseFloat(stats24h.high_24h).toFixed(2)}` : "N/A",
       low24h: stats24h?.low_24h ? `$${parseFloat(stats24h.low_24h).toFixed(2)}` : "N/A",
       trades24h: stats24h?.trades_24h || 0,
-      openInterest: "N/A",
+      openInterest: formatUsd(stats24h?.open_interest_usd),
       lastFundingTime,
       cumulativeFunding,
       frMaxBpsPerHour,

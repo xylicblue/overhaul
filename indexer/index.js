@@ -94,6 +94,20 @@ const VAMM_ABI = [
     "stateMutability": "view"
   },
   {
+    "type": "function",
+    "name": "totalLongOI",
+    "inputs": [],
+    "outputs": [{"type": "uint256"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalShortOI",
+    "inputs": [],
+    "outputs": [{"type": "uint256"}],
+    "stateMutability": "view"
+  },
+  {
     "type": "event",
     "name": "Swap",
     "inputs": [
@@ -216,6 +230,49 @@ async function getMarkPrice(vammAddress) {
     return parseFloat(formatUnits(price, 18));
   } catch (error) {
     console.error('Error fetching mark price:', error.message);
+    return null;
+  }
+}
+
+async function getOpenInterestUsd(market) {
+  try {
+    const [longOI, shortOI, markPrice] = await Promise.all([
+      publicClient.readContract({
+        address: market.vammAddress,
+        abi: VAMM_ABI,
+        functionName: 'totalLongOI',
+      }),
+      publicClient.readContract({
+        address: market.vammAddress,
+        abi: VAMM_ABI,
+        functionName: 'totalShortOI',
+      }),
+      publicClient.readContract({
+        address: market.vammAddress,
+        abi: VAMM_ABI,
+        functionName: 'getMarkPrice',
+      }),
+    ]);
+
+    const openInterestX18 = ((longOI + shortOI) * markPrice) / 10n ** 18n;
+    return parseFloat(formatUnits(openInterestX18, 18));
+  } catch (error) {
+    console.error(`Error fetching open interest for ${market.name}:`, error.message);
+    return null;
+  }
+}
+
+async function getExistingOpenInterestUsd(marketId) {
+  try {
+    const { data, error } = await supabase
+      .from('market_stats_24h')
+      .select('open_interest_usd')
+      .eq('market_id', marketId)
+      .maybeSingle();
+
+    if (error) return null;
+    return data?.open_interest_usd ?? null;
+  } catch {
     return null;
   }
 }
@@ -532,6 +589,11 @@ async function updateMarketStats(market) {
 
     if (data && data.length > 0) {
       const stats = data[0];
+      const openInterestUsd = await getOpenInterestUsd(market);
+      const existingOpenInterestUsd = openInterestUsd == null
+        ? await getExistingOpenInterestUsd(market.id)
+        : null;
+      const nextOpenInterestUsd = openInterestUsd ?? existingOpenInterestUsd ?? 0;
 
       // Upsert into cached stats table
       const { error: upsertError } = await supabase
@@ -547,6 +609,7 @@ async function updateMarketStats(market) {
           trades_24h: stats.trades_24h,
           high_24h: stats.high_24h,
           low_24h: stats.low_24h,
+          open_interest_usd: nextOpenInterestUsd,
           last_updated: new Date().toISOString(),
         }, {
           onConflict: 'market_id',
@@ -557,7 +620,7 @@ async function updateMarketStats(market) {
         return;
       }
 
-      console.log(`📊 ${market.name}: $${parseFloat(stats.volume_24h_usd || 0).toFixed(2)} volume, ${parseFloat(stats.change_24h_percent || 0).toFixed(2)}% change`);
+      console.log(`📊 ${market.name}: $${parseFloat(stats.volume_24h_usd || 0).toFixed(2)} volume, ${parseFloat(stats.change_24h_percent || 0).toFixed(2)}% change, $${parseFloat(nextOpenInterestUsd || 0).toFixed(2)} OI`);
     }
   } catch (error) {
     console.error('Error updating market stats:', error.message);
