@@ -3,6 +3,7 @@ import { formatUnits } from "ethers";
 import { useReadContracts } from "wagmi";
 import { useMarkPrice, useTWAP, useFundingRate } from "./hooks/useVAMM";
 import { useOraclePrice } from "./hooks/useOracle";
+import { useMarketOpenInterest, useMarketsOpenInterest } from "./hooks/useOpenInterest";
 import { DEFAULT_MARKET_KEY, getActiveMarkets, getMarketByName } from "./contracts/addresses";
 import { getMarketStat24h } from "./services/api";
 import VAMMABI from "./contracts/abis/vAMM.json";
@@ -65,6 +66,7 @@ const DEPLOYED_MARKETS = getActiveMarkets().map((market) => ({
   isDefault: market.name === DEFAULT_MARKET_KEY,
   description: market.description,
 }));
+const NO_OPEN_INTEREST_MARKETS = [];
 
 function formatPrice(value) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -80,10 +82,11 @@ function formatUsd(value) {
   })}`;
 }
 
-function emptyMarket(market, markPrice = 0, oraclePrice = 0, stats = null) {
+function emptyMarket(market, markPrice = 0, oraclePrice = 0, stats = null, directOpenInterestUsd = null) {
   const change24hValue = stats?.change_24h_percent != null
     ? Number(stats.change_24h_percent)
     : 0;
+  const openInterestUsd = directOpenInterestUsd ?? stats?.open_interest_usd;
   return {
     name: market.name,
     displayName: market.displayName,
@@ -104,12 +107,15 @@ function emptyMarket(market, markPrice = 0, oraclePrice = 0, stats = null) {
     volume24h: stats?.volume_24h_usd
       ? `$${Number(stats.volume_24h_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : "$0.00",
-    openInterest: formatUsd(stats?.open_interest_usd),
+    openInterest: formatUsd(openInterestUsd),
   };
 }
 
-export const useMarketsData = () => {
+export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
   const [statsByMarket, setStatsByMarket] = useState({});
+  const { openInterestByMarket } = useMarketsOpenInterest(
+    includeOpenInterest ? DEPLOYED_MARKETS : NO_OPEN_INTEREST_MARKETS
+  );
 
   const contracts = useMemo(
     () => DEPLOYED_MARKETS.flatMap((market) => ([
@@ -224,7 +230,13 @@ export const useMarketsData = () => {
       : latestOracleByMarket[market.name];
     const markPrice = rawMarkPrice ? Number(formatUnits(rawMarkPrice, 18)) : 0;
     const oraclePrice = rawOraclePrice ? Number(formatUnits(rawOraclePrice, 18)) : 0;
-    return emptyMarket(market, markPrice, oraclePrice, statsByMarket[market.marketId]);
+    return emptyMarket(
+      market,
+      markPrice,
+      oraclePrice,
+      statsByMarket[market.marketId],
+      openInterestByMarket[market.name] ?? openInterestByMarket[market.marketId]
+    );
   });
 
   return {
@@ -260,6 +272,7 @@ export const useMarketRealTimeData = (marketName) => {
   const vammAddress = market?.vammAddress || market?.vamm;
   const oracleAddress = market?.oracleAddress || market?.oracle;
   const marketId = market?.marketId || market?.id;
+  const { openInterestUsd: directOpenInterestUsd } = useMarketOpenInterest(market);
 
   const { price: markPrice, isLoading: priceLoading } = useMarkPrice(vammAddress, 5000);
   const { twap, isLoading: twapLoading } = useTWAP(vammAddress, 900);
@@ -316,6 +329,8 @@ export const useMarketRealTimeData = (marketName) => {
       ? parseFloat(stats24h.change_24h_percent)
       : (twapNum > 0 ? ((markPriceNum - twapNum) / twapNum) * 100 : 0);
 
+    const openInterestUsd = directOpenInterestUsd ?? stats24h?.open_interest_usd;
+
     setData({
       name: market.name,
       displayName: market.displayName,
@@ -341,7 +356,7 @@ export const useMarketRealTimeData = (marketName) => {
       high24h: stats24h?.high_24h ? `$${parseFloat(stats24h.high_24h).toFixed(2)}` : "N/A",
       low24h: stats24h?.low_24h ? `$${parseFloat(stats24h.low_24h).toFixed(2)}` : "N/A",
       trades24h: stats24h?.trades_24h || 0,
-      openInterest: formatUsd(stats24h?.open_interest_usd),
+      openInterest: formatUsd(openInterestUsd),
       lastFundingTime,
       cumulativeFunding,
       frMaxBpsPerHour,
@@ -366,6 +381,7 @@ export const useMarketRealTimeData = (marketName) => {
     twapLoading,
     oracleLoading,
     stats24h,
+    directOpenInterestUsd,
   ]);
 
   if (!market) {

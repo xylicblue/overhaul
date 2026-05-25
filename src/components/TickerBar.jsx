@@ -184,7 +184,7 @@ const SkeletonRow = () => (
 const TABS = ["★ Favorites", "All", "GPU Index", "Hyperscaler"];
 
 const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, position, buttonRef }) => {
-  const { markets }                                     = useMarketsData();
+  const { markets }                                     = useMarketsData({ includeOpenInterest: false });
   const { favorites, toggleFavorite, loading: favLoading, isLoggedIn } = useFavorites();
   const [searchTerm, setSearchTerm]                     = useState("");
   const [activeTab, setActiveTab]                       = useState("All");
@@ -641,7 +641,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
 // ─────────────────────────────────────────────────────────────────────────────
 const TickerBar = () => {
   const { selectedMarket, selectMarket } = useMarket();
-  const { markets }                      = useMarketsData();
+  const { markets }                      = useMarketsData({ includeOpenInterest: false });
 
   const marketName =
     typeof selectedMarket === "string"

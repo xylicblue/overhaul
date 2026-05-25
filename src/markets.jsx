@@ -7,13 +7,13 @@ import PageTransition from "./components/PageTransition";
 import { HiMagnifyingGlass } from "react-icons/hi2";
 import Sparkline from "./components/Sparkline";
 import { getPriceSource } from "./config/marketsConfig";
+import { useMarketsOpenInterest } from "./hooks/useOpenInterest";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
-const MARKETS_CONFIG = getActiveMarkets()
-  .filter((market) => !market.isAlias)
-  .map((market) => ({
+const ACTIVE_MARKETS = getActiveMarkets().filter((market) => !market.isAlias);
+const MARKETS_CONFIG = ACTIVE_MARKETS.map((market) => ({
     id: market.name,
     name: market.displayName,
     fullName: market.fullName,
@@ -276,6 +276,14 @@ const MarketsPage = () => {
   const [loading, setLoading]           = useState(true);
   const [searchQuery, setSearchQuery]   = useState("");
   const [activeTab, setActiveTab]       = useState("gpu");
+  const { openInterestByMarket } = useMarketsOpenInterest(ACTIVE_MARKETS);
+
+  const getDirectOpenInterest = useMemo(() => {
+    return (market) => {
+      const marketHash = MARKET_IDS[market.id];
+      return openInterestByMarket[market.id] ?? openInterestByMarket[marketHash];
+    };
+  }, [openInterestByMarket]);
 
   useEffect(() => {
     const fetchPrices = async () => {
@@ -367,8 +375,8 @@ const MarketsPage = () => {
           vol = indexerStats[marketHash].volume;
           if (indexerStats[marketHash].change != null) prices[key].change24h = indexerStats[marketHash].change;
         }
-        prices[key].volume24h    = vol;
-        prices[key].openInterest = indexerStats[marketHash]?.openInterest ?? 0;
+        prices[key].volume24h = vol;
+        prices[key].openInterest = getDirectOpenInterest({ id: key }) ?? indexerStats[marketHash]?.openInterest ?? 0;
       });
 
       setMarketPrices(prices);
@@ -378,7 +386,30 @@ const MarketsPage = () => {
     fetchPrices();
     const interval = setInterval(fetchPrices, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [getDirectOpenInterest]);
+
+  useEffect(() => {
+    if (Object.keys(openInterestByMarket).length === 0) return;
+
+    setMarketPrices((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      MARKETS_CONFIG.forEach((market) => {
+        if (!next[market.id]) return;
+        const marketHash = MARKET_IDS[market.id];
+        const directOpenInterest = openInterestByMarket[market.id] ?? openInterestByMarket[marketHash];
+        if (directOpenInterest == null || next[market.id].openInterest === directOpenInterest) return;
+        next[market.id] = {
+          ...next[market.id],
+          openInterest: directOpenInterest,
+        };
+        changed = true;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [openInterestByMarket]);
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const gpuMarkets         = MARKETS_CONFIG.filter(m => m.category === "gpu");
