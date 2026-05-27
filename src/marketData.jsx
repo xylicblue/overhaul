@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatUnits } from "ethers";
 import { useReadContracts } from "wagmi";
-import { useMarkPrice, useTWAP, useFundingRate } from "./hooks/useVAMM";
+import { useMarkPrice, useFundingRate } from "./hooks/useVAMM";
 import { useOraclePrice } from "./hooks/useOracle";
 import { useMarketOpenInterest, useMarketsOpenInterest } from "./hooks/useOpenInterest";
+import { useRegistryMarket, useRegistryMarkets } from "./hooks/useRegistryMarkets";
 import { DEFAULT_MARKET_KEY, getActiveMarkets, getMarketByName } from "./contracts/addresses";
 import { getMarketStat24h } from "./services/api";
 import VAMMABI from "./contracts/abis/vAMM.json";
@@ -113,12 +114,17 @@ function emptyMarket(market, markPrice = 0, oraclePrice = 0, stats = null, direc
 
 export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
   const [statsByMarket, setStatsByMarket] = useState({});
+  const {
+    markets: registryMarkets,
+    isLoading: isRegistryLoading,
+    error: registryError,
+  } = useRegistryMarkets(DEPLOYED_MARKETS);
   const { openInterestByMarket } = useMarketsOpenInterest(
-    includeOpenInterest ? DEPLOYED_MARKETS : NO_OPEN_INTEREST_MARKETS
+    includeOpenInterest ? registryMarkets : NO_OPEN_INTEREST_MARKETS
   );
 
   const contracts = useMemo(
-    () => DEPLOYED_MARKETS.flatMap((market) => ([
+    () => registryMarkets.flatMap((market) => ([
       {
         address: market.vammAddress,
         abi: VAMMABI.abi,
@@ -144,7 +150,7 @@ export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
         chainId: SEPOLIA_CHAIN_ID,
       },
     ])),
-    []
+    [registryMarkets]
   );
 
   const { data, isLoading, error } = useReadContracts({
@@ -156,7 +162,7 @@ export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
 
   const latestOracleContracts = useMemo(() => {
     if (!data) return [];
-    return DEPLOYED_MARKETS.map((market, index) => {
+    return registryMarkets.map((market, index) => {
       const cuOracleResult = data[index * 4 + 2];
       const assetIdResult = data[index * 4 + 3];
       if (cuOracleResult?.status !== "success" || assetIdResult?.status !== "success") {
@@ -170,7 +176,7 @@ export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
         chainId: SEPOLIA_CHAIN_ID,
       };
     }).filter(Boolean);
-  }, [data]);
+  }, [data, registryMarkets]);
 
   const { data: latestOracleData } = useReadContracts({
     contracts: latestOracleContracts,
@@ -184,7 +190,7 @@ export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
     if (!data || !latestOracleData) return {};
     const entries = [];
     let latestIndex = 0;
-    DEPLOYED_MARKETS.forEach((market, index) => {
+    registryMarkets.forEach((market, index) => {
       const cuOracleResult = data[index * 4 + 2];
       const assetIdResult = data[index * 4 + 3];
       if (cuOracleResult?.status === "success" && assetIdResult?.status === "success") {
@@ -196,7 +202,7 @@ export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
       }
     });
     return Object.fromEntries(entries);
-  }, [data, latestOracleData]);
+  }, [data, latestOracleData, registryMarkets]);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,7 +227,7 @@ export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
     };
   }, []);
 
-  const markets = DEPLOYED_MARKETS.map((market, index) => {
+  const markets = registryMarkets.map((market, index) => {
     const markResult = data?.[index * 4];
     const oracleResult = data?.[index * 4 + 1];
     const rawMarkPrice = markResult?.status === "success" ? markResult.result : null;
@@ -241,8 +247,8 @@ export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
 
   return {
     markets,
-    isLoading,
-    error,
+    isLoading: isLoading || isRegistryLoading,
+    error: error || registryError,
   };
 };
 
@@ -268,14 +274,19 @@ export const useMarketRealTimeData = (marketName) => {
   const [data, setData] = useState(null);
   const [stats24h, setStats24h] = useState(null);
   const market = DEPLOYED_MARKETS.find((m) => m.name === marketName) || getMarketByName(marketName);
+  const {
+    market: registryMarket,
+    isLoading: registryLoading,
+    error: registryError,
+  } = useRegistryMarket(market);
+  const liveMarket = registryMarket || market;
 
-  const vammAddress = market?.vammAddress || market?.vamm;
-  const oracleAddress = market?.oracleAddress || market?.oracle;
-  const marketId = market?.marketId || market?.id;
-  const { openInterestUsd: directOpenInterestUsd } = useMarketOpenInterest(market);
+  const vammAddress = liveMarket?.vammAddress || liveMarket?.vamm;
+  const oracleAddress = liveMarket?.oracleAddress || liveMarket?.oracle;
+  const marketId = liveMarket?.marketId || liveMarket?.id;
+  const { openInterestUsd: directOpenInterestUsd } = useMarketOpenInterest(liveMarket);
 
   const { price: markPrice, isLoading: priceLoading } = useMarkPrice(vammAddress, 5000);
-  const { twap, isLoading: twapLoading } = useTWAP(vammAddress, 900);
   const { cumulativeFunding, lastFundingTime, kFundingX18, frMaxBpsPerHour } = useFundingRate(vammAddress);
   const { price: oraclePrice, isLoading: oracleLoading } = useOraclePrice(oracleAddress, 10000);
 
@@ -300,10 +311,10 @@ export const useMarketRealTimeData = (marketName) => {
   }, [marketId]);
 
   useEffect(() => {
-    if (!market || priceLoading || !markPrice) return;
+    if (!liveMarket || priceLoading || !markPrice) return;
 
     const markPriceNum = parseFloat(markPrice);
-    const twapNum = twap ? parseFloat(twap) : markPriceNum;
+    const twapNum = markPriceNum;
     const parsedOraclePrice = oraclePrice ? parseFloat(oraclePrice) : 0;
     const oraclePriceNum = parsedOraclePrice > 0 ? parsedOraclePrice : 0;
 
@@ -332,12 +343,12 @@ export const useMarketRealTimeData = (marketName) => {
     const openInterestUsd = directOpenInterestUsd ?? stats24h?.open_interest_usd;
 
     setData({
-      name: market.name,
-      displayName: market.displayName,
-      type: market.type,
-      baseAsset: market.baseAsset,
-      quoteAsset: market.quoteAsset,
-      status: market.status,
+      name: liveMarket.name,
+      displayName: liveMarket.displayName,
+      type: liveMarket.type,
+      baseAsset: liveMarket.baseAsset,
+      quoteAsset: liveMarket.quoteAsset,
+      status: liveMarket.status,
       marketId,
       markPriceRaw: markPriceNum,
       twapRaw: twapNum,
@@ -363,22 +374,20 @@ export const useMarketRealTimeData = (marketName) => {
       premium: `${premium.toFixed(6)}%`,
       premiumRaw: premium,
       isPriceLoaded: !priceLoading,
-      isTwapLoaded: !twapLoading,
+      isTwapLoaded: !priceLoading,
       isOracleLoaded: !oracleLoading,
       is24hStatsLoaded: stats24h !== null,
     });
   }, [
-    market,
+    liveMarket,
     marketId,
     markPrice,
-    twap,
     oraclePrice,
     cumulativeFunding,
     lastFundingTime,
     kFundingX18,
     frMaxBpsPerHour,
     priceLoading,
-    twapLoading,
     oracleLoading,
     stats24h,
     directOpenInterestUsd,
@@ -390,7 +399,7 @@ export const useMarketRealTimeData = (marketName) => {
 
   return {
     data,
-    isLoading: priceLoading || !data,
-    error: null,
+    isLoading: registryLoading || priceLoading || !data,
+    error: registryError || null,
   };
 };

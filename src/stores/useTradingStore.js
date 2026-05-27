@@ -8,7 +8,6 @@ export const useTradingStore = create(
       side: "Buy",
       size: "",
       priceLimit: "",
-      leverage: 1,
 
       // Post-trade state
       lastTxHash: null,
@@ -22,9 +21,8 @@ export const useTradingStore = create(
       setSide: (side) => set({ side }),
       setSize: (size) => set({ size }),
       setPriceLimit: (priceLimit) => set({ priceLimit }),
-      setLeverage: (leverage) => set({ leverage }),
 
-      // Clear size/price after a trade but keep side/leverage preference and lastTxHash dedup guard
+      // Clear size/price after a trade but keep side preference and lastTxHash dedup guard
       resetOrder: () => set({ size: "", priceLimit: "" }),
 
       setLastTx: (hash, side) => set({ lastTxHash: hash, lastTxSide: side }),
@@ -40,7 +38,6 @@ export const useTradingStore = create(
       // Only persist user preferences, not ephemeral order inputs
       partialize: (state) => ({
         side: state.side,
-        leverage: state.leverage,
       }),
     }
   )

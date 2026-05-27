@@ -312,7 +312,7 @@ const GuidePage = () => {
                   {[
                     "Select a market from the ticker bar (e.g. H100-PERP, T4-PERP).",
                     "Choose Long (Buy) to profit when price rises, or Short (Sell) to profit when price falls.",
-                    "Enter your position size and set your preferred leverage using the slider or presets.",
+                    "Enter your position size. Required margin and leverage are derived from the market's IMR.",
                     "Review the Order Summary — check Margin Required and Est. Liquidation Price.",
                     "Click the green or red button to submit. Confirm the transaction in your wallet.",
                   ].map((text, i) => (

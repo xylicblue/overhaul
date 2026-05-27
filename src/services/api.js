@@ -71,10 +71,10 @@ async function callEdgeFunction(functionName, payload, options = {}) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Record a trade (open position) through the api-trade edge function.
- * Validates tx_hash on-chain before inserting.
+ * Record pending trade metadata through the api-trade edge function.
+ * Canonical PnL, funding, and fees are filled by the event indexer.
  */
-export async function recordTrade({ userAddress, market, side, size, price, notional, txHash, pnl, fundingEarned, feesPaid }, vammData = null) {
+export async function recordTrade({ userAddress, market, side, size, price, notional, txHash }, vammData = null) {
   return callEdgeFunction("api-trade", {
     action: "record-trade",
     tradeData: {
@@ -85,9 +85,6 @@ export async function recordTrade({ userAddress, market, side, size, price, noti
       price,
       notional,
       tx_hash: txHash,
-      ...(pnl !== undefined && { pnl }),
-      ...(fundingEarned !== undefined && { funding_earned: fundingEarned }),
-      ...(feesPaid !== undefined && { fees_paid: feesPaid }),
     },
     vammData,
   }, { auth: false }); // No Supabase auth needed — validates tx on-chain

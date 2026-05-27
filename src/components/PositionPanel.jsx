@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, memo } from "react";
 import { useTradingStore } from "../stores/useTradingStore";
 import { useAccount, useReadContract } from "wagmi";
 import { toast } from "react-hot-toast";
-import { useAllPositions, useClosePosition } from "../hooks/useClearingHouse";
+import { calculatePendingFunding, useAllPositions, useClosePosition } from "../hooks/useClearingHouse";
 import { useMarkPrice, useFundingRate } from "../hooks/useVAMM";
 import { SEPOLIA_CONTRACTS, MARKET_IDS } from "../contracts/addresses";
 import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
@@ -12,6 +12,7 @@ import EmptyState, { CompactEmptyState } from "./EmptyState";
 import { Wallet, TrendingUp, TrendingDown, X, AlertCircle, Activity } from "lucide-react";
 import { supabase } from "../creatclient";
 import { recordTradeWithRetry } from "../services/tradeQueue";
+import { formatTransactionError, getSepoliaTxUrl } from "../utils/transactionErrors";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PositionPanel
@@ -143,8 +144,13 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
       ? SEPOLIA_CONTRACTS.vammProxy
       : SEPOLIA_CONTRACTS.vammProxyOld);
 
-  const { price: markPrice }                       = useMarkPrice(vammAddress);
-  const { cumulativeFunding: currentFundingIndex } = useFundingRate(vammAddress);
+  const { price: markPrice } = useMarkPrice(vammAddress);
+  const {
+    longPay,
+    longReceive,
+    shortPay,
+    shortReceive,
+  } = useFundingRate(vammAddress);
 
   const { data: marketConfig } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
@@ -158,9 +164,12 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
   const { currentPrice, openNotional, feeBps, feesPaid, leverage,
           currentPnL, fundingEarned, netPnL, roe, isProfitable, liqPrice } = useMemo(() => {
     const currentPrice   = markPrice ? parseFloat(markPrice) : 0;
-    const currentIndex   = parseFloat(currentFundingIndex || 0);
-    const lastIndex      = parseFloat(position.lastFundingIndex || 0);
-    const fundingEarned  = -((currentIndex - lastIndex) * size);
+    const fundingEarned  = calculatePendingFunding(position, {
+      longPay,
+      longReceive,
+      shortPay,
+      shortReceive,
+    });
     const feeBps         = marketConfig?.feeBps || 10;
     const openNotional   = entryPrice * absSize;
     const feesPaid       = (openNotional * feeBps) / 10000;
@@ -181,82 +190,164 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
       : null;
     return { currentPrice, openNotional, feeBps, feesPaid, leverage,
              currentPnL, fundingEarned, netPnL, roe, isProfitable, liqPrice };
-  }, [markPrice, currentFundingIndex, marketConfig?.feeBps,
-      position.lastFundingIndex, entryPrice, absSize, size, margin, isLong]);
+  }, [markPrice, longPay, longReceive, shortPay, shortReceive, marketConfig?.feeBps,
+      position.lastFundingPayIndex, position.lastFundingReceiveIndex,
+      position.size, entryPrice, absSize, margin, isLong]);
 
-  const { closePosition, isPending, isSuccess, error: closeError, hash } = useClosePosition(position.marketId);
+  const {
+    closePosition,
+    isPending,
+    isConfirming,
+    isSuccess,
+    isReverted,
+    error: closeError,
+    receiptError,
+    hash,
+    receipt,
+    reset: resetClose,
+  } = useClosePosition(position.marketId);
   const { address } = useAccount();
   const handledTxHashRef = useRef(null);
-  const closedSizeRef    = useRef(null);
+  const handledFailureHashRef = useRef(null);
+  const submittedCloseRef = useRef(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingCloseAmount, setPendingCloseAmount] = useState(null);
+  const [isCloseSubmitting, setIsCloseSubmitting] = useState(false);
+  const [closeInlineError, setCloseInlineError] = useState("");
 
   const isClosing = closingPosition === position.marketId;
+  const isCloseBusy = isCloseSubmitting || isPending || isConfirming;
 
   const initiateClose = (closeAmount) => {
+    if (isCloseBusy) return;
     if (!closeAmount || parseFloat(closeAmount) <= 0) { toast.error("Enter a valid size to close"); return; }
     if (parseFloat(closeAmount) > absSize) { toast.error(`Max size: ${absSize.toFixed(4)}`); return; }
+    setCloseInlineError("");
     setPendingCloseAmount(closeAmount);
     setShowConfirmModal(true);
   };
 
-  const handleClose = (closeAmount) => {
+  const handleClose = async (closeAmount) => {
+    if (isCloseBusy) return;
+    setIsCloseSubmitting(true);
+    setCloseInlineError("");
     try {
-      closedSizeRef.current = parseFloat(closeAmount);
-      closePosition(closeAmount, 0);
-      toast.loading("Closing position…", { id: "close" });
-      setClosingPosition(null);
-      setCloseSize("");
-      setShowConfirmModal(false);
-      setPendingCloseAmount(null);
+      const submittedClosedSize = parseFloat(closeAmount);
+      const closePrice = currentPrice || entryPrice;
+      const closeNotional = submittedClosedSize * closePrice;
+      submittedCloseRef.current = {
+        closedSize: submittedClosedSize,
+        absSizeAtSubmission: absSize,
+        isLong,
+        entryPrice,
+        currentMark: currentPrice,
+        marketName: position.marketName || position.marketKey || "H100-GPU-PERP",
+        marketKey: position.marketKey || position.marketName || "H100-PERP",
+        marketDisplayName: position.displayName || position.marketName || position.marketKey || "H100-GPU-PERP",
+        closePrice,
+        closeNotional,
+      };
+      toast.loading("Review close transaction in wallet...", { id: "close" });
+      await closePosition(closeAmount, 0);
     } catch (err) {
-      toast.error("Failed: " + err.message, { id: "close" });
+      const message = formatTransactionError(err, { action: "close" });
+      setCloseInlineError(message);
+      toast.error(message, { id: "close" });
+    } finally {
+      setIsCloseSubmitting(false);
     }
   };
 
   useEffect(() => {
+    if (hash && isConfirming && hash !== handledTxHashRef.current) {
+      toast.loading(
+        <div>
+          <div>Submitted, waiting for confirmation...</div>
+          <a href={getSepoliaTxUrl(hash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
+          </a>
+        </div>,
+        { id: "close" }
+      );
+    }
+  }, [hash, isConfirming]);
+
+  useEffect(() => {
     if (isSuccess && hash && hash !== handledTxHashRef.current) {
       handledTxHashRef.current = hash;
-      toast.success("Position closed", { id: "close" });
+      const submittedClose = submittedCloseRef.current;
+      const closeLabel = submittedClose?.closedSize >= submittedClose?.absSizeAtSubmission
+        ? "Position closed."
+        : "Position reduced.";
+      toast.success(
+        <div>
+          <div>{closeLabel}</div>
+          <a href={getSepoliaTxUrl(hash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
+          </a>
+        </div>,
+        { id: "close", duration: 5000 }
+      );
       const save = async () => {
-        if (!address || !position) return;
-        const closedSize      = closedSizeRef.current || absSize;
-        const closeProportion = closedSize / absSize;
-        const closedPnL       = currentPrice > 0
-          ? isLong ? (currentPrice - entryPrice) * closedSize : (entryPrice - currentPrice) * closedSize
-          : 0;
-        const closeNotional   = closedSize * (currentPrice || entryPrice);
-        const closingFee      = (closeNotional * feeBps) / 10000;
+        if (!address || !submittedClose) return;
         await recordTradeWithRetry(
           {
             userAddress: address,
-            market: position.marketName || position.marketKey || "H100-GPU-PERP",
-            side: isLong ? "Long" : "Short",
-            size: closedSize,
-            price: currentPrice || entryPrice,
-            notional: closeNotional,
+            market: submittedClose.marketDisplayName,
+            side: submittedClose.isLong ? "Long" : "Short",
+            size: submittedClose.closedSize,
+            price: submittedClose.closePrice,
+            notional: submittedClose.closeNotional,
             txHash: hash,
-            pnl: closedPnL,
-            fundingEarned: fundingEarned * closeProportion,
-            feesPaid: feesPaid * closeProportion + closingFee,
           },
           {
-            market: position.marketName || position.marketKey || "H100-PERP",
-            price: currentPrice || entryPrice,
-            twap: currentPrice || entryPrice,
+            market: submittedClose.marketKey,
+            price: submittedClose.closePrice,
+            twap: submittedClose.closePrice,
             timestamp: new Date().toISOString(),
           }
         );
       };
       save();
+      setClosingPosition(null);
+      setCloseSize("");
+      setShowConfirmModal(false);
+      setPendingCloseAmount(null);
+      setCloseInlineError("");
+      setTimeout(() => resetClose(), 100);
     }
-  }, [isSuccess, hash, address, position, absSize, isLong, entryPrice, currentPrice, fundingEarned, feesPaid, feeBps]);
+  }, [isSuccess, hash, address, resetClose, setClosingPosition, setCloseSize]);
 
   useEffect(() => {
-    if (closeError) {
-      toast.error(closeError.message?.includes("User rejected") ? "Transaction cancelled" : "Failed to close position", { id: "close" });
+    const failure = closeError || receiptError;
+    if (failure) {
+      const message = formatTransactionError(failure, { action: "close" });
+      setCloseInlineError(message);
+      toast.error(message, { id: "close" });
+      resetClose();
     }
-  }, [closeError]);
+  }, [closeError, receiptError, resetClose]);
+
+  useEffect(() => {
+    if (isReverted && hash && hash !== handledFailureHashRef.current) {
+      handledFailureHashRef.current = hash;
+      const message = formatTransactionError(
+        { message: "Transaction receipt status is reverted", receipt },
+        { action: "close" }
+      );
+      setCloseInlineError(message);
+      toast.error(
+        <div>
+          <div>{message}</div>
+          <a href={getSepoliaTxUrl(hash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
+          </a>
+        </div>,
+        { id: "close" }
+      );
+      setTimeout(() => resetClose(), 100);
+    }
+  }, [isReverted, hash, receipt, resetClose]);
 
   // ── colour tokens ─────────────────────────────────────────────────────────
   const C = isLong
@@ -403,10 +494,10 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
               </div>
               <button
                 onClick={() => initiateClose(closeSize)}
-                disabled={isPending || !closeSize}
+                disabled={isCloseBusy || !closeSize}
                 className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-[11px] font-bold rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isPending ? "…" : "Close"}
+                {isCloseBusy ? "…" : "Close"}
               </button>
               <button
                 onClick={() => { setClosingPosition(null); setCloseSize(""); }}
@@ -425,6 +516,11 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
                 </span>
               </div>
             )}
+            {closeInlineError && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-[10px] leading-4 text-red-300">
+                {closeInlineError}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -432,14 +528,18 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={showConfirmModal}
-        onClose={() => { setShowConfirmModal(false); setPendingCloseAmount(null); }}
+        onClose={() => {
+          if (isCloseBusy) return;
+          setShowConfirmModal(false);
+          setPendingCloseAmount(null);
+        }}
         onConfirm={() => handleClose(pendingCloseAmount)}
         title="Close Position"
         message={`Close ${pendingCloseAmount || 0} GPU-HRS of your ${isLong ? "Long" : "Short"} position?`}
         confirmText="Close Position"
         cancelText="Cancel"
         variant="danger"
-        isLoading={isPending}
+        isLoading={isCloseBusy}
         details={
           <div className="space-y-2 text-sm">
             {[
@@ -452,6 +552,11 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
                 <span className={cls}>{value}</span>
               </div>
             ))}
+            {closeInlineError && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-300">
+                {closeInlineError}
+              </div>
+            )}
           </div>
         }
       />

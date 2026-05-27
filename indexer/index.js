@@ -62,6 +62,8 @@ const CONFIG = {
   },
 };
 
+let swapEventCursorColumnsSupported = true;
+
 // ==================== MARKETS ====================
 
 const MARKETS = getActiveMarkets()
@@ -75,6 +77,49 @@ const MARKETS = getActiveMarkets()
     ...toIndexerPriceSource(market.name),
     active: market.active,
   }));
+
+const MARKET_BY_ID = Object.fromEntries(MARKETS.map((market) => [market.id.toLowerCase(), market]));
+const pendingFundingByTrade = new Map();
+
+const SWAP_EVENT_ABI = parseAbiItem('event Swap(address indexed sender, int256 baseDelta, int256 quoteDelta, uint256 avgPriceX18)');
+
+function numberFromLogIndex(value) {
+  return value == null ? null : Number(value);
+}
+
+function getLogCursor(log) {
+  return {
+    blockNumber: BigInt(log.blockNumber),
+    transactionIndex: numberFromLogIndex(log.transactionIndex),
+    logIndex: numberFromLogIndex(log.logIndex),
+    txHash: log.transactionHash?.toLowerCase() ?? null,
+  };
+}
+
+function compareLogCursor(a, b) {
+  if (a.blockNumber !== b.blockNumber) {
+    return a.blockNumber < b.blockNumber ? -1 : 1;
+  }
+  if (a.transactionIndex !== b.transactionIndex) {
+    return a.transactionIndex < b.transactionIndex ? -1 : 1;
+  }
+  if (a.logIndex !== b.logIndex) {
+    return a.logIndex < b.logIndex ? -1 : 1;
+  }
+  return 0;
+}
+
+function sortLogsByChainOrder(logs) {
+  return [...logs].sort((a, b) => compareLogCursor(getLogCursor(a), getLogCursor(b)));
+}
+
+function swapLogKey(log) {
+  const cursor = getLogCursor(log);
+  if (cursor.transactionIndex != null && cursor.logIndex != null) {
+    return `log:${cursor.transactionIndex}:${cursor.logIndex}`;
+  }
+  return `tx:${cursor.txHash}`;
+}
 
 // ==================== ABIs ====================
 
@@ -133,6 +178,21 @@ const ORACLE_ABI = [
 const CLEARING_HOUSE_ABI = [
   {
     "type": "event",
+    "name": "TradeExecuted",
+    "inputs": [
+      {"name": "user",           "type": "address", "indexed": true},
+      {"name": "marketId",       "type": "bytes32", "indexed": true},
+      {"name": "baseDelta",      "type": "int256",  "indexed": false},
+      {"name": "quoteDelta",     "type": "int256",  "indexed": false},
+      {"name": "executionPrice", "type": "uint256", "indexed": false},
+      {"name": "newSize",        "type": "int256",  "indexed": false},
+      {"name": "newMargin",      "type": "uint256", "indexed": false},
+      {"name": "realizedPnL",    "type": "int256",  "indexed": false},
+      {"name": "fee",            "type": "uint256", "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
     "name": "LiquidationExecuted",
     "inputs": [
       {"name": "marketId",        "type": "bytes32", "indexed": true},
@@ -153,6 +213,17 @@ const CLEARING_HOUSE_ABI = [
       {"name": "marketId",       "type": "bytes32", "indexed": true},
       {"name": "account",        "type": "address", "indexed": true},
       {"name": "fundingPayment", "type": "int256",  "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PositionClosed",
+    "inputs": [
+      {"name": "user",        "type": "address", "indexed": true},
+      {"name": "marketId",    "type": "bytes32", "indexed": true},
+      {"name": "size",        "type": "uint128", "indexed": false},
+      {"name": "exitPrice",   "type": "uint256", "indexed": false},
+      {"name": "realizedPnL", "type": "int256",  "indexed": false}
     ]
   },
   {
@@ -517,6 +588,150 @@ async function storePriceSnapshot(market, markPrice, oraclePrice, blockNumber) {
   return true;
 }
 
+function tradeAccountingKey(txHash, userAddress, marketId) {
+  return `${txHash.toLowerCase()}:${userAddress.toLowerCase()}:${marketId.toLowerCase()}`;
+}
+
+function canonicalSideFromTrade(baseDelta, newSize) {
+  if (baseDelta < 0n && newSize >= 0n) return 'Long';
+  if (baseDelta > 0n && newSize <= 0n) return 'Short';
+  return baseDelta > 0n ? 'Long' : 'Short';
+}
+
+async function getBlockTimestamp(blockNumber) {
+  const block = await publicClient.getBlock({ blockNumber });
+  return new Date(Number(block.timestamp) * 1000).toISOString();
+}
+
+async function writeCanonicalTrade(event) {
+  const { args, blockNumber, transactionHash } = event;
+  const marketId = args.marketId.toLowerCase();
+  const market = MARKET_BY_ID[marketId];
+
+  if (!market) {
+    console.warn(`Skipping TradeExecuted for unknown market ${marketId}`);
+    return false;
+  }
+
+  const userAddress = args.user.toLowerCase();
+  const key = tradeAccountingKey(transactionHash, userAddress, marketId);
+  const timestamp = await getBlockTimestamp(blockNumber);
+  const fundingEarned = pendingFundingByTrade.get(key) ?? 0;
+  const size = Math.abs(parseFloat(formatUnits(args.baseDelta, 18)));
+  const notional = Math.abs(parseFloat(formatUnits(args.quoteDelta, 18)));
+
+  const payload = {
+    user_address: userAddress,
+    market: market.name,
+    side: canonicalSideFromTrade(args.baseDelta, args.newSize),
+    size,
+    price: parseFloat(formatUnits(args.executionPrice, 18)),
+    notional,
+    tx_hash: transactionHash,
+    created_at: timestamp,
+    pnl: parseFloat(formatUnits(args.realizedPnL, 18)),
+    funding_earned: fundingEarned,
+    fees_paid: parseFloat(formatUnits(args.fee, 18)),
+  };
+
+  const { data: existing, error: selectError } = await supabase
+    .from('trade_history')
+    .select('id')
+    .eq('tx_hash', transactionHash)
+    .eq('user_address', userAddress)
+    .limit(20);
+
+  if (selectError) {
+    console.error('Error checking canonical trade row:', selectError.message);
+    return false;
+  }
+
+  const existingIds = (existing || []).map((row) => row.id);
+  const query = existingIds.length > 0
+    ? supabase.from('trade_history').update(payload).in('id', existingIds)
+    : supabase.from('trade_history').insert(payload);
+
+  const { error } = await query;
+  if (error) {
+    console.error('Error writing canonical trade row:', error.message);
+    return false;
+  }
+
+  pendingFundingByTrade.delete(key);
+  console.log(`📒 Canonical trade: ${market.name} ${payload.side} $${notional.toFixed(2)} fee $${payload.fees_paid.toFixed(2)}`);
+  return true;
+}
+
+async function applyFundingSettlementToTrade(event) {
+  const { args, transactionHash } = event;
+  const marketId = args.marketId.toLowerCase();
+  const userAddress = args.account.toLowerCase();
+  const key = tradeAccountingKey(transactionHash, userAddress, marketId);
+  const payment = parseFloat(formatUnits(args.fundingPayment, 18));
+  const nextFunding = (pendingFundingByTrade.get(key) || 0) + payment;
+  pendingFundingByTrade.set(key, nextFunding);
+
+  const { data: rows, error: selectError } = await supabase
+    .from('trade_history')
+    .select('id')
+    .eq('tx_hash', transactionHash)
+    .eq('user_address', userAddress)
+    .limit(20);
+
+  if (selectError) {
+    console.error('Error checking trade row for funding:', selectError.message);
+    return false;
+  }
+
+  if (!rows?.length) return true;
+
+  const { error } = await supabase
+    .from('trade_history')
+    .update({ funding_earned: nextFunding })
+    .in('id', rows.map((row) => row.id));
+
+  if (error) {
+    console.error('Error applying canonical funding:', error.message);
+    return false;
+  }
+
+  return true;
+}
+
+async function applyPositionClosedToTrade(event) {
+  const { args, transactionHash } = event;
+  const userAddress = args.user.toLowerCase();
+  const { data: rows, error: selectError } = await supabase
+    .from('trade_history')
+    .select('id')
+    .eq('tx_hash', transactionHash)
+    .eq('user_address', userAddress)
+    .limit(20);
+
+  if (selectError) {
+    console.error('Error checking trade row for PositionClosed:', selectError.message);
+    return false;
+  }
+
+  if (!rows?.length) return true;
+
+  const { error } = await supabase
+    .from('trade_history')
+    .update({
+      size: Math.abs(parseFloat(formatUnits(args.size, 18))),
+      price: parseFloat(formatUnits(args.exitPrice, 18)),
+      pnl: parseFloat(formatUnits(args.realizedPnL, 18)),
+    })
+    .in('id', rows.map((row) => row.id));
+
+  if (error) {
+    console.error('Error applying PositionClosed accounting:', error.message);
+    return false;
+  }
+
+  return true;
+}
+
 async function indexSwapEvent(event, market) {
   const { args, blockNumber, transactionHash } = event;
 
@@ -531,23 +746,37 @@ async function indexSwapEvent(event, market) {
   const block = await publicClient.getBlock({ blockNumber });
   const timestamp = new Date(Number(block.timestamp) * 1000).toISOString();
 
+  const payload = {
+    market_id: market.id,
+    market_name: market.name,
+    vamm_address: market.vammAddress.toLowerCase(),
+    tx_hash: transactionHash,
+    block_number: Number(blockNumber),
+    timestamp,
+    trader_address: args.sender.toLowerCase(),
+    base_delta: baseDeltaNum.toString(),
+    quote_delta: quoteDeltaNum.toString(),
+    avg_price: avgPrice,
+    notional_usd: notionalUsd,
+    is_long: isLong,
+  };
+
+  if (swapEventCursorColumnsSupported) {
+    payload.transaction_index = numberFromLogIndex(event.transactionIndex);
+    payload.log_index = numberFromLogIndex(event.logIndex);
+  }
+
   // Insert into database
-  const { error } = await supabase
+  let { error } = await supabase
     .from('swap_events')
-    .insert({
-      market_id: market.id,
-      market_name: market.name,
-      vamm_address: market.vammAddress.toLowerCase(),
-      tx_hash: transactionHash,
-      block_number: Number(blockNumber),
-      timestamp,
-      trader_address: args.sender.toLowerCase(),
-      base_delta: baseDeltaNum.toString(),
-      quote_delta: quoteDeltaNum.toString(),
-      avg_price: avgPrice,
-      notional_usd: notionalUsd,
-      is_long: isLong,
-    });
+    .insert(payload);
+
+  if (error && swapEventCursorColumnsSupported && /transaction_index|log_index/i.test(error.message || "")) {
+    swapEventCursorColumnsSupported = false;
+    delete payload.transaction_index;
+    delete payload.log_index;
+    ({ error } = await supabase.from('swap_events').insert(payload));
+  }
 
   if (error) {
     // Ignore duplicate errors
@@ -560,20 +789,78 @@ async function indexSwapEvent(event, market) {
   return true;
 }
 
-async function getLastIndexedBlock(vammAddress) {
+async function getLastIndexedSwapCursor(vammAddress) {
   const { data, error } = await supabase
     .from('swap_events')
-    .select('block_number')
+    .select('block_number,transaction_index,log_index,tx_hash')
     .eq('vamm_address', vammAddress.toLowerCase())
     .order('block_number', { ascending: false })
+    .order('transaction_index', { ascending: false, nullsFirst: false })
+    .order('log_index', { ascending: false, nullsFirst: false })
     .limit(1);
 
   if (error) {
-    console.error('Error getting last indexed block:', error.message);
-    return null;
+    console.warn('Exact swap cursor unavailable, falling back to block-only resume:', error.message);
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('swap_events')
+      .select('block_number,tx_hash')
+      .eq('vamm_address', vammAddress.toLowerCase())
+      .order('block_number', { ascending: false })
+      .limit(1);
+
+    if (fallbackError) {
+      console.error('Error getting last indexed block:', fallbackError.message);
+      return null;
+    }
+
+    if (!fallbackData?.length) return null;
+
+    return {
+      blockNumber: BigInt(fallbackData[0].block_number),
+      transactionIndex: null,
+      logIndex: null,
+      txHash: fallbackData[0].tx_hash?.toLowerCase() ?? null,
+    };
   }
 
-  return data && data.length > 0 ? BigInt(data[0].block_number) : null;
+  if (!data?.length) return null;
+
+  return {
+    blockNumber: BigInt(data[0].block_number),
+    transactionIndex: data[0].transaction_index == null ? null : Number(data[0].transaction_index),
+    logIndex: data[0].log_index == null ? null : Number(data[0].log_index),
+    txHash: data[0].tx_hash?.toLowerCase() ?? null,
+  };
+}
+
+async function getIndexedSwapKeysForBlock(vammAddress, blockNumber) {
+  const { data, error } = await supabase
+    .from('swap_events')
+    .select('tx_hash,transaction_index,log_index')
+    .eq('vamm_address', vammAddress.toLowerCase())
+    .eq('block_number', Number(blockNumber));
+
+  if (error) {
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('swap_events')
+      .select('tx_hash')
+      .eq('vamm_address', vammAddress.toLowerCase())
+      .eq('block_number', Number(blockNumber));
+
+    if (fallbackError) {
+      console.error('Error getting indexed swap keys:', fallbackError.message);
+      return new Set();
+    }
+
+    return new Set((fallbackData || []).map((row) => `tx:${row.tx_hash?.toLowerCase()}`));
+  }
+
+  return new Set((data || []).map((row) => {
+    if (row.transaction_index != null && row.log_index != null) {
+      return `log:${Number(row.transaction_index)}:${Number(row.log_index)}`;
+    }
+    return `tx:${row.tx_hash?.toLowerCase()}`;
+  }));
 }
 
 async function updateMarketStats(market) {
@@ -633,11 +920,19 @@ async function indexHistoricalEvents(market) {
   console.log(`📜 Indexing historical events for ${market.name}...`);
 
   try {
-    // Get last indexed block or start from beginning
-    let fromBlock = await getLastIndexedBlock(market.vammAddress);
-    if (fromBlock) {
-      fromBlock = fromBlock + 1n;
-      console.log(`   Resuming from block ${fromBlock}`);
+    // Resume from the last indexed event's block. Replaying that block and
+    // filtering by tx/log cursor prevents skipping later logs from the same
+    // block if a previous run stopped mid-block.
+    const lastCursor = await getLastIndexedSwapCursor(market.vammAddress);
+    let resumeBlockKeys = new Set();
+    let fromBlock;
+    if (lastCursor) {
+      fromBlock = lastCursor.blockNumber;
+      resumeBlockKeys = await getIndexedSwapKeysForBlock(market.vammAddress, lastCursor.blockNumber);
+      const suffix = lastCursor.logIndex !== null
+        ? ` txIndex ${lastCursor.transactionIndex}, logIndex ${lastCursor.logIndex}`
+        : ` tx ${lastCursor.txHash}`;
+      console.log(`   Resuming from block ${fromBlock} after${suffix}`);
     } else {
       fromBlock = 5000000n; // Sepolia block where contracts were deployed
       console.log(`   Starting from block ${fromBlock}`);
@@ -656,18 +951,36 @@ async function indexHistoricalEvents(market) {
 
       const events = await publicClient.getLogs({
         address: market.vammAddress,
-        event: parseAbiItem('event Swap(address indexed sender, int256 baseDelta, int256 quoteDelta, uint256 avgPriceX18)'),
+        event: SWAP_EVENT_ABI,
         fromBlock: start,
         toBlock: end,
       });
 
-      for (const event of events) {
-        await indexSwapEvent(event, market);
+      let chunkIndexed = 0;
+      for (const event of sortLogsByChainOrder(events)) {
+        if (lastCursor && event.blockNumber === lastCursor.blockNumber) {
+          const cursor = getLogCursor(event);
+          const hasExactCursor = cursor.transactionIndex != null && cursor.logIndex != null
+            && lastCursor.transactionIndex != null && lastCursor.logIndex != null;
+
+          if (
+            resumeBlockKeys.has(swapLogKey(event))
+            || (hasExactCursor && compareLogCursor(cursor, lastCursor) <= 0)
+          ) {
+            continue;
+          }
+        }
+
+        const ok = await indexSwapEvent(event, market);
+        if (!ok) {
+          throw new Error(`failed to index swap ${event.transactionHash} at block ${event.blockNumber}`);
+        }
         indexed++;
+        chunkIndexed++;
       }
 
       if (events.length > 0) {
-        console.log(`   Indexed blocks ${start}-${end}: ${events.length} events`);
+        console.log(`   Indexed blocks ${start}-${end}: ${chunkIndexed}/${events.length} new events`);
       }
     }
 
@@ -684,7 +997,7 @@ function startEventWatcher(market) {
 
   const unwatch = publicClient.watchEvent({
     address: market.vammAddress,
-    event: parseAbiItem('event Swap(address indexed sender, int256 baseDelta, int256 quoteDelta, uint256 avgPriceX18)'),
+    event: SWAP_EVENT_ABI,
     onLogs: async (logs) => {
       for (const log of logs) {
         await indexSwapEvent(log, market);
@@ -708,6 +1021,40 @@ function startClearingHouseWatchers() {
   const ch  = CONFIG.contracts.clearingHouse;
   const unwatches = [];
 
+  // ── TradeExecuted → canonical trade_history rows ─────────────────
+  unwatches.push(
+    publicClient.watchEvent({
+      address: ch,
+      event: {
+        type: 'event',
+        name: 'TradeExecuted',
+        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'TradeExecuted').inputs,
+      },
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          await writeCanonicalTrade(log);
+        }
+      },
+    })
+  );
+
+  // ── PositionClosed → canonical close size/exit/PnL overlay ───────
+  unwatches.push(
+    publicClient.watchEvent({
+      address: ch,
+      event: {
+        type: 'event',
+        name: 'PositionClosed',
+        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'PositionClosed').inputs,
+      },
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          await applyPositionClosedToTrade(log);
+        }
+      },
+    })
+  );
+
   // ── LiquidationExecuted → B1 (partial) or B2 (full) ─────────────
   unwatches.push(
     publicClient.watchEvent({
@@ -723,8 +1070,8 @@ function startClearingHouseWatchers() {
           const trader    = account.toLowerCase();
           const marketLow = marketId.toLowerCase();
           const sizeNum   = parseFloat(formatUnits(size, 18));
-          const notionalNum = parseFloat(formatUnits(notional, 6));
-          const penaltyNum  = parseFloat(formatUnits(penalty, 6));
+          const notionalNum = parseFloat(formatUnits(notional, 18));
+          const penaltyNum  = parseFloat(formatUnits(penalty, 18));
 
           // Determine B1 vs B2: query the current position size to see if fully liquidated.
           // As a heuristic: if remaining = 0 we treat as B2. We don't have position state
@@ -756,7 +1103,8 @@ function startClearingHouseWatchers() {
         for (const log of logs) {
           const { marketId, account, fundingPayment } = log.args;
           const trader     = account.toLowerCase();
-          const paymentNum = parseFloat(formatUnits(fundingPayment, 6));
+          await applyFundingSettlementToTrade(log);
+          const paymentNum = parseFloat(formatUnits(fundingPayment, 18));
 
           // Only notify if payment exceeds $1 threshold
           if (Math.abs(paymentNum) < 1.0) continue;
@@ -846,7 +1194,7 @@ function startClearingHouseWatchers() {
     })
   );
 
-  console.log('✅ ClearingHouse event watchers started (LiquidationExecuted, FundingSettled, MarketPaused, collateralDeposited, collateralWithdrawn)');
+  console.log('✅ ClearingHouse event watchers started (TradeExecuted, PositionClosed, LiquidationExecuted, FundingSettled, MarketPaused, collateralDeposited, collateralWithdrawn)');
   return unwatches;
 }
 

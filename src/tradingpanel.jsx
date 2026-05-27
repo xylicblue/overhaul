@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useTradingStore } from "./stores/useTradingStore";
 import ReactDOM from "react-dom";
 import { toast } from "react-hot-toast";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { supabase } from "./creatclient";
 import { recordTradeWithRetry } from "./services/tradeQueue";
 import { useMarketRealTimeData } from "./marketData";
@@ -14,8 +14,27 @@ import {
   useMarketRiskParams,
   useVaultBalance,
 } from "./hooks/useClearingHouse";
-import { MARKET_IDS } from "./contracts/addresses";
+import { MARKET_IDS, SEPOLIA_CONTRACTS } from "./contracts/addresses";
+import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
 import { Info, ShieldCheck } from "lucide-react";
+import { formatTransactionError, getSepoliaTxUrl } from "./utils/transactionErrors";
+
+const BPS_DENOMINATOR = 10000;
+const DEFAULT_IMR_BPS = 1000;
+const DEFAULT_MMR_BPS = 500;
+const DEFAULT_FEE_BPS = 10;
+const ORDER_HEADROOM_BPS = 100;
+const PRICE_IMPACT_BUFFER_BPS = 50;
+
+const toNumber = (value) => {
+  if (typeof value === "string") {
+    const normalized = value.replace(/[$,\s]/g, "");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Info Tooltip
@@ -84,78 +103,155 @@ const SectionLabel = ({ children, right }) => (
 // TradingPanel
 // ─────────────────────────────────────────────────────────────────────────────
 export const TradingPanel = ({ selectedMarket }) => {
-  const { side, size, priceLimit, leverage, lastTxHash,
-          setSide, setSize, setPriceLimit, setLeverage,
+  const { side, size, priceLimit, lastTxHash,
+          setSide, setSize, setPriceLimit,
           resetOrder, setLastTx } = useTradingStore();
   const { address }               = useAccount();
 
   const marketId                 = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
-  const { accountValue }         = useAccountValue();
+  const { accountValue, accountValueRaw } = useAccountValue();
   const { totalCollateralValue } = useVaultBalance();
   const { riskParams }           = useMarketRiskParams(marketId);
+  const { data: marketConfig }   = useReadContract({
+    address: SEPOLIA_CONTRACTS.marketRegistry,
+    abi: MarketRegistryABI.abi,
+    functionName: "getMarket",
+    args: [marketId],
+    chainId: 11155111,
+    query: {
+      enabled: !!marketId,
+      refetchInterval: 30000,
+    },
+  });
 
-  const { openPosition, isPending, isSuccess, error: tradeError, hash, reset: resetTrade } = useOpenPosition(marketId);
+  const {
+    openPosition,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error: tradeError,
+    receiptError,
+    hash,
+    reset: resetTrade,
+  } = useOpenPosition(marketId);
 
   const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
 
   const isLong = side === "Buy";
+  const submittedOpenOrderRef = useRef(null);
 
   // ── Calculations (memoised — only rerun when inputs actually change) ───────
   const {
     effectiveBalance, currentPrice, marketPrice,
-    maxSize, sizeNum, notionalValue, fees, marginRequired, liqPrice,
+    maxSize, sizeNum, notionalValue, fees, marginRequired, collateralRequired,
+    derivedLeverage, riskPrice, feeBps, liqPrice, isOverMax,
   } = useMemo(() => {
-    const accountValueNum  = parseFloat(accountValue) || 0;
-    const vaultBalanceNum  = parseFloat(totalCollateralValue) || 0;
-    const effectiveBalance = accountValueNum > 0 ? accountValueNum : vaultBalanceNum;
-    const currentPrice     = parseFloat(market?.markPriceRaw) || 0;
-    const marketPrice      = parseFloat(market?.price) || 0;
-    const imr              = riskParams?.imrPercent ? riskParams.imrPercent / 100 : 0.1;
-    const mmr              = riskParams?.mmrPercent ? riskParams.mmrPercent / 100 : 0.05;
-    const maxSize          = currentPrice > 0 ? (effectiveBalance * leverage) / currentPrice / imr : 0;
-    const sizeNum          = parseFloat(size) || 0;
-    const notionalValue    = sizeNum * marketPrice;
-    const fees             = notionalValue * 0.001;
-    const marginRequired   = leverage > 0 ? notionalValue / leverage : 0;
-    const liqPrice         = currentPrice > 0 && sizeNum > 0
+    const accountValueNum = toNumber(accountValue);
+    const vaultBalanceNum = toNumber(totalCollateralValue);
+    const hasAccountValue = accountValueRaw !== undefined && accountValueRaw !== null;
+    const effectiveBalance = hasAccountValue
+      ? Math.max(accountValueNum, 0)
+      : Math.max(vaultBalanceNum, 0);
+
+    const currentPrice  = toNumber(market?.markPriceRaw);
+    const indexPrice    = toNumber(market?.oraclePriceRaw);
+    const marketPrice   = toNumber(market?.price) || currentPrice || indexPrice;
+    const limitPrice    = toNumber(priceLimit);
+    const executionPrice = limitPrice > 0 ? limitPrice : marketPrice;
+    const riskPrice     = Math.max(currentPrice, indexPrice, executionPrice);
+    const imrBps        = Number(riskParams?.imrBps || DEFAULT_IMR_BPS);
+    const mmrBps        = Number(riskParams?.mmrBps || DEFAULT_MMR_BPS);
+    const feeBps        = Number(marketConfig?.feeBps ?? marketConfig?.[1] ?? selectedMarket?.feeBps ?? market?.feeBps ?? DEFAULT_FEE_BPS);
+    const executionBuffer = 1 + PRICE_IMPACT_BUFFER_BPS / BPS_DENOMINATOR;
+    const marginRiskPrice = riskPrice * executionBuffer;
+    const availableForOrder = effectiveBalance * (1 - ORDER_HEADROOM_BPS / BPS_DENOMINATOR);
+    const marginPerUnit = marginRiskPrice * imrBps / BPS_DENOMINATOR;
+    const feePerUnit = executionPrice * feeBps / BPS_DENOMINATOR * executionBuffer;
+    const maxSize = marginPerUnit + feePerUnit > 0
+      ? availableForOrder / (marginPerUnit + feePerUnit)
+      : 0;
+
+    const sizeNum = toNumber(size);
+    const notionalValue = sizeNum * executionPrice;
+    const riskNotional = sizeNum * marginRiskPrice;
+    const fees = notionalValue * feeBps / BPS_DENOMINATOR * executionBuffer;
+    const marginRequired = riskNotional * imrBps / BPS_DENOMINATOR;
+    const collateralRequired = marginRequired + fees;
+    const derivedLeverage = marginRequired > 0 ? notionalValue / marginRequired : 0;
+    const maintenanceMargin = riskNotional * mmrBps / BPS_DENOMINATOR;
+    const liqPrice = executionPrice > 0 && sizeNum > 0
       ? isLong
-        ? (currentPrice - (marginRequired - mmr * notionalValue) / sizeNum).toFixed(2)
-        : (currentPrice + (marginRequired - mmr * notionalValue) / sizeNum).toFixed(2)
+        ? (executionPrice - (marginRequired - maintenanceMargin) / sizeNum).toFixed(2)
+        : (executionPrice + (marginRequired - maintenanceMargin) / sizeNum).toFixed(2)
       : "—";
-    return { effectiveBalance, currentPrice, marketPrice, maxSize, sizeNum, notionalValue, fees, marginRequired, liqPrice };
+    const isOverMax = sizeNum > 0 && (sizeNum > maxSize || collateralRequired > effectiveBalance);
+
+    return {
+      effectiveBalance,
+      currentPrice,
+      marketPrice: executionPrice,
+      maxSize,
+      sizeNum,
+      notionalValue,
+      fees,
+      marginRequired,
+      collateralRequired,
+      derivedLeverage,
+      riskPrice: marginRiskPrice,
+      feeBps,
+      liqPrice,
+      isOverMax,
+    };
   }, [accountValue, totalCollateralValue, market?.markPriceRaw, market?.price,
-      riskParams?.imrPercent, riskParams?.mmrPercent, size, leverage, isLong]);
+      market?.oraclePriceRaw, market?.feeBps, priceLimit, riskParams?.imrBps,
+      riskParams?.mmrBps, marketConfig, selectedMarket?.feeBps, size, isLong, accountValueRaw]);
 
   // ── Trade success ─────────────────────────────────────────────────────────
   useEffect(() => {
+    if (hash && isConfirming && hash !== lastTxHash) {
+      toast.loading(
+        <div>
+          <div>Submitted, waiting for confirmation...</div>
+          <a href={getSepoliaTxUrl(hash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
+          </a>
+        </div>,
+        { id: "trade" }
+      );
+    }
+  }, [hash, isConfirming, lastTxHash]);
+
+  useEffect(() => {
     if (isSuccess && hash && hash !== lastTxHash) {
-      setLastTx(hash, side);
+      const submittedOrder = submittedOpenOrderRef.current;
+      const openedSideLabel = submittedOrder?.sideLabel || "Position";
+      setLastTx(hash, submittedOrder?.txActionText || openedSideLabel);
       toast.success(
         <div>
-          <div>Position opened successfully!</div>
-          <a href={`https://sepolia.etherscan.io/tx/${hash}`} target="_blank" rel="noopener noreferrer" className="underline text-sm">
-            View on Etherscan →
+          <div>{openedSideLabel} opened.</div>
+          <a href={getSepoliaTxUrl(hash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
           </a>
         </div>,
         { id: "trade", duration: 5000 }
       );
       const saveTrade = async () => {
-        if (!address || !market) return;
+        if (!address || !submittedOrder) return;
         await recordTradeWithRetry(
           {
             userAddress: address,
-            market: market.displayName || market.name,
-            side: isLong ? "Long" : "Short",
-            size: sizeNum,
-            price: marketPrice,
-            notional: notionalValue,
+            market: submittedOrder.marketDisplayName,
+            side: submittedOrder.sideLabel,
+            size: submittedOrder.sizeNum,
+            price: submittedOrder.marketPrice,
+            notional: submittedOrder.notional,
             txHash: hash,
           },
           {
-            market: market.name,
-            price: parseFloat(market.markPriceRaw) || marketPrice,
-            twap: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
+            market: submittedOrder.marketKey,
+            price: submittedOrder.markRaw || submittedOrder.marketPrice,
+            twap: submittedOrder.twapRaw || submittedOrder.markRaw || 0,
             timestamp: new Date().toISOString(),
           }
         );
@@ -164,21 +260,16 @@ export const TradingPanel = ({ selectedMarket }) => {
       resetOrder();
       setTimeout(() => resetTrade(), 100);
     }
-  }, [isSuccess, hash, lastTxHash, address, market, isLong, sizeNum, marketPrice, notionalValue, resetTrade, setLastTx, resetOrder, side]);
+  }, [isSuccess, hash, lastTxHash, address, resetTrade, setLastTx, resetOrder]);
 
   // ── Trade error ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (tradeError) {
-      const msg = tradeError.message.toLowerCase();
-      let friendly = "Transaction failed";
-      if (msg.includes("user rejected") || msg.includes("user denied")) friendly = "Transaction cancelled";
-      else if (msg.includes("insufficient")) friendly = "Insufficient funds";
-      else if (msg.includes("network")) friendly = "Network error — please try again";
-      else { const f = tradeError.message.split("\n")[0]; friendly = f.length > 80 ? f.slice(0, 80) + "…" : f; }
-      toast.error(friendly, { id: "trade" });
+    const failure = tradeError || receiptError;
+    if (failure) {
+      toast.error(formatTransactionError(failure, { action: "open" }), { id: "trade" });
       resetTrade();
     }
-  }, [tradeError, resetTrade]);
+  }, [tradeError, receiptError, resetTrade]);
 
   // ── Guards ────────────────────────────────────────────────────────────────
   if (!selectedMarket) return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Select a market</div>;
@@ -192,12 +283,26 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   const handleTrade = async () => {
     if (!size || sizeNum <= 0) return toast.error("Please enter a valid size");
+    if (isOverMax) return toast.error("Order exceeds available collateral after IMR and fees");
     try {
       const priceLimitValue = priceLimit && parseFloat(priceLimit) > 0 ? parseFloat(priceLimit) : 0;
+      submittedOpenOrderRef.current = {
+        sideLabel: isLong ? "Long" : "Short",
+        isLong,
+        sizeNum,
+        marketDisplayName: market.displayName || market.name,
+        marketName: market.name,
+        marketKey: market.name,
+        marketPrice,
+        markRaw: parseFloat(market.markPriceRaw) || marketPrice,
+        twapRaw: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
+        notional: notionalValue,
+        txActionText: side,
+      };
+      toast.loading("Review order transaction in wallet...", { id: "trade" });
       openPosition(isLong, size, priceLimitValue);
-      toast.loading(`${isLong ? "Opening long" : "Opening short"} position…`, { id: "trade" });
     } catch (err) {
-      toast.error("Failed to execute trade: " + err.message);
+      toast.error(formatTransactionError(err, { action: "open" }), { id: "trade" });
     }
   };
 
@@ -332,105 +437,27 @@ export const TradingPanel = ({ selectedMarket }) => {
           {/* Leverage */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Leverage</label>
+              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Derived leverage</label>
               <div
                 className={`px-2 py-0.5 rounded text-[13px] font-mono font-bold tabular-nums border ${
                   isLong
                     ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
                     : "bg-red-500/10 border-red-500/25 text-red-400"
-                }`}
+                  }`}
               >
-                {leverage}×
+                {derivedLeverage > 0 ? derivedLeverage.toFixed(1) : "—"}×
               </div>
             </div>
-
-            {/* Track area */}
-            <div className="relative pb-5">
-              <div className="relative h-[5px] bg-zinc-800 rounded-full">
-
-                {/* Filled portion */}
-                <div
-                  className={`absolute inset-y-0 left-0 rounded-full ${isLong ? "bg-emerald-500" : "bg-red-500"}`}
-                  style={{ width: `${((leverage - 1) / 9) * 100}%` }}
-                />
-
-                {/* Tick dots at key leverage values */}
-                {[1, 2, 3, 5, 7, 10].map((v) => {
-                  const pct    = ((v - 1) / 9) * 100;
-                  const filled = v <= leverage;
-                  return (
-                    <div
-                      key={v}
-                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full border pointer-events-none"
-                      style={{
-                        left:            `${pct}%`,
-                        backgroundColor: filled ? (isLong ? "#10b981" : "#ef4444") : "#09090b",
-                        borderColor:     filled ? (isLong ? "#10b981" : "#ef4444") : "#3f3f46",
-                      }}
-                    />
-                  );
-                })}
-
-                {/* Custom thumb — glowing ring */}
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[15px] h-[15px] rounded-full border-2 bg-[#09090b] pointer-events-none z-10"
-                  style={{
-                    left:        `${((leverage - 1) / 9) * 100}%`,
-                    borderColor: isLong ? "#10b981" : "#ef4444",
-                    boxShadow:   `0 0 0 3px ${isLong ? "rgba(16,185,129,0.18)" : "rgba(239,68,68,0.18)"}`,
-                  }}
-                />
-
-                {/* Native input — invisible, handles all drag + click interaction */}
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  step="1"
-                  value={leverage}
-                  onChange={(e) => setLeverage(parseInt(e.target.value))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                />
+            <div className="rounded-md border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-zinc-500">Contract margin model</span>
+                <span className="font-mono text-zinc-300">
+                  {riskParams?.imrPercent ? riskParams.imrPercent.toFixed(1) : (DEFAULT_IMR_BPS / 100).toFixed(1)}% IMR
+                </span>
               </div>
-
-              {/* Tick labels — clickable, snap to that value */}
-              <div className="relative h-4 mt-2">
-                {[
-                  { v: 1,  pct: 0   },
-                  { v: 2,  pct: ((2  - 1) / 9) * 100 },
-                  { v: 3,  pct: ((3  - 1) / 9) * 100 },
-                  { v: 5,  pct: ((5  - 1) / 9) * 100 },
-                  { v: 7,  pct: ((7  - 1) / 9) * 100 },
-                  { v: 10, pct: 100 },
-                ].map(({ v, pct }) => {
-                  const isSelected = v === leverage;
-                  const isPassed   = v < leverage;
-                  const posStyle   =
-                    v === 1
-                      ? { position: "absolute", left: 0 }
-                      : v === 10
-                      ? { position: "absolute", right: 0 }
-                      : { position: "absolute", left: `${pct}%`, transform: "translateX(-50%)" };
-                  return (
-                    <button
-                      key={v}
-                      onClick={() => setLeverage(v)}
-                      className={`text-[11px] font-mono tabular-nums transition-colors duration-100 ${
-                        isSelected
-                          ? isLong
-                            ? "text-emerald-400 font-semibold"
-                            : "text-red-400 font-semibold"
-                          : isPassed
-                          ? "text-zinc-400 hover:text-zinc-200"
-                          : "text-zinc-500 hover:text-zinc-300"
-                      }`}
-                      style={posStyle}
-                    >
-                      {v}×
-                    </button>
-                  );
-                })}
-              </div>
+              <p className="mt-1 text-[10px] leading-4 text-zinc-600">
+                Leverage is derived from size and required margin; the contract does not accept a leverage input.
+              </p>
             </div>
           </div>
         </div>
@@ -442,15 +469,21 @@ export const TradingPanel = ({ selectedMarket }) => {
             value={notionalValue > 0 ? `$${notionalValue.toFixed(2)}` : "—"}
           />
           <SummaryRow
-            label="Fees (0.10%)"
+            label={`Est. fees (${(feeBps / 100).toFixed(2)}%)`}
             value={fees > 0 ? `$${fees.toFixed(2)}` : "—"}
             valueClass="text-zinc-400"
           />
           <SummaryRow
-            label="Margin"
+            label="Initial margin"
             value={marginRequired > 0 ? `$${marginRequired.toFixed(2)}` : "—"}
             valueClass="text-white font-medium"
-            tooltip={{ title: "Margin Required", desc: "Collateral needed to open this position at the selected leverage." }}
+            tooltip={{ title: "Initial Margin", desc: "Collateral reserved by the contract using market IMR and the higher of mark or index price." }}
+          />
+          <SummaryRow
+            label="Total required"
+            value={collateralRequired > 0 ? `$${collateralRequired.toFixed(2)}` : "—"}
+            valueClass={isOverMax ? "text-red-400 font-medium" : "text-zinc-300"}
+            tooltip={{ title: "Total Required", desc: "Initial margin plus estimated trading fee, including a small execution buffer." }}
           />
           <SummaryRow
             label="Liq. price"
@@ -458,6 +491,11 @@ export const TradingPanel = ({ selectedMarket }) => {
             valueClass="text-yellow-400"
             tooltip={{ title: "Estimated Liquidation Price", desc: "Approximate price at which your position will be liquidated. Actual price depends on funding and fees." }}
           />
+          {isOverMax && (
+            <div className="mt-2 rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 text-[11px] text-red-300">
+              Order exceeds available collateral after initial margin and estimated fees.
+            </div>
+          )}
         </div>
 
         {/* Risk parameters — low-priority info, integrated */}
@@ -471,6 +509,12 @@ export const TradingPanel = ({ selectedMarket }) => {
             value={`${riskParams?.imrPercent ? riskParams.imrPercent.toFixed(1) : "10.0"}% / ${riskParams?.mmrPercent ? riskParams.mmrPercent.toFixed(1) : "5.0"}%`}
             valueClass="text-zinc-400"
             tooltip={{ title: "Initial / Maintenance Margin", desc: "IMR is the minimum margin to open a position. MMR is the minimum to keep it open before liquidation." }}
+          />
+          <SummaryRow
+            label="Risk price"
+            value={riskPrice > 0 ? `$${riskPrice.toFixed(2)}` : "—"}
+            valueClass="text-zinc-400"
+            tooltip={{ title: "Risk Price", desc: "The higher of mark, index, or order price used to estimate contract margin." }}
           />
           <SummaryRow
             label="Liq. penalty"
@@ -490,7 +534,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               : "bg-red-500 hover:bg-red-400"
           }`}
           onClick={handleTrade}
-          disabled={isPending || !size || sizeNum <= 0}
+          disabled={isPending || !size || sizeNum <= 0 || isOverMax}
         >
           {isPending ? (
             <>

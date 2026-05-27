@@ -8,13 +8,25 @@ import {
 import { parseUnits, formatUnits } from "ethers";
 import {
   SEPOLIA_CONTRACTS,
-  COLLATERAL_TOKENS,
   getActiveMarkets,
 } from "../contracts/addresses";
 import ClearingHouseABI from "../contracts/abis/ClearingHouse.json";
 import CollateralVaultABI from "../contracts/abis/CollateralVault.json";
+import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
 
 const SEPOLIA_CHAIN_ID = 11155111;
+const WAD = 10n ** 18n;
+const BPS_DENOMINATOR = 10000n;
+const UINT256_MAX = (1n << 256n) - 1n;
+const ORACLE_PRICE_ABI = [
+  {
+    inputs: [],
+    name: "getPrice",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+];
 const MARKET_POSITION_CONFIG = getActiveMarkets().map((market) => ({
   key: market.name,
   marketId: market.id,
@@ -22,6 +34,38 @@ const MARKET_POSITION_CONFIG = getActiveMarkets().map((market) => ({
   displayName: market.displayName,
   baseAssetSymbol: "GPU-HRS",
 }));
+
+const formatX18 = (value) =>
+  value !== undefined && value !== null ? formatUnits(value, 18) : "0";
+
+const numberOrZero = (value) => {
+  const parsed = Number.parseFloat(value ?? "0");
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const absBigInt = (value) => {
+  const bigint = BigInt(value ?? 0n);
+  return bigint < 0n ? -bigint : bigint;
+};
+
+const mulDivRoundUp = (a, b, denominator) => {
+  if (a === 0n || b === 0n) return 0n;
+  return (a * b + denominator - 1n) / denominator;
+};
+
+export function calculatePendingFunding(position, fundingRate) {
+  if (!position) return 0;
+
+  const isLong = Boolean(position.isLong);
+  const currentPay = numberOrZero(isLong ? fundingRate?.longPay : fundingRate?.shortPay);
+  const currentReceive = numberOrZero(isLong ? fundingRate?.longReceive : fundingRate?.shortReceive);
+  const lastPay = numberOrZero(position.lastFundingPayIndex);
+  const lastReceive = numberOrZero(position.lastFundingReceiveIndex);
+  const absSize = Math.abs(numberOrZero(position.size));
+
+  return ((currentReceive - lastReceive) - (currentPay - lastPay)) * absSize;
+}
+
 /**
  * Get user's position for a specific market
  * @param {string} marketId - Market ID (keccak256 of market name)
@@ -43,8 +87,10 @@ export function usePosition(marketId, userAddress = null) {
     },
   });
 
-  // Position struct: PositionView { size, margin, entryPriceX18, lastFundingIndex, realizedPnL }
-  // size and lastFundingIndex are int256, others are uint256
+  // Position struct: PositionView {
+  //   size, margin, entryPriceX18, lastFundingPayIndex,
+  //   lastFundingReceiveIndex, realizedPnL
+  // }
 
   if (!data || !addressToUse) {
     return {
@@ -55,24 +101,31 @@ export function usePosition(marketId, userAddress = null) {
     };
   }
 
-  // Parse the position data from struct
-  // Wagmi v2 returns struct as object with named properties, not array
-  const size = data.size || 0n;
-  const margin = data.margin || 0n;
-  const entryPriceX18 = data.entryPriceX18 || 0n;
-  const lastFundingIndex = data.lastFundingIndex || 0n;
-  const realizedPnL = data.realizedPnL || 0n;
+  // Parse the position data from struct. Wagmi v2 returns named properties,
+  // but keep tuple indexes as a fallback for ABI/client variance.
+  const size = data.size ?? data[0] ?? 0n;
+  const margin = data.margin ?? data[1] ?? 0n;
+  const entryPriceX18 = data.entryPriceX18 ?? data[2] ?? 0n;
+  const lastFundingPayIndex = data.lastFundingPayIndex ?? data.lastFundingIndex ?? data[3] ?? 0n;
+  const hasReceiveIndex =
+    data.lastFundingReceiveIndex !== undefined ||
+    (Array.isArray(data) && data.length >= 6);
+  const lastFundingReceiveIndex = hasReceiveIndex
+    ? data.lastFundingReceiveIndex ?? data[4] ?? 0n
+    : 0n;
+  const realizedPnL = data.realizedPnL ?? data[hasReceiveIndex ? 5 : 4] ?? 0n;
 
   const position = {
-    size: size ? formatUnits(size, 18) : "0",
+    size: formatX18(size),
     sizeRaw: size,
-    margin: margin ? formatUnits(margin, 18) : "0",
+    margin: formatX18(margin),
     marginRaw: margin,
-    entryPriceX18: entryPriceX18 ? formatUnits(entryPriceX18, 18) : "0",
-    lastFundingIndex: lastFundingIndex
-      ? formatUnits(lastFundingIndex, 18)
-      : "0",
-    realizedPnL: realizedPnL ? formatUnits(realizedPnL, 18) : "0",
+    entryPriceX18: formatX18(entryPriceX18),
+    lastFundingPayIndex: formatX18(lastFundingPayIndex),
+    lastFundingPayIndexRaw: lastFundingPayIndex,
+    lastFundingReceiveIndex: formatX18(lastFundingReceiveIndex),
+    lastFundingReceiveIndexRaw: lastFundingReceiveIndex,
+    realizedPnL: formatX18(realizedPnL),
     // Helper flags
     hasPosition: size && size !== 0n,
     isLong: size && size > 0n,
@@ -157,7 +210,12 @@ export function useOpenPosition(marketId) {
     error,
     reset,
   } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    isError: isReceiptError,
+    error: receiptError,
+  } = useWaitForTransactionReceipt({
     hash,
   });
 
@@ -178,8 +236,12 @@ export function useOpenPosition(marketId) {
   return {
     openPosition,
     isPending: isPending || isConfirming,
+    isWalletPending: isPending,
+    isConfirming,
     isSuccess,
+    isReceiptError,
     error,
+    receiptError,
     hash,
     reset,
   };
@@ -190,31 +252,50 @@ export function useOpenPosition(marketId) {
  * @param {string} marketId - Market ID
  */
 export function useClosePosition(marketId) {
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+  const { writeContract, writeContractAsync, data: hash, isPending, error, reset } = useWriteContract();
+  const {
+    data: receipt,
+    isLoading: isConfirming,
+    isSuccess: isReceiptFetched,
+    isError: isReceiptError,
+    error: receiptError,
+  } = useWaitForTransactionReceipt({
     hash,
   });
 
-  const closePosition = (size, priceLimit = 0) => {
+  const closePosition = async (size, priceLimit = 0) => {
     const sizeWei = parseUnits(size.toString(), 18);
     const priceLimitWei = parseUnits(priceLimit.toString(), 18);
 
-    writeContract({
+    const request = {
       address: SEPOLIA_CONTRACTS.clearingHouse,
       abi: ClearingHouseABI.abi,
       functionName: "closePosition",
       args: [marketId, sizeWei, priceLimitWei],
       chainId: SEPOLIA_CHAIN_ID,
-      gas: 700000n, // Set reasonable gas limit for closing
-    });
+    };
+
+    if (writeContractAsync) {
+      return writeContractAsync(request);
+    }
+
+    return writeContract(request);
   };
 
   return {
     closePosition,
     isPending: isPending || isConfirming,
-    isSuccess,
+    isWalletPending: isPending,
+    isConfirming,
+    isReceiptFetched,
+    isSuccess: receipt?.status === "success",
+    isReverted: receipt?.status === "reverted",
+    isReceiptError,
     error,
+    receiptError,
+    receipt,
     hash,
+    reset,
   };
 }
 
@@ -368,7 +449,45 @@ export function useLiquidationStatus(marketId, userAddress = null) {
   const addressToUse = userAddress || connectedAddress;
   const enabled = !!addressToUse && !!marketId;
 
-  const { data: liquidationData, isLoading: isChecking } = useReadContract({
+  const {
+    position,
+    isLoading: isPositionLoading,
+    error: positionError,
+  } = usePosition(marketId, addressToUse);
+
+  const {
+    riskParams,
+    isLoading: isRiskParamsLoading,
+    error: riskParamsError,
+  } = useMarketRiskParams(marketId);
+
+  const { data: marketData, isLoading: isMarketLoading, error: marketError } = useReadContract({
+    address: SEPOLIA_CONTRACTS.marketRegistry,
+    abi: MarketRegistryABI.abi,
+    functionName: "getMarket",
+    args: enabled ? [marketId] : undefined,
+    chainId: SEPOLIA_CHAIN_ID,
+    query: {
+      enabled,
+      refetchInterval: 30000,
+    },
+  });
+
+  const oracleAddress = marketData?.oracle ?? marketData?.[3];
+  const hasOpenPosition = Boolean(position?.hasPosition);
+
+  const { data: oraclePrice, isLoading: isOracleLoading, error: oracleError } = useReadContract({
+    address: oracleAddress,
+    abi: ORACLE_PRICE_ABI,
+    functionName: "getPrice",
+    chainId: SEPOLIA_CHAIN_ID,
+    query: {
+      enabled: enabled && hasOpenPosition && !!oracleAddress,
+      refetchInterval: 5000,
+    },
+  });
+
+  const { data: liquidationData, isLoading: isChecking, error: liquidationError } = useReadContract({
     address: SEPOLIA_CONTRACTS.clearingHouse,
     abi: ClearingHouseABI.abi,
     functionName: "isLiquidatable",
@@ -380,24 +499,77 @@ export function useLiquidationStatus(marketId, userAddress = null) {
     },
   });
 
-  const { data: maintenanceData, isLoading: isFetchingMargin } =
-    useReadContract({
-      address: SEPOLIA_CONTRACTS.clearingHouse,
-      abi: ClearingHouseABI.abi,
-      functionName: "getMaintenanceMargin",
-      args: enabled ? [addressToUse, marketId] : undefined,
-      chainId: SEPOLIA_CHAIN_ID,
-      query: {
-        enabled,
-        refetchInterval: 5000,
-      },
-    });
+  const { data: notionalData, isLoading: isNotionalLoading, error: notionalError } = useReadContract({
+    address: SEPOLIA_CONTRACTS.clearingHouse,
+    abi: ClearingHouseABI.abi,
+    functionName: "getNotional",
+    args: enabled && hasOpenPosition ? [addressToUse, marketId] : undefined,
+    chainId: SEPOLIA_CHAIN_ID,
+    query: {
+      enabled: enabled && hasOpenPosition,
+      refetchInterval: 5000,
+    },
+  });
+
+  const { data: marginRatioData, isLoading: isMarginRatioLoading, error: marginRatioError } = useReadContract({
+    address: SEPOLIA_CONTRACTS.clearingHouse,
+    abi: ClearingHouseABI.abi,
+    functionName: "getMarginRatio",
+    args: enabled && hasOpenPosition ? [addressToUse, marketId] : undefined,
+    chainId: SEPOLIA_CHAIN_ID,
+    query: {
+      enabled: enabled && hasOpenPosition,
+      refetchInterval: 5000,
+    },
+  });
+
+  const positionSize = hasOpenPosition ? absBigInt(position.sizeRaw) : 0n;
+  const mmrBps = BigInt(riskParams?.mmrBps ?? 0);
+  const riskNotional = oraclePrice && positionSize > 0n
+    ? mulDivRoundUp(positionSize, oraclePrice, WAD)
+    : 0n;
+  const maintenanceMarginRaw = riskNotional > 0n && mmrBps > 0n
+    ? mulDivRoundUp(riskNotional, mmrBps, BPS_DENOMINATOR)
+    : 0n;
+  const notionalRaw = notionalData ?? 0n;
+  const marginRatioRaw = marginRatioData ?? 0n;
+  const effectiveMarginRaw =
+    hasOpenPosition && marginRatioData !== undefined && marginRatioRaw !== UINT256_MAX
+      ? (marginRatioRaw * notionalRaw) / WAD
+      : (hasOpenPosition ? position.marginRaw ?? 0n : 0n);
+  const liquidationBufferRaw = effectiveMarginRaw - maintenanceMarginRaw;
 
   return {
-    isLiquidatable: Boolean(liquidationData),
-    maintenanceMargin: maintenanceData ? formatUnits(maintenanceData, 18) : "0",
-    maintenanceMarginRaw: maintenanceData,
-    isLoading: isChecking || isFetchingMargin,
+    isLiquidatable: liquidationData === true,
+    maintenanceMargin: formatUnits(maintenanceMarginRaw, 18),
+    maintenanceMarginRaw,
+    liquidationBuffer: formatUnits(liquidationBufferRaw, 18),
+    liquidationBufferRaw,
+    effectiveMargin: formatUnits(effectiveMarginRaw, 18),
+    effectiveMarginRaw,
+    notional: formatUnits(notionalRaw, 18),
+    notionalRaw,
+    riskNotional: formatUnits(riskNotional, 18),
+    riskNotionalRaw: riskNotional,
+    riskPrice: oraclePrice ? formatUnits(oraclePrice, 18) : "0",
+    riskPriceRaw: oraclePrice,
+    isLoading:
+      isPositionLoading ||
+      isRiskParamsLoading ||
+      isMarketLoading ||
+      (hasOpenPosition && isOracleLoading) ||
+      (hasOpenPosition && isNotionalLoading) ||
+      (hasOpenPosition && isMarginRatioLoading) ||
+      isChecking,
+    error:
+      positionError ||
+      riskParamsError ||
+      marketError ||
+      oracleError ||
+      notionalError ||
+      marginRatioError ||
+      liquidationError ||
+      null,
   };
 }
 

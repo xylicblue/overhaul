@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "./creatclient";
 import { useAccount, useReadContract } from "wagmi";
 import {
+  calculatePendingFunding,
   useAllPositions,
   useAccountValue,
   useVaultBalance,
@@ -30,6 +31,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 const fmt  = (n, d = 2) => Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 const mono = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt(Math.abs(n))}`;
+const hasCanonicalAccounting = (trade) => trade?.pnl != null && trade?.fees_paid != null;
 
 const SideBadge = ({ isLong }) => (
   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
@@ -52,8 +54,13 @@ const Th = ({ children, right }) => (
 // PositionRow
 // ─────────────────────────────────────────────────────────────────────────────
 const PositionRow = ({ pos }) => {
-  const { price: markPrice }                       = useMarkPrice(pos.vammAddress);
-  const { cumulativeFunding: currentFundingIndex } = useFundingRate(pos.vammAddress);
+  const { price: markPrice } = useMarkPrice(pos.vammAddress);
+  const {
+    longPay,
+    longReceive,
+    shortPay,
+    shortReceive,
+  } = useFundingRate(pos.vammAddress);
 
   const { data: marketConfig } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
@@ -73,9 +80,12 @@ const PositionRow = ({ pos }) => {
     ? isLong ? (currentPrice - entryPrice) * absSize : (entryPrice - currentPrice) * absSize
     : 0;
 
-  const currentIndex   = parseFloat(currentFundingIndex || 0);
-  const lastIndex      = parseFloat(pos.lastFundingIndex || 0);
-  const fundingEarned  = -((currentIndex - lastIndex) * parseFloat(pos.size));
+  const fundingEarned  = calculatePendingFunding(pos, {
+    longPay,
+    longReceive,
+    shortPay,
+    shortReceive,
+  });
 
   const feeBps       = marketConfig?.feeBps || 10;
   const openNotional = entryPrice * absSize;
@@ -115,7 +125,7 @@ const StatBar = ({ username, totalCollateral, realizedPnL, availableMargin, buyi
   const stats = [
     { label: "Total Collateral",  value: `$${fmt(totalCollateral)}`,  icon: <ShieldCheck size={12} />,  sub: null },
     { label: "Available Margin",  value: `$${fmt(availableMargin)}`,  icon: <Banknote size={12} />,     sub: null },
-    { label: "Buying Power",      value: `$${fmt(buyingPower)}`,      icon: <Zap size={12} />,          sub: "10× leverage" },
+    { label: "Order Collateral",  value: `$${fmt(buyingPower)}`,      icon: <Zap size={12} />,          sub: "Max size uses IMR + fees" },
     {
       label: "Realized P&L",
       value: mono(realizedPnL, true),
@@ -240,7 +250,7 @@ const PortfolioPage = () => {
 
   const availableMargin  = parseFloat(accountValue) || 0;
   const totalCollateral  = parseFloat(totalCollateralValue) || 0;
-  const buyingPower      = availableMargin * 10;
+  const buyingPower      = availableMargin;
   const realizedPnL      = (positions || []).reduce((s, p) => s + parseFloat(p.realizedPnL || 0), 0);
 
   const filteredTrades = tradeHistory.filter((t) => {
@@ -366,9 +376,10 @@ const PortfolioPage = () => {
                     </TableHead>
                     <tbody className="divide-y divide-zinc-800/40">
                       {filteredTrades.map((trade, i) => {
-                        const pnl     = trade.pnl     != null ? parseFloat(trade.pnl)             : null;
-                        const funding = trade.funding_earned != null ? parseFloat(trade.funding_earned) : null;
-                        const fees    = trade.fees_paid     != null ? parseFloat(trade.fees_paid)       : null;
+                        const isCanonical = hasCanonicalAccounting(trade);
+                        const pnl     = isCanonical ? parseFloat(trade.pnl) : null;
+                        const funding = isCanonical && trade.funding_earned != null ? parseFloat(trade.funding_earned) : null;
+                        const fees    = isCanonical ? parseFloat(trade.fees_paid) : null;
 
                         return (
                           <tr key={trade.id || i} className="hover:bg-zinc-800/20 transition-colors">
@@ -392,7 +403,7 @@ const PortfolioPage = () => {
                               pnl == null ? "" : pnl >= 0 ? "text-emerald-400" : "text-red-400"
                             }`}>
                               {pnl != null ? mono(pnl, true) : (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-zinc-800 text-zinc-500 rounded">OPEN</span>
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-zinc-800 text-zinc-500 rounded">PENDING</span>
                               )}
                             </td>
                             <td className={`px-4 py-3 text-right font-mono text-xs ${

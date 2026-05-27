@@ -51,7 +51,7 @@ const SwipeToast = ({ t }) => {
   const [swiping, setSwiping] = useState(false);
 
   const handleEnter = () => {
-    if (swiping) return;
+    if (swiping || t.type === "error") return;
     setSwiping(true);
     setTimeout(() => toast.dismiss(t.id), SWIPE_DURATION_MS);
   };
@@ -63,9 +63,9 @@ const SwipeToast = ({ t }) => {
         transform: swiping ? "translateX(420px)" : "translateX(0)",
         opacity:   swiping ? 0 : 1,
         transition: `transform ${SWIPE_DURATION_MS}ms cubic-bezier(0.32, 0.72, 0, 1), opacity ${SWIPE_DURATION_MS - 40}ms ease-out`,
-        cursor: "pointer",
+        cursor: t.type === "error" ? "default" : "pointer",
       }}
-      title="Hover to dismiss"
+      title={t.type === "error" ? undefined : "Hover to dismiss"}
     >
       <ToastBar toast={t} />
     </div>
@@ -176,6 +176,7 @@ function App() {
                       iconTheme: { primary: "#10b981", secondary: "#0f0f14" },
                     },
                     error: {
+                      duration: 10000,
                       style: {
                         background: "linear-gradient(135deg, rgba(15,15,20,0.95) 0%, rgba(239,68,68,0.1) 100%)",
                         border: "1px solid rgba(239,68,68,0.3)",
