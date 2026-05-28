@@ -31,7 +31,8 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 const fmt  = (n, d = 2) => Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmt3 = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-const mono = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt3(Math.abs(n))}`;
+const mono  = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt(Math.abs(n))}`;
+const mono3 = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt3(Math.abs(n))}`;
 const hasCanonicalAccounting = (trade) => trade?.pnl != null && trade?.fees_paid != null;
 
 const SideBadge = ({ isLong }) => (
@@ -244,7 +245,6 @@ const PortfolioPage = () => {
     supabase.from("trade_history").select("*")
       .eq("user_address", address.toLowerCase())
       .order("created_at", { ascending: false })
-      .limit(50)
       .then(({ data }) => { setTradeHistory(data || []); setTradesLoading(false); })
       .catch(() => setTradesLoading(false));
   }, [address]);
@@ -252,7 +252,9 @@ const PortfolioPage = () => {
   const availableMargin  = parseFloat(accountValue) || 0;
   const totalCollateral  = parseFloat(totalCollateralValue) || 0;
   const buyingPower      = availableMargin;
-  const realizedPnL      = (positions || []).reduce((s, p) => s + parseFloat(p.realizedPnL || 0), 0);
+  const realizedPnL      = tradeHistory
+    .filter(t => t.pnl != null)
+    .reduce((s, t) => s + parseFloat(t.pnl || 0), 0);
 
   const filteredTrades = tradeHistory.filter((t) => {
     if (timeFilter === "all") return true;
@@ -403,14 +405,14 @@ const PortfolioPage = () => {
                             <td className={`px-4 py-3 text-right font-mono text-xs font-bold ${
                               pnl == null ? "" : pnl >= 0 ? "text-emerald-400" : "text-red-400"
                             }`}>
-                              {pnl != null ? mono(pnl, true) : (
+                              {pnl != null ? mono3(pnl, true) : (
                                 <span className="px-1.5 py-0.5 text-[9px] font-bold bg-zinc-800 text-zinc-500 rounded">PENDING</span>
                               )}
                             </td>
                             <td className={`px-4 py-3 text-right font-mono text-xs ${
                               funding == null ? "text-zinc-700" : funding >= 0 ? "text-emerald-400" : "text-red-400"
                             }`}>
-                              {funding != null ? mono(funding, true) : "·"}
+                              {funding != null ? mono3(funding, true) : "·"}
                             </td>
                             <td className={`px-4 py-3 text-right font-mono text-xs ${fees != null ? "text-red-400" : "text-zinc-700"}`}>
                               {fees != null ? `-$${fmt3(fees)}` : "·"}
