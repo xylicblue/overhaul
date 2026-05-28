@@ -92,7 +92,7 @@ const SummaryRow = ({ label, value, valueClass = "text-zinc-200", tooltip }) => 
 // ─────────────────────────────────────────────────────────────────────────────
 const SectionLabel = ({ children, right }) => (
   <div className="flex items-center justify-between mb-2">
-    <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">{children}</span>
+    <span className="text-[10px] font-semibold text-zinc-300 uppercase tracking-[0.14em]">{children}</span>
     {right}
   </div>
 );
@@ -347,7 +347,7 @@ export const TradingPanel = ({ selectedMarket }) => {
             { label: "Max",     value: maxSize > 0 ? maxSize.toFixed(2) : "—",                 align: "items-end" },
           ].map(({ label, value, align }) => (
             <div key={label} className={`flex flex-col ${align}`}>
-              <span className="text-[9px] font-medium text-zinc-500 uppercase tracking-[0.14em]">{label}</span>
+              <span className="text-[9px] font-medium text-zinc-400 uppercase tracking-[0.14em]">{label}</span>
               <span className="text-[12px] font-mono font-medium text-zinc-200 tabular-nums truncate mt-0.5">{value}</span>
             </div>
           ))}
@@ -369,7 +369,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           {/* Size */}
           <div>
             <div className="flex items-baseline justify-between mb-1.5">
-              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Size</label>
+              <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em]">Size</label>
               <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
                 Max {maxSize > 0 ? maxSize.toFixed(2) : "0.00"} {market.baseAsset}
               </span>
@@ -379,8 +379,13 @@ export const TradingPanel = ({ selectedMarket }) => {
                 type="number"
                 placeholder="0.0000"
                 className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md pl-3 pr-16 py-2 text-[13px] text-white focus:outline-none focus:border-white/[0.16] transition-colors duration-150 placeholder-zinc-700 font-mono tabular-nums"
+                min="0"
                 value={size}
-                onChange={e => setSize(e.target.value)}
+                onKeyDown={e => e.key === "-" && e.preventDefault()}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === "" || parseFloat(v) >= 0) setSize(v);
+                }}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
                 {market.baseAsset}
@@ -448,7 +453,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           {/* Price limit */}
           <div>
             <div className="flex items-baseline justify-between mb-1.5">
-              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Price limit</label>
+              <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em]">Price limit</label>
               <button
                 className="text-[10px] text-zinc-400 hover:text-white font-medium transition-colors duration-150"
                 onClick={() => setPriceLimit(market.price)}
@@ -461,8 +466,13 @@ export const TradingPanel = ({ selectedMarket }) => {
                 type="number"
                 placeholder="Market"
                 className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md pl-3 pr-12 py-2 text-[13px] text-white focus:outline-none focus:border-white/[0.16] transition-colors duration-150 placeholder-zinc-700 font-mono tabular-nums"
+                min="0"
                 value={priceLimit}
-                onChange={e => setPriceLimit(e.target.value)}
+                onKeyDown={e => e.key === "-" && e.preventDefault()}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === "" || parseFloat(v) >= 0) setPriceLimit(v);
+                }}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
                 USDC
@@ -472,7 +482,7 @@ export const TradingPanel = ({ selectedMarket }) => {
 
           {/* Leverage */}
           <div>
-            <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em] block mb-3">
+            <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em] block mb-3">
               Leverage
             </label>
             <div className="flex items-center gap-3">
@@ -570,7 +580,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         <div className="px-3 py-3 space-y-1">
           <div className="flex items-center gap-1.5 mb-1.5">
             <ShieldCheck size={10} strokeWidth={1.75} className="text-zinc-600" />
-            <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Risk</span>
+            <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em]">Risk</span>
           </div>
           <SummaryRow
             label="IMR / MMR"

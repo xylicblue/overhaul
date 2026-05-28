@@ -738,7 +738,7 @@ const LandingPage = () => {
                 variants={fadeUpSubtle}
                 className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-zinc-300"
               >
-                <span>16 markets live</span>
+                <span>19 markets live</span>
                 <span className="w-px h-3 bg-white/[0.15]" />
                 <span>Onchain settlement</span>
                 <span className="w-px h-3 bg-white/[0.15]" />

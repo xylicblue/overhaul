@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./creatclient";
 import { useAccount, useReadContract } from "wagmi";
 import {
@@ -218,6 +218,7 @@ const PortfolioPage = () => {
   const [profile, setProfile]               = useState(null);
   const [activeTab, setActiveTab]           = useState("positions");
   const [tradeHistory, setTradeHistory]     = useState([]);
+  const [closeHistory, setCloseHistory]     = useState([]);
   const [tradesLoading, setTradesLoading]   = useState(false);
   const [timeFilter, setTimeFilter]         = useState("all");
 
@@ -249,14 +250,44 @@ const PortfolioPage = () => {
       .catch(() => setTradesLoading(false));
   }, [address]);
 
+  useEffect(() => {
+    if (!address) return;
+    supabase.from("position_closes").select("*")
+      .eq("user_address", address.toLowerCase())
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setCloseHistory(data || []))
+      .catch(() => {});
+  }, [address]);
+
+  // Merge trade_history + position_closes, deduplicating by tx_hash.
+  // position_closes wins when both exist (it has immediate UI-computed P&L).
+  const mergedTrades = useMemo(() => {
+    const map = new Map();
+    tradeHistory.forEach(t => map.set(t.tx_hash, t));
+    closeHistory.forEach(c => {
+      map.set(c.tx_hash, {
+        ...map.get(c.tx_hash),
+        ...c,
+        price:          c.close_price ?? c.price,
+        pnl:            c.pnl,
+        funding_earned: c.funding_earned,
+        fees_paid:      c.fees_paid,
+        created_at:     c.created_at,
+      });
+    });
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    );
+  }, [tradeHistory, closeHistory]);
+
   const availableMargin  = parseFloat(accountValue) || 0;
   const totalCollateral  = parseFloat(totalCollateralValue) || 0;
   const buyingPower      = availableMargin;
-  const realizedPnL      = tradeHistory
+  const realizedPnL      = mergedTrades
     .filter(t => t.pnl != null)
     .reduce((s, t) => s + parseFloat(t.pnl || 0), 0);
 
-  const filteredTrades = tradeHistory.filter((t) => {
+  const filteredTrades = mergedTrades.filter((t) => {
     if (timeFilter === "all") return true;
     const ms = { "24h": 864e5, "7d": 6048e5, "30d": 2592e6 }[timeFilter];
     return ms ? Date.now() - new Date(t.created_at) <= ms : true;
@@ -292,7 +323,7 @@ const PortfolioPage = () => {
         {/* PnL Chart */}
         {tradeHistory.length > 0 && (
           <div className="mb-6">
-            <PnLChart tradeHistory={tradeHistory} />
+            <PnLChart tradeHistory={mergedTrades} />
           </div>
         )}
 
@@ -397,10 +428,12 @@ const PortfolioPage = () => {
                               <SideBadge isLong={trade.side === "Long"} />
                             </td>
                             <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
-                              {parseFloat(trade.size).toFixed(4)}
+                              {(parseFloat(trade.size) || 0).toFixed(4)}
                             </td>
                             <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
-                              ${parseFloat(trade.price).toFixed(2)}
+                              {trade.price != null && !isNaN(parseFloat(trade.price))
+                                ? `$${parseFloat(trade.price).toFixed(2)}`
+                                : "—"}
                             </td>
                             <td className={`px-4 py-3 text-right font-mono text-xs font-bold ${
                               pnl == null ? "" : pnl >= 0 ? "text-emerald-400" : "text-red-400"

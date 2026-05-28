@@ -40,7 +40,7 @@ const ConnectStrip = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // TradingDashboard
 // ─────────────────────────────────────────────────────────────────────────────
-export const TradingDashboard = () => {
+export const TradingDashboard = ({ onHelpClick }) => {
   const { selectedMarket } = useMarket();
   const [activeMobileTab, setActiveMobileTab] = useState("chart");
   const [drawerOpen, setDrawerOpen]           = useState(false);
@@ -176,6 +176,13 @@ export const TradingDashboard = () => {
             {positionCount === 0 && (
               <span className="text-[10px] text-zinc-700">No open positions</span>
             )}
+            <button
+              onClick={onHelpClick}
+              className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded border border-white/[0.06] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.1] text-[10px] font-medium transition-colors duration-150"
+            >
+              <span className="inline-flex items-center justify-center w-3 h-3 rounded border border-white/[0.1] font-mono text-[8px]">?</span>
+              Help
+            </button>
           </div>
 
           {/* Positions Drawer — resizable */}

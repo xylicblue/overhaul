@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ConfirmationModal from "./ConfirmationModal";
 import EmptyState, { CompactEmptyState } from "./EmptyState";
 import { Wallet, TrendingUp, TrendingDown, X, AlertCircle, Activity } from "lucide-react";
-import { supabase, supabaseDirect } from "../creatclient";
+import { supabase } from "../creatclient";
 import { recordTradeWithRetry } from "../services/tradeQueue";
 import { formatTransactionError, getSepoliaTxUrl } from "../utils/transactionErrors";
 
@@ -286,9 +286,7 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
             : null;
 
         (async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) await supabaseDirect.auth.setSession(session);
-          const { error } = await supabaseDirect
+          const { error } = await supabase
             .from("position_closes")
             .upsert(
               {
@@ -308,6 +306,20 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
               { onConflict: "tx_hash" }
             );
           if (error) console.error("[position_closes]", error.message, error.code);
+
+          // Write price to vamm_price_history so the chart updates instantly
+          // rather than waiting for the 60-second indexer snapshot cycle.
+          supabase
+            .from("vamm_price_history")
+            .insert({
+              market:    submittedClose.marketKey,
+              price:     submittedClose.closePrice,
+              twap:      submittedClose.closePrice,
+              timestamp: new Date().toISOString(),
+            })
+            .then(({ error: e }) => {
+              if (e) console.error("[vamm_price_history]", e.message);
+            });
         })();
       }
     }
@@ -393,107 +405,104 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
     }
   }, [isReverted, hash, receipt, resetClose]);
 
-  // ── colour tokens ─────────────────────────────────────────────────────────
-  const C = isLong
-    ? { border: "border-emerald-500/20", bar: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", icon: "text-emerald-400" }
-    : { border: "border-red-500/20",     bar: "bg-red-500",     badge: "bg-red-500/10 text-red-400 border-red-500/20",             icon: "text-red-400"     };
+  const accentColor = isLong ? "bg-emerald-500" : "bg-red-500";
+  const directionBadge = isLong
+    ? "text-emerald-400 bg-emerald-500/[0.08] border-emerald-500/20"
+    : "text-red-400 bg-red-500/[0.08] border-red-500/20";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.15 }}
-      className={`relative rounded-xl border overflow-hidden bg-[#0a0a10] ${C.border}`}
+      exit={{ opacity: 0, scale: 0.97 }}
+      transition={{ duration: 0.18 }}
+      className="relative rounded-2xl border border-white/[0.07] bg-[#0c0c12] overflow-hidden"
     >
-      {/* Left accent bar */}
-      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${C.bar}`} />
+      {/* Top accent line */}
+      <div className={`h-[2px] w-full ${accentColor}`} />
 
-      {/* ── Top row: market + side + PnL ─────────────────────────────────── */}
-      <div className="pl-4 pr-3 pt-3 pb-2.5 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-sm font-bold text-white tracking-tight">
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <div className="px-5 pt-4 pb-4 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[15px] font-semibold text-white tracking-tight leading-none">
               {position.marketName?.replace("-PERP", "") || "GPU"}
             </span>
-            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${C.badge}`}>
+            <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border tracking-wide ${directionBadge}`}>
               {isLong ? "Long" : "Short"}
             </span>
             {leverage > 0 && (
-              <span className="text-[9px] font-bold text-zinc-600 border border-zinc-800 px-1.5 py-0.5 rounded">
+              <span className="text-[9px] font-mono text-zinc-500 border border-zinc-800/80 px-1.5 py-0.5 rounded-full">
                 {leverage.toFixed(1)}×
               </span>
             )}
           </div>
-          <div className="text-[10px] text-zinc-500 font-mono">
+          <span className="text-[11px] text-zinc-500 font-mono tabular-nums">
             {absSize.toFixed(4)} GPU-HRS
+          </span>
+        </div>
+        <div className="text-right shrink-0">
+          <div className={`text-[20px] font-mono font-semibold leading-none tracking-tight ${isProfitable ? "text-emerald-400" : "text-red-400"}`}>
+            {isProfitable ? "+" : ""}{netPnL.toFixed(3)}
+          </div>
+          <div className="text-[9px] text-zinc-600 font-mono mt-1 uppercase tracking-widest">USDC</div>
+          <div className={`text-[10px] font-mono mt-1 ${isProfitable ? "text-emerald-500/50" : "text-red-500/50"}`}>
+            {roe >= 0 ? "+" : ""}{roe.toFixed(2)}% ROE
           </div>
         </div>
-
-        {/* PnL block */}
-        <div className="text-right">
-          <div className={`text-base font-mono font-bold leading-none ${isProfitable ? "text-emerald-400" : "text-red-400"}`}>
-            {isProfitable ? "+" : ""}${netPnL.toFixed(2)}
-          </div>
-          <div className={`text-[10px] font-mono font-semibold mt-0.5 ${isProfitable ? "text-emerald-500/60" : "text-red-500/60"}`}>
-            ROE {isProfitable ? "+" : ""}{roe.toFixed(2)}%
-          </div>
-        </div>
       </div>
 
-      {/* ── Data grid ─────────────────────────────────────────────────────── */}
-      <div className="mx-3 mb-2.5 grid grid-cols-3 border border-zinc-800/60 rounded-lg overflow-hidden divide-x divide-zinc-800/60 bg-zinc-900/20">
-        {[
-          { label: "Entry",    value: `$${entryPrice.toFixed(2)}` },
-          { label: "Mark",     value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—" },
-          { label: "Liq.",     value: liqPrice && liqPrice > 0 ? `$${liqPrice.toFixed(2)}` : "—", warn: true },
-        ].map(({ label, value, warn }) => (
-          <div key={label} className="px-2.5 py-2">
-            <div className="text-[8px] font-bold uppercase tracking-widest text-zinc-600 mb-0.5">{label}</div>
-            <div className={`text-[11px] font-mono font-semibold ${warn ? "text-yellow-500" : "text-zinc-200"}`}>{value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Secondary data grid ───────────────────────────────────────────── */}
-      <div className="mx-3 mb-2.5 grid grid-cols-3 border border-zinc-800/60 rounded-lg overflow-hidden divide-x divide-zinc-800/60 bg-zinc-900/20">
-        {[
-          { label: "Notional",  value: `$${openNotional.toFixed(0)}` },
-          { label: "Margin",    value: `$${margin.toFixed(2)}` },
-          { label: "Funding",   value: `${fundingEarned >= 0 ? "+" : ""}$${fundingEarned.toFixed(2)}`, colored: true, pos: fundingEarned >= 0 },
-        ].map(({ label, value, colored, pos }) => (
-          <div key={label} className="px-2.5 py-2">
-            <div className="text-[8px] font-bold uppercase tracking-widest text-zinc-600 mb-0.5">{label}</div>
-            <div className={`text-[11px] font-mono font-semibold ${colored ? (pos ? "text-emerald-400" : "text-red-400") : "text-zinc-200"}`}>{value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── PnL breakdown row ─────────────────────────────────────────────── */}
-      <div className="mx-3 mb-2.5 px-2.5 py-2 bg-zinc-900/20 border border-zinc-800/60 rounded-lg">
-        <div className="flex items-center justify-between gap-3 text-[10px]">
+      {/* ── Stats grid — 6 cells, 3×2 ────────────────────────────────────── */}
+      <div className="mx-4 mb-3 rounded-xl overflow-hidden border border-white/[0.05] bg-white/[0.015]">
+        <div className="grid grid-cols-3 divide-x divide-white/[0.05]">
           {[
-            { label: "Trading P&L", value: `${currentPnL >= 0 ? "+" : ""}$${currentPnL.toFixed(2)}`, cls: currentPnL >= 0 ? "text-emerald-400" : "text-red-400" },
-            { label: "Fees",        value: `-$${feesPaid.toFixed(2)}`,                                cls: "text-zinc-500"                                          },
-            { label: "Net P&L",     value: `${netPnL >= 0 ? "+" : ""}$${netPnL.toFixed(2)}`,         cls: netPnL >= 0 ? "text-emerald-400 font-bold" : "text-red-400 font-bold" },
-          ].map(({ label, value, cls }, i) => (
-            <React.Fragment key={label}>
-              {i > 0 && <div className="w-px h-4 bg-zinc-800/80 shrink-0" />}
-              <div className="flex-1 min-w-0">
-                <div className="text-[8px] font-bold uppercase tracking-widest text-zinc-600 mb-0.5">{label}</div>
-                <div className={`font-mono truncate ${cls}`}>{value}</div>
-              </div>
-            </React.Fragment>
+            { label: "Entry",    value: `$${entryPrice.toFixed(2)}` },
+            { label: "Mark",     value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—" },
+            { label: "Liq.",     value: liqPrice && liqPrice > 0 ? `$${liqPrice.toFixed(2)}` : "—", warn: true },
+          ].map(({ label, value, warn }) => (
+            <div key={label} className="px-3.5 py-2.5">
+              <div className="text-[9px] font-medium text-zinc-500 uppercase tracking-[0.12em] mb-1">{label}</div>
+              <div className={`text-[12px] font-mono font-semibold ${warn ? "text-yellow-400" : "text-zinc-100"}`}>{value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-white/[0.05] border-t border-white/[0.05]">
+          {[
+            { label: "Notional", value: `$${openNotional.toFixed(2)}` },
+            { label: "Margin",   value: `$${margin.toFixed(2)}` },
+            { label: "Funding",  value: `${fundingEarned >= 0 ? "+" : ""}$${fundingEarned.toFixed(3)}`, colored: true, pos: fundingEarned >= 0 },
+          ].map(({ label, value, colored, pos }) => (
+            <div key={label} className="px-3.5 py-2.5">
+              <div className="text-[9px] font-medium text-zinc-500 uppercase tracking-[0.12em] mb-1">{label}</div>
+              <div className={`text-[12px] font-mono font-semibold ${colored ? (pos ? "text-emerald-400" : "text-red-400") : "text-zinc-100"}`}>{value}</div>
+            </div>
           ))}
         </div>
       </div>
 
+      {/* ── P&L breakdown ────────────────────────────────────────────────── */}
+      <div className="mx-4 mb-4 flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.015] border border-white/[0.05]">
+        {[
+          { label: "Trading P&L", value: `${currentPnL >= 0 ? "+" : ""}$${currentPnL.toFixed(3)}`, cls: currentPnL >= 0 ? "text-emerald-400" : "text-red-400" },
+          { label: "Fees",        value: `-$${feesPaid.toFixed(3)}`,                                 cls: "text-zinc-500"                                         },
+          { label: "Net P&L",     value: `${netPnL >= 0 ? "+" : ""}$${netPnL.toFixed(3)}`,          cls: netPnL >= 0 ? "text-emerald-400 font-bold" : "text-red-400 font-bold" },
+        ].map(({ label, value, cls }, i) => (
+          <React.Fragment key={label}>
+            {i > 0 && <div className="w-px h-6 bg-white/[0.06] shrink-0" />}
+            <div className="flex-1 min-w-0 px-1">
+              <div className="text-[9px] font-medium text-zinc-500 uppercase tracking-[0.12em] mb-1">{label}</div>
+              <div className={`text-[11px] font-mono truncate ${cls}`}>{value}</div>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+
       {/* ── Close controls ────────────────────────────────────────────────── */}
-      <div className="px-3 pb-3">
+      <div className="px-4 pb-4">
         {!isClosing ? (
           <button
             onClick={() => setClosingPosition(position.marketId)}
-            className="w-full py-2 rounded-lg text-[11px] font-semibold text-zinc-500 hover:text-red-400 bg-zinc-900/40 hover:bg-red-500/8 border border-zinc-800/60 hover:border-red-500/30 transition-all flex items-center justify-center gap-1.5"
+            className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-zinc-500 hover:text-red-400 bg-white/[0.02] hover:bg-red-500/[0.06] border border-white/[0.06] hover:border-red-500/25 transition-all duration-200 flex items-center justify-center gap-1.5"
           >
             <X size={11} />
             Close Position
@@ -509,10 +518,10 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
                   <button
                     key={pct}
                     onClick={() => setCloseSize(val)}
-                    className={`py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
+                    className={`py-1.5 text-[10px] font-semibold rounded-lg border transition-all duration-150 ${
                       active
-                        ? "bg-red-600 border-red-500 text-white"
-                        : "bg-zinc-900/60 border-zinc-800/60 text-zinc-500 hover:text-zinc-200 hover:border-zinc-700"
+                        ? "bg-red-500/15 border-red-500/40 text-red-400"
+                        : "bg-white/[0.02] border-white/[0.06] text-zinc-500 hover:text-zinc-200 hover:border-white/[0.12]"
                     }`}
                   >
                     {pct}%
@@ -522,46 +531,46 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
             </div>
 
             {/* Input + actions */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
                   type="number"
                   placeholder="0.0000"
                   value={closeSize}
                   onChange={e => setCloseSize(e.target.value)}
-                  className="w-full bg-zinc-900/60 border border-zinc-800 rounded-lg pl-3 pr-16 py-2 text-xs text-white focus:outline-none focus:border-red-500/40 font-mono"
+                  className="w-full bg-white/[0.02] border border-white/[0.07] rounded-lg pl-3 pr-14 py-2 text-[12px] text-white focus:outline-none focus:border-red-500/30 font-mono placeholder-zinc-700 transition-colors"
                   step="0.0001"
                 />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-zinc-600">
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-mono text-zinc-600">
                   GPU-HRS
                 </span>
               </div>
               <button
                 onClick={() => initiateClose(closeSize)}
                 disabled={isCloseBusy || !closeSize}
-                className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-[11px] font-bold rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-[11px] font-semibold rounded-lg border border-red-500/25 hover:border-red-500/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isCloseBusy ? "…" : "Close"}
               </button>
               <button
                 onClick={() => { setClosingPosition(null); setCloseSize(""); }}
-                className="px-2 py-2 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 rounded-lg transition-all"
+                className="px-2 py-2 text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04] rounded-lg transition-all"
               >
                 <X size={13} />
               </button>
             </div>
 
-            {/* Estimated PnL on close */}
+            {/* Estimated P&L */}
             {closeSize && parseFloat(closeSize) > 0 && (
-              <div className="flex items-center justify-between text-[10px] px-1">
+              <div className="flex items-center justify-between text-[10px] px-0.5">
                 <span className="text-zinc-600">Est. P&L on close</span>
                 <span className={`font-mono font-semibold ${currentPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {currentPnL >= 0 ? "+" : ""}${((currentPnL / absSize) * parseFloat(closeSize)).toFixed(2)}
+                  {currentPnL >= 0 ? "+" : ""}${((currentPnL / absSize) * parseFloat(closeSize)).toFixed(3)}
                 </span>
               </div>
             )}
             {closeInlineError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-[10px] leading-4 text-red-300">
+              <div className="rounded-lg border border-red-500/20 bg-red-500/[0.07] px-3 py-2 text-[10px] leading-4 text-red-300">
                 {closeInlineError}
               </div>
             )}
@@ -585,19 +594,20 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
         variant="danger"
         isLoading={isCloseBusy}
         details={
-          <div className="space-y-2 text-sm">
+          <div className="space-y-2.5">
             {[
-              { label: "Market",       value: position.displayName || position.marketKey,                                                                                                                                                cls: "text-white" },
-              { label: "Size to Close", value: `${pendingCloseAmount} GPU-HRS`,                                                                                                                                                         cls: "text-white font-mono" },
-              { label: "Est. P&L",     value: `${currentPnL >= 0 ? "+" : ""}$${((currentPnL / absSize) * parseFloat(pendingCloseAmount || 0)).toFixed(2)}`, cls: currentPnL >= 0 ? "text-emerald-400 font-mono font-semibold" : "text-red-400 font-mono font-semibold" },
-            ].map(({ label, value, cls }) => (
-              <div key={label} className="flex justify-between">
-                <span className="text-zinc-400">{label}</span>
-                <span className={cls}>{value}</span>
+              { label: "Market",        value: position.displayName || position.marketKey },
+              { label: "Size",          value: `${pendingCloseAmount} GPU-HRS`, mono: true },
+              { label: "Est. P&L",      value: `${currentPnL >= 0 ? "+" : ""}$${((currentPnL / absSize) * parseFloat(pendingCloseAmount || 0)).toFixed(3)}`,
+                cls: currentPnL >= 0 ? "text-emerald-400" : "text-red-400" },
+            ].map(({ label, value, mono, cls }) => (
+              <div key={label} className="flex items-center justify-between">
+                <span className="text-[11px] text-zinc-500 uppercase tracking-[0.1em]">{label}</span>
+                <span className={`text-[12px] font-medium ${mono ? "font-mono" : ""} ${cls || "text-zinc-200"}`}>{value}</span>
               </div>
             ))}
             {closeInlineError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-300">
+              <div className="mt-1 rounded-lg border border-red-500/20 bg-red-500/[0.07] px-3 py-2 text-[11px] leading-4 text-red-300">
                 {closeInlineError}
               </div>
             )}

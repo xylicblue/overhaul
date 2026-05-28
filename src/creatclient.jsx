@@ -28,6 +28,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   ...(customFetch && { global: { fetch: customFetch } }),
 });
 
-// Direct client — bypasses the Cloudflare Worker proxy.
-// Use for writes that don't need the gateway (e.g. position_closes).
-export const supabaseDirect = createClient(supabaseUrl, supabaseAnonKey);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "./creatclient";
 import { MARKET_IDS, getActiveMarkets } from "./contracts/addresses";
 import { getMarketStats24h } from "./services/api";
@@ -8,6 +8,8 @@ import { HiMagnifyingGlass } from "react-icons/hi2";
 import Sparkline from "./components/Sparkline";
 import { getPriceSource } from "./config/marketsConfig";
 import { useMarketsOpenInterest } from "./hooks/useOpenInterest";
+import { useAllPositions } from "./hooks/useClearingHouse";
+import { useAccount } from "wagmi";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
@@ -69,9 +71,30 @@ const TABS = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Position pill — shown when user has an open position in this market
+// ─────────────────────────────────────────────────────────────────────────────
+const PositionPill = ({ side }) => {
+  const navigate = useNavigate();
+  const isLong = side === "Long";
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); navigate("/portfolio"); }}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border transition-opacity duration-150 hover:opacity-80 ${
+        isLong
+          ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/25"
+          : "text-red-400 bg-red-500/10 border-red-500/25"
+      }`}
+    >
+      <span className={`w-1 h-1 rounded-full ${isLong ? "bg-emerald-400" : "bg-red-400"}`} />
+      {side}
+    </button>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GPU Index Card — large, prominent, 2-column layout
 // ─────────────────────────────────────────────────────────────────────────────
-const GpuIndexCard = ({ market, price, change24h, volume24h, openInterest, index }) => {
+const GpuIndexCard = ({ market, price, change24h, volume24h, openInterest, index, positionSide }) => {
   const isPositive = (change24h || 0) >= 0;
   const badge = BADGE_META[market.id];
 
@@ -134,16 +157,31 @@ const GpuIndexCard = ({ market, price, change24h, volume24h, openInterest, index
             <div className="text-xs font-mono text-zinc-300">{fmtUsd(openInterest)}</div>
             <div className="text-[9px] text-zinc-500 uppercase tracking-wide mt-0.5">Open Interest</div>
           </div>
-          <Link
-            to={`/trade?market=${market.id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-blue-600/20 hover:bg-blue-600/35 border border-blue-500/25 hover:border-blue-500/45 transition-all duration-200"
-          >
-            Trade
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
+          <div className="ml-auto flex items-center gap-2">
+            {positionSide && (
+              <button
+                onClick={(e) => { e.stopPropagation(); window.location.href = "/portfolio"; }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-all duration-200 hover:opacity-80 ${
+                  positionSide === "Long"
+                    ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/25"
+                    : "text-red-400 bg-red-500/10 border-red-500/25"
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${positionSide === "Long" ? "bg-emerald-400" : "bg-red-400"}`} />
+                {positionSide}
+              </button>
+            )}
+            <Link
+              to={`/trade?market=${market.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-blue-600/20 hover:bg-blue-600/35 border border-blue-500/25 hover:border-blue-500/45 transition-all duration-200"
+            >
+              Trade
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+          </div>
         </div>
 
       </div>
@@ -154,7 +192,7 @@ const GpuIndexCard = ({ market, price, change24h, volume24h, openInterest, index
 // ─────────────────────────────────────────────────────────────────────────────
 // Hyperscaler Table Row
 // ─────────────────────────────────────────────────────────────────────────────
-const HyperscalerRow = ({ market, price, change24h, volume24h, openInterest, index }) => {
+const HyperscalerRow = ({ market, price, change24h, volume24h, openInterest, index, positionSide }) => {
   const isPositive = (change24h || 0) >= 0;
   const providerColor = getProviderColor(market.name);
   const providerLabel = getProviderLabel(market.name);
@@ -172,7 +210,10 @@ const HyperscalerRow = ({ market, price, change24h, volume24h, openInterest, ind
             {providerLabel}
           </span>
           <div className="min-w-0">
-            <div className="text-sm font-medium text-white leading-tight">{market.name}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-medium text-white leading-tight">{market.name}</span>
+              {positionSide && <PositionPill side={positionSide} />}
+            </div>
             <div className="text-[10px] text-zinc-500 mt-0.5 truncate">{market.fullName}</div>
           </div>
         </div>
@@ -277,6 +318,24 @@ const MarketsPage = () => {
   const [searchQuery, setSearchQuery]   = useState("");
   const [activeTab, setActiveTab]       = useState("gpu");
   const { openInterestByMarket } = useMarketsOpenInterest(ACTIVE_MARKETS);
+  const { isConnected } = useAccount();
+  const { positions } = useAllPositions();
+
+  // Map each market id → "Long" | "Short" if user has an open position there
+  const positionsByMarket = useMemo(() => {
+    if (!isConnected || !positions?.length) return {};
+    const map = {};
+    positions.forEach(p => {
+      // p.marketId is the bytes32 hash; match against MARKET_IDS[market.id]
+      MARKETS_CONFIG.forEach(m => {
+        const hash = MARKET_IDS[m.id];
+        if (hash && p.marketId?.toLowerCase() === hash.toLowerCase()) {
+          map[m.id] = p.isLong ? "Long" : "Short";
+        }
+      });
+    });
+    return map;
+  }, [positions, isConnected]);
 
   const getDirectOpenInterest = useMemo(() => {
     return (market) => {
@@ -579,6 +638,7 @@ const MarketsPage = () => {
                       volume24h={marketPrices[market.id]?.volume24h}
                       openInterest={marketPrices[market.id]?.openInterest}
                       index={i}
+                      positionSide={positionsByMarket[market.id]}
                     />
                   ))
               }
@@ -630,6 +690,7 @@ const MarketsPage = () => {
                           volume24h={marketPrices[market.id]?.volume24h}
                           openInterest={marketPrices[market.id]?.openInterest}
                           index={i}
+                          positionSide={positionsByMarket[market.id]}
                         />
                       ))
                   }
