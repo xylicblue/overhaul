@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { checkLocation } from "./services/api";
+import { supabase } from "./creatclient";
 
 // This is the new, stylish banner component
 const GeoBlockBanner = ({ country }) => {
@@ -21,7 +21,10 @@ const GeoGatekeeper = ({ children }) => {
   useEffect(() => {
     const checkUserLocation = async () => {
       try {
-        const data = await checkLocation();
+        const { data, error } = await supabase.functions.invoke(
+          "check-location"
+        );
+        if (error) throw error;
 
         // We set 'isBlocked' to the opposite of 'isAllowed'
         setIsBlocked(!data.isAllowed);

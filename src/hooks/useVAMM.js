@@ -1,12 +1,10 @@
 // Hooks for vAMM contract interactions
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
-import { formatUnits } from 'ethers';
+import { parseUnits, formatUnits } from 'ethers';
 import { SEPOLIA_CONTRACTS } from '../contracts/addresses';
 import VAMMABI from '../contracts/abis/vAMM.json';
 
 const SEPOLIA_CHAIN_ID = 11155111;
-
-const formatX18 = (value) => (value == null ? '0' : formatUnits(value, 18));
 
 /**
  * Get the current mark price from vAMM
@@ -37,7 +35,7 @@ export function useMarkPrice(vammAddress = SEPOLIA_CONTRACTS.vammProxy, refetchI
     console.warn(`⚠️ Wrong network! Connected to chain ${chainId}, but contracts are on Sepolia (${SEPOLIA_CHAIN_ID}). Please switch to Sepolia network.`);
   }
 
-  const price = formatX18(data);
+  const price = data ? formatUnits(data, 18) : '0';
 
   return {
     price,
@@ -53,28 +51,46 @@ export function useMarkPrice(vammAddress = SEPOLIA_CONTRACTS.vammProxy, refetchI
  * @param {string} vammAddress - vAMM contract address
  */
 export function useVAMMReserves(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
-  const { data, isLoading, error, refetch } = useReadContract({
+  const { data: baseReserve } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
-    functionName: 'getReserves',
-    chainId: SEPOLIA_CHAIN_ID,
+    functionName: 'reserveBase',
+  });
+
+  const { data: quoteReserve } = useReadContract({
+    address: vammAddress,
+    abi: VAMMABI.abi,
+    functionName: 'reserveQuote',
+  });
+
+  return {
+    baseReserve: baseReserve ? formatUnits(baseReserve, 18) : '0',
+    quoteReserve: quoteReserve ? formatUnits(quoteReserve, 18) : '0',
+    baseReserveRaw: baseReserve,
+    quoteReserveRaw: quoteReserve,
+  };
+}
+
+/**
+ * Get TWAP (Time-Weighted Average Price)
+ * @param {string} vammAddress - vAMM contract address
+ * @param {number} window - TWAP window in seconds
+ */
+export function useTWAP(vammAddress = SEPOLIA_CONTRACTS.vammProxy, window = 900) {
+  const { data, isLoading } = useReadContract({
+    address: vammAddress,
+    abi: VAMMABI.abi,
+    functionName: 'getTwap',
+    args: [window],
+    chainId: SEPOLIA_CHAIN_ID, // Force Sepolia chain
     query: {
-      refetchInterval: 10000,
-      enabled: !!vammAddress,
+      refetchInterval: 10000, // Refetch every 10s
     },
   });
 
-  const [baseReserve, quoteReserve] = data || [];
+  const twap = data ? formatUnits(data, 18) : '0';
 
-  return {
-    baseReserve: formatX18(baseReserve),
-    quoteReserve: formatX18(quoteReserve),
-    baseReserveRaw: baseReserve,
-    quoteReserveRaw: quoteReserve,
-    isLoading,
-    error,
-    refetch,
-  };
+  return { twap, twapRaw: data, isLoading };
 }
 
 /**
@@ -82,83 +98,114 @@ export function useVAMMReserves(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
  * @param {string} vammAddress - vAMM contract address
  */
 export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
-  const { data: longPayRaw } = useReadContract({
+  const { data: cumulativeFunding } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
-    functionName: 'currentCumulativeLongPayPerUnitX18',
-    chainId: SEPOLIA_CHAIN_ID,
-    query: { refetchInterval: 30000, enabled: !!vammAddress },
-  });
-
-  const { data: longReceiveRaw } = useReadContract({
-    address: vammAddress,
-    abi: VAMMABI.abi,
-    functionName: 'currentCumulativeLongReceivePerUnitX18',
-    chainId: SEPOLIA_CHAIN_ID,
-    query: { refetchInterval: 30000, enabled: !!vammAddress },
-  });
-
-  const { data: shortPayRaw } = useReadContract({
-    address: vammAddress,
-    abi: VAMMABI.abi,
-    functionName: 'currentCumulativeShortPayPerUnitX18',
-    chainId: SEPOLIA_CHAIN_ID,
-    query: { refetchInterval: 30000, enabled: !!vammAddress },
-  });
-
-  const { data: shortReceiveRaw } = useReadContract({
-    address: vammAddress,
-    abi: VAMMABI.abi,
-    functionName: 'currentCumulativeShortReceivePerUnitX18',
-    chainId: SEPOLIA_CHAIN_ID,
-    query: { refetchInterval: 30000, enabled: !!vammAddress },
+    functionName: 'cumulativeFundingPerUnitX18', // Fixed: was cumulativeFundingRateX18
+    chainId: SEPOLIA_CHAIN_ID, // Force Sepolia chain
+    query: {
+      refetchInterval: 30000, // Refetch every 30s
+    },
   });
 
   const { data: lastFundingTime } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
-    functionName: 'lastFundingTimestamp',
-    chainId: SEPOLIA_CHAIN_ID,
-    query: { enabled: !!vammAddress },
+    functionName: 'lastFundingTimestamp', // Fixed: was lastFundingTime
+    chainId: SEPOLIA_CHAIN_ID, // Force Sepolia chain
   });
-
-  const { data: kFundingRaw } = useReadContract({
-    address: vammAddress,
-    abi: VAMMABI.abi,
-    functionName: 'kFundingX18',
-    chainId: SEPOLIA_CHAIN_ID,
-    query: { refetchInterval: 60000, enabled: !!vammAddress },
-  });
-
-  const { data: frMaxBpsPerHourRaw } = useReadContract({
-    address: vammAddress,
-    abi: VAMMABI.abi,
-    functionName: 'frMaxBpsPerHour',
-    chainId: SEPOLIA_CHAIN_ID,
-    query: { refetchInterval: 60000, enabled: !!vammAddress },
-  });
-
-  const longPay = formatX18(longPayRaw);
-  const longReceive = formatX18(longReceiveRaw);
-  const shortPay = formatX18(shortPayRaw);
-  const shortReceive = formatX18(shortReceiveRaw);
 
   return {
-    // Existing position consumers still read cumulativeFunding; expose it from
-    // the current long-pay index without calling removed contract methods.
-    cumulativeFunding: longPay,
+    cumulativeFunding: cumulativeFunding ? formatUnits(cumulativeFunding, 18) : '0',
     lastFundingTime: lastFundingTime ? Number(lastFundingTime) : 0,
-    kFundingX18: formatX18(kFundingRaw),
-    frMaxBpsPerHour: frMaxBpsPerHourRaw ? Number(frMaxBpsPerHourRaw) : 0,
-    cumulativeFundingRaw: longPayRaw,
-    longPay,
-    longReceive,
-    shortPay,
-    shortReceive,
-    longPayRaw,
-    longReceiveRaw,
-    shortPayRaw,
-    shortReceiveRaw,
+    cumulativeFundingRaw: cumulativeFunding,
+  };
+}
+
+/**
+ * Swap base for quote (go long)
+ * @param {string} vammAddress - vAMM contract address
+ */
+export function useSwapBaseForQuote(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const swap = (amountIn, minAmountOut, to) => {
+    const amountInWei = parseUnits(amountIn.toString(), 18);
+    const minAmountOutWei = parseUnits(minAmountOut.toString(), 18);
+
+    writeContract({
+      address: vammAddress,
+      abi: VAMMABI.abi,
+      functionName: 'swapBaseForQuote',
+      args: [amountInWei, minAmountOutWei, to],
+    });
+  };
+
+  return {
+    swap,
+    isPending: isPending || isConfirming,
+    isSuccess,
+    error,
+    hash,
+  };
+}
+
+/**
+ * Swap quote for base (go short)
+ * @param {string} vammAddress - vAMM contract address
+ */
+export function useSwapQuoteForBase(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const swap = (amountIn, minAmountOut, to) => {
+    const amountInWei = parseUnits(amountIn.toString(), 18);
+    const minAmountOutWei = parseUnits(minAmountOut.toString(), 18);
+
+    writeContract({
+      address: vammAddress,
+      abi: VAMMABI.abi,
+      functionName: 'swapQuoteForBase',
+      args: [amountInWei, minAmountOutWei, to],
+    });
+  };
+
+  return {
+    swap,
+    isPending: isPending || isConfirming,
+    isSuccess,
+    error,
+    hash,
+  };
+}
+
+/**
+ * Sell base for quote (close long position)
+ * @param {string} vammAddress - vAMM contract address
+ */
+export function useSwapSellBaseForQuote(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const swap = (amountIn, minAmountOut, to) => {
+    const amountInWei = parseUnits(amountIn.toString(), 18);
+    const minAmountOutWei = parseUnits(minAmountOut.toString(), 18);
+
+    writeContract({
+      address: vammAddress,
+      abi: VAMMABI.abi,
+      functionName: 'swapSellBaseForQuote',
+      args: [amountInWei, minAmountOutWei, to],
+    });
+  };
+
+  return {
+    swap,
+    isPending: isPending || isConfirming,
+    isSuccess,
+    error,
+    hash,
   };
 }
 

@@ -104,13 +104,11 @@ const LeaderboardPage = () => {
           timeFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         }
 
-        // Fetch only indexer-populated rows. Frontend trade submissions are
-        // pending metadata and intentionally leave accounting fields empty.
+        // Fetch trade history with P&L data
         let query = supabase
           .from("trade_history")
           .select("user_address, pnl, funding_earned, fees_paid, created_at")
-          .not("pnl", "is", null)
-          .not("fees_paid", "is", null);
+          .not("pnl", "is", null);
 
         if (timeFilter) {
           query = query.gte("created_at", timeFilter.toISOString());
@@ -237,7 +235,7 @@ const LeaderboardPage = () => {
               <p className="text-zinc-500 text-sm max-w-md mx-auto">
                 {searchQuery
                   ? "No traders match your search query."
-                  : "Rankings appear after contract-indexed trade accounting is available."}
+                  : "Be the first to close a trade and claim your spot on the leaderboard!"}
               </p>
             </div>
           ) : (

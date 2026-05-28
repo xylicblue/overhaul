@@ -86,9 +86,9 @@ export function MintUSDC() {
             try {
               toast.loading("Requesting ETH...", { id: "faucet" });
 
-              // Call via Cloudflare Worker proxy (avoids CORS — worker calls Railway server-to-server)
+              // Call the ByteStrike Railway faucet API
               const response = await fetch(
-                "https://bytestrike-api-gateway.bytestrike.workers.dev/faucet/request",
+                "https://bytestrike-faucet-bot-production-1fc7.up.railway.app/request",
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },

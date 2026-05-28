@@ -8,64 +8,117 @@ import {
 import { parseUnits, formatUnits } from "ethers";
 import {
   SEPOLIA_CONTRACTS,
-  getActiveMarkets,
+  MARKET_IDS,
+  COLLATERAL_TOKENS,
 } from "../contracts/addresses";
 import ClearingHouseABI from "../contracts/abis/ClearingHouse.json";
 import CollateralVaultABI from "../contracts/abis/CollateralVault.json";
-import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
 
 const SEPOLIA_CHAIN_ID = 11155111;
-const WAD = 10n ** 18n;
-const BPS_DENOMINATOR = 10000n;
-const UINT256_MAX = (1n << 256n) - 1n;
-const ORACLE_PRICE_ABI = [
+const MARKET_POSITION_CONFIG = [
   {
-    inputs: [],
-    name: "getPrice",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
+    key: "H100-PERP",
+    marketId: MARKET_IDS["H100-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxy, // ⭐ Active vAMM ($3.79/hour)
+    displayName: "H100 GPU ($3.79/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "H100-non-HyperScalers-PERP",
+    marketId: MARKET_IDS["H100-non-HyperScalers-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, // ⭐ Neocloud vAMM ($2.95/hour)
+    displayName: "Neocloud ($2.95/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+
+  {
+    key: "B200-PERP",
+    marketId: MARKET_IDS["B200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyB200, // ⭐ B200 vAMM ($7.15/hour)
+    displayName: "B200 GPU ($7.15/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "H200-PERP",
+    marketId: MARKET_IDS["H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyH200, // ⭐ H200 vAMM ($3.53/hour)
+    displayName: "H200 GPU ($3.53/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  // H200 Provider-Specific Markets
+  {
+    key: "ORACLE-H200-PERP",
+    marketId: MARKET_IDS["ORACLE-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleH200,
+    displayName: "Oracle H200 ($2.92/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "AWS-H200-PERP",
+    marketId: MARKET_IDS["AWS-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH200,
+    displayName: "AWS H200 ($2.65/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "COREWEAVE-H200-PERP",
+    marketId: MARKET_IDS["COREWEAVE-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200,
+    displayName: "CoreWeave H200 ($2.57/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "GCP-H200-PERP",
+    marketId: MARKET_IDS["GCP-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH200,
+    displayName: "GCP H200 ($4.55/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "AZURE-H200-PERP",
+    marketId: MARKET_IDS["AZURE-H200-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH200,
+    displayName: "Azure H200 ($5.05/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  // H100 Provider-Specific Markets
+  {
+    key: "AWS-H100-PERP",
+    marketId: MARKET_IDS["AWS-H100-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH100,
+    displayName: "AWS H100 ($3.85/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "AZURE-H100-PERP",
+    marketId: MARKET_IDS["AZURE-H100-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH100,
+    displayName: "Azure H100 ($2.12/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "GCP-H100-PERP",
+    marketId: MARKET_IDS["GCP-H100-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH100,
+    displayName: "GCP H100 ($3.88/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  // T4 Market
+  {
+    key: "T4-PERP",
+    marketId: MARKET_IDS["T4-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyT4,
+    displayName: "T4 GPU ($0.45/hr)",
+    baseAssetSymbol: "GPU-HRS",
+  },
+  {
+    key: "ETH-PERP",
+    marketId: MARKET_IDS["ETH-PERP"],
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyOld, // Deprecated test market
+    displayName: "Test Market (Deprecated)",
+    baseAssetSymbol: "ETH",
   },
 ];
-const MARKET_POSITION_CONFIG = getActiveMarkets().map((market) => ({
-  key: market.name,
-  marketId: market.id,
-  vammAddress: market.vamm,
-  displayName: market.displayName,
-  baseAssetSymbol: "GPU-HRS",
-}));
-
-const formatX18 = (value) =>
-  value !== undefined && value !== null ? formatUnits(value, 18) : "0";
-
-const numberOrZero = (value) => {
-  const parsed = Number.parseFloat(value ?? "0");
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const absBigInt = (value) => {
-  const bigint = BigInt(value ?? 0n);
-  return bigint < 0n ? -bigint : bigint;
-};
-
-const mulDivRoundUp = (a, b, denominator) => {
-  if (a === 0n || b === 0n) return 0n;
-  return (a * b + denominator - 1n) / denominator;
-};
-
-export function calculatePendingFunding(position, fundingRate) {
-  if (!position) return 0;
-
-  const isLong = Boolean(position.isLong);
-  const currentPay = numberOrZero(isLong ? fundingRate?.longPay : fundingRate?.shortPay);
-  const currentReceive = numberOrZero(isLong ? fundingRate?.longReceive : fundingRate?.shortReceive);
-  const lastPay = numberOrZero(position.lastFundingPayIndex);
-  const lastReceive = numberOrZero(position.lastFundingReceiveIndex);
-  const absSize = Math.abs(numberOrZero(position.size));
-
-  return ((currentReceive - lastReceive) - (currentPay - lastPay)) * absSize;
-}
-
 /**
  * Get user's position for a specific market
  * @param {string} marketId - Market ID (keccak256 of market name)
@@ -87,10 +140,8 @@ export function usePosition(marketId, userAddress = null) {
     },
   });
 
-  // Position struct: PositionView {
-  //   size, margin, entryPriceX18, lastFundingPayIndex,
-  //   lastFundingReceiveIndex, realizedPnL
-  // }
+  // Position struct: PositionView { size, margin, entryPriceX18, lastFundingIndex, realizedPnL }
+  // size and lastFundingIndex are int256, others are uint256
 
   if (!data || !addressToUse) {
     return {
@@ -101,31 +152,24 @@ export function usePosition(marketId, userAddress = null) {
     };
   }
 
-  // Parse the position data from struct. Wagmi v2 returns named properties,
-  // but keep tuple indexes as a fallback for ABI/client variance.
-  const size = data.size ?? data[0] ?? 0n;
-  const margin = data.margin ?? data[1] ?? 0n;
-  const entryPriceX18 = data.entryPriceX18 ?? data[2] ?? 0n;
-  const lastFundingPayIndex = data.lastFundingPayIndex ?? data.lastFundingIndex ?? data[3] ?? 0n;
-  const hasReceiveIndex =
-    data.lastFundingReceiveIndex !== undefined ||
-    (Array.isArray(data) && data.length >= 6);
-  const lastFundingReceiveIndex = hasReceiveIndex
-    ? data.lastFundingReceiveIndex ?? data[4] ?? 0n
-    : 0n;
-  const realizedPnL = data.realizedPnL ?? data[hasReceiveIndex ? 5 : 4] ?? 0n;
+  // Parse the position data from struct
+  // Wagmi v2 returns struct as object with named properties, not array
+  const size = data.size || 0n;
+  const margin = data.margin || 0n;
+  const entryPriceX18 = data.entryPriceX18 || 0n;
+  const lastFundingIndex = data.lastFundingIndex || 0n;
+  const realizedPnL = data.realizedPnL || 0n;
 
   const position = {
-    size: formatX18(size),
+    size: size ? formatUnits(size, 18) : "0",
     sizeRaw: size,
-    margin: formatX18(margin),
+    margin: margin ? formatUnits(margin, 18) : "0",
     marginRaw: margin,
-    entryPriceX18: formatX18(entryPriceX18),
-    lastFundingPayIndex: formatX18(lastFundingPayIndex),
-    lastFundingPayIndexRaw: lastFundingPayIndex,
-    lastFundingReceiveIndex: formatX18(lastFundingReceiveIndex),
-    lastFundingReceiveIndexRaw: lastFundingReceiveIndex,
-    realizedPnL: formatX18(realizedPnL),
+    entryPriceX18: entryPriceX18 ? formatUnits(entryPriceX18, 18) : "0",
+    lastFundingIndex: lastFundingIndex
+      ? formatUnits(lastFundingIndex, 18)
+      : "0",
+    realizedPnL: realizedPnL ? formatUnits(realizedPnL, 18) : "0",
     // Helper flags
     hasPosition: size && size !== 0n,
     isLong: size && size > 0n,
@@ -210,12 +254,7 @@ export function useOpenPosition(marketId) {
     error,
     reset,
   } = useWriteContract();
-  const {
-    isLoading: isConfirming,
-    isSuccess,
-    isError: isReceiptError,
-    error: receiptError,
-  } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
   });
 
@@ -236,12 +275,8 @@ export function useOpenPosition(marketId) {
   return {
     openPosition,
     isPending: isPending || isConfirming,
-    isWalletPending: isPending,
-    isConfirming,
     isSuccess,
-    isReceiptError,
     error,
-    receiptError,
     hash,
     reset,
   };
@@ -252,50 +287,31 @@ export function useOpenPosition(marketId) {
  * @param {string} marketId - Market ID
  */
 export function useClosePosition(marketId) {
-  const { writeContract, writeContractAsync, data: hash, isPending, error, reset } = useWriteContract();
-  const {
-    data: receipt,
-    isLoading: isConfirming,
-    isSuccess: isReceiptFetched,
-    isError: isReceiptError,
-    error: receiptError,
-  } = useWaitForTransactionReceipt({
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
   });
 
-  const closePosition = async (size, priceLimit = 0) => {
+  const closePosition = (size, priceLimit = 0) => {
     const sizeWei = parseUnits(size.toString(), 18);
     const priceLimitWei = parseUnits(priceLimit.toString(), 18);
 
-    const request = {
+    writeContract({
       address: SEPOLIA_CONTRACTS.clearingHouse,
       abi: ClearingHouseABI.abi,
       functionName: "closePosition",
       args: [marketId, sizeWei, priceLimitWei],
       chainId: SEPOLIA_CHAIN_ID,
-    };
-
-    if (writeContractAsync) {
-      return writeContractAsync(request);
-    }
-
-    return writeContract(request);
+      gas: 700000n, // Set reasonable gas limit for closing
+    });
   };
 
   return {
     closePosition,
     isPending: isPending || isConfirming,
-    isWalletPending: isPending,
-    isConfirming,
-    isReceiptFetched,
-    isSuccess: receipt?.status === "success",
-    isReverted: receipt?.status === "reverted",
-    isReceiptError,
+    isSuccess,
     error,
-    receiptError,
-    receipt,
     hash,
-    reset,
   };
 }
 
@@ -407,6 +423,15 @@ export function useMarketRiskParams(marketId) {
     },
   });
 
+  // Debug logging
+  console.log("useMarketRiskParams Debug:", {
+    marketId,
+    isLoading,
+    error: error?.message,
+    data,
+    dataType: typeof data,
+  });
+
   if (!data || !marketId) {
     return {
       riskParams: null,
@@ -417,21 +442,31 @@ export function useMarketRiskParams(marketId) {
   }
 
   // MarketRiskParams struct: { imrBps, mmrBps, liquidationPenaltyBps, penaltyCap }
-  // Data may be returned as array [imrBps, mmrBps, liquidationPenaltyBps, penaltyCap]
-  const imrBps                = data[0] || data.imrBps                || 0n;
-  const mmrBps                = data[1] || data.mmrBps                || 0n;
+  // Data might be returned as array [imrBps, mmrBps, liquidationPenaltyBps, penaltyCap]
+  const imrBps = data[0] || data.imrBps || 0n;
+  const mmrBps = data[1] || data.mmrBps || 0n;
   const liquidationPenaltyBps = data[2] || data.liquidationPenaltyBps || 0n;
-  const penaltyCap            = data[3] || data.penaltyCap            || 0n;
+  const penaltyCap = data[3] || data.penaltyCap || 0n;
+
+  console.log("useMarketRiskParams Parsed:", {
+    imrBps: String(imrBps),
+    mmrBps: String(mmrBps),
+    liquidationPenaltyBps: String(liquidationPenaltyBps),
+    penaltyCap: String(penaltyCap),
+  });
 
   const riskParams = {
-    imrBps:                   Number(imrBps),
-    mmrBps:                   Number(mmrBps),
-    liquidationPenaltyBps:    Number(liquidationPenaltyBps),
-    penaltyCap:               formatUnits(penaltyCap, 18),
-    imrPercent:               Number(imrBps) / 100,
-    mmrPercent:               Number(mmrBps) / 100,
+    imrBps: Number(imrBps),
+    mmrBps: Number(mmrBps),
+    liquidationPenaltyBps: Number(liquidationPenaltyBps),
+    penaltyCap: formatUnits(penaltyCap, 18), // Assuming quote token has 18 decimals
+    // Human-readable percentages
+    imrPercent: Number(imrBps) / 100, // bps to percent (e.g., 1000 bps = 10%)
+    mmrPercent: Number(mmrBps) / 100,
     liquidationPenaltyPercent: Number(liquidationPenaltyBps) / 100,
   };
+
+  console.log("useMarketRiskParams Final:", riskParams);
 
   return {
     riskParams,
@@ -449,45 +484,7 @@ export function useLiquidationStatus(marketId, userAddress = null) {
   const addressToUse = userAddress || connectedAddress;
   const enabled = !!addressToUse && !!marketId;
 
-  const {
-    position,
-    isLoading: isPositionLoading,
-    error: positionError,
-  } = usePosition(marketId, addressToUse);
-
-  const {
-    riskParams,
-    isLoading: isRiskParamsLoading,
-    error: riskParamsError,
-  } = useMarketRiskParams(marketId);
-
-  const { data: marketData, isLoading: isMarketLoading, error: marketError } = useReadContract({
-    address: SEPOLIA_CONTRACTS.marketRegistry,
-    abi: MarketRegistryABI.abi,
-    functionName: "getMarket",
-    args: enabled ? [marketId] : undefined,
-    chainId: SEPOLIA_CHAIN_ID,
-    query: {
-      enabled,
-      refetchInterval: 30000,
-    },
-  });
-
-  const oracleAddress = marketData?.oracle ?? marketData?.[3];
-  const hasOpenPosition = Boolean(position?.hasPosition);
-
-  const { data: oraclePrice, isLoading: isOracleLoading, error: oracleError } = useReadContract({
-    address: oracleAddress,
-    abi: ORACLE_PRICE_ABI,
-    functionName: "getPrice",
-    chainId: SEPOLIA_CHAIN_ID,
-    query: {
-      enabled: enabled && hasOpenPosition && !!oracleAddress,
-      refetchInterval: 5000,
-    },
-  });
-
-  const { data: liquidationData, isLoading: isChecking, error: liquidationError } = useReadContract({
+  const { data: liquidationData, isLoading: isChecking } = useReadContract({
     address: SEPOLIA_CONTRACTS.clearingHouse,
     abi: ClearingHouseABI.abi,
     functionName: "isLiquidatable",
@@ -499,77 +496,24 @@ export function useLiquidationStatus(marketId, userAddress = null) {
     },
   });
 
-  const { data: notionalData, isLoading: isNotionalLoading, error: notionalError } = useReadContract({
-    address: SEPOLIA_CONTRACTS.clearingHouse,
-    abi: ClearingHouseABI.abi,
-    functionName: "getNotional",
-    args: enabled && hasOpenPosition ? [addressToUse, marketId] : undefined,
-    chainId: SEPOLIA_CHAIN_ID,
-    query: {
-      enabled: enabled && hasOpenPosition,
-      refetchInterval: 5000,
-    },
-  });
-
-  const { data: marginRatioData, isLoading: isMarginRatioLoading, error: marginRatioError } = useReadContract({
-    address: SEPOLIA_CONTRACTS.clearingHouse,
-    abi: ClearingHouseABI.abi,
-    functionName: "getMarginRatio",
-    args: enabled && hasOpenPosition ? [addressToUse, marketId] : undefined,
-    chainId: SEPOLIA_CHAIN_ID,
-    query: {
-      enabled: enabled && hasOpenPosition,
-      refetchInterval: 5000,
-    },
-  });
-
-  const positionSize = hasOpenPosition ? absBigInt(position.sizeRaw) : 0n;
-  const mmrBps = BigInt(riskParams?.mmrBps ?? 0);
-  const riskNotional = oraclePrice && positionSize > 0n
-    ? mulDivRoundUp(positionSize, oraclePrice, WAD)
-    : 0n;
-  const maintenanceMarginRaw = riskNotional > 0n && mmrBps > 0n
-    ? mulDivRoundUp(riskNotional, mmrBps, BPS_DENOMINATOR)
-    : 0n;
-  const notionalRaw = notionalData ?? 0n;
-  const marginRatioRaw = marginRatioData ?? 0n;
-  const effectiveMarginRaw =
-    hasOpenPosition && marginRatioData !== undefined && marginRatioRaw !== UINT256_MAX
-      ? (marginRatioRaw * notionalRaw) / WAD
-      : (hasOpenPosition ? position.marginRaw ?? 0n : 0n);
-  const liquidationBufferRaw = effectiveMarginRaw - maintenanceMarginRaw;
+  const { data: maintenanceData, isLoading: isFetchingMargin } =
+    useReadContract({
+      address: SEPOLIA_CONTRACTS.clearingHouse,
+      abi: ClearingHouseABI.abi,
+      functionName: "getMaintenanceMargin",
+      args: enabled ? [addressToUse, marketId] : undefined,
+      chainId: SEPOLIA_CHAIN_ID,
+      query: {
+        enabled,
+        refetchInterval: 5000,
+      },
+    });
 
   return {
-    isLiquidatable: liquidationData === true,
-    maintenanceMargin: formatUnits(maintenanceMarginRaw, 18),
-    maintenanceMarginRaw,
-    liquidationBuffer: formatUnits(liquidationBufferRaw, 18),
-    liquidationBufferRaw,
-    effectiveMargin: formatUnits(effectiveMarginRaw, 18),
-    effectiveMarginRaw,
-    notional: formatUnits(notionalRaw, 18),
-    notionalRaw,
-    riskNotional: formatUnits(riskNotional, 18),
-    riskNotionalRaw: riskNotional,
-    riskPrice: oraclePrice ? formatUnits(oraclePrice, 18) : "0",
-    riskPriceRaw: oraclePrice,
-    isLoading:
-      isPositionLoading ||
-      isRiskParamsLoading ||
-      isMarketLoading ||
-      (hasOpenPosition && isOracleLoading) ||
-      (hasOpenPosition && isNotionalLoading) ||
-      (hasOpenPosition && isMarginRatioLoading) ||
-      isChecking,
-    error:
-      positionError ||
-      riskParamsError ||
-      marketError ||
-      oracleError ||
-      notionalError ||
-      marginRatioError ||
-      liquidationError ||
-      null,
+    isLiquidatable: Boolean(liquidationData),
+    maintenanceMargin: maintenanceData ? formatUnits(maintenanceData, 18) : "0",
+    maintenanceMarginRaw: maintenanceData,
+    isLoading: isChecking || isFetchingMargin,
   };
 }
 
@@ -581,6 +525,10 @@ export function useLiquidationStatus(marketId, userAddress = null) {
 export function useVaultBalance(userAddress = null) {
   const { address: connectedAddress } = useAccount();
   const addressToUse = userAddress || connectedAddress;
+
+  console.log("[useVaultBalance] Address:", addressToUse);
+  console.log("[useVaultBalance] Vault:", SEPOLIA_CONTRACTS.collateralVault);
+  console.log("[useVaultBalance] mUSDC:", SEPOLIA_CONTRACTS.mockUSDC);
 
   // Get mUSDC balance (6 decimals)
   const {
@@ -598,6 +546,9 @@ export function useVaultBalance(userAddress = null) {
       refetchInterval: 5000,
     },
   });
+
+  console.log("[useVaultBalance] mUSDC Balance Raw:", usdcBalance);
+  console.log("[useVaultBalance] mUSDC Error:", usdcError);
 
   // Get mWETH balance (18 decimals)
   const { data: wethBalance, refetch: refetchWETH } = useReadContract({
@@ -629,6 +580,9 @@ export function useVaultBalance(userAddress = null) {
     },
   });
 
+  console.log("[useVaultBalance] Total Collateral Raw:", totalCollateralValue);
+  console.log("[useVaultBalance] Total Collateral Error:", totalError);
+
   const refetchAll = () => {
     refetchUSDC();
     refetchWETH();
@@ -647,6 +601,9 @@ export function useVaultBalance(userAddress = null) {
     totalCollateralValue !== undefined && totalCollateralValue !== null
       ? formatUnits(totalCollateralValue, 18)
       : "0";
+
+  console.log("[useVaultBalance] Formatted USDC:", formattedUSDC);
+  console.log("[useVaultBalance] Formatted Total:", formattedTotal);
 
   return {
     usdcBalance: formattedUSDC,

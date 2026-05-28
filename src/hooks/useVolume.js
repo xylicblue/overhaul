@@ -32,8 +32,8 @@ export function use24hVolume(vammAddress) {
           totalVolume += absQuoteDelta;
         }
 
-        // vAMM quoteDelta is protocol notional in WAD precision, not raw USDC units.
-        const volumeFormatted = formatUnits(totalVolume, 18);
+        // Quote asset is USDC (6 decimals)
+        const volumeFormatted = formatUnits(totalVolume, 6);
         
         // Format as currency (e.g. $1,234.56)
         const formatter = new Intl.NumberFormat('en-US', {

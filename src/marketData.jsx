@@ -1,405 +1,1039 @@
-import { useEffect, useMemo, useState } from "react";
-import { formatUnits } from "ethers";
-import { useReadContracts } from "wagmi";
-import { useMarkPrice, useFundingRate } from "./hooks/useVAMM";
+import { useState, useEffect } from "react";
+import { useMarkPrice, useTWAP, useFundingRate } from "./hooks/useVAMM";
 import { useOraclePrice } from "./hooks/useOracle";
-import { useMarketOpenInterest, useMarketsOpenInterest } from "./hooks/useOpenInterest";
-import { useRegistryMarket, useRegistryMarkets } from "./hooks/useRegistryMarkets";
-import { DEFAULT_MARKET_KEY, getActiveMarkets, getMarketByName } from "./contracts/addresses";
-import { getMarketStat24h } from "./services/api";
-import VAMMABI from "./contracts/abis/vAMM.json";
+import {
+  SEPOLIA_CONTRACTS,
+  MARKET_IDS,
+  DEFAULT_MARKET_ID,
+} from "./contracts/addresses";
+import { get24hStats } from "./services/eventIndexer";
 
-const SEPOLIA_CHAIN_ID = 11155111;
-const ORACLE_ABI = [
+// GPU Compute Futures markets deployed on Sepolia testnet
+// Traders speculate on H100 GPU hourly rental prices ($/hour)
+const DEPLOYED_MARKETS = [
   {
-    inputs: [],
-    name: "getPrice",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
+    name: "H100-PERP",
+    displayName: "H100 GPU",
+    fullName: "H100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS", // What you're trading: GPU compute hours
+    quoteAsset: "USDC", // What you pay with: Stablecoin
+    vammAddress: SEPOLIA_CONTRACTS.vammProxy, // vAMM with $3.79/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.indexOracle, // Legacy oracle (working)
+    marketId: MARKET_IDS["H100-PERP"],
+    status: "Active",
+    isDefault: true,
+    description:
+      "Trade the price of H100 GPU hourly rental rates (all providers). Index price: $3.79/hour from real-time market oracles.",
+  },
+
+  {
+    name: "H100-non-HyperScalers-PERP",
+    displayName: "H100 Neocloud",
+    fullName: "Neocloud H100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, // vAMM with $2.95/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.nonHyperscalersOracleAdapter, // Oracle adapter for Neocloud
+    marketId: MARKET_IDS["H100-non-HyperScalers-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade H100 GPU hourly rental rates from Neocloud providers (Lambda, CoreWeave, etc.). Index price: $2.95/hour.",
   },
   {
-    inputs: [],
-    name: "cuOracle",
-    outputs: [{ internalType: "contract CuOracle", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
+    name: "B200-PERP",
+    displayName: "B200 GPU",
+    fullName: "B200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyB200, // vAMM with $7.15/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.b200OracleAdapter, // Oracle adapter for B200
+    marketId: MARKET_IDS["B200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade B200 GPU hourly rental rates. Index price: $7.15/hour.",
   },
   {
-    inputs: [],
-    name: "assetId",
-    outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
-    stateMutability: "view",
-    type: "function",
+    name: "H200-PERP",
+    displayName: "H200 GPU",
+    fullName: "H200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyH200, // vAMM with $3.53/hour oracle
+    oracleAddress: SEPOLIA_CONTRACTS.h200OracleAdapter, // Oracle adapter for H200
+    marketId: MARKET_IDS["H200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade H200 GPU hourly rental rates. Index price: $3.53/hour.",
   },
+  {
+    name: "ORACLE-B200-PERP",
+    displayName: "Oracle B200",
+    fullName: "Oracle Cloud B200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleB200,
+    oracleAddress: SEPOLIA_CONTRACTS.oracleB200OracleAdapter,
+    marketId: MARKET_IDS["ORACLE-B200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade Oracle Cloud B200 GPU hourly rental rates. Index price: $6.47/hour.",
+  },
+  {
+    name: "AWS-B200-PERP",
+    displayName: "AWS B200",
+    fullName: "AWS B200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSB200,
+    oracleAddress: SEPOLIA_CONTRACTS.awsB200OracleAdapter,
+    marketId: MARKET_IDS["AWS-B200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade AWS B200 GPU hourly rental rates. Index price: $4.04/hour.",
+  },
+  {
+    name: "COREWEAVE-B200-PERP",
+    displayName: "CoreWeave B200",
+    fullName: "CoreWeave B200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveB200,
+    oracleAddress: SEPOLIA_CONTRACTS.coreweaveB200OracleAdapter,
+    marketId: MARKET_IDS["COREWEAVE-B200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade CoreWeave B200 GPU hourly rental rates. Index price: $14.53/hour.",
+  },
+  {
+    name: "GCP-B200-PERP",
+    displayName: "GCP B200",
+    fullName: "Google Cloud B200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPB200,
+    oracleAddress: SEPOLIA_CONTRACTS.gcpB200OracleAdapter,
+    marketId: MARKET_IDS["GCP-B200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade Google Cloud B200 GPU hourly rental rates. Index price: $6.60/hour.",
+  },
+  // H200 Provider-Specific Markets
+  {
+    name: "ORACLE-H200-PERP",
+    displayName: "Oracle H200",
+    fullName: "Oracle Cloud H200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleH200,
+    oracleAddress: SEPOLIA_CONTRACTS.oracleH200OracleAdapter,
+    marketId: MARKET_IDS["ORACLE-H200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade Oracle Cloud H200 GPU hourly rental rates. Index price: $2.92/hour.",
+  },
+  {
+    name: "AWS-H200-PERP",
+    displayName: "AWS H200",
+    fullName: "AWS H200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH200,
+    oracleAddress: SEPOLIA_CONTRACTS.awsH200OracleAdapter,
+    marketId: MARKET_IDS["AWS-H200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade AWS H200 GPU hourly rental rates. Index price: $2.65/hour.",
+  },
+  {
+    name: "COREWEAVE-H200-PERP",
+    displayName: "CoreWeave H200",
+    fullName: "CoreWeave H200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200,
+    oracleAddress: SEPOLIA_CONTRACTS.coreweaveH200OracleAdapter,
+    marketId: MARKET_IDS["COREWEAVE-H200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade CoreWeave H200 GPU hourly rental rates. Index price: $2.57/hour.",
+  },
+  {
+    name: "GCP-H200-PERP",
+    displayName: "GCP H200",
+    fullName: "Google Cloud H200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH200,
+    oracleAddress: SEPOLIA_CONTRACTS.gcpH200OracleAdapter,
+    marketId: MARKET_IDS["GCP-H200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade Google Cloud H200 GPU hourly rental rates. Index price: $4.55/hour.",
+  },
+  {
+    name: "AZURE-H200-PERP",
+    displayName: "Azure H200",
+    fullName: "Azure H200 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH200,
+    oracleAddress: SEPOLIA_CONTRACTS.azureH200OracleAdapter,
+    marketId: MARKET_IDS["AZURE-H200-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade Azure H200 GPU hourly rental rates. Index price: $5.05/hour.",
+  },
+  // H100 Provider-Specific Markets
+  {
+    name: "AWS-H100-PERP",
+    displayName: "AWS H100",
+    fullName: "AWS H100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH100,
+    oracleAddress: SEPOLIA_CONTRACTS.awsH100OracleAdapter,
+    marketId: MARKET_IDS["AWS-H100-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade AWS H100 GPU hourly rental rates. Index price: $3.85/hour.",
+  },
+  {
+    name: "AZURE-H100-PERP",
+    displayName: "Azure H100",
+    fullName: "Azure H100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH100,
+    oracleAddress: SEPOLIA_CONTRACTS.azureH100OracleAdapter,
+    marketId: MARKET_IDS["AZURE-H100-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade Azure H100 GPU hourly rental rates. Index price: $2.12/hour.",
+  },
+  {
+    name: "GCP-H100-PERP",
+    displayName: "GCP H100",
+    fullName: "Google Cloud H100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH100,
+    oracleAddress: SEPOLIA_CONTRACTS.gcpH100OracleAdapter,
+    marketId: MARKET_IDS["GCP-H100-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade Google Cloud H100 GPU hourly rental rates. Index price: $3.88/hour.",
+  },
+  // A100 Market
+  {
+    name: "A100-PERP",
+    displayName: "A100 GPU",
+    fullName: "A100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyA100,
+    oracleAddress: SEPOLIA_CONTRACTS.a100OracleAdapter,
+    marketId: MARKET_IDS["A100-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade A100 GPU hourly rental rates. Index price: $1.76/hour.",
+  },
+  // T4 Market
+  {
+    name: "T4-PERP",
+    displayName: "T4 GPU",
+    fullName: "T4 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxyT4,
+    oracleAddress: SEPOLIA_CONTRACTS.t4OracleAdapter,
+    marketId: MARKET_IDS["T4-PERP"],
+    status: "Active",
+    isDefault: false,
+    description:
+      "Trade T4 GPU hourly rental rates. Index price: $0.45/hour.",
+  },
+  {
+    name: "ETH-PERP-V2",
+    displayName: "H100 GPU (Alias)",
+    fullName: "H100 GPU Hourly Rate Perpetual",
+    type: "Perpetual",
+    baseAsset: "GPU-HOURS",
+    quoteAsset: "USDC",
+    vammAddress: SEPOLIA_CONTRACTS.vammProxy,
+    marketId: MARKET_IDS["ETH-PERP-V2"], // Alias for H100-PERP
+    status: "Active",
+    isDefault: false,
+    description:
+      "Alias for H100-PERP market.",
+  },
+
 ];
-const CU_ORACLE_ABI = [
-  {
-    inputs: [{ internalType: "bytes32", name: "_assetId", type: "bytes32" }],
-    name: "getLatestPrice",
-    outputs: [
-      {
-        components: [
-          { internalType: "uint256", name: "price", type: "uint256" },
-          { internalType: "uint256", name: "lastUpdatedAt", type: "uint256" },
-        ],
-        internalType: "struct CuOracle.PriceData",
-        name: "",
-        type: "tuple",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-];
 
-const DEPLOYED_MARKETS = getActiveMarkets().map((market) => ({
-  name: market.name,
-  displayName: market.displayName,
-  fullName: market.fullName,
-  type: market.type,
-  baseAsset: market.baseAsset,
-  quoteAsset: market.quoteAsset,
-  vammAddress: market.vamm,
-  oracleAddress: market.oracle,
-  marketId: market.id,
-  status: market.status,
-  isDefault: market.name === DEFAULT_MARKET_KEY,
-  description: market.description,
-}));
-const NO_OPEN_INTEREST_MARKETS = [];
-
-function formatPrice(value) {
-  return Number(value || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+/**
+ * Hook to get real-time market data from deployed vAMM contracts
+ */
+export const useMarketsData = () => {
+  const [data, setData] = useState({
+    markets: [],
+    isLoading: true,
+    error: null,
   });
-}
 
-function formatUsd(value) {
-  return `$${Number(value || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
+  // Fetch mark prices from all active vAMMs (updates every 5s)
+  const {
+    price: markPriceH100,
+    isLoading: priceLoadingH100,
+    error: errorH100,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxy, 5000);
 
-function emptyMarket(market, markPrice = 0, oraclePrice = 0, stats = null, directOpenInterestUsd = null) {
-  const change24hValue = stats?.change_24h_percent != null
-    ? Number(stats.change_24h_percent)
-    : 0;
-  const openInterestUsd = directOpenInterestUsd ?? stats?.open_interest_usd;
+  const {
+    price: markPriceHyperscalers,
+    isLoading: priceLoadingHyperscalers,
+    error: errorHyperscalers,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyHyperscalers, 5000);
+
+  const {
+    price: markPriceNonHyperscalers,
+    isLoading: priceLoadingNonHyperscalers,
+    error: errorNonHyperscalers,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyNonHyperscalers, 5000);
+
+  const {
+    price: markPriceB200,
+    isLoading: priceLoadingB200,
+    error: errorB200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyB200, 5000);
+
+  const {
+    price: markPriceH200,
+    isLoading: priceLoadingH200,
+    error: errorH200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyH200, 5000);
+
+  // Fetch mark prices for B200 provider-specific markets
+  const {
+    price: markPriceOracleB200,
+    isLoading: priceLoadingOracleB200,
+    error: errorOracleB200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyOracleB200, 5000);
+
+  const {
+    price: markPriceAWSB200,
+    isLoading: priceLoadingAWSB200,
+    error: errorAWSB200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAWSB200, 5000);
+
+  const {
+    price: markPriceCoreWeaveB200,
+    isLoading: priceLoadingCoreWeaveB200,
+    error: errorCoreWeaveB200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyCoreWeaveB200, 5000);
+
+  const {
+    price: markPriceGCPB200,
+    isLoading: priceLoadingGCPB200,
+    error: errorGCPB200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyGCPB200, 5000);
+
+  // Fetch mark prices for H200 provider-specific markets
+  const {
+    price: markPriceOracleH200,
+    isLoading: priceLoadingOracleH200,
+    error: errorOracleH200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyOracleH200, 5000);
+
+  const {
+    price: markPriceAWSH200,
+    isLoading: priceLoadingAWSH200,
+    error: errorAWSH200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAWSH200, 5000);
+
+  const {
+    price: markPriceCoreWeaveH200,
+    isLoading: priceLoadingCoreWeaveH200,
+    error: errorCoreWeaveH200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200, 5000);
+
+  const {
+    price: markPriceGCPH200,
+    isLoading: priceLoadingGCPH200,
+    error: errorGCPH200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyGCPH200, 5000);
+
+  const {
+    price: markPriceAzureH200,
+    isLoading: priceLoadingAzureH200,
+    error: errorAzureH200,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAzureH200, 5000);
+
+  // Fetch mark prices for H100 provider-specific markets
+  const {
+    price: markPriceAWSH100,
+    isLoading: priceLoadingAWSH100,
+    error: errorAWSH100,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAWSH100, 5000);
+
+  const {
+    price: markPriceAzureH100,
+    isLoading: priceLoadingAzureH100,
+    error: errorAzureH100,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyAzureH100, 5000);
+
+  const {
+    price: markPriceGCPH100,
+    isLoading: priceLoadingGCPH100,
+    error: errorGCPH100,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyGCPH100, 5000);
+
+  // Fetch mark price for A100 market
+  const {
+    price: markPriceA100,
+    isLoading: priceLoadingA100,
+    error: errorA100,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyA100, 5000);
+
+  // Fetch mark price for T4 market
+  const {
+    price: markPriceT4,
+    isLoading: priceLoadingT4,
+    error: errorT4,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyT4, 5000);
+
+  // Fetch mark price from old vAMM (deprecated)
+  const {
+    price: markPriceOld,
+    isLoading: priceLoadingOld,
+    error: errorOld,
+  } = useMarkPrice(SEPOLIA_CONTRACTS.vammProxyOld, 5000);
+
+  useEffect(() => {
+    // Log for debugging
+    console.log("useMarketsData:", {
+      h100: { markPriceH100, priceLoadingH100, errorH100 },
+      hyperscalers: { markPriceHyperscalers, priceLoadingHyperscalers, errorHyperscalers },
+      nonHyperscalers: { markPriceNonHyperscalers, priceLoadingNonHyperscalers, errorNonHyperscalers },
+      b200: { markPriceB200, priceLoadingB200, errorB200 },
+      h200: { markPriceH200, priceLoadingH200, errorH200 },
+      oracleB200: { markPriceOracleB200, priceLoadingOracleB200, errorOracleB200 },
+      awsB200: { markPriceAWSB200, priceLoadingAWSB200, errorAWSB200 },
+      coreweaveB200: { markPriceCoreWeaveB200, priceLoadingCoreWeaveB200, errorCoreWeaveB200 },
+      gcpB200: { markPriceGCPB200, priceLoadingGCPB200, errorGCPB200 },
+      oracleH200: { markPriceOracleH200, priceLoadingOracleH200, errorOracleH200 },
+      awsH200: { markPriceAWSH200, priceLoadingAWSH200, errorAWSH200 },
+      coreweaveH200: { markPriceCoreWeaveH200, priceLoadingCoreWeaveH200, errorCoreWeaveH200 },
+      gcpH200: { markPriceGCPH200, priceLoadingGCPH200, errorGCPH200 },
+      azureH200: { markPriceAzureH200, priceLoadingAzureH200, errorAzureH200 },
+      awsH100: { markPriceAWSH100, priceLoadingAWSH100, errorAWSH100 },
+      azureH100: { markPriceAzureH100, priceLoadingAzureH100, errorAzureH100 },
+      gcpH100: { markPriceGCPH100, priceLoadingGCPH100, errorGCPH100 },
+      a100: { markPriceA100, priceLoadingA100, errorA100 },
+      t4: { markPriceT4, priceLoadingT4, errorT4 },
+      old: { markPriceOld, priceLoadingOld, errorOld },
+    });
+
+    if (!priceLoadingH100 && !priceLoadingHyperscalers && !priceLoadingNonHyperscalers && !priceLoadingB200 && !priceLoadingH200 && !priceLoadingOracleB200 && !priceLoadingAWSB200 && !priceLoadingCoreWeaveB200 && !priceLoadingGCPB200 && !priceLoadingOracleH200 && !priceLoadingAWSH200 && !priceLoadingCoreWeaveH200 && !priceLoadingGCPH200 && !priceLoadingAzureH200 && !priceLoadingAWSH100 && !priceLoadingAzureH100 && !priceLoadingGCPH100 && !priceLoadingA100 && !priceLoadingT4 && !priceLoadingOld) {
+      const markets = [];
+
+      // Add H100-PERP market (all providers)
+      if (markPriceH100 && !errorH100) {
+        markets.push({
+          name: "H100-PERP",
+          displayName: "H100 GPU",
+          fullName: "H100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceH100),
+          change24h: 0, // TODO: Calculate from historical data or events
+          vammAddress: SEPOLIA_CONTRACTS.vammProxy,
+          marketId: MARKET_IDS["H100-PERP"],
+          status: "Active",
+        });
+      }
+
+
+
+      // Add Neocloud (H100-non-HyperScalers-PERP) market
+      if (markPriceNonHyperscalers && !errorNonHyperscalers) {
+        markets.push({
+          name: "H100-non-HyperScalers-PERP",
+          displayName: "H100 Neocloud",
+          fullName: "Neocloud H100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceNonHyperscalers),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyNonHyperscalers,
+          marketId: MARKET_IDS["H100-non-HyperScalers-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add B200-PERP market
+      if (markPriceB200 && !errorB200) {
+        markets.push({
+          name: "B200-PERP",
+          displayName: "B200 GPU",
+          fullName: "B200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceB200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyB200,
+          marketId: MARKET_IDS["B200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add H200-PERP market
+      if (markPriceH200 && !errorH200) {
+        markets.push({
+          name: "H200-PERP",
+          displayName: "H200 GPU",
+          fullName: "H200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceH200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyH200,
+          marketId: MARKET_IDS["H200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add Oracle B200 market
+      if (markPriceOracleB200 && !errorOracleB200) {
+        markets.push({
+          name: "ORACLE-B200-PERP",
+          displayName: "Oracle B200",
+          fullName: "Oracle Cloud B200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceOracleB200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleB200,
+          marketId: MARKET_IDS["ORACLE-B200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add AWS B200 market
+      if (markPriceAWSB200 && !errorAWSB200) {
+        markets.push({
+          name: "AWS-B200-PERP",
+          displayName: "AWS B200",
+          fullName: "AWS B200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceAWSB200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSB200,
+          marketId: MARKET_IDS["AWS-B200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add CoreWeave B200 market
+      if (markPriceCoreWeaveB200 && !errorCoreWeaveB200) {
+        markets.push({
+          name: "COREWEAVE-B200-PERP",
+          displayName: "CoreWeave B200",
+          fullName: "CoreWeave B200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceCoreWeaveB200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveB200,
+          marketId: MARKET_IDS["COREWEAVE-B200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add GCP B200 market
+      if (markPriceGCPB200 && !errorGCPB200) {
+        markets.push({
+          name: "GCP-B200-PERP",
+          displayName: "GCP B200",
+          fullName: "Google Cloud B200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceGCPB200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPB200,
+          marketId: MARKET_IDS["GCP-B200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add Oracle H200 market
+      if (markPriceOracleH200 && !errorOracleH200) {
+        markets.push({
+          name: "ORACLE-H200-PERP",
+          displayName: "Oracle H200",
+          fullName: "Oracle Cloud H200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceOracleH200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyOracleH200,
+          marketId: MARKET_IDS["ORACLE-H200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add AWS H200 market
+      if (markPriceAWSH200 && !errorAWSH200) {
+        markets.push({
+          name: "AWS-H200-PERP",
+          displayName: "AWS H200",
+          fullName: "AWS H200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceAWSH200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH200,
+          marketId: MARKET_IDS["AWS-H200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add CoreWeave H200 market
+      if (markPriceCoreWeaveH200 && !errorCoreWeaveH200) {
+        markets.push({
+          name: "COREWEAVE-H200-PERP",
+          displayName: "CoreWeave H200",
+          fullName: "CoreWeave H200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceCoreWeaveH200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyCoreWeaveH200,
+          marketId: MARKET_IDS["COREWEAVE-H200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add GCP H200 market
+      if (markPriceGCPH200 && !errorGCPH200) {
+        markets.push({
+          name: "GCP-H200-PERP",
+          displayName: "GCP H200",
+          fullName: "Google Cloud H200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceGCPH200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH200,
+          marketId: MARKET_IDS["GCP-H200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add Azure H200 market
+      if (markPriceAzureH200 && !errorAzureH200) {
+        markets.push({
+          name: "AZURE-H200-PERP",
+          displayName: "Azure H200",
+          fullName: "Azure H200 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceAzureH200),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH200,
+          marketId: MARKET_IDS["AZURE-H200-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add AWS H100 market
+      if (markPriceAWSH100 && !errorAWSH100) {
+        markets.push({
+          name: "AWS-H100-PERP",
+          displayName: "AWS H100",
+          fullName: "AWS H100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceAWSH100),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyAWSH100,
+          marketId: MARKET_IDS["AWS-H100-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add Azure H100 market
+      if (markPriceAzureH100 && !errorAzureH100) {
+        markets.push({
+          name: "AZURE-H100-PERP",
+          displayName: "Azure H100",
+          fullName: "Azure H100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceAzureH100),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyAzureH100,
+          marketId: MARKET_IDS["AZURE-H100-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add GCP H100 market
+      if (markPriceGCPH100 && !errorGCPH100) {
+        markets.push({
+          name: "GCP-H100-PERP",
+          displayName: "GCP H100",
+          fullName: "Google Cloud H100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceGCPH100),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyGCPH100,
+          marketId: MARKET_IDS["GCP-H100-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add A100 market
+      if (markPriceA100 && !errorA100) {
+        markets.push({
+          name: "A100-PERP",
+          displayName: "A100 GPU",
+          fullName: "A100 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceA100),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyA100,
+          marketId: MARKET_IDS["A100-PERP"],
+          status: "Active",
+        });
+      }
+
+      // Add T4 market
+      if (markPriceT4 && !errorT4) {
+        markets.push({
+          name: "T4-PERP",
+          displayName: "T4 GPU",
+          fullName: "T4 GPU Hourly Rate",
+          type: "Perpetual",
+          markPrice: parseFloat(markPriceT4),
+          change24h: 0,
+          vammAddress: SEPOLIA_CONTRACTS.vammProxyT4,
+          marketId: MARKET_IDS["T4-PERP"],
+          status: "Active",
+        });
+      }
+
+      if (markets.length > 0) {
+        // Sort markets: Main GPUs first (H100, A100, B200, H200), then provider-specific
+        const marketOrder = [
+          "H100-PERP",
+          "A100-PERP",
+          "T4-PERP",
+          "B200-PERP",
+          "H200-PERP",
+          "H100-non-HyperScalers-PERP",  // H100 Neocloud
+        ];
+        
+        const sortedMarkets = [...markets].sort((a, b) => {
+          const indexA = marketOrder.indexOf(a.name);
+          const indexB = marketOrder.indexOf(b.name);
+          
+          // If both are in the priority list, sort by their order
+          if (indexA !== -1 && indexB !== -1) {
+            return indexA - indexB;
+          }
+          // Priority list items come first
+          if (indexA !== -1) return -1;
+          if (indexB !== -1) return 1;
+          // For remaining items, sort alphabetically by displayName
+          return a.displayName.localeCompare(b.displayName);
+        });
+        
+        setData({ markets: sortedMarkets, isLoading: false, error: null });
+      } else {
+        const error = errorH100 || errorHyperscalers || errorNonHyperscalers || errorB200 || errorH200 || errorOracleB200 || errorAWSB200 || errorCoreWeaveB200 || errorGCPB200 || errorOracleH200 || errorAWSH200 || errorCoreWeaveH200 || errorGCPH200 || errorAzureH200 || errorAWSH100 || errorAzureH100 || errorGCPH100 || errorA100 || errorT4 || errorOld || "No markets available";
+        setData({ markets: [], isLoading: false, error });
+      }
+    }
+  }, [
+    markPriceH100,
+    markPriceHyperscalers,
+    markPriceNonHyperscalers,
+    markPriceB200,
+    markPriceH200,
+    markPriceOracleB200,
+    markPriceAWSB200,
+    markPriceCoreWeaveB200,
+    markPriceGCPB200,
+    markPriceOracleH200,
+    markPriceAWSH200,
+    markPriceCoreWeaveH200,
+    markPriceGCPH200,
+    markPriceAzureH200,
+    markPriceAWSH100,
+    markPriceAzureH100,
+    markPriceGCPH100,
+    markPriceA100,
+    markPriceT4,
+    markPriceOld,
+    priceLoadingH100,
+    priceLoadingHyperscalers,
+    priceLoadingNonHyperscalers,
+    priceLoadingB200,
+    priceLoadingH200,
+    priceLoadingOracleB200,
+    priceLoadingAWSB200,
+    priceLoadingCoreWeaveB200,
+    priceLoadingGCPB200,
+    priceLoadingOracleH200,
+    priceLoadingAWSH200,
+    priceLoadingCoreWeaveH200,
+    priceLoadingGCPH200,
+    priceLoadingAzureH200,
+    priceLoadingAWSH100,
+    priceLoadingAzureH100,
+    priceLoadingGCPH100,
+    priceLoadingA100,
+    priceLoadingT4,
+    priceLoadingOld,
+    errorH100,
+    errorHyperscalers,
+    errorNonHyperscalers,
+    errorB200,
+    errorH200,
+    errorOracleB200,
+    errorAWSB200,
+    errorCoreWeaveB200,
+    errorGCPB200,
+    errorOracleH200,
+    errorAWSH200,
+    errorCoreWeaveH200,
+    errorGCPH200,
+    errorAzureH200,
+    errorAWSH100,
+    errorAzureH100,
+    errorGCPH100,
+    errorA100,
+    errorT4,
+    errorOld,
+  ]);
+
+  return data;
+};
+
+/**
+ * Get detailed market data for a specific market
+ * Fetches real-time data from vAMM contract
+ */
+export const getMarketDetails = (marketName) => {
+  const market = DEPLOYED_MARKETS.find((m) => m.name === marketName);
+
+  if (!market) {
+    return null;
+  }
+
   return {
     name: market.name,
     displayName: market.displayName,
-    fullName: market.fullName,
     type: market.type,
     baseAsset: market.baseAsset,
     quoteAsset: market.quoteAsset,
     status: market.status,
     vammAddress: market.vammAddress,
     marketId: market.marketId,
-    markPrice,
-    markPriceRaw: markPrice,
-    oraclePriceRaw: oraclePrice || null,
-    price: formatPrice(markPrice),
-    indexPrice: oraclePrice > 0 ? formatPrice(oraclePrice) : "N/A",
-    change24h: `${change24hValue.toFixed(2)}%`,
-    change24hValue,
-    volume24h: stats?.volume_24h_usd
-      ? `$${Number(stats.volume_24h_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : "$0.00",
-    openInterest: formatUsd(openInterestUsd),
-  };
-}
-
-export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
-  const [statsByMarket, setStatsByMarket] = useState({});
-  const {
-    markets: registryMarkets,
-    isLoading: isRegistryLoading,
-    error: registryError,
-  } = useRegistryMarkets(DEPLOYED_MARKETS);
-  const { openInterestByMarket } = useMarketsOpenInterest(
-    includeOpenInterest ? registryMarkets : NO_OPEN_INTEREST_MARKETS
-  );
-
-  const contracts = useMemo(
-    () => registryMarkets.flatMap((market) => ([
-      {
-        address: market.vammAddress,
-        abi: VAMMABI.abi,
-        functionName: "getMarkPrice",
-        chainId: SEPOLIA_CHAIN_ID,
-      },
-      {
-        address: market.oracleAddress,
-        abi: ORACLE_ABI,
-        functionName: "getPrice",
-        chainId: SEPOLIA_CHAIN_ID,
-      },
-      {
-        address: market.oracleAddress,
-        abi: ORACLE_ABI,
-        functionName: "cuOracle",
-        chainId: SEPOLIA_CHAIN_ID,
-      },
-      {
-        address: market.oracleAddress,
-        abi: ORACLE_ABI,
-        functionName: "assetId",
-        chainId: SEPOLIA_CHAIN_ID,
-      },
-    ])),
-    [registryMarkets]
-  );
-
-  const { data, isLoading, error } = useReadContracts({
-    contracts,
-    query: {
-      refetchInterval: 5000,
-    },
-  });
-
-  const latestOracleContracts = useMemo(() => {
-    if (!data) return [];
-    return registryMarkets.map((market, index) => {
-      const cuOracleResult = data[index * 4 + 2];
-      const assetIdResult = data[index * 4 + 3];
-      if (cuOracleResult?.status !== "success" || assetIdResult?.status !== "success") {
-        return null;
-      }
-      return {
-        address: cuOracleResult.result,
-        abi: CU_ORACLE_ABI,
-        functionName: "getLatestPrice",
-        args: [assetIdResult.result],
-        chainId: SEPOLIA_CHAIN_ID,
-      };
-    }).filter(Boolean);
-  }, [data, registryMarkets]);
-
-  const { data: latestOracleData } = useReadContracts({
-    contracts: latestOracleContracts,
-    query: {
-      enabled: latestOracleContracts.length > 0,
-      refetchInterval: 5000,
-    },
-  });
-
-  const latestOracleByMarket = useMemo(() => {
-    if (!data || !latestOracleData) return {};
-    const entries = [];
-    let latestIndex = 0;
-    registryMarkets.forEach((market, index) => {
-      const cuOracleResult = data[index * 4 + 2];
-      const assetIdResult = data[index * 4 + 3];
-      if (cuOracleResult?.status === "success" && assetIdResult?.status === "success") {
-        const latestResult = latestOracleData[latestIndex++];
-        if (latestResult?.status === "success") {
-          const rawPrice = latestResult.result?.price ?? latestResult.result?.[0];
-          entries.push([market.name, rawPrice]);
-        }
-      }
-    });
-    return Object.fromEntries(entries);
-  }, [data, latestOracleData, registryMarkets]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchStats() {
-      const entries = await Promise.all(
-        DEPLOYED_MARKETS.map(async (market) => {
-          try {
-            return [market.marketId, await getMarketStat24h(market.marketId)];
-          } catch {
-            return [market.marketId, null];
-          }
-        })
-      );
-      if (!cancelled) setStatsByMarket(Object.fromEntries(entries));
-    }
-
-    fetchStats();
-    const interval = setInterval(fetchStats, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
-  const markets = registryMarkets.map((market, index) => {
-    const markResult = data?.[index * 4];
-    const oracleResult = data?.[index * 4 + 1];
-    const rawMarkPrice = markResult?.status === "success" ? markResult.result : null;
-    const rawOraclePrice = oracleResult?.status === "success"
-      ? oracleResult.result
-      : latestOracleByMarket[market.name];
-    const markPrice = rawMarkPrice ? Number(formatUnits(rawMarkPrice, 18)) : 0;
-    const oraclePrice = rawOraclePrice ? Number(formatUnits(rawOraclePrice, 18)) : 0;
-    return emptyMarket(
-      market,
-      markPrice,
-      oraclePrice,
-      statsByMarket[market.marketId],
-      openInterestByMarket[market.name] ?? openInterestByMarket[market.marketId]
-    );
-  });
-
-  return {
-    markets,
-    isLoading: isLoading || isRegistryLoading,
-    error: error || registryError,
+    isDefault: market.isDefault,
+    // Note: These will be fetched by components using hooks
+    // We return a structure but components should use useMarketRealTimeData
   };
 };
 
-export const getMarketDetails = (marketName) => {
-  const market = DEPLOYED_MARKETS.find((m) => m.name === marketName) || getMarketByName(marketName);
-  if (!market) return null;
-
-  return {
-    name: market.name,
-    displayName: market.displayName,
-    type: market.type,
-    baseAsset: market.baseAsset,
-    quoteAsset: market.quoteAsset,
-    status: market.status,
-    vammAddress: market.vammAddress || market.vamm,
-    oracleAddress: market.oracleAddress || market.oracle,
-    marketId: market.marketId || market.id,
-    isDefault: market.name === DEFAULT_MARKET_KEY,
-  };
-};
-
+/**
+ * Hook to get real-time market details with all live data
+ * Use this in components that need live prices, funding rates, etc.
+ */
 export const useMarketRealTimeData = (marketName) => {
   const [data, setData] = useState(null);
   const [stats24h, setStats24h] = useState(null);
-  const market = DEPLOYED_MARKETS.find((m) => m.name === marketName) || getMarketByName(marketName);
-  const {
-    market: registryMarket,
-    isLoading: registryLoading,
-    error: registryError,
-  } = useRegistryMarket(market);
-  const liveMarket = registryMarket || market;
 
-  const vammAddress = liveMarket?.vammAddress || liveMarket?.vamm;
-  const oracleAddress = liveMarket?.oracleAddress || liveMarket?.oracle;
-  const marketId = liveMarket?.marketId || liveMarket?.id;
-  const { openInterestUsd: directOpenInterestUsd } = useMarketOpenInterest(liveMarket);
-
-  const { price: markPrice, isLoading: priceLoading } = useMarkPrice(vammAddress, 5000);
-  const { cumulativeFunding, lastFundingTime, kFundingX18, frMaxBpsPerHour } = useFundingRate(vammAddress);
-  const { price: oraclePrice, isLoading: oracleLoading } = useOraclePrice(oracleAddress, 10000);
-
-  useEffect(() => {
-    if (!marketId) return undefined;
-    let cancelled = false;
-    const fetch24hStats = async () => {
-      try {
-        const stats = await getMarketStat24h(marketId);
-        if (!cancelled) setStats24h(stats);
-      } catch (error) {
-        console.error("Error fetching 24h stats:", error);
-      }
-    };
-
-    fetch24hStats();
-    const interval = setInterval(fetch24hStats, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [marketId]);
-
-  useEffect(() => {
-    if (!liveMarket || priceLoading || !markPrice) return;
-
-    const markPriceNum = parseFloat(markPrice);
-    const twapNum = markPriceNum;
-    const parsedOraclePrice = oraclePrice ? parseFloat(oraclePrice) : 0;
-    const oraclePriceNum = parsedOraclePrice > 0 ? parsedOraclePrice : 0;
-
-    // Premium = (markPrice - indexPrice) / indexPrice
-    const premiumDecimal = oraclePriceNum > 0 ? (markPriceNum - oraclePriceNum) / oraclePriceNum : 0;
-    const premium = premiumDecimal * 100;
-
-    // Funding / 8h, derived from contract parameters and clamped like vAMM funding.
-    const kFunding = parseFloat(kFundingX18 || '0');
-    const eightHours = 8;
-    const rawFundingRateDecimal = kFunding * premiumDecimal * (eightHours / 24);
-    const maxFundingRateDecimal = frMaxBpsPerHour > 0
-      ? (frMaxBpsPerHour * eightHours) / 10000
-      : Number.POSITIVE_INFINITY;
-    const fundingRateDecimal = Math.max(
-      -maxFundingRateDecimal,
-      Math.min(maxFundingRateDecimal, rawFundingRateDecimal)
-    );
-    const fundingRatePct = fundingRateDecimal * 100;
-    const fundingRateAnnualized = fundingRatePct * 3 * 365;
-
-    const change24hValue = stats24h?.change_24h_percent != null
-      ? parseFloat(stats24h.change_24h_percent)
-      : (twapNum > 0 ? ((markPriceNum - twapNum) / twapNum) * 100 : 0);
-
-    const openInterestUsd = directOpenInterestUsd ?? stats24h?.open_interest_usd;
-
-    setData({
-      name: liveMarket.name,
-      displayName: liveMarket.displayName,
-      type: liveMarket.type,
-      baseAsset: liveMarket.baseAsset,
-      quoteAsset: liveMarket.quoteAsset,
-      status: liveMarket.status,
-      marketId,
-      markPriceRaw: markPriceNum,
-      twapRaw: twapNum,
-      oraclePriceRaw: oraclePriceNum || null,
-      fundingRateRaw: fundingRateDecimal,
-      price: formatPrice(markPriceNum),
-      indexPrice: oraclePriceNum > 0 ? oraclePriceNum.toFixed(2) : "N/A",
-      vammPrice: formatPrice(twapNum),
-      fundingRate: fundingRatePct >= 0 ? `+${fundingRatePct.toFixed(4)}%` : `${fundingRatePct.toFixed(4)}%`,
-      fundingRateAnnualized: `${fundingRateAnnualized.toFixed(2)}% APR`,
-      change24h: `${stats24h?.change_24h_percent == null ? "~" : ""}${change24hValue.toFixed(2)}%`,
-      change24hValue,
-      volume24h: stats24h?.volume_24h_usd
-        ? `$${parseFloat(stats24h.volume_24h_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        : "$0.00",
-      high24h: stats24h?.high_24h ? `$${parseFloat(stats24h.high_24h).toFixed(2)}` : "N/A",
-      low24h: stats24h?.low_24h ? `$${parseFloat(stats24h.low_24h).toFixed(2)}` : "N/A",
-      trades24h: stats24h?.trades_24h || 0,
-      openInterest: formatUsd(openInterestUsd),
-      lastFundingTime,
-      cumulativeFunding,
-      frMaxBpsPerHour,
-      premium: `${premium.toFixed(6)}%`,
-      premiumRaw: premium,
-      isPriceLoaded: !priceLoading,
-      isTwapLoaded: !priceLoading,
-      isOracleLoaded: !oracleLoading,
-      is24hStatsLoaded: stats24h !== null,
-    });
-  }, [
-    liveMarket,
-    marketId,
-    markPrice,
-    oraclePrice,
-    cumulativeFunding,
-    lastFundingTime,
-    kFundingX18,
-    frMaxBpsPerHour,
-    priceLoading,
-    oracleLoading,
-    stats24h,
-    directOpenInterestUsd,
-  ]);
+  // Find the market config
+  const market = DEPLOYED_MARKETS.find((m) => m.name === marketName);
 
   if (!market) {
     return { data: null, isLoading: false, error: "Market not found" };
   }
 
+  const vammAddress = market.vammAddress;
+
+  // Fetch real-time data from vAMM
+  const { price: markPrice, isLoading: priceLoading } = useMarkPrice(
+    vammAddress,
+    5000
+  );
+  const { twap, isLoading: twapLoading } = useTWAP(vammAddress, 900); // 15 min TWAP
+  const { cumulativeFunding, lastFundingTime } = useFundingRate(vammAddress);
+
+  // Also fetch Oracle price to calculate funding rate premium
+  const { price: oraclePrice, isLoading: oracleLoading } = useOraclePrice(
+    market.oracleAddress || SEPOLIA_CONTRACTS.h100OracleAdapter, // Use market-specific oracle adapter
+    10000
+  );
+
+  // Fetch 24h stats from Supabase
+  useEffect(() => {
+    const fetch24hStats = async () => {
+      try {
+        const stats = await get24hStats(market.marketId);
+        setStats24h(stats);
+      } catch (error) {
+        console.error('Error fetching 24h stats:', error);
+      }
+    };
+
+    fetch24hStats();
+
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetch24hStats, 30000);
+    return () => clearInterval(interval);
+  }, [market.marketId]);
+
+  useEffect(() => {
+    // Debug logging
+    console.log("useMarketRealTimeData for", marketName, {
+      markPrice,
+      twap,
+      oraclePrice,
+      stats24h,
+      priceLoading,
+      twapLoading,
+      oracleLoading,
+    });
+
+    // Update data as soon as we have at least mark price
+    // Other values will use fallbacks until they load
+    if (!priceLoading && markPrice) {
+      const markPriceNum = parseFloat(markPrice);
+
+      // Use fallbacks for values that might still be loading
+      const twapNum = twap ? parseFloat(twap) : markPriceNum;
+      const oraclePriceNum = oraclePrice
+        ? parseFloat(oraclePrice)
+        : markPriceNum;
+
+      // Calculate funding rate as: (Mark Price - Index Price) / Index Price
+      // This is the "premium" that determines funding payments
+      const premium = ((markPriceNum - oraclePriceNum) / oraclePriceNum) * 100;
+
+      // Annualized funding rate (assuming 8 hour funding periods, 3x per day)
+      const fundingRateAnnualized = premium * 3 * 365;
+
+      // Current premium (for next funding payment)
+      const fundingRatePercent = premium.toFixed(4);
+      const fundingRateDisplay =
+        premium >= 0 ? `+${fundingRatePercent}%` : `${fundingRatePercent}%`;
+
+      // Format prices for display
+      const markPriceFormatted = markPriceNum.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+      const twapFormatted = twapNum.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+      // Use REAL 24h data from Supabase if available, otherwise show placeholder
+      let change24hDisplay, change24hValue, volume24hDisplay;
+
+      if (stats24h && stats24h.change_24h_percent !== null) {
+        // Real data from indexed events
+        change24hValue = parseFloat(stats24h.change_24h_percent);
+        change24hDisplay = change24hValue.toFixed(2) + "%";
+        volume24hDisplay = "$" + parseFloat(stats24h.volume_24h_usd).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      } else {
+        // Placeholder until indexer is deployed
+        change24hValue = ((markPriceNum - twapNum) / twapNum) * 100;
+        change24hDisplay = "~" + change24hValue.toFixed(2) + "%";
+        volume24hDisplay = "$100.00"; // Placeholder value
+      }
+
+      setData({
+        name: market.name,
+        displayName: market.displayName,
+        type: market.type,
+        baseAsset: market.baseAsset,
+        quoteAsset: market.quoteAsset,
+        status: market.status,
+        marketId: market.marketId,
+        // Raw values
+        markPriceRaw: markPriceNum,
+        twapRaw: twapNum,
+        oraclePriceRaw: oraclePriceNum,
+        fundingRateRaw: premium / 100, // As decimal
+        // Formatted for display
+        price: markPriceFormatted,
+        indexPrice: oraclePriceNum.toFixed(2), // Oracle/Index price
+        vammPrice: twapFormatted,
+        fundingRate: fundingRateDisplay,
+        fundingRateAnnualized: fundingRateAnnualized.toFixed(2) + "% APR",
+        change24h: change24hDisplay,
+        change24hValue: change24hValue,
+        volume24h: volume24hDisplay,
+        // Additional 24h stats from Supabase
+        high24h: stats24h?.high_24h ? "$" + parseFloat(stats24h.high_24h).toFixed(2) : "N/A",
+        low24h: stats24h?.low_24h ? "$" + parseFloat(stats24h.low_24h).toFixed(2) : "N/A",
+        trades24h: stats24h?.trades_24h || 0,
+        openInterest: "~" + (Math.random() * 100).toFixed(2) + " ETH", // Still mock - needs separate tracking
+        lastFundingTime: lastFundingTime,
+        // Helper info
+        premium: premium.toFixed(6) + "%",
+        premiumRaw: premium,
+        // Loading states for individual values
+        isPriceLoaded: !priceLoading,
+        isTwapLoaded: !twapLoading,
+        isOracleLoaded: !oracleLoading,
+        is24hStatsLoaded: stats24h !== null,
+      });
+    }
+  }, [
+    markPrice,
+    twap,
+    oraclePrice,
+    cumulativeFunding,
+    lastFundingTime,
+    priceLoading,
+    twapLoading,
+    oracleLoading,
+    stats24h,
+    market,
+    marketName,
+  ]);
+
   return {
     data,
-    isLoading: registryLoading || priceLoading || !data,
-    error: registryError || null,
+    // Only show loading if we don't have data yet (mark price hasn't loaded)
+    // Once we have data, show it even if TWAP/Oracle are still loading
+    isLoading: priceLoading || !data,
+    error: null,
   };
 };

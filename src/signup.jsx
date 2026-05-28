@@ -2,11 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./creatclient";
-import { checkUsername } from "./services/api";
 import toast from "react-hot-toast";
 import { HiOutlineEnvelope, HiOutlineLockClosed, HiOutlineUser, HiOutlineEye, HiOutlineEyeSlash, HiCheck } from "react-icons/hi2";
 import AuthLayout from "./components/AuthLayout";
-import WalletAuthButtons from "./components/WalletAuthButtons";
 
 const SignupPage = () => {
   const [email, setEmail] = useState("");
@@ -53,10 +51,17 @@ const SignupPage = () => {
     setUsernameError("");
 
     try {
-      // Check if username is unique via API
-      const { available } = await checkUsername(username);
+      // Check if username is unique
+      const { data: usernameData, error: usernameError } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("username", username)
+        .single();
 
-      if (!available) {
+      if (usernameError && usernameError.code !== "PGRST116") {
+        throw usernameError;
+      }
+      if (usernameData) {
         setUsernameError("Username is already taken.");
         setLoading(false);
         return;
@@ -236,17 +241,6 @@ const SignupPage = () => {
             "Create Account"
           )}
         </button>
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-zinc-800"></div>
-          </div>
-          <div className="relative flex justify-center text-xs uppercase tracking-wider">
-            <span className="px-4 bg-[#050505] text-zinc-500">Or sign up with wallet</span>
-          </div>
-        </div>
-
-        <WalletAuthButtons onSuccess={() => navigate("/")} onNewUser={() => navigate("/welcome")} />
 
         <p className="text-center text-zinc-500 text-sm pt-4">
           Already have an account?{" "}

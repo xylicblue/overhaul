@@ -6,7 +6,6 @@ import path from "path";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  envPrefix: ["VITE_", "SUPABASE_URL", "SUPABASE_ANON_PUBLIC_KEY"],
   server: {
     host: true, // This will expose the server to the network
   },

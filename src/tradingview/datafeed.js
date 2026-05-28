@@ -1,10 +1,9 @@
- /**
+/**
  * TradingView Datafeed Implementation
  * Connects to Supabase vamm_price_history for historical and real-time data
  */
 
 import { supabase } from "../creatclient";
-import { MARKETS } from "../contracts/addresses";
 
 // Configuration for the datafeed
 const configurationData = {
@@ -24,14 +23,15 @@ const configurationData = {
   ],
 };
 
-function buildSymbolInfo(symbol, description) {
-  return {
-    name: symbol,
-    description,
+// Map of symbol names to their display info
+const symbolsInfo = {
+  "H100-PERP": {
+    name: "H100-PERP",
+    description: "NVIDIA H100 GPU Index Perpetual",
     type: "gpu",
     session: "24x7",
     timezone: "Etc/UTC",
-    ticker: symbol,
+    ticker: "H100-PERP",
     minmov: 1,
     pricescale: 100,
     has_intraday: true,
@@ -39,18 +39,53 @@ function buildSymbolInfo(symbol, description) {
     supported_resolutions: configurationData.supported_resolutions,
     volume_precision: 2,
     data_status: "streaming",
-  };
-}
-
-// Map of symbol names to their display info, derived from deployed market config.
-const symbolsInfo = Object.fromEntries(
-  Object.values(MARKETS)
-    .filter((market) => market.active)
-    .map((market) => [
-      market.name,
-      buildSymbolInfo(market.name, market.fullName || `${market.displayName} Perpetual`),
-    ])
-);
+  },
+  "B200-PERP": {
+    name: "B200-PERP",
+    description: "NVIDIA B200 GPU Index Perpetual",
+    type: "gpu",
+    session: "24x7",
+    timezone: "Etc/UTC",
+    ticker: "B200-PERP",
+    minmov: 1,
+    pricescale: 100,
+    has_intraday: true,
+    has_weekly_and_monthly: true,
+    supported_resolutions: configurationData.supported_resolutions,
+    volume_precision: 2,
+    data_status: "streaming",
+  },
+  "H200-PERP": {
+    name: "H200-PERP",
+    description: "NVIDIA H200 GPU Index Perpetual",
+    type: "gpu",
+    session: "24x7",
+    timezone: "Etc/UTC",
+    ticker: "H200-PERP",
+    minmov: 1,
+    pricescale: 100,
+    has_intraday: true,
+    has_weekly_and_monthly: true,
+    supported_resolutions: configurationData.supported_resolutions,
+    volume_precision: 2,
+    data_status: "streaming",
+  },
+  "A100-PERP": {
+    name: "A100-PERP",
+    description: "NVIDIA A100 GPU Index Perpetual",
+    type: "gpu",
+    session: "24x7",
+    timezone: "Etc/UTC",
+    ticker: "A100-PERP",
+    minmov: 1,
+    pricescale: 100,
+    has_intraday: true,
+    has_weekly_and_monthly: true,
+    supported_resolutions: configurationData.supported_resolutions,
+    volume_precision: 2,
+    data_status: "streaming",
+  },
+};
 
 // Store active subscriptions
 const subscriptions = new Map();
@@ -61,14 +96,6 @@ const CACHE_TTL = 60000; // 1 minute cache TTL
 
 // Maximum bars to fetch per request (optimization - keep low for fast initial load)
 const MAX_BARS_PER_REQUEST = 500;
-
-function getMarketNamesForHistory(symbolName) {
-  const names = new Set([symbolName]);
-  const market = MARKETS[symbolName];
-  if (market?.aliasFor) names.add(market.aliasFor);
-  if (symbolName === "H100-PERP") names.add("H100-GPU-PERP");
-  return Array.from(names);
-}
 
 /**
  * Convert resolution string to interval in seconds
@@ -190,10 +217,19 @@ export const Datafeed = {
   ) => {
     const { from, to, firstDataRequest } = periodParams;
     
-    console.log("[Datafeed] getBars:", symbolInfo.name, resolution, new Date(from * 1000), new Date(to * 1000), firstDataRequest ? "(first)" : "");
+    // For first request, limit time range to recent data for faster loading
+    // TradingView often requests years of data initially
+    let actualFrom = from;
+    if (firstDataRequest) {
+      // Limit initial load to last 30 days max for speed
+      const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+      actualFrom = Math.max(from, thirtyDaysAgo);
+    }
+    
+    console.log("[Datafeed] getBars:", symbolInfo.name, resolution, new Date(actualFrom * 1000), new Date(to * 1000));
 
     // Create cache key
-    const cacheKey = `${symbolInfo.name}_${resolution}_${from}_${to}`;
+    const cacheKey = `${symbolInfo.name}_${resolution}_${actualFrom}_${to}`;
     const cachedEntry = dataCache.get(cacheKey);
     
     // Return cached data if valid
@@ -204,30 +240,31 @@ export const Datafeed = {
     }
 
     try {
-      // Build market names to query
-      const marketNames = getMarketNamesForHistory(symbolInfo.name);
-
-      // Use Supabase .in() filter to fetch ALL matching market names in one query
-      // For first request, fetch everything (no time filter) so we have the full picture;
-      // for subsequent (scrollback) requests, use the from/to range.
-      let query = supabase
-        .from("vamm_price_history")
-        .select("price, timestamp")
-        .in("market", marketNames)
-        .order("timestamp", { ascending: true });
-
-      if (!firstDataRequest) {
-        query = query
-          .gte("timestamp", new Date(from * 1000).toISOString())
-          .lte("timestamp", new Date(to * 1000).toISOString());
+      // Query Supabase for historical data
+      let marketNames = [symbolInfo.name];
+      
+      // Allow fallback for H100-PERP to H100-GPU-PERP
+      if (symbolInfo.name === "H100-PERP") {
+        marketNames.push("H100-GPU-PERP");
       }
 
-      const { data, error } = await query;
+      let data = null;
+      
+      for (const marketName of marketNames) {
+        // Only select necessary fields (not twap) for faster query
+        const { data: queryData, error } = await supabase
+          .from("vamm_price_history")
+          .select("price, timestamp")
+          .eq("market", marketName)
+          .gte("timestamp", new Date(actualFrom * 1000).toISOString())
+          .lte("timestamp", new Date(to * 1000).toISOString())
+          .order("timestamp", { ascending: true })
+          .limit(MAX_BARS_PER_REQUEST);
 
-      if (error) {
-        console.error("[Datafeed] Query error:", error);
-        onErrorCallback(error.message);
-        return;
+        if (!error && queryData && queryData.length > 0) {
+          data = queryData;
+          break;
+        }
       }
 
       if (!data || data.length === 0) {
@@ -269,18 +306,17 @@ export const Datafeed = {
     let lastBar = null;
 
     
-    const channel = supabase.channel(`tv_${subscriberUID}`);
-
-    for (const marketName of getMarketNamesForHistory(symbolInfo.name)) {
-      channel.on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "vamm_price_history",
-            filter: `market=eq.${marketName}`,
-          },
-          (payload) => {
+    const channel = supabase
+      .channel(`tv_${subscriberUID}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "vamm_price_history",
+          filter: `market=eq.${symbolInfo.name}`,
+        },
+        (payload) => {
           const price = parseFloat(payload.new.price);
           const timestamp = new Date(payload.new.timestamp).getTime();
           const barTime = Math.floor(timestamp / (resolutionSeconds * 1000)) * (resolutionSeconds * 1000);
@@ -305,10 +341,44 @@ export const Datafeed = {
 
           onRealtimeCallback(lastBar);
         }
+      )
+      .subscribe();
+
+    
+    if (symbolInfo.name === "H100-PERP") {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "vamm_price_history",
+          filter: `market=eq.H100-GPU-PERP`,
+        },
+        (payload) => {
+          const price = parseFloat(payload.new.price);
+          const timestamp = new Date(payload.new.timestamp).getTime();
+          const barTime = Math.floor(timestamp / (resolutionSeconds * 1000)) * (resolutionSeconds * 1000);
+
+          if (!lastBar || lastBar.time < barTime) {
+            lastBar = {
+              time: barTime,
+              open: price,
+              high: price,
+              low: price,
+              close: price,
+              volume: 1,
+            };
+          } else {
+            lastBar.high = Math.max(lastBar.high, price);
+            lastBar.low = Math.min(lastBar.low, price);
+            lastBar.close = price;
+            lastBar.volume += 1;
+          }
+
+          onRealtimeCallback(lastBar);
+        }
       );
     }
-
-    channel.subscribe();
 
     subscriptions.set(subscriberUID, channel);
   },

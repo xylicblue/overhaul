@@ -12,114 +12,93 @@ import { createClient } from '@supabase/supabase-js';
 import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem';
 import { sepolia } from 'viem/chains';
 import * as dotenv from 'dotenv';
-import { SEPOLIA_CONTRACTS as DEPLOYED_CONTRACTS, getActiveMarkets } from '../src/contracts/addresses.js';
-import { toIndexerPriceSource } from '../src/config/marketsConfig.js';
 
 // Load environment variables
 dotenv.config();
-
-function normalizeSupabaseUrl(value) {
-  const url = value?.trim().replace(/^['"]|['"]$/g, "");
-  if (!url || /^https?:\/\//i.test(url)) return url;
-  if (/^[a-z0-9-]+\.supabase\.co\/?$/i.test(url)) return `https://${url.replace(/\/$/, "")}`;
-  return url;
-}
 
 // ==================== CONFIGURATION ====================
 
 const CONFIG = {
   // Supabase
-  supabaseUrl: normalizeSupabaseUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
-  supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_KEY,
+  supabaseUrl: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_KEY,
 
   // Blockchain
-  rpcUrl: process.env.RPC_URL || process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com',
+  rpcUrl: process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com',
   chainId: 11155111, // Sepolia
 
   // Contracts (Sepolia)
   contracts: {
-    clearingHouse: DEPLOYED_CONTRACTS.clearingHouse,
-    collateralVault: DEPLOYED_CONTRACTS.collateralVault,
-    marketRegistry: DEPLOYED_CONTRACTS.marketRegistry,
-    cuOracle: DEPLOYED_CONTRACTS.cuOracle,
-    collateralOracle: DEPLOYED_CONTRACTS.collateralOracle,
+    vammProxy: '0x81C40Fb63dFBa1C7d6C32b7a23fc25bd2E6bE3Cc',
+    vammProxyOld: '0xd5d946Fc7c41C1AD7C0aC1BdfDCE53FE0a860204',
+    oracle: '0x0Ed715b613E19028eB9e5b06cc696B45C7d4D1F9',
+  },
+
+  // Market IDs (keccak256 of market name)
+  marketIds: {
+    'H100-PERP': '0x1a9c55d7e8e99e4e5e6b6f5c7a4e9e8f6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0',
+    'ETH-PERP-V2': '0x2b8d66e7f9f88f5f6f7c8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b',
+    'ETH-PERP': '0x3c9e77f8g0g99g6g7g8d9f0g1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0c',
   },
 
   // Indexer settings
   snapshotInterval: parseInt(process.env.SNAPSHOT_INTERVAL) || 60000, // 1 minute
-  statsInterval:    parseInt(process.env.STATS_INTERVAL)    || 300000, // 5 minutes
-  indexHistorical:  process.env.INDEX_HISTORICAL !== 'false',
-
-  // Notification dedup suppression windows (ms)
-  dedup: {
-    A1: 5  * 60 * 1000,  // 5 min
-    A2: 2  * 60 * 1000,  // 2 min
-    A3: 30 * 1000,        // 30 sec
-    C2: 60 * 60 * 1000,  // 1 hr
-    C3: 4  * 60 * 60 * 1000, // 4 hr
-    F3: 30 * 60 * 1000,  // 30 min
-    _default: 0,          // 0 = no suppression (event-driven)
-  },
+  statsInterval: parseInt(process.env.STATS_INTERVAL) || 300000, // 5 minutes
+  indexHistorical: process.env.INDEX_HISTORICAL !== 'false', // Default: true
 };
-
-let swapEventCursorColumnsSupported = true;
 
 // ==================== MARKETS ====================
 
-const MARKETS = getActiveMarkets()
-  .filter((market) => !market.isAlias)
-  .map((market) => ({
-    id: market.id,
-    name: market.name,
-    displayName: market.displayName,
-    vammAddress: market.vamm,
-    oracleAddress: market.oracle,
-    ...toIndexerPriceSource(market.name),
-    active: market.active,
-  }));
-
-const MARKET_BY_ID = Object.fromEntries(MARKETS.map((market) => [market.id.toLowerCase(), market]));
-const pendingFundingByTrade = new Map();
-
-const SWAP_EVENT_ABI = parseAbiItem('event Swap(address indexed sender, int256 baseDelta, int256 quoteDelta, uint256 avgPriceX18)');
-
-function numberFromLogIndex(value) {
-  return value == null ? null : Number(value);
-}
-
-function getLogCursor(log) {
-  return {
-    blockNumber: BigInt(log.blockNumber),
-    transactionIndex: numberFromLogIndex(log.transactionIndex),
-    logIndex: numberFromLogIndex(log.logIndex),
-    txHash: log.transactionHash?.toLowerCase() ?? null,
-  };
-}
-
-function compareLogCursor(a, b) {
-  if (a.blockNumber !== b.blockNumber) {
-    return a.blockNumber < b.blockNumber ? -1 : 1;
-  }
-  if (a.transactionIndex !== b.transactionIndex) {
-    return a.transactionIndex < b.transactionIndex ? -1 : 1;
-  }
-  if (a.logIndex !== b.logIndex) {
-    return a.logIndex < b.logIndex ? -1 : 1;
-  }
-  return 0;
-}
-
-function sortLogsByChainOrder(logs) {
-  return [...logs].sort((a, b) => compareLogCursor(getLogCursor(a), getLogCursor(b)));
-}
-
-function swapLogKey(log) {
-  const cursor = getLogCursor(log);
-  if (cursor.transactionIndex != null && cursor.logIndex != null) {
-    return `log:${cursor.transactionIndex}:${cursor.logIndex}`;
-  }
-  return `tx:${cursor.txHash}`;
-}
+const MARKETS = [
+  {
+    id: CONFIG.marketIds['H100-PERP'],
+    name: 'H100-PERP',
+    displayName: 'H100 GPU',
+    vammAddress: CONFIG.contracts.vammProxy,
+    tableName: 'price_data',
+    active: true,
+  },
+  {
+    id: '0xf4aa47cc83b0d01511ca8025a996421dda6fbab1764466da4b0de6408d3db2e2', // H100-HyperScalers-PERP
+    name: 'H100-HyperScalers-PERP',
+    displayName: 'H100 HyperScalers',
+    vammAddress: '0xFE1df531084Dcf0Fe379854823bC5d402932Af99',
+    tableName: 'h100_hyperscalers_perp_prices',
+    active: true,
+  },
+  {
+    id: '0x9d2d658888da74a10ac9263fc14dcac4a834dd53e8edf664b4cc3b2b4a23f214', // H100-non-HyperScalers-PERP
+    name: 'H100-non-HyperScalers-PERP',
+    displayName: 'H100 non-HyperScalers',
+    vammAddress: '0x19574B8C91717389231DA5b0579564d6F81a79B0',
+    tableName: 'h100_non_hyperscalers_perp_prices',
+    active: true,
+  },
+  {
+    id: '0xb1bae2ea6c465ce4acb7d8a4a16a8899c9cc94ac35b5a82403875c6b2aa34f3e', // T4-PERP
+    name: 'T4-PERP',
+    displayName: 'T4 GPU',
+    vammAddress: '0x910C730dBEd5384fbF83bf1F387609bf83E8ffDd',
+    tableName: 't4_index_prices',
+    active: true,
+  },
+  {
+    id: CONFIG.marketIds['ETH-PERP-V2'],
+    name: 'ETH-PERP-V2',
+    displayName: 'H100 GPU',
+    vammAddress: CONFIG.contracts.vammProxy,
+    // Alias to H100-PERP data
+    tableName: 'price_data',
+    active: true,
+  },
+  {
+    id: CONFIG.marketIds['ETH-PERP'],
+    name: 'ETH-PERP',
+    displayName: 'Test Market [OLD]',
+    vammAddress: CONFIG.contracts.vammProxyOld,
+    active: false, // Skip deprecated markets
+  },
+];
 
 // ==================== ABIs ====================
 
@@ -132,34 +111,13 @@ const VAMM_ABI = [
     "stateMutability": "view"
   },
   {
-    "type": "function",
-    "name": "getFundingRate",
-    "inputs": [],
-    "outputs": [{"type": "int256"}],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "totalLongOI",
-    "inputs": [],
-    "outputs": [{"type": "uint256"}],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "totalShortOI",
-    "inputs": [],
-    "outputs": [{"type": "uint256"}],
-    "stateMutability": "view"
-  },
-  {
     "type": "event",
     "name": "Swap",
     "inputs": [
-      {"name": "sender",      "type": "address", "indexed": true},
-      {"name": "baseDelta",   "type": "int256",  "indexed": false},
-      {"name": "quoteDelta",  "type": "int256",  "indexed": false},
-      {"name": "avgPriceX18","type": "uint256", "indexed": false}
+      {"name": "sender", "type": "address", "indexed": true},
+      {"name": "baseDelta", "type": "int256", "indexed": false},
+      {"name": "quoteDelta", "type": "int256", "indexed": false},
+      {"name": "avgPriceX18", "type": "uint256", "indexed": false}
     ]
   }
 ];
@@ -174,95 +132,6 @@ const ORACLE_ABI = [
   }
 ];
 
-// ClearingHouse ABI — only the events we need for notifications
-const CLEARING_HOUSE_ABI = [
-  {
-    "type": "event",
-    "name": "TradeExecuted",
-    "inputs": [
-      {"name": "user",           "type": "address", "indexed": true},
-      {"name": "marketId",       "type": "bytes32", "indexed": true},
-      {"name": "baseDelta",      "type": "int256",  "indexed": false},
-      {"name": "quoteDelta",     "type": "int256",  "indexed": false},
-      {"name": "executionPrice", "type": "uint256", "indexed": false},
-      {"name": "newSize",        "type": "int256",  "indexed": false},
-      {"name": "newMargin",      "type": "uint256", "indexed": false},
-      {"name": "realizedPnL",    "type": "int256",  "indexed": false},
-      {"name": "fee",            "type": "uint256", "indexed": false}
-    ]
-  },
-  {
-    "type": "event",
-    "name": "LiquidationExecuted",
-    "inputs": [
-      {"name": "marketId",        "type": "bytes32", "indexed": true},
-      {"name": "liquidator",      "type": "address", "indexed": true},
-      {"name": "account",         "type": "address", "indexed": true},
-      {"name": "size",            "type": "uint128", "indexed": false},
-      {"name": "notional",        "type": "uint256", "indexed": false},
-      {"name": "penalty",         "type": "uint256", "indexed": false},
-      {"name": "liquidatorReward","type": "uint256", "indexed": false},
-      {"name": "protocolFee",     "type": "uint256", "indexed": false},
-      {"name": "insurancePayout", "type": "uint256", "indexed": false}
-    ]
-  },
-  {
-    "type": "event",
-    "name": "FundingSettled",
-    "inputs": [
-      {"name": "marketId",       "type": "bytes32", "indexed": true},
-      {"name": "account",        "type": "address", "indexed": true},
-      {"name": "fundingPayment", "type": "int256",  "indexed": false}
-    ]
-  },
-  {
-    "type": "event",
-    "name": "PositionClosed",
-    "inputs": [
-      {"name": "user",        "type": "address", "indexed": true},
-      {"name": "marketId",    "type": "bytes32", "indexed": true},
-      {"name": "size",        "type": "uint128", "indexed": false},
-      {"name": "exitPrice",   "type": "uint256", "indexed": false},
-      {"name": "realizedPnL", "type": "int256",  "indexed": false}
-    ]
-  },
-  {
-    "type": "event",
-    "name": "MarketPaused",
-    "inputs": [
-      {"name": "marketId", "type": "bytes32", "indexed": true},
-      {"name": "isPaused", "type": "bool",    "indexed": false}
-    ]
-  },
-  {
-    "type": "event",
-    "name": "collateralDeposited",
-    "inputs": [
-      {"name": "user",   "type": "address", "indexed": true},
-      {"name": "token",  "type": "address", "indexed": true},
-      {"name": "amount", "type": "uint256", "indexed": false}
-    ]
-  },
-  {
-    "type": "event",
-    "name": "collateralWithdrawn",
-    "inputs": [
-      {"name": "user",   "type": "address", "indexed": true},
-      {"name": "token",  "type": "address", "indexed": true},
-      {"name": "amount", "type": "uint256", "indexed": false}
-    ]
-  },
-  {
-    "type": "event",
-    "name": "MarginAdded",
-    "inputs": [
-      {"name": "user",     "type": "address", "indexed": true},
-      {"name": "marketId", "type": "bytes32", "indexed": true},
-      {"name": "amount",   "type": "uint256", "indexed": false}
-    ]
-  }
-];
-
 // ==================== CLIENTS ====================
 
 let supabase = null;
@@ -274,7 +143,7 @@ function initializeClients() {
     throw new Error('SUPABASE_URL or VITE_SUPABASE_URL not configured');
   }
   if (!CONFIG.supabaseServiceKey) {
-    throw new Error('SUPABASE_SERVICE_KEY, SUPABASE_SERVICE_ROLE_KEY, or VITE_SUPABASE_SERVICE_KEY not configured');
+    throw new Error('SUPABASE_SERVICE_KEY or VITE_SUPABASE_SERVICE_KEY not configured');
   }
 
   // Initialize Supabase
@@ -305,244 +174,18 @@ async function getMarkPrice(vammAddress) {
   }
 }
 
-async function getOpenInterestUsd(market) {
+async function getOraclePrice() {
   try {
-    const [longOI, shortOI, markPrice] = await Promise.all([
-      publicClient.readContract({
-        address: market.vammAddress,
-        abi: VAMM_ABI,
-        functionName: 'totalLongOI',
-      }),
-      publicClient.readContract({
-        address: market.vammAddress,
-        abi: VAMM_ABI,
-        functionName: 'totalShortOI',
-      }),
-      publicClient.readContract({
-        address: market.vammAddress,
-        abi: VAMM_ABI,
-        functionName: 'getMarkPrice',
-      }),
-    ]);
-
-    const openInterestX18 = ((longOI + shortOI) * markPrice) / 10n ** 18n;
-    return parseFloat(formatUnits(openInterestX18, 18));
-  } catch (error) {
-    console.error(`Error fetching open interest for ${market.name}:`, error.message);
-    return null;
-  }
-}
-
-async function getExistingOpenInterestUsd(marketId) {
-  try {
-    const { data, error } = await supabase
-      .from('market_stats_24h')
-      .select('open_interest_usd')
-      .eq('market_id', marketId)
-      .maybeSingle();
-
-    if (error) return null;
-    return data?.open_interest_usd ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function getIndexPriceFromDB(market) {
-  if (!market?.tableName) return null;
-  const timeField = market.timeField || 'created_at';
-  try {
-    let query = supabase
-      .from(market.tableName)
-      .select(`${market.priceField}, ${timeField}`);
-
-    if (market.providerFilter) {
-      query = query.eq('provider_name', market.providerFilter);
-    }
-
-    const { data, error } = await query
-      .order(timeField, { ascending: false })
-      .limit(1)
-      .single();
-
-    if (error || !data) return null;
-    return parseFloat(data[market.priceField]);
-  } catch (error) {
-    console.error(`Error fetching index price from DB (${market.tableName}):`, error.message);
-    return null;
-  }
-}
-
-// ==================== NOTIFICATION ENGINE ====================
-
-/**
- * Map market ID bytes32 → human-readable label.
- * Falls back to truncated marketId if not found.
- */
-const MARKET_ID_TO_LABEL = Object.fromEntries(
-  MARKETS.map((market) => [market.id.toLowerCase(), market.name])
-);
-
-function marketLabel(marketId) {
-  const id = marketId.toLowerCase();
-  return MARKET_ID_TO_LABEL[id] || `Market(${id.slice(0,10)}...)`;
-}
-
-/**
- * Check suppression window for a (user, marketId, code) triplet.
- * Returns true if we should skip inserting (still within window).
- */
-async function isDuped(userAddress, marketId, code) {
-  const windowMs = CONFIG.dedup[code] ?? CONFIG.dedup._default;
-  if (windowMs === 0) return false; // event-driven, never suppress
-
-  const { data, error } = await supabase
-    .from('notification_dedup_log')
-    .select('last_sent_at, send_count')
-    .eq('user_id',   userAddress.toLowerCase())
-    .eq('market_id', (marketId || '').toLowerCase())
-    .eq('code',      code)
-    .single();
-
-  if (error || !data) return false;
-
-  const elapsed = Date.now() - new Date(data.last_sent_at).getTime();
-  return elapsed < windowMs;
-}
-
-/**
- * Update the dedup log after sending a notification.
- */
-async function updateDedup(userAddress, marketId, code) {
-  await supabase
-    .from('notification_dedup_log')
-    .upsert({
-      user_id:      userAddress.toLowerCase(),
-      market_id:    (marketId || '').toLowerCase(),
-      code,
-      last_sent_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,market_id,code' })
-    .select();
-}
-
-/**
- * CODE → { category, priority, titleFn, bodyFn, actionsFn }
- */
-const NOTIFICATION_DEFS = {
-  // ── B: Liquidation ──────────────────────────────────────────
-  B1: {
-    category: 'B', priority: 'critical',
-    titleFn: (d) => `Partial Liquidation — ${d.market}`,
-    bodyFn:  (d) => `${d.sizeFormatted} of your position was liquidated. Penalty: $${d.penaltyFormatted}. Remaining: ${d.remainingFormatted} units.`,
-    actionsFn: () => [{ label: 'View Position', href: '/trade' }],
-  },
-  B2: {
-    category: 'B', priority: 'critical',
-    titleFn: (d) => `Full Liquidation — ${d.market}`,
-    bodyFn:  (d) => `Your entire position (notional: $${d.notionalFormatted}) was liquidated. Penalty: $${d.penaltyFormatted}.`,
-    actionsFn: () => [{ label: 'View History', href: '/portfolio' }],
-  },
-  // ── C: Funding ──────────────────────────────────────────────
-  C1: {
-    category: 'C', priority: 'low',
-    titleFn: (d) => `Funding Settled — ${d.market}`,
-    bodyFn:  (d) => `Funding payment: ${d.fundingFormatted} (${d.fundingSign}).`,
-    actionsFn: () => [],
-  },
-  // ── D: Position Events ──────────────────────────────────────
-  D1: {
-    category: 'D', priority: 'low',
-    titleFn: (d) => `Position Opened — ${d.market}`,
-    bodyFn:  (d) => `${d.side} ${d.sizeFormatted} units at $${d.priceFormatted}/unit.`,
-    actionsFn: () => [{ label: 'View Position', href: '/trade' }],
-  },
-  D2: {
-    category: 'D', priority: 'low',
-    titleFn: (d) => `Position Closed — ${d.market}`,
-    bodyFn:  (d) => `Closed ${d.sizeFormatted} units. Realized PnL: +$${d.pnlFormatted}.`,
-    actionsFn: () => [{ label: 'View History', href: '/portfolio' }],
-  },
-  D3: {
-    category: 'D', priority: 'low',
-    titleFn: (d) => `Position Closed — ${d.market}`,
-    bodyFn:  (d) => `Closed ${d.sizeFormatted} units. Realized PnL: -$${d.pnlFormatted}.`,
-    actionsFn: () => [{ label: 'View History', href: '/portfolio' }],
-  },
-  // ── E: Collateral ───────────────────────────────────────────
-  E1: {
-    category: 'E', priority: 'low',
-    titleFn: () => 'Deposit Confirmed',
-    bodyFn:  (d) => `$${d.amountFormatted} USDC deposited to your account.`,
-    actionsFn: () => [],
-  },
-  E2: {
-    category: 'E', priority: 'low',
-    titleFn: () => 'Withdrawal Confirmed',
-    bodyFn:  (d) => `$${d.amountFormatted} USDC withdrawn to your wallet.`,
-    actionsFn: () => [],
-  },
-  // ── F: Market Status ────────────────────────────────────────
-  F1: {
-    category: 'F', priority: 'high',
-    titleFn: (d) => `Market Paused — ${d.market}`,
-    bodyFn:  () => 'This market has been paused. No new trades or position changes can be made. Your open position is safe.',
-    actionsFn: () => [],
-  },
-  F2: {
-    category: 'F', priority: 'high',
-    titleFn: (d) => `Market Resumed — ${d.market}`,
-    bodyFn:  () => 'Trading has resumed. Funding rates will continue from where they left off.',
-    actionsFn: () => [{ label: 'Trade Now', href: '/trade' }],
-  },
-};
-
-/**
- * Core function: build and persist a trader notification.
- * Called by every event handler and the state poller.
- */
-async function createTraderNotification(code, userAddress, marketId, payload, txHash = null) {
-  const def = NOTIFICATION_DEFS[code];
-  if (!def) {
-    console.warn(`⚠️  No definition for notification code: ${code}`);
-    return;
-  }
-
-  const userLower   = userAddress.toLowerCase();
-  const marketIdLow = (marketId || '').toLowerCase();
-  const label       = marketLabel(marketId);
-
-  // Suppression check
-  if (await isDuped(userLower, marketIdLow, code)) {
-    console.log(`🔕 Suppressed ${code} for ${userLower.slice(0,8)}... (dedup window active)`);
-    return;
-  }
-
-  const data = { market: label, ...payload };
-
-  const { error } = await supabase
-    .from('trader_notifications')
-    .insert({
-      user_id:      userLower,
-      category:     def.category,
-      code,
-      priority:     def.priority,
-      market_id:    marketIdLow || null,
-      market_label: label,
-      title:        def.titleFn(data),
-      body:         def.bodyFn(data),
-      data:         payload,
-      actions:      def.actionsFn(data),
-      status:       'unread',
-      tx_hash:      txHash,
+    const price = await publicClient.readContract({
+      address: CONFIG.contracts.oracle,
+      abi: ORACLE_ABI,
+      functionName: 'getPrice',
     });
-
-  if (error) {
-    console.error(`❌ Failed to insert notification ${code}:`, error.message);
-    return;
+    return parseFloat(formatUnits(price, 18));
+  } catch (error) {
+    console.error('Error fetching oracle price:', error.message);
+    return null;
   }
-
-  await updateDedup(userLower, marketIdLow, code);
-  console.log(`🔔 [${code}] ${def.priority.toUpperCase()} → ${userLower.slice(0,10)}... | ${label}`);
 }
 
 // ==================== DATABASE FUNCTIONS ====================
@@ -567,9 +210,26 @@ async function storePriceSnapshot(market, markPrice, oraclePrice, blockNumber) {
     console.error('Error storing price snapshot:', error.message);
   }
 
-  // 2. Write to vamm_price_history (unified table for AdvancedChart).
-  // The market-specific index tables are source-of-truth bot tables, so the
-  // indexer reads from them but does not write synthetic rows back into them.
+  // 2. Write to market-specific table if configured (for PriceIndexChart - ORACLE PRICES)
+  if (market.tableName) {
+    // Skip aliases from writing to the same table twice in the same loop run
+    if (market.name !== 'ETH-PERP-V2') {
+        const { error: specificError } = await supabase
+        .from(market.tableName)
+        .insert({
+            price: oraclePrice, // IMPORTANT: These tables are for INDEX/ORACLE prices, not vAMM mark prices
+            timestamp: timestamp,
+        });
+
+        if (specificError) {
+             console.error(`Error storing to ${market.tableName}:`, specificError.message);
+        } else {
+            console.log(`📸 ${market.name} -> ${market.tableName}: $${oraclePrice.toFixed(2)}`);
+        }
+    }
+  }
+
+  // 3. Write to vamm_price_history (unified table for AdvancedChart)
   const { error: vammError } = await supabase
     .from('vamm_price_history')
     .insert({
@@ -583,150 +243,6 @@ async function storePriceSnapshot(market, markPrice, oraclePrice, blockNumber) {
     console.error(`Error storing to vamm_price_history:`, vammError.message);
   } else {
     console.log(`📊 ${market.name} -> vamm_price_history: $${markPrice.toFixed(2)}`);
-  }
-
-  return true;
-}
-
-function tradeAccountingKey(txHash, userAddress, marketId) {
-  return `${txHash.toLowerCase()}:${userAddress.toLowerCase()}:${marketId.toLowerCase()}`;
-}
-
-function canonicalSideFromTrade(baseDelta, newSize) {
-  if (baseDelta < 0n && newSize >= 0n) return 'Long';
-  if (baseDelta > 0n && newSize <= 0n) return 'Short';
-  return baseDelta > 0n ? 'Long' : 'Short';
-}
-
-async function getBlockTimestamp(blockNumber) {
-  const block = await publicClient.getBlock({ blockNumber });
-  return new Date(Number(block.timestamp) * 1000).toISOString();
-}
-
-async function writeCanonicalTrade(event) {
-  const { args, blockNumber, transactionHash } = event;
-  const marketId = args.marketId.toLowerCase();
-  const market = MARKET_BY_ID[marketId];
-
-  if (!market) {
-    console.warn(`Skipping TradeExecuted for unknown market ${marketId}`);
-    return false;
-  }
-
-  const userAddress = args.user.toLowerCase();
-  const key = tradeAccountingKey(transactionHash, userAddress, marketId);
-  const timestamp = await getBlockTimestamp(blockNumber);
-  const fundingEarned = pendingFundingByTrade.get(key) ?? 0;
-  const size = Math.abs(parseFloat(formatUnits(args.baseDelta, 18)));
-  const notional = Math.abs(parseFloat(formatUnits(args.quoteDelta, 18)));
-
-  const payload = {
-    user_address: userAddress,
-    market: market.name,
-    side: canonicalSideFromTrade(args.baseDelta, args.newSize),
-    size,
-    price: parseFloat(formatUnits(args.executionPrice, 18)),
-    notional,
-    tx_hash: transactionHash,
-    created_at: timestamp,
-    pnl: parseFloat(formatUnits(args.realizedPnL, 18)),
-    funding_earned: fundingEarned,
-    fees_paid: parseFloat(formatUnits(args.fee, 18)),
-  };
-
-  const { data: existing, error: selectError } = await supabase
-    .from('trade_history')
-    .select('id')
-    .eq('tx_hash', transactionHash)
-    .eq('user_address', userAddress)
-    .limit(20);
-
-  if (selectError) {
-    console.error('Error checking canonical trade row:', selectError.message);
-    return false;
-  }
-
-  const existingIds = (existing || []).map((row) => row.id);
-  const query = existingIds.length > 0
-    ? supabase.from('trade_history').update(payload).in('id', existingIds)
-    : supabase.from('trade_history').insert(payload);
-
-  const { error } = await query;
-  if (error) {
-    console.error('Error writing canonical trade row:', error.message);
-    return false;
-  }
-
-  pendingFundingByTrade.delete(key);
-  console.log(`📒 Canonical trade: ${market.name} ${payload.side} $${notional.toFixed(2)} fee $${payload.fees_paid.toFixed(2)}`);
-  return true;
-}
-
-async function applyFundingSettlementToTrade(event) {
-  const { args, transactionHash } = event;
-  const marketId = args.marketId.toLowerCase();
-  const userAddress = args.account.toLowerCase();
-  const key = tradeAccountingKey(transactionHash, userAddress, marketId);
-  const payment = parseFloat(formatUnits(args.fundingPayment, 18));
-  const nextFunding = (pendingFundingByTrade.get(key) || 0) + payment;
-  pendingFundingByTrade.set(key, nextFunding);
-
-  const { data: rows, error: selectError } = await supabase
-    .from('trade_history')
-    .select('id')
-    .eq('tx_hash', transactionHash)
-    .eq('user_address', userAddress)
-    .limit(20);
-
-  if (selectError) {
-    console.error('Error checking trade row for funding:', selectError.message);
-    return false;
-  }
-
-  if (!rows?.length) return true;
-
-  const { error } = await supabase
-    .from('trade_history')
-    .update({ funding_earned: nextFunding })
-    .in('id', rows.map((row) => row.id));
-
-  if (error) {
-    console.error('Error applying canonical funding:', error.message);
-    return false;
-  }
-
-  return true;
-}
-
-async function applyPositionClosedToTrade(event) {
-  const { args, transactionHash } = event;
-  const userAddress = args.user.toLowerCase();
-  const { data: rows, error: selectError } = await supabase
-    .from('trade_history')
-    .select('id')
-    .eq('tx_hash', transactionHash)
-    .eq('user_address', userAddress)
-    .limit(20);
-
-  if (selectError) {
-    console.error('Error checking trade row for PositionClosed:', selectError.message);
-    return false;
-  }
-
-  if (!rows?.length) return true;
-
-  const { error } = await supabase
-    .from('trade_history')
-    .update({
-      size: Math.abs(parseFloat(formatUnits(args.size, 18))),
-      price: parseFloat(formatUnits(args.exitPrice, 18)),
-      pnl: parseFloat(formatUnits(args.realizedPnL, 18)),
-    })
-    .in('id', rows.map((row) => row.id));
-
-  if (error) {
-    console.error('Error applying PositionClosed accounting:', error.message);
-    return false;
   }
 
   return true;
@@ -746,37 +262,23 @@ async function indexSwapEvent(event, market) {
   const block = await publicClient.getBlock({ blockNumber });
   const timestamp = new Date(Number(block.timestamp) * 1000).toISOString();
 
-  const payload = {
-    market_id: market.id,
-    market_name: market.name,
-    vamm_address: market.vammAddress.toLowerCase(),
-    tx_hash: transactionHash,
-    block_number: Number(blockNumber),
-    timestamp,
-    trader_address: args.sender.toLowerCase(),
-    base_delta: baseDeltaNum.toString(),
-    quote_delta: quoteDeltaNum.toString(),
-    avg_price: avgPrice,
-    notional_usd: notionalUsd,
-    is_long: isLong,
-  };
-
-  if (swapEventCursorColumnsSupported) {
-    payload.transaction_index = numberFromLogIndex(event.transactionIndex);
-    payload.log_index = numberFromLogIndex(event.logIndex);
-  }
-
   // Insert into database
-  let { error } = await supabase
+  const { error } = await supabase
     .from('swap_events')
-    .insert(payload);
-
-  if (error && swapEventCursorColumnsSupported && /transaction_index|log_index/i.test(error.message || "")) {
-    swapEventCursorColumnsSupported = false;
-    delete payload.transaction_index;
-    delete payload.log_index;
-    ({ error } = await supabase.from('swap_events').insert(payload));
-  }
+    .insert({
+      market_id: market.id,
+      market_name: market.name,
+      vamm_address: market.vammAddress.toLowerCase(),
+      tx_hash: transactionHash,
+      block_number: Number(blockNumber),
+      timestamp,
+      trader_address: args.sender.toLowerCase(),
+      base_delta: baseDeltaNum.toString(),
+      quote_delta: quoteDeltaNum.toString(),
+      avg_price: avgPrice,
+      notional_usd: notionalUsd,
+      is_long: isLong,
+    });
 
   if (error) {
     // Ignore duplicate errors
@@ -789,78 +291,20 @@ async function indexSwapEvent(event, market) {
   return true;
 }
 
-async function getLastIndexedSwapCursor(vammAddress) {
+async function getLastIndexedBlock(vammAddress) {
   const { data, error } = await supabase
     .from('swap_events')
-    .select('block_number,transaction_index,log_index,tx_hash')
+    .select('block_number')
     .eq('vamm_address', vammAddress.toLowerCase())
     .order('block_number', { ascending: false })
-    .order('transaction_index', { ascending: false, nullsFirst: false })
-    .order('log_index', { ascending: false, nullsFirst: false })
     .limit(1);
 
   if (error) {
-    console.warn('Exact swap cursor unavailable, falling back to block-only resume:', error.message);
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('swap_events')
-      .select('block_number,tx_hash')
-      .eq('vamm_address', vammAddress.toLowerCase())
-      .order('block_number', { ascending: false })
-      .limit(1);
-
-    if (fallbackError) {
-      console.error('Error getting last indexed block:', fallbackError.message);
-      return null;
-    }
-
-    if (!fallbackData?.length) return null;
-
-    return {
-      blockNumber: BigInt(fallbackData[0].block_number),
-      transactionIndex: null,
-      logIndex: null,
-      txHash: fallbackData[0].tx_hash?.toLowerCase() ?? null,
-    };
+    console.error('Error getting last indexed block:', error.message);
+    return null;
   }
 
-  if (!data?.length) return null;
-
-  return {
-    blockNumber: BigInt(data[0].block_number),
-    transactionIndex: data[0].transaction_index == null ? null : Number(data[0].transaction_index),
-    logIndex: data[0].log_index == null ? null : Number(data[0].log_index),
-    txHash: data[0].tx_hash?.toLowerCase() ?? null,
-  };
-}
-
-async function getIndexedSwapKeysForBlock(vammAddress, blockNumber) {
-  const { data, error } = await supabase
-    .from('swap_events')
-    .select('tx_hash,transaction_index,log_index')
-    .eq('vamm_address', vammAddress.toLowerCase())
-    .eq('block_number', Number(blockNumber));
-
-  if (error) {
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('swap_events')
-      .select('tx_hash')
-      .eq('vamm_address', vammAddress.toLowerCase())
-      .eq('block_number', Number(blockNumber));
-
-    if (fallbackError) {
-      console.error('Error getting indexed swap keys:', fallbackError.message);
-      return new Set();
-    }
-
-    return new Set((fallbackData || []).map((row) => `tx:${row.tx_hash?.toLowerCase()}`));
-  }
-
-  return new Set((data || []).map((row) => {
-    if (row.transaction_index != null && row.log_index != null) {
-      return `log:${Number(row.transaction_index)}:${Number(row.log_index)}`;
-    }
-    return `tx:${row.tx_hash?.toLowerCase()}`;
-  }));
+  return data && data.length > 0 ? BigInt(data[0].block_number) : null;
 }
 
 async function updateMarketStats(market) {
@@ -876,11 +320,6 @@ async function updateMarketStats(market) {
 
     if (data && data.length > 0) {
       const stats = data[0];
-      const openInterestUsd = await getOpenInterestUsd(market);
-      const existingOpenInterestUsd = openInterestUsd == null
-        ? await getExistingOpenInterestUsd(market.id)
-        : null;
-      const nextOpenInterestUsd = openInterestUsd ?? existingOpenInterestUsd ?? 0;
 
       // Upsert into cached stats table
       const { error: upsertError } = await supabase
@@ -896,7 +335,6 @@ async function updateMarketStats(market) {
           trades_24h: stats.trades_24h,
           high_24h: stats.high_24h,
           low_24h: stats.low_24h,
-          open_interest_usd: nextOpenInterestUsd,
           last_updated: new Date().toISOString(),
         }, {
           onConflict: 'market_id',
@@ -907,7 +345,7 @@ async function updateMarketStats(market) {
         return;
       }
 
-      console.log(`📊 ${market.name}: $${parseFloat(stats.volume_24h_usd || 0).toFixed(2)} volume, ${parseFloat(stats.change_24h_percent || 0).toFixed(2)}% change, $${parseFloat(nextOpenInterestUsd || 0).toFixed(2)} OI`);
+      console.log(`📊 ${market.name}: $${parseFloat(stats.volume_24h_usd || 0).toFixed(2)} volume, ${parseFloat(stats.change_24h_percent || 0).toFixed(2)}% change`);
     }
   } catch (error) {
     console.error('Error updating market stats:', error.message);
@@ -920,19 +358,11 @@ async function indexHistoricalEvents(market) {
   console.log(`📜 Indexing historical events for ${market.name}...`);
 
   try {
-    // Resume from the last indexed event's block. Replaying that block and
-    // filtering by tx/log cursor prevents skipping later logs from the same
-    // block if a previous run stopped mid-block.
-    const lastCursor = await getLastIndexedSwapCursor(market.vammAddress);
-    let resumeBlockKeys = new Set();
-    let fromBlock;
-    if (lastCursor) {
-      fromBlock = lastCursor.blockNumber;
-      resumeBlockKeys = await getIndexedSwapKeysForBlock(market.vammAddress, lastCursor.blockNumber);
-      const suffix = lastCursor.logIndex !== null
-        ? ` txIndex ${lastCursor.transactionIndex}, logIndex ${lastCursor.logIndex}`
-        : ` tx ${lastCursor.txHash}`;
-      console.log(`   Resuming from block ${fromBlock} after${suffix}`);
+    // Get last indexed block or start from beginning
+    let fromBlock = await getLastIndexedBlock(market.vammAddress);
+    if (fromBlock) {
+      fromBlock = fromBlock + 1n;
+      console.log(`   Resuming from block ${fromBlock}`);
     } else {
       fromBlock = 5000000n; // Sepolia block where contracts were deployed
       console.log(`   Starting from block ${fromBlock}`);
@@ -951,36 +381,18 @@ async function indexHistoricalEvents(market) {
 
       const events = await publicClient.getLogs({
         address: market.vammAddress,
-        event: SWAP_EVENT_ABI,
+        event: parseAbiItem('event Swap(address indexed sender, int256 baseDelta, int256 quoteDelta, uint256 avgPriceX18)'),
         fromBlock: start,
         toBlock: end,
       });
 
-      let chunkIndexed = 0;
-      for (const event of sortLogsByChainOrder(events)) {
-        if (lastCursor && event.blockNumber === lastCursor.blockNumber) {
-          const cursor = getLogCursor(event);
-          const hasExactCursor = cursor.transactionIndex != null && cursor.logIndex != null
-            && lastCursor.transactionIndex != null && lastCursor.logIndex != null;
-
-          if (
-            resumeBlockKeys.has(swapLogKey(event))
-            || (hasExactCursor && compareLogCursor(cursor, lastCursor) <= 0)
-          ) {
-            continue;
-          }
-        }
-
-        const ok = await indexSwapEvent(event, market);
-        if (!ok) {
-          throw new Error(`failed to index swap ${event.transactionHash} at block ${event.blockNumber}`);
-        }
+      for (const event of events) {
+        await indexSwapEvent(event, market);
         indexed++;
-        chunkIndexed++;
       }
 
       if (events.length > 0) {
-        console.log(`   Indexed blocks ${start}-${end}: ${chunkIndexed}/${events.length} new events`);
+        console.log(`   Indexed blocks ${start}-${end}: ${events.length} events`);
       }
     }
 
@@ -997,7 +409,7 @@ function startEventWatcher(market) {
 
   const unwatch = publicClient.watchEvent({
     address: market.vammAddress,
-    event: SWAP_EVENT_ABI,
+    event: parseAbiItem('event Swap(address indexed sender, int256 baseDelta, int256 quoteDelta, uint256 avgPriceX18)'),
     onLogs: async (logs) => {
       for (const log of logs) {
         await indexSwapEvent(log, market);
@@ -1011,196 +423,9 @@ function startEventWatcher(market) {
   return unwatch;
 }
 
-// ==================== CLEARINGHOUSE EVENT WATCHERS ====================
-
-/**
- * Watch all notification-relevant ClearingHouse events.
- * Returns an array of unwatch functions.
- */
-function startClearingHouseWatchers() {
-  const ch  = CONFIG.contracts.clearingHouse;
-  const unwatches = [];
-
-  // ── TradeExecuted → canonical trade_history rows ─────────────────
-  unwatches.push(
-    publicClient.watchEvent({
-      address: ch,
-      event: {
-        type: 'event',
-        name: 'TradeExecuted',
-        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'TradeExecuted').inputs,
-      },
-      onLogs: async (logs) => {
-        for (const log of logs) {
-          await writeCanonicalTrade(log);
-        }
-      },
-    })
-  );
-
-  // ── PositionClosed → canonical close size/exit/PnL overlay ───────
-  unwatches.push(
-    publicClient.watchEvent({
-      address: ch,
-      event: {
-        type: 'event',
-        name: 'PositionClosed',
-        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'PositionClosed').inputs,
-      },
-      onLogs: async (logs) => {
-        for (const log of logs) {
-          await applyPositionClosedToTrade(log);
-        }
-      },
-    })
-  );
-
-  // ── LiquidationExecuted → B1 (partial) or B2 (full) ─────────────
-  unwatches.push(
-    publicClient.watchEvent({
-      address: ch,
-      event: {
-        type: 'event',
-        name: 'LiquidationExecuted',
-        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'LiquidationExecuted').inputs,
-      },
-      onLogs: async (logs) => {
-        for (const log of logs) {
-          const { marketId, account, size, notional, penalty } = log.args;
-          const trader    = account.toLowerCase();
-          const marketLow = marketId.toLowerCase();
-          const sizeNum   = parseFloat(formatUnits(size, 18));
-          const notionalNum = parseFloat(formatUnits(notional, 18));
-          const penaltyNum  = parseFloat(formatUnits(penalty, 18));
-
-          // Determine B1 vs B2: query the current position size to see if fully liquidated.
-          // As a heuristic: if remaining = 0 we treat as B2. We don't have position state
-          // in the indexer, so we read from swap_events to estimate.
-          // Simplified approach: emit B2 for now (full liquidation) — can be improved later.
-          const code = 'B2'; // TODO: compare against open position to detect partial (B1)
-
-          await createTraderNotification(code, trader, marketLow, {
-            sizeFormatted:      sizeNum.toFixed(4),
-            notionalFormatted:  notionalNum.toFixed(2),
-            penaltyFormatted:   penaltyNum.toFixed(2),
-            remainingFormatted: '0',
-          }, log.transactionHash);
-        }
-      },
-    })
-  );
-
-  // ── FundingSettled → C1 ──────────────────────────────────────────
-  unwatches.push(
-    publicClient.watchEvent({
-      address: ch,
-      event: {
-        type: 'event',
-        name: 'FundingSettled',
-        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'FundingSettled').inputs,
-      },
-      onLogs: async (logs) => {
-        for (const log of logs) {
-          const { marketId, account, fundingPayment } = log.args;
-          const trader     = account.toLowerCase();
-          await applyFundingSettlementToTrade(log);
-          const paymentNum = parseFloat(formatUnits(fundingPayment, 18));
-
-          // Only notify if payment exceeds $1 threshold
-          if (Math.abs(paymentNum) < 1.0) continue;
-
-          const isPositive = paymentNum >= 0;
-          await createTraderNotification('C1', trader, marketId.toLowerCase(), {
-            fundingFormatted: `$${Math.abs(paymentNum).toFixed(2)}`,
-            fundingSign:      isPositive ? 'received' : 'paid',
-          }, log.transactionHash);
-        }
-      },
-    })
-  );
-
-  // ── MarketPaused → F1 (paused) or F2 (resumed) ──────────────────
-  unwatches.push(
-    publicClient.watchEvent({
-      address: ch,
-      event: {
-        type: 'event',
-        name: 'MarketPaused',
-        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'MarketPaused').inputs,
-      },
-      onLogs: async (logs) => {
-        for (const log of logs) {
-          const { marketId, isPaused } = log.args;
-          const marketLow = marketId.toLowerCase();
-          const code      = isPaused ? 'F1' : 'F2';
-
-          // Get all traders with open positions in this market from swap_events
-          const { data: traders } = await supabase
-            .from('swap_events')
-            .select('trader_address')
-            .eq('market_id', marketLow)
-            .order('block_number', { ascending: false });
-
-          const uniqueTraders = [...new Set((traders || []).map(r => r.trader_address))];
-          console.log(`📢 Market ${isPaused ? 'paused' : 'resumed'}: notifying ${uniqueTraders.length} traders`);
-
-          for (const trader of uniqueTraders) {
-            await createTraderNotification(code, trader, marketLow, {}, log.transactionHash);
-          }
-        }
-      },
-    })
-  );
-
-  // ── collateralDeposited → E1 ─────────────────────────────────────
-  unwatches.push(
-    publicClient.watchEvent({
-      address: ch,
-      event: {
-        type: 'event',
-        name: 'collateralDeposited',
-        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'collateralDeposited').inputs,
-      },
-      onLogs: async (logs) => {
-        for (const log of logs) {
-          const { user, amount } = log.args;
-          const amountNum = parseFloat(formatUnits(amount, 6)); // USDC = 6 decimals
-          await createTraderNotification('E1', user.toLowerCase(), null, {
-            amountFormatted: amountNum.toFixed(2),
-          }, log.transactionHash);
-        }
-      },
-    })
-  );
-
-  // ── collateralWithdrawn → E2 ─────────────────────────────────────
-  unwatches.push(
-    publicClient.watchEvent({
-      address: ch,
-      event: {
-        type: 'event',
-        name: 'collateralWithdrawn',
-        inputs: CLEARING_HOUSE_ABI.find(e => e.name === 'collateralWithdrawn').inputs,
-      },
-      onLogs: async (logs) => {
-        for (const log of logs) {
-          const { user, amount } = log.args;
-          const amountNum = parseFloat(formatUnits(amount, 6));
-          await createTraderNotification('E2', user.toLowerCase(), null, {
-            amountFormatted: amountNum.toFixed(2),
-          }, log.transactionHash);
-        }
-      },
-    })
-  );
-
-  console.log('✅ ClearingHouse event watchers started (TradeExecuted, PositionClosed, LiquidationExecuted, FundingSettled, MarketPaused, collateralDeposited, collateralWithdrawn)');
-  return unwatches;
-}
-
 async function snapshotPrice(market) {
   const markPrice = await getMarkPrice(market.vammAddress);
-  const oraclePrice = await getIndexPriceFromDB(market);
+  const oraclePrice = await getOraclePrice();
   const block = await publicClient.getBlockNumber();
 
   if (markPrice) {
@@ -1251,7 +476,7 @@ async function main() {
       await indexHistoricalEvents(market);
     }
 
-    // Watch for new swap events
+    // Watch for new events
     const unwatch = startEventWatcher(market);
     unwatchFns.push(unwatch);
 
@@ -1261,10 +486,6 @@ async function main() {
 
     console.log('');
   }
-
-  // ── Start ClearingHouse notification watchers ─────────────────
-  const chUnwatches = startClearingHouseWatchers();
-  chUnwatches.forEach(fn => unwatchFns.push(fn));
 
   // Set up periodic tasks
   const snapshotTimer = setInterval(async () => {
