@@ -229,7 +229,6 @@ export function useOpenPosition(marketId) {
       functionName: "openPosition",
       args: [marketId, isLong, sizeWei, priceLimitWei],
       chainId: SEPOLIA_CHAIN_ID,
-      gas: 800000n, // Set reasonable gas limit for trading
     });
   };
 
