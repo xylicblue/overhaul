@@ -30,7 +30,8 @@ import {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 const fmt  = (n, d = 2) => Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
-const mono = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt(Math.abs(n))}`;
+const fmt3 = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+const mono = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt3(Math.abs(n))}`;
 const hasCanonicalAccounting = (trade) => trade?.pnl != null && trade?.fees_paid != null;
 
 const SideBadge = ({ isLong }) => (
@@ -412,7 +413,7 @@ const PortfolioPage = () => {
                               {funding != null ? mono(funding, true) : "·"}
                             </td>
                             <td className={`px-4 py-3 text-right font-mono text-xs ${fees != null ? "text-red-400" : "text-zinc-700"}`}>
-                              {fees != null ? `-$${fmt(fees)}` : "·"}
+                              {fees != null ? `-$${fmt3(fees)}` : "·"}
                             </td>
                             <td className="px-4 py-3 text-right">
                               {trade.tx_hash ? (

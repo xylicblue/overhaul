@@ -28,7 +28,7 @@ import { useDisconnect } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotificationStore } from "./stores/useNotificationStore";
 import { useTradingStore } from "./stores/useTradingStore";
-import { getPriceSource } from "./config/marketsConfig";
+import { getPriceSource, SPARKLINE_CONFIG } from "./config/marketsConfig";
 
 /* ─── Animation Variants (trigger-once) ─── */
 const staggerContainer = {
@@ -183,6 +183,7 @@ const LandingPage = () => {
   const queryClient = useQueryClient();
   const [selectedMarket, setSelectedMarket] = useState("H100-GPU-PERP");
   const [selectedModel, setSelectedModel] = useState("H100");
+  const [activeTickerMarkets, setActiveTickerMarkets] = useState(HERO_TICKER_MARKETS);
 
   const [formData, setFormData] = useState({
     name: "", email: "", role: "", interest: "",
@@ -223,6 +224,41 @@ const LandingPage = () => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Filter hero ticker to only markets with real price movement in their last 24 data points.
+  useEffect(() => {
+    let cancelled = false;
+    async function filterFlatMarkets() {
+      const results = await Promise.all(
+        HERO_TICKER_MARKETS.map(async (m) => {
+          const cfg = SPARKLINE_CONFIG[m.id];
+          if (!cfg) return null;
+          const timeField = cfg.timeField || "created_at";
+          let q = supabase
+            .from(cfg.table)
+            .select(`${cfg.priceField}, ${timeField}`)
+            .order(timeField, { ascending: false })
+            .limit(24);
+          if (cfg.providerFilter) q = q.eq("provider_name", cfg.providerFilter);
+          const { data } = await q;
+          if (!data || data.length < 2) return null;
+          const vals = data
+            .map(r => parseFloat(r[cfg.priceField]))
+            .filter(v => !isNaN(v) && v > 0);
+          if (vals.length < 2) return null;
+          const min = Math.min(...vals);
+          const max = Math.max(...vals);
+          return (max - min) > 0.001 ? m : null;
+        })
+      );
+      if (!cancelled) {
+        const active = results.filter(Boolean);
+        setActiveTickerMarkets(active.length > 0 ? active : HERO_TICKER_MARKETS);
+      }
+    }
+    filterFlatMarkets();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -761,7 +797,7 @@ const LandingPage = () => {
                     animate={{ y: ["0%", "-50%"] }}
                     transition={{ duration: 16, repeat: Infinity, ease: "linear", repeatType: "loop" }}
                   >
-                    {[...HERO_TICKER_MARKETS, ...HERO_TICKER_MARKETS].map((m, i) => (
+                    {[...activeTickerMarkets, ...activeTickerMarkets].map((m, i) => (
                       <div
                         key={`${m.id}-${i}`}
                         className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.04]"

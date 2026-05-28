@@ -66,6 +66,7 @@ function classifyRequest(pathname, method) {
   if (pathname.startsWith("/functions/v1/")) {
     if (pathname.includes("wallet-auth") || pathname.includes("check-location")) return "auth";
     if (pathname.includes("api-trade"))    return "write";
+    if (pathname.includes("api-close"))    return "write";
     if (pathname.includes("api-profile"))  return "write";
     if (pathname.includes("api-waitlist")) return "write";
     if (pathname.includes("get-sumsub-token")) return "auth";
@@ -124,7 +125,7 @@ async function handleRequest(request, env, ctx, requestId) {
   const corsHeaders = {
     "Access-Control-Allow-Origin":   isAllowedOrigin ? origin : allowedOrigins[0] || "",
     "Access-Control-Allow-Methods":  "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers":  "authorization, x-client-info, apikey, content-type, prefer, x-request-id, x-supabase-api-version, accept-profile, accept-language",
+    "Access-Control-Allow-Headers":  "authorization, x-client-info, apikey, content-type, content-profile, prefer, x-request-id, x-supabase-api-version, accept-profile, accept-language",
     "Access-Control-Max-Age":        "86400",
     "Access-Control-Expose-Headers": "x-ratelimit-remaining, x-ratelimit-reset, x-cache, x-request-id",
   };
@@ -229,7 +230,7 @@ async function handleRequest(request, env, ctx, requestId) {
   const proxyUrl = new URL(url.pathname + url.search, supabaseUrl);
 
   const proxyHeaders = new Headers();
-  for (const h of ["authorization", "content-type", "prefer", "x-client-info", "accept", "x-supabase-api-version", "accept-profile", "accept-language"]) {
+  for (const h of ["authorization", "content-type", "content-profile", "prefer", "x-client-info", "accept", "x-supabase-api-version", "accept-profile", "accept-language"]) {
     const val = request.headers.get(h);
     if (val) proxyHeaders.set(h, val);
   }

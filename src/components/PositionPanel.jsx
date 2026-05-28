@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ConfirmationModal from "./ConfirmationModal";
 import EmptyState, { CompactEmptyState } from "./EmptyState";
 import { Wallet, TrendingUp, TrendingDown, X, AlertCircle, Activity } from "lucide-react";
-import { supabase } from "../creatclient";
+import { supabase, supabaseDirect } from "../creatclient";
 import { recordTradeWithRetry } from "../services/tradeQueue";
 import { formatTransactionError, getSepoliaTxUrl } from "../utils/transactionErrors";
 
@@ -235,6 +235,7 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
       const submittedClosedSize = parseFloat(closeAmount);
       const closePrice = currentPrice || entryPrice;
       const closeNotional = submittedClosedSize * closePrice;
+      const closedFraction = absSize > 0 ? submittedClosedSize / absSize : 1;
       submittedCloseRef.current = {
         closedSize: submittedClosedSize,
         absSizeAtSubmission: absSize,
@@ -246,6 +247,9 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
         marketDisplayName: position.displayName || position.marketName || position.marketKey || "H100-GPU-PERP",
         closePrice,
         closeNotional,
+        pnl: currentPnL * closedFraction,
+        fundingEarned: fundingEarned * closedFraction,
+        feesPaid: (closeNotional * feeBps) / 10000,
       };
       toast.loading("Review close transaction in wallet...", { id: "close" });
       await closePosition(closeAmount, 0);
@@ -269,6 +273,43 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
         </div>,
         { id: "close" }
       );
+
+      // Write to position_closes here — card is guaranteed mounted while tx is pending.
+      // By the time isSuccess fires the card may have unmounted (position gone from chain).
+      const submittedClose = submittedCloseRef.current;
+      if (address && submittedClose) {
+        const netPnl =
+          submittedClose.pnl != null &&
+          submittedClose.fundingEarned != null &&
+          submittedClose.feesPaid != null
+            ? submittedClose.pnl + submittedClose.fundingEarned - submittedClose.feesPaid
+            : null;
+
+        (async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) await supabaseDirect.auth.setSession(session);
+          const { error } = await supabaseDirect
+            .from("position_closes")
+            .upsert(
+              {
+                user_address:   address.toLowerCase(),
+                market:         submittedClose.marketDisplayName,
+                side:           submittedClose.isLong ? "Long" : "Short",
+                size:           submittedClose.closedSize,
+                entry_price:    submittedClose.entryPrice,
+                close_price:    submittedClose.closePrice,
+                notional:       submittedClose.closeNotional,
+                pnl:            submittedClose.pnl,
+                funding_earned: submittedClose.fundingEarned,
+                fees_paid:      submittedClose.feesPaid,
+                net_pnl:        netPnl,
+                tx_hash:        hash,
+              },
+              { onConflict: "tx_hash" }
+            );
+          if (error) console.error("[position_closes]", error.message, error.code);
+        })();
+      }
     }
   }, [hash, isConfirming]);
 
@@ -292,18 +333,21 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
         if (!address || !submittedClose) return;
         await recordTradeWithRetry(
           {
-            userAddress: address,
-            market: submittedClose.marketDisplayName,
-            side: submittedClose.isLong ? "Long" : "Short",
-            size: submittedClose.closedSize,
-            price: submittedClose.closePrice,
-            notional: submittedClose.closeNotional,
-            txHash: hash,
+            userAddress:   address,
+            market:        submittedClose.marketDisplayName,
+            side:          submittedClose.isLong ? "Long" : "Short",
+            size:          submittedClose.closedSize,
+            price:         submittedClose.closePrice,
+            notional:      submittedClose.closeNotional,
+            txHash:        hash,
+            pnl:           submittedClose.pnl,
+            fundingEarned: submittedClose.fundingEarned,
+            feesPaid:      submittedClose.feesPaid,
           },
           {
-            market: submittedClose.marketKey,
-            price: submittedClose.closePrice,
-            twap: submittedClose.closePrice,
+            market:    submittedClose.marketKey,
+            price:     submittedClose.closePrice,
+            twap:      submittedClose.closePrice,
             timestamp: new Date().toISOString(),
           }
         );

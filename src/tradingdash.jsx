@@ -200,7 +200,7 @@ export const TradingDashboard = () => {
               />
             </div>
             <div className="flex-1 overflow-hidden">
-              <PositionPanel selectedMarket={selectedMarket} />
+              <PositionPanel />
             </div>
           </div>
         </div>
@@ -275,7 +275,7 @@ export const TradingDashboard = () => {
           )}
           {activeMobileTab === "positions" && (
             <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-[#06060a]">
-              <PositionPanel selectedMarket={selectedMarket} />
+              <PositionPanel />
             </div>
           )}
         </div>

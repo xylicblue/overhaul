@@ -386,16 +386,62 @@ export const TradingPanel = ({ selectedMarket }) => {
                 {market.baseAsset}
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-px mt-1.5 bg-zinc-800/80 rounded-md overflow-hidden p-px">
-              {[25, 50, 75, 100].map(p => (
-                <button
-                  key={p}
-                  onClick={() => handleSizeButtonClick(p)}
-                  className="py-1 text-[10px] font-medium bg-[#06060a] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] transition-colors duration-100"
-                >
-                  {p}%
-                </button>
-              ))}
+            {/* Size slider — 0 to maxSize, tick dots at 0/25/50/75/100% */}
+            <div className="flex items-center gap-3 mt-3">
+              <div className="flex-1 relative h-5 flex items-center">
+                <div className="relative w-full h-[2px] bg-zinc-800 rounded-full">
+                  {/* Fill */}
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-white/70"
+                    style={{ width: maxSize > 0 ? `${Math.min(100, (sizeNum / maxSize) * 100)}%` : "0%" }}
+                  />
+                  {/* Tick dots at 0, 25, 50, 75, 100% */}
+                  {[0, 25, 50, 75, 100].map(pct => {
+                    const filled = maxSize > 0 && (sizeNum / maxSize) * 100 >= pct && sizeNum > 0;
+                    return (
+                      <div
+                        key={pct}
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full pointer-events-none"
+                        style={{
+                          left: `${pct}%`,
+                          backgroundColor: filled ? "rgba(255,255,255,0.8)" : "#3f3f46",
+                        }}
+                      />
+                    );
+                  })}
+                  {/* Thumb — always visible, calc() keeps it in bounds at 0% and 100% */}
+                  {maxSize > 0 && (
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full pointer-events-none z-10"
+                      style={{
+                        left: `calc(${Math.min(100, (sizeNum / maxSize) * 100)}% - ${(Math.min(100, (sizeNum / maxSize) * 100) / 100) * 12}px)`,
+                        backgroundColor: "#ffffff",
+                        boxShadow: "0 0 0 3px rgba(255,255,255,0.15)",
+                      }}
+                    />
+                  )}
+                  {/* Native input spanning full hit area */}
+                  <input
+                    type="range"
+                    min="0"
+                    max={maxSize > 0 ? maxSize : 1}
+                    step={maxSize > 0 ? maxSize / 1000 : 0.0001}
+                    value={sizeNum || 0}
+                    onChange={e => {
+                      const v = parseFloat(e.target.value);
+                      setSize(v > 0 ? v.toFixed(4) : "");
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                    disabled={maxSize <= 0}
+                  />
+                </div>
+              </div>
+              {/* Current % of max */}
+              <span className={`shrink-0 w-10 text-right text-[11px] font-mono tabular-nums ${
+                sizeNum > 0 ? (isLong ? "text-emerald-400" : "text-red-400") : "text-zinc-600"
+              }`}>
+                {maxSize > 0 ? `${Math.min(100, Math.round((sizeNum / maxSize) * 100))}%` : "0%"}
+              </span>
             </div>
           </div>
 

@@ -74,20 +74,64 @@ async function callEdgeFunction(functionName, payload, options = {}) {
  * Record pending trade metadata through the api-trade edge function.
  * Canonical PnL, funding, and fees are filled by the event indexer.
  */
-export async function recordTrade({ userAddress, market, side, size, price, notional, txHash }, vammData = null) {
+export async function recordTrade({ userAddress, market, side, size, price, notional, txHash, pnl, fundingEarned, feesPaid }, vammData = null) {
+  const tradeData = {
+    user_address: userAddress.toLowerCase(),
+    market,
+    side,
+    size,
+    price,
+    notional,
+    tx_hash: txHash,
+  };
+  if (pnl !== undefined)           tradeData.pnl            = pnl;
+  if (fundingEarned !== undefined) tradeData.funding_earned  = fundingEarned;
+  if (feesPaid !== undefined)      tradeData.fees_paid       = feesPaid;
   return callEdgeFunction("api-trade", {
     action: "record-trade",
-    tradeData: {
-      user_address: userAddress.toLowerCase(),
+    tradeData,
+    vammData,
+  }, { auth: false });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CLOSE API — Calls api-close edge function directly on Supabase,
+// bypassing the Cloudflare Worker proxy.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function recordClose({
+  userAddress, market, side, size,
+  entryPrice, closePrice, notional,
+  pnl, fundingEarned, feesPaid, txHash,
+}) {
+  const url = `${SUPABASE_URL}/functions/v1/api-close`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": ANON_KEY,
+      "Authorization": `Bearer ${ANON_KEY}`,
+    },
+    body: JSON.stringify({
+      userAddress,
       market,
       side,
       size,
-      price,
+      entryPrice,
+      closePrice,
       notional,
-      tx_hash: txHash,
-    },
-    vammData,
-  }, { auth: false }); // No Supabase auth needed — validates tx on-chain
+      pnl,
+      fundingEarned,
+      feesPaid,
+      txHash,
+    }),
+  });
+
+  const text = await res.text();
+  let data;
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error(data.error || `api-close error: ${res.status}`);
+  return data;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
