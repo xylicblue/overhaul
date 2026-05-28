@@ -109,12 +109,8 @@ export const MARKET_IDS = {
 const liveMarkets = [
   ["A100-PERP", "A100 GPU", "A100 GPU Hourly Rate Perpetual", "0x9916716B80b353FdDEe6E5c480422d6BF73e3642", "0x7f12F480469213613cFBd8ec0977c4fC5F04ff9e", "gpu"],
   ["AWS-H100-PERP", "AWS H100", "AWS H100 GPU Hourly Rate Perpetual", "0x1a2150a6C3d4005b6515486CD5580D80D0a91df0", "0xDDF720ee44c4393DDaf8EC562C6F04A107d06465", "hyperscaler"],
-  ["AWS-H200-PERP", "AWS H200", "AWS H200 GPU Hourly Rate Perpetual", "0x3EC9bCC775dD69aA8b5D358c782f80a785B12d0e", "0x7182cd8Cb409d36371E70B221A1D865045A51dD5", "hyperscaler"],
   ["AZURE-H100-PERP", "Azure H100", "Azure H100 GPU Hourly Rate Perpetual", "0x3F63a0f4B1E4DB3eff51d5a6495f6f5E9A5E4741", "0xab88BcF511a7f67150C2E7d01CFb11Bf81253cce", "hyperscaler"],
-  ["COREWEAVE-H200-PERP", "CoreWeave H200", "CoreWeave H200 GPU Hourly Rate Perpetual", "0x69852D155Ddb624E9511382242cBfF1DC985bFef", "0xC09e47700a690Bde5d0C8AdDfA76b5E0b665Ca80", "provider"],
   ["GCP-H100-PERP", "GCP H100", "Google Cloud H100 GPU Hourly Rate Perpetual", "0x8a0b25E83F714E7d14AC8C7251673711ad0BE7e7", "0x7C8A291C365E131Ff6A715625c57d7bb9E8efA47", "hyperscaler"],
-  ["GCP-H200-PERP", "GCP H200", "Google Cloud H200 GPU Hourly Rate Perpetual", "0x6c35F2C88c99EcD7794cB4BcC1465C7129113a22", "0x6E41b38DBc1A2f9dA788e4E4B882658c6E42E7B5", "hyperscaler"],
-  ["ORACLE-H200-PERP", "Oracle H200", "Oracle Cloud H200 GPU Hourly Rate Perpetual", "0xa245588f6867F78866F38e947983Bdca6D12E937", "0x681C7239aEaE68CB004e31CF5f16B1775b11034d", "provider"],
   ["T4-PERP", "T4 GPU", "T4 GPU Hourly Rate Perpetual", "0xA52c4170Da956Da2d270B4F52309657664e10819", "0xf35ADbb38FbcAD8922121eED5203d7dA1242143D", "gpu"],
   ["H100-GPU-PERP", "H100 GPU", "H100 GPU Hourly Rate Perpetual", "0xd2F9b28ce16d0ed8Ff2cCCf638F0484b2f6508d4", "0x102E0C04Aa75C0540e54687fC00598A25151e985", "gpu"],
   ["H100-HyperScalers-PERP", "H100 HyperScalers", "H100 HyperScalers GPU Hourly Rate Perpetual", "0x18c6103BDC17A8c7F1aE315Ccbdc9349205f248E", "0x889F14bd4DCE05B9536Fd2F311c66E9EF87D5767", "hyperscaler"],
@@ -161,6 +157,10 @@ const marketAliases = {
   "B200-PERP": "B200-PERP-V2",
   "H200-PERP": "H200-PERP-V2",
   "H100-non-HyperScalers-PERP": "H100-non-HyperScalers-PERP-V2",
+  "AWS-H200-PERP": "AWS-H200-PERPETUAL",
+  "COREWEAVE-H200-PERP": "COREWEAVE-H200-PERPETUAL",
+  "GCP-H200-PERP": "GCP-H200-PERPETUAL",
+  "ORACLE-H200-PERP": "ORACLE-H200-PERPETUAL",
   "AZURE-H200-PERP": "AZURE-H200-PERPETUAL",
   "ETH-PERP-V2": "H100-GPU-PERP",
   "ETH-PERP": "H100-GPU-PERP",
@@ -170,7 +170,7 @@ for (const [alias, target] of Object.entries(marketAliases)) {
   MARKETS[alias] = {
     ...MARKETS[target],
     name: alias,
-    id: MARKET_IDS[alias],
+    id: MARKET_IDS[target],
     isAlias: true,
     aliasFor: target,
   };
