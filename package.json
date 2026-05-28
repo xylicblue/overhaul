@@ -16,6 +16,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@rainbow-me/rainbowkit": "^2.2.8",
+    "@sentry/react": "^10.53.1",
     "@sumsub/websdk": "^2.4.1",
     "@supabase/supabase-js": "^2.52.0",
     "@tailwindcss/cli": "^4.1.13",

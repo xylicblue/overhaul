@@ -5,10 +5,10 @@ import { HiArrowTrendingUp, HiArrowTrendingDown } from "react-icons/hi2";
 const PnLChart = ({ tradeHistory = [] }) => {
   const [timeRange, setTimeRange] = useState("all");
 
-  // Filter trades that have P&L data (close trades)
+  // Only indexer-populated rows have canonical accounting fields.
   const pnlTrades = useMemo(() => {
     return tradeHistory
-      .filter((trade) => trade.pnl !== null && trade.pnl !== undefined)
+      .filter((trade) => trade.pnl != null && trade.fees_paid != null)
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   }, [tradeHistory]);
 
@@ -156,7 +156,7 @@ const PnLChart = ({ tradeHistory = [] }) => {
           P&L Performance
         </h3>
         <div className="h-[180px] flex items-center justify-center text-zinc-500 text-sm">
-          No closed trades yet. Close a position to see your P&L chart.
+          No indexed P&L yet. Accounting appears after contract events are indexed.
         </div>
       </div>
     );

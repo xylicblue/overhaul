@@ -4,6 +4,8 @@
  */
 
 import { supabase } from "../creatclient";
+import { SPARKLINE_CONFIG, toDatafeedConfig } from "../config/marketsConfig";
+import { getActiveMarkets, getMarketByName } from "../contracts/addresses";
 
 // Configuration for the datafeed
 const configurationData = {
@@ -23,119 +25,22 @@ const configurationData = {
   ],
 };
 
-// Market configuration for index prices - maps to correct tables and fields
-const marketConfig = {
-  // Main GPU indices
-  "H100-PERP": {
-    displayName: "H100 GPU Index",
-    tableName: "price_data",
-    priceField: "price",
-  },
-  "B200-PERP": {
-    displayName: "B200 GPU Index",
-    tableName: "b200_index_prices",
-    priceField: "index_price",
-  },
-  "H200-PERP": {
-    displayName: "H200 GPU Index",
-    tableName: "h200_index_prices",
-    priceField: "index_price",
-  },
-  "A100-PERP": {
-    displayName: "A100 GPU Index",
-    tableName: "a100_index_prices",
-    priceField: "index_price",
-    timestampField: "recorded_at",
-  },
-  "T4-PERP": {
-    displayName: "T4 GPU Index",
-    tableName: "t4_index_prices",
-    priceField: "index_price",
-  },
-  "H100-non-HyperScalers-PERP": {
-    displayName: "Neocloud Index",
-    tableName: "h100_non_hyperscalers_perp_prices",
-    priceField: "price",
-  },
-  
-  // Provider-specific B200 markets
-  "ORACLE-B200-PERP": {
-    displayName: "Oracle B200 Index",
-    tableName: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Oracle",
-  },
-  "AWS-B200-PERP": {
-    displayName: "AWS B200 Index",
-    tableName: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "AWS",
-  },
-  "COREWEAVE-B200-PERP": {
-    displayName: "CoreWeave B200 Index",
-    tableName: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "CoreWeave",
-  },
-  "GCP-B200-PERP": {
-    displayName: "GCP B200 Index",
-    tableName: "b200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Google Cloud",
-  },
-  
-  // Provider-specific H200 markets
-  "ORACLE-H200-PERP": {
-    displayName: "Oracle H200 Index",
-    tableName: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Oracle",
-  },
-  "AWS-H200-PERP": {
-    displayName: "AWS H200 Index",
-    tableName: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "AWS",
-  },
-  "COREWEAVE-H200-PERP": {
-    displayName: "CoreWeave H200 Index",
-    tableName: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "CoreWeave",
-  },
-  "GCP-H200-PERP": {
-    displayName: "GCP H200 Index",
-    tableName: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Google Cloud",
-  },
-  "AZURE-H200-PERP": {
-    displayName: "Azure H200 Index",
-    tableName: "h200_provider_prices",
-    priceField: "effective_price",
-    providerFilter: "Azure",
-  },
-  
-  // Provider-specific H100 markets
-  "AWS-H100-PERP": {
-    displayName: "AWS H100 Index",
-    tableName: "h100_hyperscaler_prices",
-    priceField: "effective_price",
-    providerFilter: "Amazon Web Services",
-  },
-  "AZURE-H100-PERP": {
-    displayName: "Azure H100 Index",
-    tableName: "h100_hyperscaler_prices",
-    priceField: "effective_price",
-    providerFilter: "Microsoft Azure",
-  },
-  "GCP-H100-PERP": {
-    displayName: "GCP H100 Index",
-    tableName: "h100_hyperscaler_prices",
-    priceField: "effective_price",
-    providerFilter: "Google Cloud",
-  },
-};
+// Market configuration for index prices - maps to the shared historical source config.
+const marketConfig = Object.fromEntries(
+  Object.keys(SPARKLINE_CONFIG).map((symbol) => {
+    const market = getMarketByName(symbol);
+    const displayName = market?.displayName
+      ? `${market.displayName} Index`
+      : `${symbol} Index`;
+    return [symbol, toDatafeedConfig(symbol, displayName)];
+  })
+);
+
+for (const market of getActiveMarkets()) {
+  if (!marketConfig[market.name]) {
+    marketConfig[market.name] = toDatafeedConfig(market.name, `${market.displayName} Index`);
+  }
+}
 
 // Map of symbol names to their display info
 function getSymbolInfo(symbolName) {
@@ -143,6 +48,7 @@ function getSymbolInfo(symbolName) {
     displayName: symbolName,
     tableName: "price_data",
     priceField: "price",
+    timestampField: "timestamp",
   };
 
   return {
@@ -187,7 +93,7 @@ async function preloadSymbolData(symbolName, config) {
   }
 
   console.log("[IndexDatafeed] Preloading data for:", symbolName);
-  const timestampField = config.timestampField || "timestamp";
+  const timestampField = config.timestampField || "created_at";
   
   // Fetch ALL available data (no time filter - let database return everything)
   let query = supabase
@@ -330,7 +236,7 @@ export const IndexDatafeed = {
       priceField: "price",
     };
     
-    const timestampField = config.timestampField || "timestamp";
+    const timestampField = config.timestampField || "created_at";
     console.log("[IndexDatafeed] getBars:", symbolName, resolution, firstDataRequest ? "(first request)" : "");
 
     // Check bars cache first (processed bars by resolution)
@@ -403,8 +309,8 @@ export const IndexDatafeed = {
       priceField: "price",
     };
     
-    // Use configurable timestamp field (default to "timestamp")
-    const timestampField = config.timestampField || "timestamp";
+    // Use configurable timestamp field (default to "created_at" — matches Supabase auto-column)
+    const timestampField = config.timestampField || "created_at";
     
     console.log("[IndexDatafeed] subscribeBars:", symbolName, "table:", config.tableName, subscriberUID);
 
@@ -422,6 +328,9 @@ export const IndexDatafeed = {
           table: config.tableName,
         },
         (payload) => {
+          if (config.providerFilter && payload.new.provider_name !== config.providerFilter) {
+            return;
+          }
           const price = parseFloat(payload.new[config.priceField] || payload.new.price);
           const timestamp = new Date(payload.new[timestampField] || payload.new.timestamp).getTime();
           const barTime = Math.floor(timestamp / (resolutionSeconds * 1000)) * (resolutionSeconds * 1000);

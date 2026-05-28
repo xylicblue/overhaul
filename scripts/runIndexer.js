@@ -14,12 +14,20 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables from .env.local
-const envPath = join(__dirname, '..', '.env.local');
-dotenv.config({ path: envPath });
+// Load environment variables from .env, with .env.local allowed to override.
+dotenv.config({ path: join(__dirname, '..', '.env') });
+dotenv.config({ path: join(__dirname, '..', '.env.local'), override: true });
 
-const serviceKey = process.env.VITE_SUPABASE_SERVICE_KEY;
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
+function normalizeSupabaseUrl(value) {
+  const url = value?.trim().replace(/^['"]|['"]$/g, "");
+  if (!url || /^https?:\/\//i.test(url)) return url;
+  if (/^[a-z0-9-]+\.supabase\.co\/?$/i.test(url)) return `https://${url.replace(/\/$/, "")}`;
+  return url;
+}
+
+const serviceKey = process.env.VITE_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = normalizeSupabaseUrl(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL);
+const rpcUrl = process.env.VITE_SEPOLIA_RPC_URL || process.env.SEPOLIA_RPC_URL || process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
 
 console.log('');
 console.log('═══════════════════════════════════════════════════');
@@ -29,24 +37,24 @@ console.log('');
 
 // Validate configuration
 if (!supabaseUrl) {
-  console.error('❌ ERROR: VITE_SUPABASE_URL not found in .env.local');
+  console.error('❌ ERROR: VITE_SUPABASE_URL or SUPABASE_URL not found in .env/.env.local');
   console.error('');
   console.error('Please add to your .env.local:');
-  console.error('  VITE_SUPABASE_URL="https://your-project.supabase.co"');
+  console.error('  SUPABASE_URL="https://your-project.supabase.co"');
   console.error('');
   process.exit(1);
 }
 
 if (!serviceKey) {
-  console.error('❌ ERROR: VITE_SUPABASE_SERVICE_KEY not found in .env.local');
+  console.error('❌ ERROR: service role key not found in .env/.env.local');
   console.error('');
   console.error('The indexer needs write permissions to store events.');
   console.error('');
   console.error('Get your service role key:');
   console.error('  1. Go to: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api');
   console.error('  2. Copy the "service_role" key');
-  console.error('  3. Add to .env.local:');
-  console.error('     VITE_SUPABASE_SERVICE_KEY="your-service-key"');
+  console.error('  3. Add to .env:');
+  console.error('     SUPABASE_SERVICE_ROLE_KEY="your-service-key"');
   console.error('');
   console.error('⚠️  WARNING: Service key has full database access. Never commit to git!');
   console.error('');
@@ -55,7 +63,7 @@ if (!serviceKey) {
 
 console.log('✅ Configuration loaded');
 console.log(`📍 Network: Sepolia Testnet`);
-console.log(`🔗 RPC: https://ethereum-sepolia-rpc.publicnode.com`);
+console.log(`🔗 RPC: ${rpcUrl}`);
 console.log(`💾 Database: ${supabaseUrl}`);
 console.log('');
 console.log('Starting indexer with:');
@@ -78,9 +86,7 @@ startIndexer({
   console.log('');
   console.log('✅ Indexer is now running!');
   console.log('');
-  console.log('Tracking markets:');
-  console.log('  • H100-PERP (active)');
-  console.log('  • ETH-PERP-V2 (active)');
+  console.log('Tracking markets: all non-alias Sepolia markets from src/contracts/addresses.js');
   console.log('');
   console.log('Data being collected:');
   console.log('  📊 Swap events → swap_events table');

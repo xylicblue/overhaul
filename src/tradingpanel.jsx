@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useTradingStore } from "./stores/useTradingStore";
 import ReactDOM from "react-dom";
 import { toast } from "react-hot-toast";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { supabase } from "./creatclient";
+import { recordTradeWithRetry } from "./services/tradeQueue";
 import { useMarketRealTimeData } from "./marketData";
 import MintUSDC from "./components/MintUSDC";
 import CollateralManager from "./components/CollateralManager";
@@ -12,494 +14,541 @@ import {
   useMarketRiskParams,
   useVaultBalance,
 } from "./hooks/useClearingHouse";
-import { MARKET_IDS } from "./contracts/addresses";
-import {
-  Info,
-  Wallet,
-  Settings,
-  TrendingUp,
-  Zap,
-  Target,
-  ShieldCheck,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { Badge } from "./components/ui/badge";
-import { Separator } from "./components/ui/separator";
+import { MARKET_IDS, SEPOLIA_CONTRACTS } from "./contracts/addresses";
+import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
+import { Info, ShieldCheck } from "lucide-react";
+import { formatTransactionError, getSepoliaTxUrl } from "./utils/transactionErrors";
 
-// Info Tooltip Component
+const BPS_DENOMINATOR = 10000;
+const DEFAULT_IMR_BPS = 1000;
+const DEFAULT_MMR_BPS = 500;
+const DEFAULT_FEE_BPS = 10;
+const ORDER_HEADROOM_BPS = 100;
+const PRICE_IMPACT_BUFFER_BPS = 50;
+
+const toNumber = (value) => {
+  if (typeof value === "string") {
+    const normalized = value.replace(/[$,\s]/g, "");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Info Tooltip
+// ─────────────────────────────────────────────────────────────────────────────
 const InfoTooltip = ({ title, description }) => {
-  const [position, setPosition] = React.useState({ top: 0, left: 0 });
-  const [isHovered, setIsHovered] = React.useState(false);
-  const wrapperRef = React.useRef(null);
+  const [pos, setPos]         = React.useState({ top: 0, left: 0 });
+  const [hovered, setHovered] = React.useState(false);
+  const ref                   = React.useRef(null);
 
   const handleMouseEnter = () => {
-    if (wrapperRef.current) {
-      const rect = wrapperRef.current.getBoundingClientRect();
-      setPosition({ top: rect.bottom + 8, left: rect.right - 220 });
-      setIsHovered(true);
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, left: r.right - 220 });
+      setHovered(true);
     }
   };
 
   return (
     <>
-      <div
-        className="inline-flex text-blue-400 hover:text-blue-300 cursor-help transition-colors"
-        ref={wrapperRef}
+      <span
+        ref={ref}
+        className="inline-flex text-zinc-700 hover:text-zinc-500 cursor-help transition-colors"
         onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseLeave={() => setHovered(false)}
       >
-        <Info size={14} className="opacity-80 hover:opacity-100" />
-      </div>
-      {isHovered &&
-        ReactDOM.createPortal(
-          <div
-            className="fixed z-50 w-64 p-3 bg-[#0A0A0A] border border-zinc-700 rounded-lg shadow-xl text-xs text-zinc-300 pointer-events-none"
-            style={{ top: `${position.top}px`, left: `${position.left}px` }}
-          >
-            <div className="font-semibold text-white mb-1">{title}</div>
-            <div className="leading-relaxed">{description}</div>
-          </div>,
-          document.body
-        )}
+        <Info size={11} />
+      </span>
+      {hovered && ReactDOM.createPortal(
+        <div
+          className="fixed z-[200] w-56 p-3 bg-[#0e0e18] border border-zinc-700/50 rounded-xl shadow-2xl text-xs pointer-events-none"
+          style={{ top: `${pos.top}px`, left: `${pos.left}px` }}
+        >
+          <div className="font-semibold text-white mb-1">{title}</div>
+          <div className="text-zinc-400 leading-relaxed">{description}</div>
+        </div>,
+        document.body
+      )}
     </>
   );
 };
 
-export const TradingPanel = ({ selectedMarket }) => {
-  const [side, setSide] = useState("Buy");
-  const [size, setSize] = useState("");
-  const [priceLimit, setPriceLimit] = useState("");
-  const [leverage, setLeverage] = useState(1);
-  const { address } = useAccount();
+// ─────────────────────────────────────────────────────────────────────────────
+// SummaryRow — single label/value line used in order summary & risk params
+// ─────────────────────────────────────────────────────────────────────────────
+const SummaryRow = ({ label, value, valueClass = "text-zinc-200", tooltip }) => (
+  <div className="flex items-center justify-between text-[11px] leading-5">
+    <span className="text-zinc-500 flex items-center gap-1">
+      {label}
+      {tooltip && <InfoTooltip title={tooltip.title} description={tooltip.desc} />}
+    </span>
+    <span className={`font-mono tabular-nums ${valueClass}`}>{value}</span>
+  </div>
+);
 
-  const marketId = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
-  const { accountValue } = useAccountValue();
+// ─────────────────────────────────────────────────────────────────────────────
+// SectionLabel — small uppercase label used to group sections
+// ─────────────────────────────────────────────────────────────────────────────
+const SectionLabel = ({ children, right }) => (
+  <div className="flex items-center justify-between mb-2">
+    <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">{children}</span>
+    {right}
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TradingPanel
+// ─────────────────────────────────────────────────────────────────────────────
+export const TradingPanel = ({ selectedMarket }) => {
+  const { side, size, priceLimit, lastTxHash,
+          setSide, setSize, setPriceLimit,
+          resetOrder, setLastTx } = useTradingStore();
+  const { address }               = useAccount();
+
+  const marketId                 = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
+  const { accountValue, accountValueRaw } = useAccountValue();
   const { totalCollateralValue } = useVaultBalance();
-  const { riskParams } = useMarketRiskParams(marketId);
+  const { riskParams }           = useMarketRiskParams(marketId);
+  const { data: marketConfig }   = useReadContract({
+    address: SEPOLIA_CONTRACTS.marketRegistry,
+    abi: MarketRegistryABI.abi,
+    functionName: "getMarket",
+    args: [marketId],
+    chainId: 11155111,
+    query: {
+      enabled: !!marketId,
+      refetchInterval: 30000,
+    },
+  });
 
   const {
     openPosition,
     isPending,
+    isConfirming,
     isSuccess,
     error: tradeError,
+    receiptError,
     hash,
     reset: resetTrade,
   } = useOpenPosition(marketId);
 
-  const marketName =
-    typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
+  const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
-  const [handledTxHash, setHandledTxHash] = useState(null);
+
+  const isLong = side === "Buy";
+  const submittedOpenOrderRef = useRef(null);
+
+  // ── Calculations (memoised — only rerun when inputs actually change) ───────
+  const {
+    effectiveBalance, currentPrice, marketPrice,
+    maxSize, sizeNum, notionalValue, fees, marginRequired, collateralRequired,
+    derivedLeverage, riskPrice, feeBps, liqPrice, isOverMax,
+  } = useMemo(() => {
+    const accountValueNum = toNumber(accountValue);
+    const vaultBalanceNum = toNumber(totalCollateralValue);
+    const hasAccountValue = accountValueRaw !== undefined && accountValueRaw !== null;
+    const effectiveBalance = hasAccountValue
+      ? Math.max(accountValueNum, 0)
+      : Math.max(vaultBalanceNum, 0);
+
+    const currentPrice  = toNumber(market?.markPriceRaw);
+    const indexPrice    = toNumber(market?.oraclePriceRaw);
+    const marketPrice   = toNumber(market?.price) || currentPrice || indexPrice;
+    const limitPrice    = toNumber(priceLimit);
+    const executionPrice = limitPrice > 0 ? limitPrice : marketPrice;
+    const riskPrice     = Math.max(currentPrice, indexPrice, executionPrice);
+    const imrBps        = Number(riskParams?.imrBps || DEFAULT_IMR_BPS);
+    const mmrBps        = Number(riskParams?.mmrBps || DEFAULT_MMR_BPS);
+    const feeBps        = Number(marketConfig?.feeBps ?? marketConfig?.[1] ?? selectedMarket?.feeBps ?? market?.feeBps ?? DEFAULT_FEE_BPS);
+    const executionBuffer = 1 + PRICE_IMPACT_BUFFER_BPS / BPS_DENOMINATOR;
+    const marginRiskPrice = riskPrice * executionBuffer;
+    const availableForOrder = effectiveBalance * (1 - ORDER_HEADROOM_BPS / BPS_DENOMINATOR);
+    const marginPerUnit = marginRiskPrice * imrBps / BPS_DENOMINATOR;
+    const feePerUnit = executionPrice * feeBps / BPS_DENOMINATOR * executionBuffer;
+    const maxSize = marginPerUnit + feePerUnit > 0
+      ? availableForOrder / (marginPerUnit + feePerUnit)
+      : 0;
+
+    const sizeNum = toNumber(size);
+    const notionalValue = sizeNum * executionPrice;
+    const riskNotional = sizeNum * marginRiskPrice;
+    const fees = notionalValue * feeBps / BPS_DENOMINATOR * executionBuffer;
+    const marginRequired = riskNotional * imrBps / BPS_DENOMINATOR;
+    const collateralRequired = marginRequired + fees;
+    const derivedLeverage = marginRequired > 0 ? notionalValue / marginRequired : 0;
+    const maintenanceMargin = riskNotional * mmrBps / BPS_DENOMINATOR;
+    const liqPrice = executionPrice > 0 && sizeNum > 0
+      ? isLong
+        ? (executionPrice - (marginRequired - maintenanceMargin) / sizeNum).toFixed(2)
+        : (executionPrice + (marginRequired - maintenanceMargin) / sizeNum).toFixed(2)
+      : "—";
+    const isOverMax = sizeNum > 0 && (sizeNum > maxSize || collateralRequired > effectiveBalance);
+
+    return {
+      effectiveBalance,
+      currentPrice,
+      marketPrice: executionPrice,
+      maxSize,
+      sizeNum,
+      notionalValue,
+      fees,
+      marginRequired,
+      collateralRequired,
+      derivedLeverage,
+      riskPrice: marginRiskPrice,
+      feeBps,
+      liqPrice,
+      isOverMax,
+    };
+  }, [accountValue, totalCollateralValue, market?.markPriceRaw, market?.price,
+      market?.oraclePriceRaw, market?.feeBps, priceLimit, riskParams?.imrBps,
+      riskParams?.mmrBps, marketConfig, selectedMarket?.feeBps, size, isLong, accountValueRaw]);
+
+  // ── Trade success ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (hash && isConfirming && hash !== lastTxHash) {
+      toast.loading(
+        <div>
+          <div>Submitted, waiting for confirmation...</div>
+          <a href={getSepoliaTxUrl(hash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
+          </a>
+        </div>,
+        { id: "trade" }
+      );
+    }
+  }, [hash, isConfirming, lastTxHash]);
 
   useEffect(() => {
-    if (isSuccess && hash && hash !== handledTxHash) {
-      setHandledTxHash(hash);
+    if (isSuccess && hash && hash !== lastTxHash) {
+      const submittedOrder = submittedOpenOrderRef.current;
+      const openedSideLabel = submittedOrder?.sideLabel || "Position";
+      setLastTx(hash, submittedOrder?.txActionText || openedSideLabel);
       toast.success(
         <div>
-          <div>Position opened successfully!</div>
-          <a
-            href={`https://sepolia.etherscan.io/tx/${hash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline text-sm"
-          >
-            View on Etherscan →
+          <div>{openedSideLabel} opened.</div>
+          <a href={getSepoliaTxUrl(hash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
           </a>
         </div>,
         { id: "trade", duration: 5000 }
       );
-
-      // Save trade to Supabase for trade history and volume tracking
       const saveTrade = async () => {
-        if (!address || !market) return;
-
-        const tradeData = {
-          user_address: address.toLowerCase(),
-          market: market.displayName || market.name,
-          side: side === "Buy" ? "Long" : "Short",
-          size: parseFloat(size),
-          price:
-            parseFloat(market.price) || parseFloat(market.markPriceRaw) || 0,
-          notional:
-            parseFloat(size) *
-            (parseFloat(market.price) || parseFloat(market.markPriceRaw) || 0),
-          tx_hash: hash,
-        };
-
-        try {
-          const { error } = await supabase
-            .from("trade_history")
-            .insert([tradeData]);
-
-          if (error) {
-            console.warn("Error saving trade history:", error.message);
-          }
-        } catch (err) {
-          console.warn("Error saving trade:", err);
-        }
-
-        // Also save vAMM price to vamm_price_history for chart display
-        const saveVAMMPrice = async () => {
-          const vammPriceData = {
-            market: market.name, // e.g., "B200-PERP", "H100-PERP"
-            price: parseFloat(market.markPriceRaw) || parseFloat(market.price) || 0,
-            twap: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
+        if (!address || !submittedOrder) return;
+        await recordTradeWithRetry(
+          {
+            userAddress: address,
+            market: submittedOrder.marketDisplayName,
+            side: submittedOrder.sideLabel,
+            size: submittedOrder.sizeNum,
+            price: submittedOrder.marketPrice,
+            notional: submittedOrder.notional,
+            txHash: hash,
+          },
+          {
+            market: submittedOrder.marketKey,
+            price: submittedOrder.markRaw || submittedOrder.marketPrice,
+            twap: submittedOrder.twapRaw || submittedOrder.markRaw || 0,
             timestamp: new Date().toISOString(),
-          };
-
-          try {
-            const { error: vammError } = await supabase
-              .from("vamm_price_history")
-              .insert([vammPriceData]);
-
-            if (vammError) {
-              console.warn("Error saving vAMM price:", vammError.message);
-            } else {
-              console.log("vAMM price saved:", vammPriceData);
-            }
-          } catch (err) {
-            console.warn("Error saving vAMM price:", err);
           }
-        };
-
-        await saveVAMMPrice();
+        );
       };
-
       saveTrade();
-      setSize("");
-      setPriceLimit("");
+      resetOrder();
       setTimeout(() => resetTrade(), 100);
     }
-  }, [isSuccess, hash, handledTxHash, address, market, side, size, resetTrade]);
+  }, [isSuccess, hash, lastTxHash, address, resetTrade, setLastTx, resetOrder]);
 
+  // ── Trade error ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (tradeError) {
-      // Extract user-friendly error message
-      const getErrorMessage = (error) => {
-        const errorMsg = error.message.toLowerCase();
-        
-        // User rejected/denied transaction
-        if (errorMsg.includes('user rejected') || errorMsg.includes('user denied')) {
-          return 'Transaction cancelled';
-        }
-        
-        // Insufficient funds
-        if (errorMsg.includes('insufficient')) {
-          return 'Insufficient funds';
-        }
-        
-        // Network issues
-        if (errorMsg.includes('network')) {
-          return 'Network error - please try again';
-        }
-        
-        // Gas estimation failed
-        if (errorMsg.includes('gas')) {
-          return 'Transaction may fail - check parameters';
-        }
-        
-        // Default: Extract first sentence or first 100 chars
-        const firstSentence = error.message.split('\n')[0];
-        return firstSentence.length > 80 
-          ? firstSentence.substring(0, 80) + '...' 
-          : firstSentence;
-      };
-      
-      toast.error(getErrorMessage(tradeError), { id: "trade" });
+    const failure = tradeError || receiptError;
+    if (failure) {
+      toast.error(formatTransactionError(failure, { action: "open" }), { id: "trade" });
       resetTrade();
     }
-  }, [tradeError, resetTrade]);
+  }, [tradeError, receiptError, resetTrade]);
 
-  if (!selectedMarket)
-    return (
-      <div className="flex items-center justify-center h-full text-zinc-500 text-xs">
-        Select Market
-      </div>
-    );
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center h-full text-zinc-500 text-xs">
-        Loading...
-      </div>
-    );
-  if (error || !market)
-    return (
-      <div className="flex items-center justify-center h-full text-red-400 text-xs">
-        Error
-      </div>
-    );
+  // ── Guards ────────────────────────────────────────────────────────────────
+  if (!selectedMarket) return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Select a market</div>;
+  if (isLoading)        return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Loading…</div>;
+  if (error || !market) return <div className="flex items-center justify-center h-full text-red-500 text-xs">Error loading market</div>;
 
-  const handleSizeButtonClick = (percentage) => {
-    const accountValueNum = parseFloat(accountValue) || 0;
-    const vaultBalanceNum = parseFloat(totalCollateralValue) || 0;
-    const effectiveBalance =
-      accountValueNum > 0 ? accountValueNum : vaultBalanceNum;
-    const currentPrice = parseFloat(market?.markPriceRaw) || 3.79;
-    const imr = riskParams?.imrPercent ? riskParams.imrPercent / 100 : 0.1;
-    // Adjust max size based on leverage
-    const maxPositionSize = (effectiveBalance * leverage) / currentPrice / imr;
-    const calculatedSize = maxPositionSize * (percentage / 100);
-    setSize(calculatedSize > 0 ? calculatedSize.toFixed(4) : "");
+  const handleSizeButtonClick = (pct) => {
+    const calc = maxSize * (pct / 100);
+    setSize(calc > 0 ? calc.toFixed(4) : "");
   };
 
   const handleTrade = async () => {
-    if (!size || parseFloat(size) <= 0)
-      return toast.error("Please enter a valid size");
+    if (!size || sizeNum <= 0) return toast.error("Please enter a valid size");
+    if (isOverMax) return toast.error("Order exceeds available collateral after IMR and fees");
     try {
-      const isLong = side === "Buy";
-      let priceLimitValue =
-        priceLimit && parseFloat(priceLimit) > 0 ? parseFloat(priceLimit) : 0;
+      const priceLimitValue = priceLimit && parseFloat(priceLimit) > 0 ? parseFloat(priceLimit) : 0;
+      submittedOpenOrderRef.current = {
+        sideLabel: isLong ? "Long" : "Short",
+        isLong,
+        sizeNum,
+        marketDisplayName: market.displayName || market.name,
+        marketName: market.name,
+        marketKey: market.name,
+        marketPrice,
+        markRaw: parseFloat(market.markPriceRaw) || marketPrice,
+        twapRaw: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
+        notional: notionalValue,
+        txActionText: side,
+      };
+      toast.loading("Review order transaction in wallet...", { id: "trade" });
       openPosition(isLong, size, priceLimitValue);
-      toast.loading(
-        `${side === "Buy" ? "Opening long" : "Opening short"} position...`,
-        { id: "trade" }
-      );
-    } catch (error) {
-      toast.error("Failed to execute trade: " + error.message);
+    } catch (err) {
+      toast.error(formatTransactionError(err, { action: "open" }), { id: "trade" });
     }
   };
 
-  const notionalValue =
-    (parseFloat(size) || 0) * (parseFloat(market.price) || 0);
-  const fees = notionalValue * 0.001; // Est. 0.1% fee
-  const marginRequired = notionalValue / leverage;
+  const sideAccent = isLong ? "text-emerald-400" : "text-red-400";
 
   return (
-    <div className="flex flex-col h-full bg-[#050505]">
-      {/* Header Tabs */}
-      <div className="flex border-b border-zinc-800">
-        <button
-          className={`flex-1 py-3 text-sm font-bold transition-all ${
-            side === "Buy"
-              ? "text-green-400 border-b-2 border-green-400 bg-green-400/5"
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-          }`}
-          onClick={() => setSide("Buy")}
-        >
-          Buy / Long
-        </button>
-        <button
-          className={`flex-1 py-3 text-sm font-bold transition-all ${
-            side === "Sell"
-              ? "text-red-400 border-b-2 border-red-400 bg-red-400/5"
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-          }`}
-          onClick={() => setSide("Sell")}
-        >
-          Sell / Short
-        </button>
+    <div className="flex flex-col h-full bg-[#06060a]">
+
+      {/* ── Direction toggle ────────────────────────────────────────────── */}
+      <div className="px-3 pt-3 pb-3 border-b border-zinc-800/80">
+        <div className="grid grid-cols-2 gap-px bg-zinc-800/80 rounded-md overflow-hidden p-px">
+          <button
+            onClick={() => setSide("Buy")}
+            className={`py-1.5 text-[12px] font-medium transition-colors duration-100 ${
+              isLong
+                ? "bg-emerald-500 text-white"
+                : "bg-[#06060a] text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Long
+          </button>
+          <button
+            onClick={() => setSide("Sell")}
+            className={`py-1.5 text-[12px] font-medium transition-colors duration-100 ${
+              !isLong
+                ? "bg-red-500 text-white"
+                : "bg-[#06060a] text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Short
+          </button>
+        </div>
       </div>
 
-      <div className="p-4 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
-        {/* Collateral & Mint - Moved to top */}
-        <div className="space-y-3">
-          <CollateralManager />
-          <MintUSDC />
+      {/* ── Scrollable body ─────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+
+        {/* Key stats row */}
+        <div className="grid grid-cols-3 px-3 py-2.5 border-b border-zinc-800/80">
+          {[
+            { label: "Balance", value: `$${effectiveBalance.toFixed(2)}`,                      align: "items-start" },
+            { label: "Mark",    value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—", align: "items-center" },
+            { label: "Max",     value: maxSize > 0 ? maxSize.toFixed(2) : "—",                 align: "items-end" },
+          ].map(({ label, value, align }) => (
+            <div key={label} className={`flex flex-col ${align}`}>
+              <span className="text-[9px] font-medium text-zinc-500 uppercase tracking-[0.14em]">{label}</span>
+              <span className="text-[12px] font-mono font-medium text-zinc-200 tabular-nums truncate mt-0.5">{value}</span>
+            </div>
+          ))}
         </div>
 
-        <Separator className="bg-zinc-800/50" />
-
-        {/* Order Type */}
-        <div className="flex gap-4 text-xs font-medium text-zinc-400 pb-2 border-b border-zinc-800/50">
-          <button className="text-white">Market</button>
+        {/* Collateral */}
+        <div className="px-3 py-3 border-b border-zinc-800/80">
+          <SectionLabel>Collateral</SectionLabel>
+          <div className="space-y-2">
+            <CollateralManager />
+            <MintUSDC />
+          </div>
         </div>
 
-        {/* Size Input */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-[10px] text-zinc-400">
-            <span>Size</span>
-            <span>
-              Max:{" "}
-              {(
-                (parseFloat(accountValue) * leverage) /
-                parseFloat(market.price)
-              ).toFixed(2)}{" "}
-              {market.baseAsset}
-            </span>
+        {/* Order */}
+        <div className="px-3 py-3 border-b border-zinc-800/80 space-y-3">
+          <SectionLabel
+            right={
+              <div className="flex items-center gap-3 text-[11px]">
+                <span className="text-white font-medium">Market</span>
+                <span className="text-zinc-700 cursor-not-allowed">Limit<span className="ml-1 text-[9px] text-zinc-700">soon</span></span>
+              </div>
+            }
+          >
+            Order
+          </SectionLabel>
+
+          {/* Size */}
+          <div>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Size</label>
+              <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
+                Max {maxSize > 0 ? maxSize.toFixed(2) : "0.00"} {market.baseAsset}
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                placeholder="0.0000"
+                className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md pl-3 pr-16 py-2 text-[13px] text-white focus:outline-none focus:border-white/[0.16] transition-colors duration-150 placeholder-zinc-700 font-mono tabular-nums"
+                value={size}
+                onChange={e => setSize(e.target.value)}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+                {market.baseAsset}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-px mt-1.5 bg-zinc-800/80 rounded-md overflow-hidden p-px">
+              {[25, 50, 75, 100].map(p => (
+                <button
+                  key={p}
+                  onClick={() => handleSizeButtonClick(p)}
+                  className="py-1 text-[10px] font-medium bg-[#06060a] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] transition-colors duration-100"
+                >
+                  {p}%
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="relative group">
-            <input
-              type="number"
-              placeholder="0.00"
-              className="w-full bg-[#0A0A0A] border border-zinc-800 rounded-lg pl-3 pr-12 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder-zinc-600 font-mono"
-              value={size}
-              onChange={(e) => setSize(e.target.value)}
-            />
-            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-500 text-xs font-bold">
-              {market.baseAsset}
-            </span>
-          </div>
-          {/* Quick Size Percentages */}
-          <div className="grid grid-cols-4 gap-2 mt-2">
-            {[25, 50, 75, 100].map((p) => (
+
+          {/* Price limit */}
+          <div>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Price limit</label>
               <button
-                key={p}
-                onClick={() => handleSizeButtonClick(p)}
-                className="py-1 text-[10px] font-medium bg-[#0A0A0A] hover:bg-zinc-800 text-zinc-400 hover:text-white rounded border border-zinc-800 transition-colors"
+                className="text-[10px] text-zinc-400 hover:text-white font-medium transition-colors duration-150"
+                onClick={() => setPriceLimit(market.price)}
               >
-                {p}%
+                Use mark
               </button>
-            ))}
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                placeholder="Market"
+                className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md pl-3 pr-12 py-2 text-[13px] text-white focus:outline-none focus:border-white/[0.16] transition-colors duration-150 placeholder-zinc-700 font-mono tabular-nums"
+                value={priceLimit}
+                onChange={e => setPriceLimit(e.target.value)}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+                USDC
+              </span>
+            </div>
+          </div>
+
+          {/* Leverage */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Derived leverage</label>
+              <div
+                className={`px-2 py-0.5 rounded text-[13px] font-mono font-bold tabular-nums border ${
+                  isLong
+                    ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+                    : "bg-red-500/10 border-red-500/25 text-red-400"
+                  }`}
+              >
+                {derivedLeverage > 0 ? derivedLeverage.toFixed(1) : "—"}×
+              </div>
+            </div>
+            <div className="rounded-md border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-zinc-500">Contract margin model</span>
+                <span className="font-mono text-zinc-300">
+                  {riskParams?.imrPercent ? riskParams.imrPercent.toFixed(1) : (DEFAULT_IMR_BPS / 100).toFixed(1)}% IMR
+                </span>
+              </div>
+              <p className="mt-1 text-[10px] leading-4 text-zinc-600">
+                Leverage is derived from size and required margin; the contract does not accept a leverage input.
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Price Input */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-[10px] text-zinc-400">
-            <span>Price</span>
-            <span
-              className="text-blue-400 cursor-pointer"
-              onClick={() => setPriceLimit(market.price)}
-            >
-              Use Market
-            </span>
-          </div>
-          <div className="relative group">
-            <input
-              type="number"
-              placeholder="Market Price"
-              className="w-full bg-[#0A0A0A] border border-zinc-800 rounded-lg pl-3 pr-12 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder-zinc-600 font-mono"
-              value={priceLimit}
-              onChange={(e) => setPriceLimit(e.target.value)}
-            />
-            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-500 text-xs">
-              USDC
-            </span>
-          </div>
-        </div>
-
-        {/* Leverage Slider */}
-        <div className="space-y-3 pt-2">
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-zinc-400 font-medium">Leverage</span>
-            <span className="text-xs font-bold text-white bg-zinc-800 px-2 py-0.5 rounded">
-              {leverage}x
-            </span>
-          </div>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            step="1"
-            value={leverage}
-            onChange={(e) => setLeverage(parseInt(e.target.value))}
-            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+        {/* Order summary — clean key/value list */}
+        <div className="px-3 py-3 border-b border-zinc-800/80 space-y-1">
+          <SummaryRow
+            label="Notional"
+            value={notionalValue > 0 ? `$${notionalValue.toFixed(2)}` : "—"}
           />
-          <div className="flex justify-between text-[10px] text-zinc-600 font-mono">
-            <span>1x</span>
-            <span>3x</span>
-            <span>5x</span>
-            <span>7x</span>
-            <span>10x</span>
-          </div>
+          <SummaryRow
+            label={`Est. fees (${(feeBps / 100).toFixed(2)}%)`}
+            value={fees > 0 ? `$${fees.toFixed(2)}` : "—"}
+            valueClass="text-zinc-400"
+          />
+          <SummaryRow
+            label="Initial margin"
+            value={marginRequired > 0 ? `$${marginRequired.toFixed(2)}` : "—"}
+            valueClass="text-white font-medium"
+            tooltip={{ title: "Initial Margin", desc: "Collateral reserved by the contract using market IMR and the higher of mark or index price." }}
+          />
+          <SummaryRow
+            label="Total required"
+            value={collateralRequired > 0 ? `$${collateralRequired.toFixed(2)}` : "—"}
+            valueClass={isOverMax ? "text-red-400 font-medium" : "text-zinc-300"}
+            tooltip={{ title: "Total Required", desc: "Initial margin plus estimated trading fee, including a small execution buffer." }}
+          />
+          <SummaryRow
+            label="Liq. price"
+            value={sizeNum > 0 ? `$${liqPrice}` : "—"}
+            valueClass="text-yellow-400"
+            tooltip={{ title: "Estimated Liquidation Price", desc: "Approximate price at which your position will be liquidated. Actual price depends on funding and fees." }}
+          />
+          {isOverMax && (
+            <div className="mt-2 rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 text-[11px] text-red-300">
+              Order exceeds available collateral after initial margin and estimated fees.
+            </div>
+          )}
         </div>
 
-        {/* Order Summary */}
-        <Card className="bg-[#0A0A0A]/30 border-zinc-800/50">
-          <CardContent className="p-3 space-y-2">
-            <div className="flex items-center gap-2 mb-2">
-              <Target size={12} className="text-zinc-400" />
-              <span className="text-xs text-zinc-400 font-medium">
-                Order Summary
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-zinc-500">Notional Value</span>
-              <span className="text-zinc-300 font-mono">
-                ${notionalValue.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-zinc-500">Est. Fees (0.1%)</span>
-              <span className="text-zinc-300 font-mono">
-                ${fees.toFixed(2)}
-              </span>
-            </div>
-            <Separator className="bg-zinc-800/50" />
-            <div className="flex justify-between text-xs">
-              <span className="text-zinc-400 font-medium">
-                Margin Required
-              </span>
-              <span className="text-white font-bold font-mono">
-                ${marginRequired.toFixed(2)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Risk Metrics */}
-        <Card className="bg-[#0A0A0A]/30 border-zinc-800/50">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck size={16} className="text-blue-400" />
-              <span className="text-sm text-zinc-300 font-semibold">
-                Risk Parameters
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
-                <span className="text-xs text-zinc-500 mb-1 flex items-center gap-1.5">
-                  IMR
-                  <InfoTooltip
-                    title="Initial Margin Requirement"
-                    description="The minimum margin required to open a new position. For example, 10% IMR means you need $100 margin to open a $1000 position (10x leverage)."
-                  />
-                </span>
-                <Badge variant="secondary" className="font-mono text-xs px-2 py-0.5">
-                  {riskParams?.imrPercent
-                    ? riskParams.imrPercent.toFixed(1) + "%"
-                    : "10.0%"}
-                </Badge>
-              </div>
-              <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
-                <span className="text-xs text-zinc-500 mb-1 flex items-center gap-1.5">
-                  MMR
-                  <InfoTooltip
-                    title="Maintenance Margin Requirement"
-                    description="The minimum margin needed to keep your position open. If your margin falls below this level, your position can be liquidated. Lower than IMR to give you buffer room."
-                  />
-                </span>
-                <Badge variant="secondary" className="font-mono text-xs px-2 py-0.5">
-                  {riskParams?.mmrPercent
-                    ? riskParams.mmrPercent.toFixed(1) + "%"
-                    : "5.0%"}
-                </Badge>
-              </div>
-              <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
-                <span className="text-xs text-zinc-500 mb-1 flex items-center gap-1.5">
-                  Liq. Pen
-                  <InfoTooltip
-                    title="Liquidation Penalty"
-                    description="The penalty charged if your position gets liquidated. This goes to the liquidator (50%) and protocol insurance fund (50%). Avoid liquidation!"
-                  />
-                </span>
-                <Badge variant="warning" className="font-mono text-xs px-2 py-0.5">
-                  {riskParams?.liquidationPenaltyPercent
-                    ? riskParams.liquidationPenaltyPercent.toFixed(1) + "%"
-                    : "5.0%"}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Risk parameters — low-priority info, integrated */}
+        <div className="px-3 py-3 space-y-1">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <ShieldCheck size={10} strokeWidth={1.75} className="text-zinc-600" />
+            <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Risk</span>
+          </div>
+          <SummaryRow
+            label="IMR / MMR"
+            value={`${riskParams?.imrPercent ? riskParams.imrPercent.toFixed(1) : "10.0"}% / ${riskParams?.mmrPercent ? riskParams.mmrPercent.toFixed(1) : "5.0"}%`}
+            valueClass="text-zinc-400"
+            tooltip={{ title: "Initial / Maintenance Margin", desc: "IMR is the minimum margin to open a position. MMR is the minimum to keep it open before liquidation." }}
+          />
+          <SummaryRow
+            label="Risk price"
+            value={riskPrice > 0 ? `$${riskPrice.toFixed(2)}` : "—"}
+            valueClass="text-zinc-400"
+            tooltip={{ title: "Risk Price", desc: "The higher of mark, index, or order price used to estimate contract margin." }}
+          />
+          <SummaryRow
+            label="Liq. penalty"
+            value={`${riskParams?.liquidationPenaltyPercent ? riskParams.liquidationPenaltyPercent.toFixed(1) : "5.0"}%`}
+            valueClass="text-yellow-400"
+            tooltip={{ title: "Liquidation Penalty", desc: "Penalty charged on liquidation, split between the liquidator and the insurance fund." }}
+          />
+        </div>
       </div>
 
-      {/* Submit Button (Fixed at Bottom) */}
-      <div className="p-4 border-t border-zinc-800 bg-[#050505]">
+      {/* ── Submit ──────────────────────────────────────────────────────── */}
+      <div className="px-3 py-3 border-t border-zinc-800/80 bg-[#06060a]">
         <button
-          className={`w-full py-3.5 rounded-lg font-bold text-white text-sm shadow-lg transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
-            side === "Buy"
-              ? "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 shadow-green-900/20"
-              : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 shadow-red-900/20"
+          className={`w-full h-10 rounded-md font-medium text-white text-[13px] transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+            isLong
+              ? "bg-emerald-500 hover:bg-emerald-400"
+              : "bg-red-500 hover:bg-red-400"
           }`}
           onClick={handleTrade}
-          disabled={isPending || !size || parseFloat(size) <= 0}
+          disabled={isPending || !size || sizeNum <= 0 || isOverMax}
         >
-          {isPending
-            ? "Processing..."
-            : `${side === "Buy" ? "Buy / Long" : "Sell / Short"} ${
-                market.baseAsset
-              }`}
+          {isPending ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Processing
+            </>
+          ) : (
+            <>
+              {isLong ? "Long" : "Short"} {market.baseAsset}
+              {notionalValue > 0 && (
+                <span className="text-white/60 font-normal text-[11px] tabular-nums">· ${notionalValue.toFixed(0)}</span>
+              )}
+            </>
+          )}
         </button>
       </div>
     </div>

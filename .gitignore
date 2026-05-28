@@ -13,12 +13,14 @@ tsconfig.js
 components.json
 postcss.config.cjs
 jsconfig.json
-
+.WALLET_AUTH_SETUP.md
 .env
 node_modules
 aml.ts
 supabase
 dist
+cloudflare-worker/node_modules
+cloudflare-worker/.wrangler
 dist-ssr
 *.local
 autorun.py
@@ -46,3 +48,9 @@ scripts/verify_prices.js
 supabase/
 b200.md
 h100.md
+SYSTEM_OVERVIEW.md
+README.md
+ByteStrike_Notification_System.pdf
+notif.md
+aboutus.md
+
