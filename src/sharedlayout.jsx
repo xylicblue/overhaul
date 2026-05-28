@@ -2,14 +2,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { useDisconnect } from "wagmi";
+import { useDisconnect, useAccount } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./creatclient";
 import Web3AuthHandler from "./web3auth";
 import ProfileDropdown from "./dropdown";
 import Footer from "./components/Footer";
 import { HeaderWallet } from "./components/HeaderWallet";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Vault } from "lucide-react";
+import CollateralManager from "./components/CollateralManager";
+import MintUSDC from "./components/MintUSDC";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import { useAuthModal } from "./context/AuthModalContext";
 import NotificationBell from "./components/NotificationBell";
@@ -27,13 +29,17 @@ const AppHeader = ({ session, profile, sessionLoading, handleLogout, openLogin, 
   const [isMenuOpen,      setIsMenuOpen]      = useState(false);
   const [docsOpen,        setDocsOpen]        = useState(false);
   const [methodologyOpen, setMethodologyOpen] = useState(false);
+  const [vaultOpen,       setVaultOpen]       = useState(false);
   const docsRef        = useRef(null);
   const methodologyRef = useRef(null);
+  const vaultRef       = useRef(null);
+  const { isConnected } = useAccount();
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (docsRef.current        && !docsRef.current.contains(e.target))        setDocsOpen(false);
       if (methodologyRef.current && !methodologyRef.current.contains(e.target)) setMethodologyOpen(false);
+      if (vaultRef.current       && !vaultRef.current.contains(e.target))       setVaultOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -241,6 +247,42 @@ const AppHeader = ({ session, profile, sessionLoading, handleLogout, openLogin, 
         <div className="hidden lg:block">
           {!sessionLoading && session && <HeaderWallet />}
         </div>
+
+        {/* Vault button — deposit / withdraw, desktop only when wallet connected */}
+        {!sessionLoading && session && isConnected && (
+          <div className="hidden lg:block relative" ref={vaultRef}>
+            <button
+              onClick={() => setVaultOpen(o => !o)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors duration-150 border ${
+                vaultOpen
+                  ? "bg-white/[0.06] border-white/[0.1] text-white"
+                  : "bg-transparent border-white/[0.06] text-zinc-300 hover:text-white hover:bg-white/[0.03] hover:border-white/[0.1]"
+              }`}
+            >
+              <Vault size={12} strokeWidth={1.75} />
+              Vault
+            </button>
+
+            <AnimatePresence>
+              {vaultOpen && (
+                <motion.div
+                  variants={dropdownVariants}
+                  initial="hidden" animate="visible" exit="exit"
+                  className="absolute top-full right-0 mt-2 w-[340px] bg-[#0e0e18] border border-white/[0.08] rounded-xl shadow-2xl z-[200] overflow-hidden"
+                >
+                  <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-[0.18em]">Vault</span>
+                    <span className="text-[10px] text-zinc-600">Deposit · Withdraw</span>
+                  </div>
+                  <div className="p-3 space-y-2">
+                    <CollateralManager />
+                    <MintUSDC />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {!sessionLoading && session && (
           <NotificationBell userId={session.user?.id} />

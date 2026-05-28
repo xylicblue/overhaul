@@ -6,8 +6,6 @@ import { useAccount, useReadContract } from "wagmi";
 import { supabase } from "./creatclient";
 import { recordTradeWithRetry } from "./services/tradeQueue";
 import { useMarketRealTimeData } from "./marketData";
-import MintUSDC from "./components/MintUSDC";
-import CollateralManager from "./components/CollateralManager";
 import {
   useOpenPosition,
   useAccountValue,
@@ -107,6 +105,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           setSide, setSize, setPriceLimit,
           resetOrder, setLastTx } = useTradingStore();
   const { address }               = useAccount();
+  const [leverage, setLeverage]   = useState(5);
 
   const marketId                 = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
   const { accountValue, accountValueRaw } = useAccountValue();
@@ -354,15 +353,6 @@ export const TradingPanel = ({ selectedMarket }) => {
           ))}
         </div>
 
-        {/* Collateral */}
-        <div className="px-3 py-3 border-b border-zinc-800/80">
-          <SectionLabel>Collateral</SectionLabel>
-          <div className="space-y-2">
-            <CollateralManager />
-            <MintUSDC />
-          </div>
-        </div>
-
         {/* Order */}
         <div className="px-3 py-3 border-b border-zinc-800/80 space-y-3">
           <SectionLabel
@@ -436,28 +426,60 @@ export const TradingPanel = ({ selectedMarket }) => {
 
           {/* Leverage */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Derived leverage</label>
-              <div
-                className={`px-2 py-0.5 rounded text-[13px] font-mono font-bold tabular-nums border ${
-                  isLong
-                    ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
-                    : "bg-red-500/10 border-red-500/25 text-red-400"
-                  }`}
+            <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em] block mb-3">
+              Leverage
+            </label>
+            <div className="flex items-center gap-3">
+              {/* Track area — h-5 gives a comfortable drag target */}
+              <div className="flex-1 relative h-5 flex items-center">
+                <div className="relative w-full h-[2px] bg-zinc-800 rounded-full">
+                  {/* Colored fill */}
+                  <div
+                    className={`absolute inset-y-0 left-0 rounded-full ${isLong ? "bg-emerald-500" : "bg-red-500"}`}
+                    style={{ width: `${((leverage - 1) / 9) * 100}%` }}
+                  />
+                  {/* Uniform tick dots 1×–10× */}
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
+                    <div
+                      key={v}
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full pointer-events-none"
+                      style={{
+                        left: `${((v - 1) / 9) * 100}%`,
+                        backgroundColor: v <= leverage
+                          ? isLong ? "#10b981" : "#ef4444"
+                          : "#3f3f46",
+                      }}
+                    />
+                  ))}
+                  {/* Thumb */}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full pointer-events-none z-10"
+                    style={{
+                      left: `${((leverage - 1) / 9) * 100}%`,
+                      backgroundColor: isLong ? "#10b981" : "#ef4444",
+                      boxShadow: `0 0 0 3px ${isLong ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}`,
+                    }}
+                  />
+                </div>
+                {/* Native input overlays the full h-5 area */}
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={leverage}
+                  onChange={(e) => setLeverage(Number(e.target.value))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                />
+              </div>
+              {/* Value to the right */}
+              <span
+                className={`shrink-0 w-8 text-right text-[13px] font-mono font-semibold tabular-nums ${
+                  isLong ? "text-emerald-400" : "text-red-400"
+                }`}
               >
-                {derivedLeverage > 0 ? derivedLeverage.toFixed(1) : "—"}×
-              </div>
-            </div>
-            <div className="rounded-md border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-zinc-500">Contract margin model</span>
-                <span className="font-mono text-zinc-300">
-                  {riskParams?.imrPercent ? riskParams.imrPercent.toFixed(1) : (DEFAULT_IMR_BPS / 100).toFixed(1)}% IMR
-                </span>
-              </div>
-              <p className="mt-1 text-[10px] leading-4 text-zinc-600">
-                Leverage is derived from size and required margin; the contract does not accept a leverage input.
-              </p>
+                {leverage}×
+              </span>
             </div>
           </div>
         </div>
