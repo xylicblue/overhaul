@@ -101,6 +101,7 @@ const PROTOCOL_ERROR_SELECTORS = {
 const ACTION_DEFAULTS = {
   open: "Unable to open position. Please review the order and try again.",
   close: "Unable to close position. Please review the size and try again.",
+  "add margin": "Unable to add margin. Please review the amount and try again.",
   transaction: "Transaction failed. Please try again.",
 };
 
@@ -160,7 +161,20 @@ export function formatTransactionError(error, { action = "transaction" } = {}) {
   }
 
   const protocolErrorName = getProtocolErrorName(text);
-  if (protocolErrorName) return PROTOCOL_ERROR_MESSAGES[protocolErrorName];
+  if (protocolErrorName) {
+    if (
+      action === "add margin" &&
+      ["InsufficientBalance", "InsufficientQuoteBalance", "InsufficientQuoteCollateral"].includes(protocolErrorName)
+    ) {
+      return "Not enough available deposited USDC to add margin.";
+    }
+
+    if (action === "add margin" && protocolErrorName === "NoPosition") {
+      return "This position is no longer open. Refresh and try again.";
+    }
+
+    return PROTOCOL_ERROR_MESSAGES[protocolErrorName];
+  }
 
   if (
     normalized.includes("insufficient funds") ||
