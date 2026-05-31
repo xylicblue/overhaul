@@ -2,24 +2,38 @@ import React, { useState, useEffect, useRef, useMemo, memo } from "react";
 import { useTradingStore } from "../stores/useTradingStore";
 import { useAccount, useReadContract } from "wagmi";
 import { toast } from "react-hot-toast";
-import { calculatePendingFunding, useAllPositions, useClosePosition } from "../hooks/useClearingHouse";
+import {
+  calculatePendingFunding,
+  useAccountValue,
+  useAddMargin,
+  useAllPositions,
+  useClosePosition,
+  usePosition,
+  useVaultBalance,
+} from "../hooks/useClearingHouse";
 import { useMarkPrice, useFundingRate } from "../hooks/useVAMM";
 import { SEPOLIA_CONTRACTS, MARKET_IDS } from "../contracts/addresses";
 import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
 import { motion, AnimatePresence } from "framer-motion";
 import ConfirmationModal from "./ConfirmationModal";
 import EmptyState, { CompactEmptyState } from "./EmptyState";
-import { Wallet, TrendingUp, TrendingDown, X, AlertCircle, Activity } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, X, AlertCircle, Activity, Plus } from "lucide-react";
 import { supabase } from "../creatclient";
 import { recordTradeWithRetry } from "../services/tradeQueue";
 import { formatTransactionError, getSepoliaTxUrl } from "../utils/transactionErrors";
+
+const hasOpenPositionData = (data) => {
+  if (!data) return false;
+  const size = data.size ?? data[0] ?? 0n;
+  return size !== 0n;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PositionPanel
 // ─────────────────────────────────────────────────────────────────────────────
 export function PositionPanel({ selectedMarket = null }) {
   const { address, isConnected } = useAccount();
-  const { positions: allPositions, isLoading, error } = useAllPositions();
+  const { positions: allPositions, isLoading, error, refetch: refetchPositions } = useAllPositions();
   const {
     closingPositionId: closingPosition,
     closeSize,
@@ -121,6 +135,7 @@ export function PositionPanel({ selectedMarket = null }) {
               setClosingPosition={setClosingPosition}
               closeSize={closeSize}
               setCloseSize={setCloseSize}
+              refetchPositions={refetchPositions}
             />
           ))}
         </AnimatePresence>
@@ -132,7 +147,7 @@ export function PositionPanel({ selectedMarket = null }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PositionCard — professional terminal-style layout
 // ─────────────────────────────────────────────────────────────────────────────
-function PositionCard({ position, closingPosition, setClosingPosition, closeSize, setCloseSize }) {
+function PositionCard({ position, closingPosition, setClosingPosition, closeSize, setCloseSize, refetchPositions }) {
   const isLong      = position.isLong;
   const size        = parseFloat(position.size);
   const absSize     = Math.abs(size);
@@ -207,16 +222,53 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
     reset: resetClose,
   } = useClosePosition(position.marketId);
   const { address } = useAccount();
+  const {
+    position: livePosition,
+    refetch: refetchLivePosition,
+  } = usePosition(position.marketId, address);
+  const {
+    accountValue,
+    refetch: refetchAccountValue,
+  } = useAccountValue(address);
+  const {
+    usdcBalance,
+    refetch: refetchVaultBalance,
+  } = useVaultBalance(address);
   const handledTxHashRef = useRef(null);
   const handledFailureHashRef = useRef(null);
+  const handledAddMarginHashRef = useRef(null);
+  const handledAddMarginFailureHashRef = useRef(null);
   const submittedCloseRef = useRef(null);
+  const submittedAddMarginRef = useRef(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingCloseAmount, setPendingCloseAmount] = useState(null);
   const [isCloseSubmitting, setIsCloseSubmitting] = useState(false);
   const [closeInlineError, setCloseInlineError] = useState("");
+  const [isAddingMargin, setIsAddingMargin] = useState(false);
+  const [addMarginAmount, setAddMarginAmount] = useState("");
+  const [isAddMarginSubmitting, setIsAddMarginSubmitting] = useState(false);
+  const [addMarginInlineError, setAddMarginInlineError] = useState("");
 
   const isClosing = closingPosition === position.marketId;
   const isCloseBusy = isCloseSubmitting || isPending || isConfirming;
+  const {
+    addMargin,
+    isPending: isAddMarginPending,
+    isConfirming: isAddMarginConfirming,
+    isSuccess: isAddMarginSuccess,
+    isReverted: isAddMarginReverted,
+    error: addMarginError,
+    receiptError: addMarginReceiptError,
+    hash: addMarginHash,
+    receipt: addMarginReceipt,
+    reset: resetAddMargin,
+  } = useAddMargin(position.marketId);
+  const isAddMarginBusy = isAddMarginSubmitting || isAddMarginPending || isAddMarginConfirming;
+  const addMarginAmountNum = parseFloat(addMarginAmount) || 0;
+  const availableQuoteCollateral = Math.max(parseFloat(accountValue) || 0, 0);
+  const depositedQuoteCollateral = Math.max(parseFloat(usdcBalance) || 0, 0);
+  const isAddMarginOverAvailable =
+    addMarginAmountNum > 0 && addMarginAmountNum > availableQuoteCollateral;
 
   const initiateClose = (closeAmount) => {
     if (isCloseBusy) return;
@@ -259,6 +311,47 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
       toast.error(message, { id: "close" });
     } finally {
       setIsCloseSubmitting(false);
+    }
+  };
+
+  const handleAddMargin = async () => {
+    if (isAddMarginBusy) return;
+    if (!addMarginAmount || parseFloat(addMarginAmount) <= 0) {
+      toast.error("Enter a valid margin amount");
+      return;
+    }
+    if (isAddMarginOverAvailable) {
+      const message = `Not enough available deposited USDC. Available: ${availableQuoteCollateral.toFixed(2)} USDC.`;
+      setAddMarginInlineError(message);
+      toast.error(message, { id: "add-margin" });
+      return;
+    }
+    setIsAddMarginSubmitting(true);
+    setAddMarginInlineError("");
+    try {
+      const latestPosition = await refetchLivePosition?.();
+      const stillHasPosition = latestPosition?.data
+        ? hasOpenPositionData(latestPosition.data)
+        : livePosition?.hasPosition || position?.hasPosition;
+      if (!stillHasPosition) {
+        const message = "This position is no longer open. Refresh and try again.";
+        setAddMarginInlineError(message);
+        toast.error(message, { id: "add-margin" });
+        return;
+      }
+
+      submittedAddMarginRef.current = {
+        amount: parseFloat(addMarginAmount),
+        marginBefore: margin,
+      };
+      toast.loading("Review add-margin transaction in wallet...", { id: "add-margin" });
+      await addMargin(addMarginAmount);
+    } catch (err) {
+      const message = formatTransactionError(err, { action: "add margin" });
+      setAddMarginInlineError(message);
+      toast.error(message, { id: "add-margin" });
+    } finally {
+      setIsAddMarginSubmitting(false);
     }
   };
 
@@ -405,10 +498,89 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
     }
   }, [isReverted, hash, receipt, resetClose]);
 
+  useEffect(() => {
+    if (addMarginHash && isAddMarginConfirming && addMarginHash !== handledAddMarginHashRef.current) {
+      toast.loading(
+        <div>
+          <div>Submitted, waiting for confirmation...</div>
+          <a href={getSepoliaTxUrl(addMarginHash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
+          </a>
+        </div>,
+        { id: "add-margin" }
+      );
+    }
+  }, [addMarginHash, isAddMarginConfirming]);
+
+  useEffect(() => {
+    if (isAddMarginSuccess && addMarginHash && addMarginHash !== handledAddMarginHashRef.current) {
+      handledAddMarginHashRef.current = addMarginHash;
+      const submittedAddMargin = submittedAddMarginRef.current;
+      toast.success(
+        <div>
+          <div>Margin added{submittedAddMargin?.amount ? `: ${submittedAddMargin.amount.toFixed(2)} USDC` : ""}.</div>
+          <a href={getSepoliaTxUrl(addMarginHash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
+          </a>
+        </div>,
+        { id: "add-margin", duration: 5000 }
+      );
+      setIsAddingMargin(false);
+      setAddMarginAmount("");
+      setAddMarginInlineError("");
+      refetchLivePosition?.();
+      refetchPositions?.();
+      refetchAccountValue?.();
+      refetchVaultBalance?.();
+      setTimeout(() => resetAddMargin(), 100);
+    }
+  }, [
+    isAddMarginSuccess,
+    addMarginHash,
+    resetAddMargin,
+    refetchLivePosition,
+    refetchPositions,
+    refetchAccountValue,
+    refetchVaultBalance,
+  ]);
+
+  useEffect(() => {
+    const failure = addMarginError || addMarginReceiptError;
+    if (failure) {
+      const message = formatTransactionError(failure, { action: "add margin" });
+      setAddMarginInlineError(message);
+      toast.error(message, { id: "add-margin" });
+      resetAddMargin();
+    }
+  }, [addMarginError, addMarginReceiptError, resetAddMargin]);
+
+  useEffect(() => {
+    if (isAddMarginReverted && addMarginHash && addMarginHash !== handledAddMarginFailureHashRef.current) {
+      handledAddMarginFailureHashRef.current = addMarginHash;
+      const message = formatTransactionError(
+        { message: "Transaction receipt status is reverted", receipt: addMarginReceipt },
+        { action: "add margin" }
+      );
+      setAddMarginInlineError(message);
+      toast.error(
+        <div>
+          <div>{message}</div>
+          <a href={getSepoliaTxUrl(addMarginHash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+            View on Etherscan
+          </a>
+        </div>,
+        { id: "add-margin" }
+      );
+      setTimeout(() => resetAddMargin(), 100);
+    }
+  }, [isAddMarginReverted, addMarginHash, addMarginReceipt, resetAddMargin]);
+
   const accentColor = isLong ? "bg-emerald-500" : "bg-red-500";
   const directionBadge = isLong
     ? "text-emerald-400 bg-emerald-500/[0.08] border-emerald-500/20"
     : "text-red-400 bg-red-500/[0.08] border-red-500/20";
+  const projectedMargin = margin + addMarginAmountNum;
+  const projectedLeverage = projectedMargin > 0 ? openNotional / projectedMargin : leverage;
 
   return (
     <motion.div
@@ -497,16 +669,130 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
         ))}
       </div>
 
-      {/* ── Close controls ────────────────────────────────────────────────── */}
+      {/* ── Position controls ─────────────────────────────────────────────── */}
       <div className="px-4 pb-4">
         {!isClosing ? (
-          <button
-            onClick={() => setClosingPosition(position.marketId)}
-            className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-zinc-500 hover:text-red-400 bg-white/[0.02] hover:bg-red-500/[0.06] border border-white/[0.06] hover:border-red-500/25 transition-all duration-200 flex items-center justify-center gap-1.5"
-          >
-            <X size={11} />
-            Close Position
-          </button>
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  setIsAddingMargin(true);
+                  setAddMarginInlineError("");
+                  setClosingPosition(null);
+                  setCloseSize("");
+                }}
+                disabled={isAddMarginBusy}
+                className="py-2.5 rounded-xl text-[11px] font-semibold text-zinc-500 hover:text-blue-300 bg-white/[0.02] hover:bg-blue-500/[0.06] border border-white/[0.06] hover:border-blue-500/25 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus size={11} />
+                Add Margin
+              </button>
+              <button
+                onClick={() => {
+                  setIsAddingMargin(false);
+                  setClosingPosition(position.marketId);
+                }}
+                disabled={isAddMarginBusy}
+                className="py-2.5 rounded-xl text-[11px] font-semibold text-zinc-500 hover:text-red-400 bg-white/[0.02] hover:bg-red-500/[0.06] border border-white/[0.06] hover:border-red-500/25 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <X size={11} />
+                Close Position
+              </button>
+            </div>
+
+            {isAddingMargin && (
+              <div className="space-y-2 rounded-xl border border-blue-500/20 bg-blue-500/[0.04] p-3">
+                <div className="flex items-center justify-between gap-2 px-1 text-[10px]">
+                  <span className="text-zinc-600">Available deposited USDC</span>
+                  <span className="font-mono font-semibold text-zinc-300">
+                    {availableQuoteCollateral.toFixed(2)} USDC
+                  </span>
+                </div>
+                <div className="flex gap-1.5">
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={addMarginAmount}
+                      onChange={e => {
+                        if (isAddMarginBusy) return;
+                        setAddMarginAmount(e.target.value);
+                        setAddMarginInlineError("");
+                      }}
+                      disabled={isAddMarginBusy}
+                      className="w-full bg-white/[0.02] border border-white/[0.07] rounded-lg pl-3 pr-20 py-2 text-[12px] text-white focus:outline-none focus:border-blue-500/30 font-mono placeholder-zinc-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                      step="0.01"
+                      min="0"
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isAddMarginBusy) return;
+                          setAddMarginAmount(availableQuoteCollateral > 0 ? availableQuoteCollateral.toFixed(2) : "");
+                          setAddMarginInlineError("");
+                        }}
+                        disabled={isAddMarginBusy || availableQuoteCollateral <= 0}
+                        className="text-[8px] font-bold text-blue-400 hover:text-blue-300 disabled:text-zinc-700 disabled:cursor-not-allowed"
+                      >
+                        MAX
+                      </button>
+                      <span className="text-[9px] font-bold text-zinc-600">USDC</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleAddMargin}
+                    disabled={isAddMarginBusy || !addMarginAmount || isAddMarginOverAvailable}
+                    className="px-4 py-2 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 text-[11px] font-semibold rounded-lg border border-blue-500/25 hover:border-blue-500/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isAddMarginBusy ? "…" : "Add"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (isAddMarginBusy) return;
+                      setIsAddingMargin(false);
+                      setAddMarginAmount("");
+                      setAddMarginInlineError("");
+                    }}
+                    disabled={isAddMarginBusy}
+                    className="px-2 py-2 text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04] rounded-lg transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 px-1 text-[9px] text-zinc-600">
+                  <span>Total deposited</span>
+                  <span className="font-mono">{depositedQuoteCollateral.toFixed(2)} USDC</span>
+                </div>
+
+                {addMarginAmountNum > 0 && (
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div className="rounded-lg bg-white/[0.02] border border-white/[0.06] px-2 py-1.5">
+                      <div className="text-[8px] font-bold uppercase tracking-widest text-zinc-600">New Margin</div>
+                      <div className="font-mono font-semibold text-zinc-200">{projectedMargin.toFixed(2)} USDC</div>
+                    </div>
+                    <div className="rounded-lg bg-white/[0.02] border border-white/[0.06] px-2 py-1.5">
+                      <div className="text-[8px] font-bold uppercase tracking-widest text-zinc-600">New Lev.</div>
+                      <div className="font-mono font-semibold text-blue-300">{projectedLeverage.toFixed(1)}×</div>
+                    </div>
+                  </div>
+                )}
+
+                {isAddMarginOverAvailable && (
+                  <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-2 text-[10px] leading-4 text-yellow-200">
+                    Amount exceeds available deposited USDC.
+                  </div>
+                )}
+
+                {addMarginInlineError && (
+                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-[10px] leading-4 text-red-300">
+                    {addMarginInlineError}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="space-y-2">
             {/* Size presets */}

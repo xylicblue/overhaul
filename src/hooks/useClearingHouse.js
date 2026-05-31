@@ -166,6 +166,7 @@ export function useAllPositions() {
     positions,
     isLoading: marketPositions.some(({ isLoading }) => isLoading),
     error: marketPositions.find(({ error }) => error)?.error || null,
+    refetch: () => Promise.allSettled(marketPositions.map(({ refetch }) => refetch?.())),
   };
 }
 
@@ -283,6 +284,57 @@ export function useClosePosition(marketId) {
 
   return {
     closePosition,
+    isPending: isPending || isConfirming,
+    isWalletPending: isPending,
+    isConfirming,
+    isReceiptFetched,
+    isSuccess: receipt?.status === "success",
+    isReverted: receipt?.status === "reverted",
+    isReceiptError,
+    error,
+    receiptError,
+    receipt,
+    hash,
+    reset,
+  };
+}
+
+/**
+ * Add margin to an open position
+ * @param {string} marketId - Market ID
+ */
+export function useAddMargin(marketId) {
+  const { writeContract, writeContractAsync, data: hash, isPending, error, reset } = useWriteContract();
+  const {
+    data: receipt,
+    isLoading: isConfirming,
+    isSuccess: isReceiptFetched,
+    isError: isReceiptError,
+    error: receiptError,
+  } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  const addMargin = async (amount) => {
+    const amountWei = parseUnits(amount.toString(), 18);
+
+    const request = {
+      address: SEPOLIA_CONTRACTS.clearingHouse,
+      abi: ClearingHouseABI.abi,
+      functionName: "addMargin",
+      args: [marketId, amountWei],
+      chainId: SEPOLIA_CHAIN_ID,
+    };
+
+    if (writeContractAsync) {
+      return writeContractAsync(request);
+    }
+
+    return writeContract(request);
+  };
+
+  return {
+    addMargin,
     isPending: isPending || isConfirming,
     isWalletPending: isPending,
     isConfirming,
