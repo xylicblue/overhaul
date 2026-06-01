@@ -184,3 +184,23 @@
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06) 50%, transparent);
 }
+
+/* Floating bob animation for mockup and stat chips */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-10px); }
+}
+
+@keyframes floatAlt {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-7px); }
+}
+
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-alt {
+    animation: floatAlt 5s ease-in-out infinite;
+    animation-delay: -2.5s;
+}

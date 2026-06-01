@@ -1126,143 +1126,229 @@ const LandingPage = () => {
 
 
       {/* ═══ TRADING INTERFACE PREVIEW ═══ */}
-      <section className="relative z-10 py-20 md:py-24">
-        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+      <section className="relative z-10 py-24 md:py-32 overflow-hidden">
 
-          {/* Section header — eyebrow + tight heading + corner CTA */}
-          <AnimatedSection className="mb-8 flex items-end justify-between flex-wrap gap-4">
-            <motion.div variants={fadeUpSubtle}>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-300 mb-3">
-                Interface
-              </p>
-              <h2 className="text-2xl md:text-[28px] font-semibold text-white tracking-[-0.015em] leading-[1.1]">
-                Our Trading Platform.
-              </h2>
-            </motion.div>
+        {/* Atmospheric glow layer */}
+        <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+          <div style={{
+            position: "absolute", width: "900px", height: "650px",
+            top: "-5%", left: "-8%",
+            background: "radial-gradient(ellipse 55% 60% at 35% 50%, rgba(0,200,160,0.13) 0%, transparent 70%)",
+            filter: "blur(60px)",
+          }} />
+          <div style={{
+            position: "absolute", width: "700px", height: "550px",
+            top: "5%", right: "-6%",
+            background: "radial-gradient(ellipse 50% 55% at 65% 50%, rgba(59,130,246,0.11) 0%, transparent 70%)",
+            filter: "blur(60px)",
+          }} />
+          <div style={{
+            position: "absolute", width: "500px", height: "300px",
+            bottom: "0%", left: "35%",
+            background: "radial-gradient(ellipse 60% 60% at 50% 80%, rgba(0,180,140,0.07) 0%, transparent 70%)",
+            filter: "blur(50px)",
+          }} />
+        </div>
+
+        {/* Dot grid */}
+        <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true" style={{
+          backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.035) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }} />
+
+        <div className="container mx-auto px-6 lg:px-16 max-w-6xl relative z-10">
+
+          {/* Centered heading block */}
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            variants={staggerContainer}
+            className="text-center mb-16"
+          >
+            <motion.p variants={fadeUpSubtle} className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-400/80 mb-4">
+              Interface
+            </motion.p>
+            <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl lg:text-[44px] font-semibold text-white tracking-[-0.02em] leading-[1.1] mb-5">
+              Built for serious traders.
+            </motion.h2>
+            <motion.p variants={fadeUpSubtle} className="text-zinc-400 text-[15px] max-w-md mx-auto leading-relaxed mb-8">
+              Trade GPU compute perpetuals with real-time index pricing and a professional interface designed for speed.
+            </motion.p>
             <motion.div variants={fadeUpSubtle}>
               <Routerlink
                 to="/trade"
-                className="group inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:brightness-110"
+                style={{
+                  background: "linear-gradient(135deg, rgba(0,180,140,0.18) 0%, rgba(59,130,246,0.14) 100%)",
+                  border: "1px solid rgba(0,200,160,0.22)",
+                  boxShadow: "0 0 24px rgba(0,180,140,0.12)",
+                }}
               >
                 Open trading app
-                <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7 17L17 7M17 7H8M17 7V16" />
                 </svg>
               </Routerlink>
             </motion.div>
-          </AnimatedSection>
-
-          {/* Embedded trading interface frame — real product slice */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-            className="rounded-lg border border-white/[0.08] bg-[#0a0a10] overflow-hidden"
-          >
-            {/* App chrome — minimal terminal-style top bar */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-[#08080c]">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="relative flex h-1.5 w-1.5 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-                </span>
-                <span className="text-[11px] font-semibold text-zinc-300 font-mono tracking-wide truncate">H100-GPU-PERP</span>
-                <span className="hidden sm:inline text-[10px] text-zinc-600 font-mono uppercase tracking-[0.14em]">Perp · Index</span>
-              </div>
-              <div className="flex items-center gap-3 font-mono shrink-0">
-                <span className="hidden sm:inline text-[9px] text-zinc-600 uppercase tracking-[0.14em]">Last</span>
-                <span className="text-[11px] font-semibold text-white tabular-nums">
-                  {indexPrices?.["H100-GPU-PERP"] != null ? `$${Number(indexPrices["H100-GPU-PERP"]).toFixed(2)}` : "$3.77"}
-                </span>
-                <span className="text-[10px] font-medium text-emerald-400 tabular-nums">+0.10%</span>
-              </div>
-            </div>
-
-            {/* Body — asymmetric chart + order slice */}
-            <div className="grid grid-cols-12">
-
-              {/* Chart — 8 cols, compact mode (no internal header), single blue line */}
-              <div className="col-span-12 lg:col-span-8 h-[340px] lg:h-[400px] border-b lg:border-b-0 lg:border-r border-white/[0.06] relative">
-                <PriceIndexChart market="H100-GPU-PERP" compact />
-              </div>
-
-              {/* Order slice — 4 cols */}
-              <div className="col-span-12 lg:col-span-4 flex flex-col">
-
-                {/* Slice header */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                    New Order
-                  </span>
-                  <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-600">
-                    Market · Cross
-                  </span>
-                </div>
-
-                {/* Body */}
-                <div className="flex-1 p-4 flex flex-col gap-3.5">
-
-                  {/* Long / Short */}
-                  <div className="grid grid-cols-2 gap-px bg-zinc-800/80 rounded-md overflow-hidden p-px">
-                    <div className="py-1.5 text-center text-[11px] font-semibold rounded bg-emerald-500/[0.10] text-emerald-400 border border-emerald-500/[0.18]">
-                      Long
-                    </div>
-                    <div className="py-1.5 text-center text-[11px] font-semibold text-zinc-500 rounded">
-                      Short
-                    </div>
-                  </div>
-
-                  {/* Size */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">Size</span>
-                      <span className="text-[9px] font-mono text-zinc-600">USDC</span>
-                    </div>
-                    <div className="px-3 py-2 bg-white/[0.02] border border-white/[0.06] rounded-md">
-                      <span className="text-[13px] font-mono tabular-nums text-white">1,250.00</span>
-                    </div>
-                  </div>
-
-                  {/* Leverage */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">Leverage</span>
-                      <span className="text-[11px] font-mono tabular-nums text-zinc-300">5×</span>
-                    </div>
-                    <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                      <div className="h-full w-[44%] bg-zinc-300/80 rounded-full" />
-                    </div>
-                    <div className="flex justify-between text-[9px] font-mono text-zinc-700 mt-0.5">
-                      <span>1×</span><span>3×</span><span>5×</span><span>10×</span>
-                    </div>
-                  </div>
-
-                  {/* Summary */}
-                  <div className="border-t border-white/[0.06] pt-3 space-y-1.5">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-zinc-500">Margin</span>
-                      <span className="font-mono text-zinc-200 tabular-nums">$250.00</span>
-                    </div>
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-zinc-500">Est. liq.</span>
-                      <span className="font-mono text-zinc-200 tabular-nums">$3.02</span>
-                    </div>
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-zinc-500">Fee</span>
-                      <span className="font-mono text-zinc-200 tabular-nums">$0.625</span>
-                    </div>
-                  </div>
-
-                  {/* CTA */}
-                  <div className="mt-auto h-9 rounded-md bg-emerald-500/[0.10] border border-emerald-500/[0.20] text-emerald-400 text-[12px] font-semibold flex items-center justify-center">
-                    Place Long Order
-                  </div>
-
-                </div>
-              </div>
-            </div>
           </motion.div>
+
+          {/* Perspective wrapper + chips */}
+          <div className="relative" style={{ perspective: "1400px" }}>
+
+            {/* Chip — top left */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: 0.75 }}
+              className="animate-float hidden lg:flex absolute -left-5 top-10 z-20 items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[11px] font-mono"
+              style={{
+                background: "rgba(10,10,16,0.7)",
+                border: "1px solid rgba(255,255,255,0.09)",
+                backdropFilter: "blur(12px)",
+              }}
+            >
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+              </span>
+              <span className="text-zinc-300">H100-GPU-PERP</span>
+              <span className="text-emerald-400 font-semibold">+0.10%</span>
+            </motion.div>
+
+            {/* Chip — top right */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: 0.85 }}
+              className="animate-float-alt hidden lg:flex absolute -right-5 top-8 z-20 flex-col gap-0.5 px-3.5 py-2.5 rounded-xl text-[11px] font-mono"
+              style={{
+                background: "rgba(10,10,16,0.7)",
+                border: "1px solid rgba(255,255,255,0.09)",
+                backdropFilter: "blur(12px)",
+              }}
+            >
+              <span className="text-zinc-500 text-[9px] uppercase tracking-wider">Leverage</span>
+              <span className="text-white font-semibold text-[15px]">5×</span>
+              <span className="text-blue-400 text-[10px]">Cross margin</span>
+            </motion.div>
+
+            {/* Chip — bottom left */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: 0.95 }}
+              className="animate-float hidden lg:flex absolute -left-5 bottom-16 z-20 flex-col gap-0.5 px-3.5 py-2.5 rounded-xl text-[11px] font-mono"
+              style={{
+                background: "rgba(10,10,16,0.7)",
+                border: "1px solid rgba(255,255,255,0.09)",
+                backdropFilter: "blur(12px)",
+                animationDelay: "-3s",
+              }}
+            >
+              <span className="text-zinc-500 text-[9px] uppercase tracking-wider">Margin</span>
+              <span className="text-white font-semibold text-[15px]">$250.00</span>
+              <span className="text-zinc-500 text-[10px]">Est. liq. $3.02</span>
+            </motion.div>
+
+            {/* Trading frame — perspective tilt entrance */}
+            <motion.div
+              initial={{ opacity: 0, y: 48, rotateX: 10 }}
+              whileInView={{ opacity: 1, y: 0, rotateX: 4 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+              className="rounded-xl border border-white/[0.10] bg-[#0a0a10] overflow-hidden"
+              style={{
+                transformOrigin: "center top",
+                boxShadow: [
+                  "0 60px 120px rgba(0,0,0,0.75)",
+                  "0 0 0 1px rgba(255,255,255,0.05)",
+                  "0 0 120px rgba(0,200,160,0.09)",
+                  "0 0 80px rgba(59,130,246,0.08)",
+                ].join(", "),
+              }}
+            >
+              {/* Chrome bar */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-[#08080c]">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="relative flex h-1.5 w-1.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                  </span>
+                  <span className="text-[11px] font-semibold text-zinc-300 font-mono tracking-wide truncate">H100-GPU-PERP</span>
+                  <span className="hidden sm:inline text-[10px] text-zinc-600 font-mono uppercase tracking-[0.14em]">Perp · Index</span>
+                </div>
+                <div className="flex items-center gap-3 font-mono shrink-0">
+                  <span className="hidden sm:inline text-[9px] text-zinc-600 uppercase tracking-[0.14em]">Last</span>
+                  <span className="text-[11px] font-semibold text-white tabular-nums">
+                    {indexPrices?.["H100-GPU-PERP"] != null ? `$${Number(indexPrices["H100-GPU-PERP"]).toFixed(2)}` : "$3.77"}
+                  </span>
+                  <span className="text-[10px] font-medium text-emerald-400 tabular-nums">+0.10%</span>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="grid grid-cols-12">
+                <div className="col-span-12 lg:col-span-8 h-[340px] lg:h-[420px] border-b lg:border-b-0 lg:border-r border-white/[0.06] relative">
+                  <PriceIndexChart market="H100-GPU-PERP" compact />
+                </div>
+                <div className="col-span-12 lg:col-span-4 flex flex-col">
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">New Order</span>
+                    <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-600">Market · Cross</span>
+                  </div>
+                  <div className="flex-1 p-4 flex flex-col gap-3.5">
+                    <div className="grid grid-cols-2 gap-px bg-zinc-800/80 rounded-md overflow-hidden p-px">
+                      <div className="py-1.5 text-center text-[11px] font-semibold rounded bg-emerald-500/[0.10] text-emerald-400 border border-emerald-500/[0.18]">Long</div>
+                      <div className="py-1.5 text-center text-[11px] font-semibold text-zinc-500 rounded">Short</div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">Size</span>
+                        <span className="text-[9px] font-mono text-zinc-600">USDC</span>
+                      </div>
+                      <div className="px-3 py-2 bg-white/[0.02] border border-white/[0.06] rounded-md">
+                        <span className="text-[13px] font-mono tabular-nums text-white">1,250.00</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">Leverage</span>
+                        <span className="text-[11px] font-mono tabular-nums text-zinc-300">5×</span>
+                      </div>
+                      <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                        <div className="h-full w-[44%] bg-zinc-300/80 rounded-full" />
+                      </div>
+                      <div className="flex justify-between text-[9px] font-mono text-zinc-700 mt-0.5">
+                        <span>1×</span><span>3×</span><span>5×</span><span>10×</span>
+                      </div>
+                    </div>
+                    <div className="border-t border-white/[0.06] pt-3 space-y-1.5">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-zinc-500">Margin</span>
+                        <span className="font-mono text-zinc-200 tabular-nums">$250.00</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-zinc-500">Est. liq.</span>
+                        <span className="font-mono text-zinc-200 tabular-nums">$3.02</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-zinc-500">Fee</span>
+                        <span className="font-mono text-zinc-200 tabular-nums">$0.625</span>
+                      </div>
+                    </div>
+                    <div className="mt-auto h-9 rounded-md bg-emerald-500/[0.10] border border-emerald-500/[0.20] text-emerald-400 text-[12px] font-semibold flex items-center justify-center">
+                      Place Long Order
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+          </div>{/* end perspective wrapper */}
 
         </div>
       </section>

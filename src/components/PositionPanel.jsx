@@ -91,19 +91,21 @@ export function PositionPanel({ selectedMarket = null }) {
             <thead>
               <tr className="border-b border-zinc-800/60 bg-[#06060a] sticky top-0 z-10">
                 {[
-                  { label: "Market",    right: false },
-                  { label: "Side",      right: false },
-                  { label: "Size",      right: true  },
-                  { label: "Entry",     right: true  },
-                  { label: "Mark",      right: true  },
-                  { label: "Liq.",      right: true  },
-                  { label: "P&L / ROE", right: true  },
+                  { label: "Market",         right: false },
+                  { label: "Side",           right: false },
+                  { label: "Size",           right: true  },
+                  { label: "Entry",          right: true  },
+                  { label: "Mark",           right: true  },
+                  { label: "Liq. Price",     right: true  },
+                  { label: "Margin",         right: true  },
+                  { label: "Unrealized PnL", right: true  },
+                  { label: "ROE",            right: true  },
                 ].map(({ label, right }) => (
                   <th key={label} className={`px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-zinc-600 whitespace-nowrap ${right ? "text-right" : ""}`}>
                     {label}
                   </th>
                 ))}
-                <th className="px-3 py-2 w-20" />
+                <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest text-zinc-600 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -463,83 +465,82 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       {/* ── Main position row ──────────────────────────────────────────── */}
       <tr className={`transition-colors border-b border-zinc-800/40 ${rowBg}`}>
 
-        {/* Market + size */}
-        <td className="px-3 py-2.5 min-w-[100px]">
+        {/* Market */}
+        <td className="px-3 py-2.5 min-w-[90px]">
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-semibold text-white leading-none">
-              {position.marketName?.replace("-PERP", "") || "GPU"}
+              {position.marketName?.replace(/-PERP.*/, "") || "GPU"}
             </span>
-            {leverage > 0 && (
-              <span className="text-[8px] font-mono text-zinc-500 border border-zinc-800 px-1 py-px rounded leading-none">
-                {leverage.toFixed(1)}×
-              </span>
-            )}
-          </div>
-          <div className="text-[9px] font-mono text-zinc-600 mt-0.5">
-            {absSize.toFixed(4)} GPU-HRS
+            <span className="text-[8px] font-bold text-zinc-500 bg-zinc-800 px-1 py-px rounded leading-none">
+              PERP
+            </span>
           </div>
         </td>
 
-        {/* Side */}
-        <td className="px-3 py-2.5">
-          <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${
-            isLong
-              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-              : "text-red-400 bg-red-500/10 border-red-500/20"
-          }`}>
-            {isLong ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+        {/* Side — direction · leverage× Cross */}
+        <td className="px-3 py-2.5 whitespace-nowrap">
+          <span className={`text-[11px] font-semibold ${isLong ? "text-emerald-400" : "text-red-400"}`}>
             {isLong ? "Long" : "Short"}
           </span>
+          {leverage > 0 && (
+            <span className="text-zinc-500 text-[11px]">
+              {" · "}{leverage.toFixed(1)}
+              <span className="text-[9px]">×</span>
+              {" "}
+              <span className="text-[9px] text-zinc-600">Cross</span>
+            </span>
+          )}
         </td>
 
-        {/* Notional / size */}
-        <td className="px-3 py-2.5 text-right">
-          <div className="text-[11px] font-mono text-zinc-200">${openNotional.toFixed(2)}</div>
-          <div className="text-[9px] font-mono text-zinc-600">{absSize.toFixed(4)}</div>
+        {/* Size */}
+        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-zinc-200">
+          {absSize.toFixed(4)}
         </td>
 
         {/* Entry */}
         <td className="px-3 py-2.5 text-right font-mono text-[11px] text-zinc-400">
-          ${entryPrice.toFixed(2)}
+          {entryPrice.toFixed(3)}
         </td>
 
         {/* Mark */}
         <td className="px-3 py-2.5 text-right font-mono text-[11px] text-zinc-200">
-          {currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—"}
+          {currentPrice > 0 ? currentPrice.toFixed(3) : "—"}
         </td>
 
-        {/* Liq */}
-        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-yellow-400">
-          {liqPrice && liqPrice > 0 ? `$${liqPrice.toFixed(2)}` : "—"}
+        {/* Liq. Price */}
+        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-red-400">
+          {liqPrice && liqPrice > 0 ? liqPrice.toFixed(3) : "—"}
         </td>
 
-        {/* P&L + ROE */}
+        {/* Margin */}
+        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-zinc-300">
+          ${margin.toFixed(2)}
+        </td>
+
+        {/* Unrealized PnL */}
         <td className="px-3 py-2.5 text-right">
-          <div className={`text-[12px] font-mono font-semibold leading-none ${isProfitable ? "text-emerald-400" : "text-red-400"}`}>
-            {isProfitable ? "+" : ""}{netPnL.toFixed(3)}
-          </div>
-          <div className={`text-[9px] font-mono mt-0.5 ${isProfitable ? "text-emerald-500/60" : "text-red-500/60"}`}>
+          <span className={`font-mono text-[12px] font-semibold ${isProfitable ? "text-emerald-400" : "text-red-400"}`}>
+            {isProfitable ? "+" : ""}{netPnL.toFixed(2)}
+          </span>
+        </td>
+
+        {/* ROE */}
+        <td className="px-3 py-2.5 text-right">
+          <span className={`font-mono text-[11px] font-semibold ${isProfitable ? "text-emerald-400" : "text-red-400"}`}>
             {roe >= 0 ? "+" : ""}{roe.toFixed(2)}%
-          </div>
+          </span>
         </td>
 
         {/* Actions */}
         <td className="px-3 py-2.5 text-right">
           <div className="flex items-center gap-1 justify-end">
+            {/* TP/SL — placeholder, not yet implemented */}
             <button
-              onClick={() => {
-                setIsAddingMargin(v => !v);
-                if (isClosing) { setClosingPosition(null); setCloseSize(""); }
-              }}
-              disabled={isCloseBusy || isAddMarginBusy}
-              title="Add margin"
-              className={`p-1.5 rounded transition-all disabled:opacity-40 ${
-                isAddingMargin
-                  ? "text-blue-400 bg-blue-500/15 border border-blue-500/25"
-                  : "text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent"
-              }`}
+              disabled
+              title="Take Profit / Stop Loss — coming soon"
+              className="px-2 py-1 text-[9px] font-bold text-zinc-600 bg-zinc-800/60 border border-zinc-700/50 rounded cursor-not-allowed opacity-50"
             >
-              <Plus size={11} />
+              TP/SL
             </button>
             <button
               onClick={() => {
@@ -548,7 +549,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                 else setClosingPosition(position.marketId);
               }}
               disabled={isAddMarginBusy}
-              className={`px-2 py-1 text-[9px] font-bold rounded border transition-all disabled:opacity-40 ${
+              className={`px-2.5 py-1 text-[9px] font-bold rounded border transition-all disabled:opacity-40 ${
                 isClosing
                   ? "text-zinc-400 bg-zinc-800 border-zinc-700"
                   : "text-red-400 bg-red-500/10 hover:bg-red-500/20 border-red-500/20 hover:border-red-500/35"
@@ -563,7 +564,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       {/* ── Close controls row ─────────────────────────────────────────── */}
       {isClosing && (
         <tr className="border-b border-zinc-800/40 bg-zinc-900/50">
-          <td colSpan={8} className="px-4 py-3">
+          <td colSpan={10} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold shrink-0">Close size</span>
 
@@ -627,6 +628,12 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                 {closeInlineError}
               </div>
             )}
+            <button
+              onClick={() => { setIsAddingMargin(true); setClosingPosition(null); setCloseSize(""); }}
+              className="text-[9px] font-bold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded px-2 py-1 transition-all ml-auto mt-1 self-end"
+            >
+              + Add Margin
+            </button>
           </td>
         </tr>
       )}
@@ -634,7 +641,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       {/* ── Add-margin controls row ────────────────────────────────────── */}
       {isAddingMargin && (
         <tr className="border-b border-zinc-800/40 bg-zinc-900/50">
-          <td colSpan={8} className="px-4 py-3">
+          <td colSpan={10} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold shrink-0">Add margin</span>
               <span className="text-[9px] text-zinc-600">

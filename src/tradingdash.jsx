@@ -43,7 +43,7 @@ const ConnectStrip = () => (
 export const TradingDashboard = ({ onHelpClick }) => {
   const { selectedMarket } = useMarket();
   const [activeMobileTab, setActiveMobileTab] = useState("chart");
-  const [drawerOpen, setDrawerOpen]           = useState(false);
+  const [activeBottomTab, setActiveBottomTab] = useState("positions");
   const [shouldBounce, setShouldBounce]       = useState(false);
   const { isConnected }    = useAccount();
   const { positions: allPositions } = useAllPositions();
@@ -146,68 +146,91 @@ export const TradingDashboard = ({ onHelpClick }) => {
             <ChartToggle selectedMarket={selectedMarket} />
           </div>
 
-          {/* Positions tab bar */}
-          <div className="shrink-0 h-10 border-t border-zinc-800/80 bg-[#06060a] flex items-center px-3 gap-3">
-            <motion.div
-              animate={shouldBounce ? { y: [0, -5, 2, -2, 0] } : {}}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              onAnimationComplete={() => setShouldBounce(false)}
-            >
-              <button
-                onClick={() => setDrawerOpen(o => !o)}
-                className={`flex items-center gap-2 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 border ${
-                  drawerOpen
-                    ? "bg-white/[0.06] border-white/[0.1] text-white"
-                    : "bg-transparent border-white/[0.06] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] hover:border-white/[0.1]"
-                }`}
-              >
-                <Activity size={11} strokeWidth={1.75} className="text-zinc-500" />
-                Open positions
-                {positionCount > 0 && (
-                  <span className="bg-blue-500/15 text-blue-400 text-[9px] font-semibold tabular-nums px-1.5 py-px rounded">
-                    {positionCount}
-                  </span>
-                )}
-                {drawerOpen
-                  ? <ChevronDown size={11} strokeWidth={1.75} />
-                  : <ChevronUp   size={11} strokeWidth={1.75} />}
-              </button>
-            </motion.div>
-            {positionCount === 0 && (
-              <span className="text-[10px] text-zinc-700">No open positions</span>
-            )}
-            <button
-              onClick={onHelpClick}
-              className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded border border-white/[0.06] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.1] text-[10px] font-medium transition-colors duration-150"
-            >
-              <span className="inline-flex items-center justify-center w-3 h-3 rounded border border-white/[0.1] font-mono text-[8px]">?</span>
-              Help
-            </button>
-          </div>
+          {/* ── Bottom tab bar — Hyperliquid/Lighter style ───────────────── */}
+          {(() => {
+            const TABS = [
+              { key: "positions",     label: "Positions",     count: positionCount },
+              { key: "open-orders",   label: "Open Orders",   count: 0 },
+              { key: "order-history", label: "Order History" },
+              { key: "trade-history", label: "Trade History" },
+              { key: "funding",       label: "Funding" },
+              { key: "balances",      label: "Balances" },
+            ];
+            return (
+              <div className="shrink-0 h-10 border-t border-zinc-800/80 bg-[#06060a] flex items-stretch overflow-x-auto">
+                <div className="flex items-stretch min-w-max">
+                  {TABS.map(tab => {
+                    const active = activeBottomTab === tab.key;
+                    return (
+                      <motion.button
+                        key={tab.key}
+                        animate={tab.key === "positions" && shouldBounce ? { y: [0, -4, 1, -1, 0] } : {}}
+                        transition={{ duration: 0.45, ease: "easeOut" }}
+                        onAnimationComplete={() => tab.key === "positions" && setShouldBounce(false)}
+                        onClick={() => setActiveBottomTab(tab.key)}
+                        className={`relative flex items-center gap-1.5 px-3.5 text-[11px] font-medium transition-colors duration-150 border-b-2 whitespace-nowrap ${
+                          active
+                            ? "text-white border-blue-400"
+                            : "text-zinc-500 border-transparent hover:text-zinc-300 hover:border-zinc-700"
+                        }`}
+                      >
+                        {tab.label}
+                        {tab.count > 0 && (
+                          <span className="bg-blue-500/15 text-blue-400 text-[9px] font-bold tabular-nums px-1.5 py-px rounded-full">
+                            {tab.count}
+                          </span>
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+                <div className="ml-auto flex items-center gap-3 px-3 shrink-0 border-b-2 border-transparent">
+                  <button
+                    onClick={onHelpClick}
+                    className="flex items-center gap-1 text-zinc-600 hover:text-zinc-400 text-[10px] font-medium transition-colors"
+                  >
+                    <span className="inline-flex items-center justify-center w-3 h-3 rounded border border-white/[0.1] font-mono text-[8px]">?</span>
+                    Help
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
 
-          {/* Positions Drawer — resizable */}
+          {/* Positions panel — always visible, height adjustable by dragging */}
           <div
-            className="shrink-0 bg-[#06060a] overflow-hidden flex flex-col"
-            style={{
-              height: drawerOpen ? positionsHeight : 0,
-              transition: isResizingPos ? "none" : "height 0.25s cubic-bezier(0.4,0,0.2,1)",
-              borderTop: drawerOpen ? "1px solid rgba(255,255,255,0.06)" : "none",
-            }}
+            className="shrink-0 bg-[#06060a] overflow-hidden flex flex-col border-t border-zinc-800/60"
+            style={{ height: positionsHeight }}
           >
-            {/* ↕ Drag handle — drag up to expand, down to shrink */}
+            {/* ↕ Drag handle to resize height */}
             <div
               onMouseDown={startPositionsResize}
-              className="shrink-0 h-[18px] w-full cursor-row-resize flex items-center justify-center bg-zinc-900/60 hover:bg-blue-500/10 border-b border-zinc-800/60 hover:border-blue-500/25 transition-colors duration-150 select-none group"
+              className="shrink-0 h-[6px] w-full cursor-row-resize bg-zinc-900/60 hover:bg-blue-500/20 transition-colors duration-150 select-none"
               title="Drag to resize"
-            >
-              <GripHorizontal
-                size={14}
-                strokeWidth={1.75}
-                className="text-zinc-600 group-hover:text-blue-400 transition-colors duration-150"
-              />
-            </div>
+            />
             <div className="flex-1 overflow-hidden">
-              <PositionPanel />
+              {activeBottomTab === "positions" && <PositionPanel selectedMarket={selectedMarket} />}
+              {activeBottomTab === "open-orders" && (
+                <div className="flex items-center justify-center h-full text-zinc-700 text-[11px]">No open orders</div>
+              )}
+              {activeBottomTab === "order-history" && (
+                <div className="flex items-center justify-center h-full text-zinc-700 text-[11px]">No order history</div>
+              )}
+              {activeBottomTab === "trade-history" && (
+                <div className="flex items-center justify-center h-full gap-2 text-zinc-700 text-[11px]">
+                  Full trade history is on the
+                  <a href="/portfolio" className="text-blue-400 hover:text-blue-300 underline">Portfolio page</a>
+                </div>
+              )}
+              {activeBottomTab === "funding" && (
+                <div className="flex items-center justify-center h-full text-zinc-700 text-[11px]">No funding history</div>
+              )}
+              {activeBottomTab === "balances" && (
+                <div className="flex items-center justify-center h-full text-zinc-700 text-[11px]">
+                  Collateral balances — see{" "}
+                  <a href="/portfolio" className="text-blue-400 hover:text-blue-300 underline ml-1">Portfolio</a>
+                </div>
+              )}
             </div>
           </div>
         </div>
