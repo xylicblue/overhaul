@@ -1,5 +1,5 @@
 // Hooks for vAMM contract interactions
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
+import { useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { formatUnits } from 'ethers';
 import { SEPOLIA_CONTRACTS } from '../contracts/addresses';
 import VAMMABI from '../contracts/abis/vAMM.json';
@@ -53,24 +53,56 @@ export function useMarkPrice(vammAddress = SEPOLIA_CONTRACTS.vammProxy, refetchI
  * @param {string} vammAddress - vAMM contract address
  */
 export function useVAMMReserves(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
-  const { data, isLoading, error, refetch } = useReadContract({
-    address: vammAddress,
-    abi: VAMMABI.abi,
-    functionName: 'getReserves',
-    chainId: SEPOLIA_CHAIN_ID,
+  const { data, isLoading, error, refetch } = useReadContracts({
+    contracts: [
+      {
+        address: vammAddress,
+        abi: VAMMABI.abi,
+        functionName: 'getReserves',
+        chainId: SEPOLIA_CHAIN_ID,
+      },
+      {
+        address: vammAddress,
+        abi: VAMMABI.abi,
+        functionName: 'minReserveBase',
+        chainId: SEPOLIA_CHAIN_ID,
+      },
+      {
+        address: vammAddress,
+        abi: VAMMABI.abi,
+        functionName: 'minReserveQuote',
+        chainId: SEPOLIA_CHAIN_ID,
+      },
+      {
+        address: vammAddress,
+        abi: VAMMABI.abi,
+        functionName: 'feeBps',
+        chainId: SEPOLIA_CHAIN_ID,
+      },
+    ],
     query: {
       refetchInterval: 10000,
       enabled: !!vammAddress,
     },
   });
 
-  const [baseReserve, quoteReserve] = data || [];
+  const reserves = data?.[0]?.status === 'success' ? data[0].result : [];
+  const [baseReserve, quoteReserve] = reserves || [];
+  const minReserveBase = data?.[1]?.status === 'success' ? data[1].result : 0n;
+  const minReserveQuote = data?.[2]?.status === 'success' ? data[2].result : 0n;
+  const feeBps = data?.[3]?.status === 'success' ? data[3].result : 0n;
 
   return {
     baseReserve: formatX18(baseReserve),
     quoteReserve: formatX18(quoteReserve),
     baseReserveRaw: baseReserve,
     quoteReserveRaw: quoteReserve,
+    minReserveBase: formatX18(minReserveBase),
+    minReserveQuote: formatX18(minReserveQuote),
+    minReserveBaseRaw: minReserveBase,
+    minReserveQuoteRaw: minReserveQuote,
+    feeBps: feeBps ? Number(feeBps) : 0,
+    feeBpsRaw: feeBps,
     isLoading,
     error,
     refetch,

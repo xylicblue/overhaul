@@ -16,8 +16,12 @@ function valueAt(result, key, index) {
 
 function mergeRegistryMarket(market, registryMarket) {
   const vamm = valueAt(registryMarket, "vamm", 0);
+  const feeBps = valueAt(registryMarket, "feeBps", 1);
   const oracle = valueAt(registryMarket, "oracle", 3);
   const paused = valueAt(registryMarket, "paused", 2);
+  const baseAsset = valueAt(registryMarket, "baseAsset", 6);
+  const quoteToken = valueAt(registryMarket, "quoteToken", 7);
+  const baseUnit = valueAt(registryMarket, "baseUnit", 8);
 
   if (!vamm || !oracle || vamm === ZERO_ADDRESS || oracle === ZERO_ADDRESS) {
     return market;
@@ -29,6 +33,10 @@ function mergeRegistryMarket(market, registryMarket) {
     oracle,
     vammAddress: vamm,
     oracleAddress: oracle,
+    feeBps: feeBps != null ? Number(feeBps) : market.feeBps,
+    baseAssetAddress: baseAsset,
+    quoteToken,
+    baseUnit,
     paused: Boolean(paused),
   };
 }
