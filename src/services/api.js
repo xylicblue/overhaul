@@ -74,7 +74,7 @@ async function callEdgeFunction(functionName, payload, options = {}) {
  * Record pending trade metadata through the api-trade edge function.
  * Canonical PnL, funding, and fees are filled by the event indexer.
  */
-export async function recordTrade({ userAddress, market, side, size, price, notional, txHash, pnl, fundingEarned, feesPaid }, vammData = null) {
+export async function recordTrade({ userAddress, market, side, size, price, notional, txHash }, vammData = null) {
   const tradeData = {
     user_address: userAddress.toLowerCase(),
     market,
@@ -84,9 +84,6 @@ export async function recordTrade({ userAddress, market, side, size, price, noti
     notional,
     tx_hash: txHash,
   };
-  if (pnl !== undefined)           tradeData.pnl            = pnl;
-  if (fundingEarned !== undefined) tradeData.funding_earned  = fundingEarned;
-  if (feesPaid !== undefined)      tradeData.fees_paid       = feesPaid;
   return callEdgeFunction("api-trade", {
     action: "record-trade",
     tradeData,

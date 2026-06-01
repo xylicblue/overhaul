@@ -367,53 +367,21 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
         { id: "close" }
       );
 
-      // Write to position_closes here — card is guaranteed mounted while tx is pending.
-      // By the time isSuccess fires the card may have unmounted (position gone from chain).
+      // Write mark price to vamm_price_history for immediate chart update
+      // while waiting for the canonical indexer to process the close event.
       const submittedClose = submittedCloseRef.current;
-      if (address && submittedClose) {
-        const netPnl =
-          submittedClose.pnl != null &&
-          submittedClose.fundingEarned != null &&
-          submittedClose.feesPaid != null
-            ? submittedClose.pnl + submittedClose.fundingEarned - submittedClose.feesPaid
-            : null;
-
-        (async () => {
-          const { error } = await supabase
-            .from("position_closes")
-            .upsert(
-              {
-                user_address:   address.toLowerCase(),
-                market:         submittedClose.marketDisplayName,
-                side:           submittedClose.isLong ? "Long" : "Short",
-                size:           submittedClose.closedSize,
-                entry_price:    submittedClose.entryPrice,
-                close_price:    submittedClose.closePrice,
-                notional:       submittedClose.closeNotional,
-                pnl:            submittedClose.pnl,
-                funding_earned: submittedClose.fundingEarned,
-                fees_paid:      submittedClose.feesPaid,
-                net_pnl:        netPnl,
-                tx_hash:        hash,
-              },
-              { onConflict: "tx_hash" }
-            );
-          if (error) console.error("[position_closes]", error.message, error.code);
-
-          // Write price to vamm_price_history so the chart updates instantly
-          // rather than waiting for the 60-second indexer snapshot cycle.
-          supabase
-            .from("vamm_price_history")
-            .insert({
-              market:    submittedClose.marketKey,
-              price:     submittedClose.closePrice,
-              twap:      submittedClose.closePrice,
-              timestamp: new Date().toISOString(),
-            })
-            .then(({ error: e }) => {
-              if (e) console.error("[vamm_price_history]", e.message);
-            });
-        })();
+      if (submittedClose) {
+        supabase
+          .from("vamm_price_history")
+          .insert({
+            market:    submittedClose.marketKey,
+            price:     submittedClose.closePrice,
+            twap:      submittedClose.closePrice,
+            timestamp: new Date().toISOString(),
+          })
+          .then(({ error: e }) => {
+            if (e) console.error("[vamm_price_history]", e.message);
+          });
       }
     }
   }, [hash, isConfirming]);
@@ -438,16 +406,13 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
         if (!address || !submittedClose) return;
         await recordTradeWithRetry(
           {
-            userAddress:   address,
-            market:        submittedClose.marketDisplayName,
-            side:          submittedClose.isLong ? "Long" : "Short",
-            size:          submittedClose.closedSize,
-            price:         submittedClose.closePrice,
-            notional:      submittedClose.closeNotional,
-            txHash:        hash,
-            pnl:           submittedClose.pnl,
-            fundingEarned: submittedClose.fundingEarned,
-            feesPaid:      submittedClose.feesPaid,
+            userAddress: address,
+            market:      submittedClose.marketDisplayName,
+            side:        submittedClose.isLong ? "Long" : "Short",
+            size:        submittedClose.closedSize,
+            price:       submittedClose.closePrice,
+            notional:    submittedClose.closeNotional,
+            txHash:      hash,
           },
           {
             market:    submittedClose.marketKey,
@@ -458,6 +423,24 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
         );
       };
       save();
+
+      // Store pending close so portfolio can show an optimistic row immediately
+      if (submittedClose) {
+        try {
+          const stored = JSON.parse(localStorage.getItem("bs_pending_closes") || "[]");
+          stored.push({
+            tx_hash:     hash,
+            market_name: submittedClose.marketDisplayName,
+            side:        submittedClose.isLong ? "Long" : "Short",
+            size:        submittedClose.closedSize,
+            price:       submittedClose.closePrice,
+            timestamp:   Date.now(),
+          });
+          localStorage.setItem("bs_pending_closes", JSON.stringify(stored));
+          window.dispatchEvent(new Event("bs_pending_closes_updated"));
+        } catch {}
+      }
+
       setClosingPosition(null);
       setCloseSize("");
       setShowConfirmModal(false);
@@ -655,9 +638,9 @@ function PositionCard({ position, closingPosition, setClosingPosition, closeSize
       {/* ── P&L breakdown ────────────────────────────────────────────────── */}
       <div className="mx-4 mb-4 flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.015] border border-white/[0.05]">
         {[
-          { label: "Trading P&L", value: `${currentPnL >= 0 ? "+" : ""}$${currentPnL.toFixed(3)}`, cls: currentPnL >= 0 ? "text-emerald-400" : "text-red-400" },
-          { label: "Fees",        value: `-$${feesPaid.toFixed(3)}`,                                 cls: "text-zinc-500"                                         },
-          { label: "Net P&L",     value: `${netPnL >= 0 ? "+" : ""}$${netPnL.toFixed(3)}`,          cls: netPnL >= 0 ? "text-emerald-400 font-bold" : "text-red-400 font-bold" },
+          { label: "Unrealized", value: `${currentPnL >= 0 ? "+" : ""}$${currentPnL.toFixed(3)}`,    cls: currentPnL >= 0 ? "text-emerald-400" : "text-red-400"                      },
+          { label: "Funding",    value: `${fundingEarned >= 0 ? "+" : ""}$${fundingEarned.toFixed(3)}`, cls: fundingEarned >= 0 ? "text-emerald-400/70" : "text-red-400/70"          },
+          { label: "Est. Net",   value: `${netPnL >= 0 ? "+" : ""}$${netPnL.toFixed(3)}`,           cls: netPnL >= 0 ? "text-emerald-400 font-bold" : "text-red-400 font-bold"     },
         ].map(({ label, value, cls }, i) => (
           <React.Fragment key={label}>
             {i > 0 && <div className="w-px h-6 bg-white/[0.06] shrink-0" />}

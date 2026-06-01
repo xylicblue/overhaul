@@ -14,6 +14,12 @@ import PageTransition from "./components/PageTransition";
 import EmptyState from "./components/EmptyState";
 import PnLChart from "./components/PnLChart";
 import {
+  getCanonicalPnlEvents,
+  subscribeToCanonicalPnl,
+  PNL_TYPES_SET,
+  marketDisplayName,
+} from "./services/canonicalPnl";
+import {
   Wallet,
   TrendingUp,
   TrendingDown,
@@ -33,7 +39,19 @@ const fmt  = (n, d = 2) => Number(n).toLocaleString(undefined, { minimumFraction
 const fmt3 = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const mono  = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt(Math.abs(n))}`;
 const mono3 = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt3(Math.abs(n))}`;
-const hasCanonicalAccounting = (trade) => trade?.pnl != null && trade?.fees_paid != null;
+
+const TYPE_STYLES = {
+  open:               "text-blue-400    bg-blue-500/10    border-blue-500/20",
+  increase:           "text-blue-400    bg-blue-500/10    border-blue-500/20",
+  reduce:             "text-yellow-400  bg-yellow-500/10  border-yellow-500/20",
+  close:              "text-red-400     bg-red-500/10     border-red-500/20",
+  flip:               "text-purple-400  bg-purple-500/10  border-purple-500/20",
+  liquidation:        "text-red-400     bg-red-500/10     border-red-500/20",
+  funding_settlement: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  margin_added:       "text-zinc-400    bg-zinc-800       border-zinc-700",
+  margin_removed:     "text-zinc-400    bg-zinc-800       border-zinc-700",
+};
+const typeStyle = (t) => TYPE_STYLES[t] || "text-zinc-400 bg-zinc-800 border-zinc-700";
 
 const SideBadge = ({ isLong }) => (
   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
@@ -53,16 +71,11 @@ const Th = ({ children, right }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PositionRow
+// PositionRow — live unrealized P&L from on-chain reads
 // ─────────────────────────────────────────────────────────────────────────────
 const PositionRow = ({ pos }) => {
   const { price: markPrice } = useMarkPrice(pos.vammAddress);
-  const {
-    longPay,
-    longReceive,
-    shortPay,
-    shortReceive,
-  } = useFundingRate(pos.vammAddress);
+  const { longPay, longReceive, shortPay, shortReceive } = useFundingRate(pos.vammAddress);
 
   const { data: marketConfig } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
@@ -78,22 +91,15 @@ const PositionRow = ({ pos }) => {
   const isLong       = pos.isLong;
   const margin       = parseFloat(pos.margin);
 
-  const tradingPnL = currentPrice > 0
+  const tradingPnL    = currentPrice > 0
     ? isLong ? (currentPrice - entryPrice) * absSize : (entryPrice - currentPrice) * absSize
     : 0;
-
-  const fundingEarned  = calculatePendingFunding(pos, {
-    longPay,
-    longReceive,
-    shortPay,
-    shortReceive,
-  });
-
-  const feeBps       = marketConfig?.feeBps || 10;
-  const openNotional = entryPrice * absSize;
-  const feesPaid     = (openNotional * feeBps) / 10000;
-  const netPnL       = tradingPnL + fundingEarned - feesPaid;
-  const roe          = margin > 0 ? (netPnL / margin) * 100 : 0;
+  const fundingEarned = calculatePendingFunding(pos, { longPay, longReceive, shortPay, shortReceive });
+  const feeBps        = marketConfig?.feeBps || 10;
+  const openNotional  = entryPrice * absSize;
+  const feesPaid      = (openNotional * feeBps) / 10000;
+  const netPnL        = tradingPnL + fundingEarned - feesPaid;
+  const roe           = margin > 0 ? (netPnL / margin) * 100 : 0;
 
   return (
     <tr className="hover:bg-zinc-800/20 transition-colors group">
@@ -121,13 +127,13 @@ const PositionRow = ({ pos }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StatBar — top header strip
+// StatBar
 // ─────────────────────────────────────────────────────────────────────────────
 const StatBar = ({ username, totalCollateral, realizedPnL, availableMargin, buyingPower, positionCount }) => {
   const stats = [
-    { label: "Total Collateral",  value: `$${fmt(totalCollateral)}`,  icon: <ShieldCheck size={12} />,  sub: null },
-    { label: "Available Margin",  value: `$${fmt(availableMargin)}`,  icon: <Banknote size={12} />,     sub: null },
-    { label: "Order Collateral",  value: `$${fmt(buyingPower)}`,      icon: <Zap size={12} />,          sub: "Max size uses IMR + fees" },
+    { label: "Total Collateral", value: `$${fmt(totalCollateral)}`, icon: <ShieldCheck size={12} />, sub: null },
+    { label: "Available Margin", value: `$${fmt(availableMargin)}`, icon: <Banknote size={12} />,    sub: null },
+    { label: "Order Collateral", value: `$${fmt(buyingPower)}`,     icon: <Zap size={12} />,         sub: "Max size uses IMR + fees" },
     {
       label: "Realized P&L",
       value: mono(realizedPnL, true),
@@ -135,26 +141,20 @@ const StatBar = ({ username, totalCollateral, realizedPnL, availableMargin, buyi
       valueClass: realizedPnL >= 0 ? "text-emerald-400" : "text-red-400",
       sub: null,
     },
-    { label: "Open Positions",    value: positionCount,               icon: <Activity size={12} />,     sub: null },
+    { label: "Open Positions", value: positionCount, icon: <Activity size={12} />, sub: null },
   ];
 
   return (
     <div className="mb-8">
-      {/* Greeting */}
       <div className="mb-5">
         <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-1">Portfolio</p>
         <h1 className="text-2xl font-bold text-white tracking-tight">
           {username ? username.toUpperCase() : "TRADER"}
         </h1>
       </div>
-
-      {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
         {stats.map(({ label, value, icon, sub, valueClass }) => (
-          <div
-            key={label}
-            className="relative bg-[#0a0a10] border border-zinc-800/80 rounded-xl p-4 overflow-hidden"
-          >
+          <div key={label} className="relative bg-[#0a0a10] border border-zinc-800/80 rounded-xl p-4 overflow-hidden">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-700/50 to-transparent" />
             <div className="flex items-center gap-1.5 text-zinc-600 mb-2">
               {icon}
@@ -175,16 +175,14 @@ const StatBar = ({ username, totalCollateral, realizedPnL, availableMargin, buyi
 const Tabs = ({ active, setActive }) => (
   <div className="flex gap-0 bg-[#0a0a10] border border-zinc-800/80 rounded-lg p-1 w-fit mb-4">
     {[
-      { id: "positions", icon: <LayoutList size={12} />,     label: "Open Positions"  },
-      { id: "trades",    icon: <ArrowLeftRight size={12} />, label: "Trade History"   },
+      { id: "positions", icon: <LayoutList size={12} />,     label: "Open Positions" },
+      { id: "trades",    icon: <ArrowLeftRight size={12} />, label: "Trade History"  },
     ].map(({ id, icon, label }) => (
       <button
         key={id}
         onClick={() => setActive(id)}
         className={`flex items-center gap-1.5 px-3.5 py-2 rounded-md text-[11px] font-bold transition-all ${
-          active === id
-            ? "bg-zinc-800 text-white"
-            : "text-zinc-500 hover:text-zinc-300"
+          active === id ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
         }`}
       >
         {icon}{label}
@@ -193,20 +191,13 @@ const Tabs = ({ active, setActive }) => (
   </div>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TableWrap
-// ─────────────────────────────────────────────────────────────────────────────
 const TableWrap = ({ children }) => (
-  <div className="bg-[#0a0a10] border border-zinc-800/80 rounded-xl overflow-hidden">
-    {children}
-  </div>
+  <div className="bg-[#0a0a10] border border-zinc-800/80 rounded-xl overflow-hidden">{children}</div>
 );
 
 const TableHead = ({ children }) => (
   <thead>
-    <tr className="border-b border-zinc-800/80 bg-zinc-900/30">
-      {children}
-    </tr>
+    <tr className="border-b border-zinc-800/80 bg-zinc-900/30">{children}</tr>
   </thead>
 );
 
@@ -214,18 +205,18 @@ const TableHead = ({ children }) => (
 // PortfolioPage
 // ─────────────────────────────────────────────────────────────────────────────
 const PortfolioPage = () => {
-  const [session, setSession]               = useState(null);
-  const [profile, setProfile]               = useState(null);
-  const [activeTab, setActiveTab]           = useState("positions");
-  const [tradeHistory, setTradeHistory]     = useState([]);
-  const [closeHistory, setCloseHistory]     = useState([]);
-  const [tradesLoading, setTradesLoading]   = useState(false);
-  const [timeFilter, setTimeFilter]         = useState("all");
+  const [session, setSession]                 = useState(null);
+  const [profile, setProfile]                 = useState(null);
+  const [activeTab, setActiveTab]             = useState("positions");
+  const [canonicalEvents, setCanonicalEvents] = useState([]);
+  const [eventsLoading, setEventsLoading]     = useState(false);
+  const [timeFilter, setTimeFilter]           = useState("all");
+  const [pendingCloses, setPendingCloses]     = useState([]);
 
-  const { address, isConnected }            = useAccount();
-  const { positions, isLoading: posLoading }= useAllPositions();
-  const { accountValue }                    = useAccountValue();
-  const { totalCollateralValue }            = useVaultBalance();
+  const { address, isConnected }             = useAccount();
+  const { positions, isLoading: posLoading } = useAllPositions();
+  const { accountValue }                     = useAccountValue();
+  const { totalCollateralValue }             = useVaultBalance();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -240,58 +231,83 @@ const PortfolioPage = () => {
     }
   }, [session]);
 
+  // Fetch canonical events once wallet connects
   useEffect(() => {
     if (!address) return;
-    setTradesLoading(true);
-    supabase.from("trade_history").select("*")
-      .eq("user_address", address.toLowerCase())
-      .order("created_at", { ascending: false })
-      .then(({ data }) => { setTradeHistory(data || []); setTradesLoading(false); })
-      .catch(() => setTradesLoading(false));
+    setEventsLoading(true);
+    getCanonicalPnlEvents(address)
+      .then(data => { setCanonicalEvents(data); setEventsLoading(false); })
+      .catch(() => setEventsLoading(false));
   }, [address]);
 
+  // Read pending closes from localStorage, drop any older than 10 minutes.
+  // Also re-reads whenever PositionPanel fires the custom event after a close confirms.
   useEffect(() => {
     if (!address) return;
-    supabase.from("position_closes").select("*")
-      .eq("user_address", address.toLowerCase())
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setCloseHistory(data || []))
-      .catch(() => {});
+
+    const readPending = () => {
+      try {
+        const MAX_AGE = 10 * 60 * 1000;
+        const stored  = JSON.parse(localStorage.getItem("bs_pending_closes") || "[]");
+        const fresh   = stored.filter(p => p.tx_hash && Date.now() - p.timestamp < MAX_AGE);
+        if (fresh.length !== stored.length) {
+          localStorage.setItem("bs_pending_closes", JSON.stringify(fresh));
+        }
+        setPendingCloses(fresh);
+      } catch {
+        setPendingCloses([]);
+      }
+    };
+
+    readPending();
+    window.addEventListener("bs_pending_closes_updated", readPending);
+    return () => window.removeEventListener("bs_pending_closes_updated", readPending);
   }, [address]);
 
-  // Merge trade_history + position_closes, deduplicating by tx_hash.
-  // position_closes wins when both exist (it has immediate UI-computed P&L).
-  const mergedTrades = useMemo(() => {
-    const map = new Map();
-    tradeHistory.forEach(t => map.set(t.tx_hash, t));
-    closeHistory.forEach(c => {
-      map.set(c.tx_hash, {
-        ...map.get(c.tx_hash),
-        ...c,
-        price:          c.close_price ?? c.price,
-        pnl:            c.pnl,
-        funding_earned: c.funding_earned,
-        fees_paid:      c.fees_paid,
-        created_at:     c.created_at,
+  // Realtime: prepend new canonical rows and clear matching pending close
+  useEffect(() => {
+    if (!address) return;
+    const unsub = subscribeToCanonicalPnl(address, (newRow) => {
+      setCanonicalEvents(prev => [newRow, ...prev]);
+      setPendingCloses(prev => {
+        const next = prev.filter(p => p.tx_hash !== newRow.tx_hash);
+        try {
+          const stored = JSON.parse(localStorage.getItem("bs_pending_closes") || "[]");
+          localStorage.setItem("bs_pending_closes",
+            JSON.stringify(stored.filter(p => p.tx_hash !== newRow.tx_hash))
+          );
+        } catch {}
+        return next;
       });
     });
-    return Array.from(map.values()).sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    );
-  }, [tradeHistory, closeHistory]);
+    return unsub;
+  }, [address]);
 
-  const availableMargin  = parseFloat(accountValue) || 0;
-  const totalCollateral  = parseFloat(totalCollateralValue) || 0;
-  const buyingPower      = availableMargin;
-  const realizedPnL      = mergedTrades
-    .filter(t => t.pnl != null)
-    .reduce((s, t) => s + parseFloat(t.pnl || 0), 0);
+  const availableMargin = parseFloat(accountValue) || 0;
+  const totalCollateral = parseFloat(totalCollateralValue) || 0;
+  const buyingPower     = availableMargin;
 
-  const filteredTrades = mergedTrades.filter((t) => {
-    if (timeFilter === "all") return true;
+  // Realized P&L = sum of net_pnl for PnL-impacting rows only
+  const realizedPnL = useMemo(() =>
+    canonicalEvents
+      .filter(row => PNL_TYPES_SET.has(row.accounting_type))
+      .reduce((sum, row) => sum + Number(row.net_pnl || 0), 0),
+    [canonicalEvents]
+  );
+
+  const filteredEvents = useMemo(() => {
+    if (timeFilter === "all") return canonicalEvents;
     const ms = { "24h": 864e5, "7d": 6048e5, "30d": 2592e6 }[timeFilter];
-    return ms ? Date.now() - new Date(t.created_at) <= ms : true;
-  });
+    return canonicalEvents.filter(row =>
+      ms ? Date.now() - new Date(row.block_timestamp) <= ms : true
+    );
+  }, [canonicalEvents, timeFilter]);
+
+  // Only show pending closes that don't already have a canonical row
+  const visiblePending = useMemo(() => {
+    const canonicalHashes = new Set(canonicalEvents.map(e => e.tx_hash));
+    return pendingCloses.filter(p => !canonicalHashes.has(p.tx_hash));
+  }, [pendingCloses, canonicalEvents]);
 
   if (!isConnected) {
     return (
@@ -320,10 +336,9 @@ const PortfolioPage = () => {
           positionCount={positions?.length ?? 0}
         />
 
-        {/* PnL Chart */}
-        {tradeHistory.length > 0 && (
+        {canonicalEvents.length > 0 && (
           <div className="mb-6">
-            <PnLChart tradeHistory={mergedTrades} />
+            <PnLChart canonicalEvents={canonicalEvents} />
           </div>
         )}
 
@@ -363,16 +378,15 @@ const PortfolioPage = () => {
         {/* ── Trade History ────────────────────────────────────────────── */}
         {activeTab === "trades" && (
           <TableWrap>
-            {tradesLoading ? (
+            {eventsLoading ? (
               <div className="py-16 flex flex-col items-center gap-2 text-zinc-600">
                 <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
                 <span className="text-xs">Loading history…</span>
               </div>
-            ) : !tradeHistory.length ? (
+            ) : !canonicalEvents.length && !visiblePending.length ? (
               <EmptyState type="trades" title="No Trade History" description="Your trade history will appear here after your first trade." actionLabel="Start Trading" actionHref="/trade" tips={[]} />
             ) : (
               <>
-                {/* Time filters */}
                 <div className="flex items-center gap-1.5 px-4 py-3 border-b border-zinc-800/60">
                   {[
                     { id: "all", label: "All" },
@@ -392,7 +406,7 @@ const PortfolioPage = () => {
                       {label}
                     </button>
                   ))}
-                  <span className="ml-auto text-[10px] text-zinc-700 font-mono">{filteredTrades.length} trades</span>
+                  <span className="ml-auto text-[10px] text-zinc-700 font-mono">{filteredEvents.length} events</span>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -400,65 +414,117 @@ const PortfolioPage = () => {
                     <TableHead>
                       <Th>Date</Th>
                       <Th>Market</Th>
+                      <Th>Type</Th>
                       <Th>Side</Th>
                       <Th right>Size</Th>
                       <Th right>Price</Th>
-                      <Th right>P&L</Th>
+                      <Th right>Realized P&L</Th>
                       <Th right>Funding</Th>
-                      <Th right>Fees</Th>
+                      <Th right>Fee</Th>
+                      <Th right>Net P&L</Th>
                       <Th right>Tx</Th>
                     </TableHead>
                     <tbody className="divide-y divide-zinc-800/40">
-                      {filteredTrades.map((trade, i) => {
-                        const isCanonical = hasCanonicalAccounting(trade);
-                        const pnl     = isCanonical ? parseFloat(trade.pnl) : null;
-                        const funding = isCanonical && trade.funding_earned != null ? parseFloat(trade.funding_earned) : null;
-                        const fees    = isCanonical ? parseFloat(trade.fees_paid) : null;
+                      {/* Pending indexer rows — show immediately after close confirms */}
+                      {visiblePending.map(pending => (
+                        <tr key={`pending-${pending.tx_hash}`} className="hover:bg-zinc-800/20 transition-colors">
+                          <td className="px-4 py-3 text-[10px] font-mono text-zinc-600 whitespace-nowrap">Just now</td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs font-bold text-white">{pending.market_name?.replace(/-PERP.*/, "") || "—"}</span>
+                            {pending.market_name?.includes("PERP") && <span className="text-[10px] text-zinc-600 ml-1">PERP</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border text-blue-400 bg-blue-500/10 border-blue-500/20">
+                              <span className="w-2 h-2 rounded-full border border-blue-400 border-t-transparent animate-spin inline-block" />
+                              indexing
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {pending.side ? <SideBadge isLong={pending.side === "Long"} /> : <span className="text-zinc-700 text-xs">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+                            {pending.size != null ? Number(pending.size).toFixed(4) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+                            {pending.price != null ? `$${Number(pending.price).toFixed(2)}` : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-700">—</td>
+                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-700">·</td>
+                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-700">·</td>
+                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-500 italic text-[10px]">Indexing…</td>
+                          <td className="px-4 py-3 text-right">
+                            {pending.tx_hash ? (
+                              <a href={`https://sepolia.etherscan.io/tx/${pending.tx_hash}`} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] font-mono text-blue-400 hover:text-blue-300 transition-colors">
+                                {pending.tx_hash.slice(0, 6)}…{pending.tx_hash.slice(-4)}
+                                <ExternalLink size={9} />
+                              </a>
+                            ) : "·"}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredEvents.map((row, i) => {
+                        const isPnlRow = PNL_TYPES_SET.has(row.accounting_type);
+                        const netPnl   = Number(row.net_pnl        || 0);
+                        const realPnl  = Number(row.realized_pnl   || 0);
+                        const funding  = Number(row.funding_payment || 0);
+                        const fee      = Number(row.fee             || 0);
+                        const size     = row.closed_size ?? row.size_delta;
+                        const price    = row.execution_price ?? row.exit_price;
+                        const name     = marketDisplayName(row);
 
                         return (
-                          <tr key={trade.id || i} className="hover:bg-zinc-800/20 transition-colors">
+                          <tr key={row.id || i} className="hover:bg-zinc-800/20 transition-colors">
                             <td className="px-4 py-3 text-[10px] font-mono text-zinc-600 whitespace-nowrap">
-                              {new Date(trade.created_at).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" })}
+                              {new Date(row.block_timestamp).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" })}
                             </td>
                             <td className="px-4 py-3">
-                              <span className="text-xs font-bold text-white">{trade.market?.replace("-PERP", "")}</span>
-                              <span className="text-[10px] text-zinc-600 ml-1">PERP</span>
+                              <span className="text-xs font-bold text-white">{name.replace(/-PERP.*/, "")}</span>
+                              {name.includes("PERP") && <span className="text-[10px] text-zinc-600 ml-1">PERP</span>}
                             </td>
                             <td className="px-4 py-3">
-                              <SideBadge isLong={trade.side === "Long"} />
+                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${typeStyle(row.accounting_type)}`}>
+                                {row.accounting_type?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {row.side
+                                ? <SideBadge isLong={row.side === "Long"} />
+                                : <span className="text-zinc-700 text-xs">—</span>}
                             </td>
                             <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
-                              {(parseFloat(trade.size) || 0).toFixed(4)}
+                              {size != null ? Number(size).toFixed(4) : "—"}
                             </td>
                             <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
-                              {trade.price != null && !isNaN(parseFloat(trade.price))
-                                ? `$${parseFloat(trade.price).toFixed(2)}`
-                                : "—"}
+                              {price != null ? `$${Number(price).toFixed(2)}` : "—"}
                             </td>
                             <td className={`px-4 py-3 text-right font-mono text-xs font-bold ${
-                              pnl == null ? "" : pnl >= 0 ? "text-emerald-400" : "text-red-400"
+                              !isPnlRow ? "text-zinc-700" : realPnl >= 0 ? "text-emerald-400" : "text-red-400"
                             }`}>
-                              {pnl != null ? mono3(pnl, true) : (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-zinc-800 text-zinc-500 rounded">PENDING</span>
-                              )}
+                              {isPnlRow ? mono3(realPnl, true) : "—"}
                             </td>
                             <td className={`px-4 py-3 text-right font-mono text-xs ${
-                              funding == null ? "text-zinc-700" : funding >= 0 ? "text-emerald-400" : "text-red-400"
+                              funding === 0 ? "text-zinc-700" : funding > 0 ? "text-emerald-400" : "text-red-400"
                             }`}>
-                              {funding != null ? mono3(funding, true) : "·"}
+                              {funding !== 0 ? mono3(funding, true) : "·"}
                             </td>
-                            <td className={`px-4 py-3 text-right font-mono text-xs ${fees != null ? "text-red-400" : "text-zinc-700"}`}>
-                              {fees != null ? `-$${fmt3(fees)}` : "·"}
+                            <td className={`px-4 py-3 text-right font-mono text-xs ${fee > 0 ? "text-red-400" : "text-zinc-700"}`}>
+                              {fee > 0 ? `-$${fmt3(fee)}` : "·"}
+                            </td>
+                            <td className={`px-4 py-3 text-right font-mono text-xs font-bold ${
+                              netPnl === 0 ? "text-zinc-600" : netPnl > 0 ? "text-emerald-400" : "text-red-400"
+                            }`}>
+                              {mono3(netPnl, true)}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {trade.tx_hash ? (
+                              {row.tx_hash ? (
                                 <a
-                                  href={`https://sepolia.etherscan.io/tx/${trade.tx_hash}`}
+                                  href={`https://sepolia.etherscan.io/tx/${row.tx_hash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-[10px] font-mono text-blue-400 hover:text-blue-300 transition-colors"
                                 >
-                                  {trade.tx_hash.slice(0, 6)}…{trade.tx_hash.slice(-4)}
+                                  {row.tx_hash.slice(0, 6)}…{row.tx_hash.slice(-4)}
                                   <ExternalLink size={9} />
                                 </a>
                               ) : "·"}
