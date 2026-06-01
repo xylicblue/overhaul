@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTradingStore } from "./stores/useTradingStore";
 import ReactDOM from "react-dom";
 import { toast } from "react-hot-toast";
@@ -8,6 +8,7 @@ import { recordTradeWithRetry } from "./services/tradeQueue";
 import { useMarketRealTimeData } from "./marketData";
 import {
   useOpenPosition,
+  useAllPositions,
   usePosition,
   useMarketRiskParams,
   useReservedMarginForQuoteToken,
@@ -18,6 +19,7 @@ import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
 import CollateralVaultABI from "./contracts/abis/CollateralVault.json";
 import { Info, ShieldCheck } from "lucide-react";
 import { formatTransactionError, getSepoliaTxUrl } from "./utils/transactionErrors";
+import { diagnoseOpenPositionError, diagnoseFundingBlocker } from "./utils/tradeFailureDiagnosis";
 import {
   buildOpenOrderPreview,
   findMaxOpenSize,
@@ -139,6 +141,7 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   const {
     openPosition,
+    simulateOpenPosition,
     isPending,
     isConfirming,
     isSuccess,
@@ -147,6 +150,10 @@ export const TradingPanel = ({ selectedMarket }) => {
     hash,
     reset: resetTrade,
   } = useOpenPosition(marketId);
+
+  const { positions: allPositions } = useAllPositions();
+  const [preflightError, setPreflightError] = useState(null);
+  const [isSimulating,   setIsSimulating]   = useState(false);
 
   const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
@@ -301,11 +308,16 @@ export const TradingPanel = ({ selectedMarket }) => {
     }
   }, [isSuccess, hash, lastTxHash, address, resetTrade, setLastTx, resetOrder]);
 
-  // ── Trade error ───────────────────────────────────────────────────────────
+  // ── Clear preflight error when the user changes inputs ───────────────────
+  useEffect(() => { setPreflightError(null); }, [size, side, priceLimit]);
+
+  // ── Trade error (post-wallet fallback) ────────────────────────────────────
   useEffect(() => {
     const failure = tradeError || receiptError;
     if (failure) {
-      toast.error(formatTransactionError(failure, { action: "open" }), { id: "trade" });
+      const diag = diagnoseOpenPositionError(failure, { marketName: market?.displayName || market?.name });
+      setPreflightError(diag);
+      toast.error(diag.message, { id: "trade" });
       resetTrade();
     }
   }, [tradeError, receiptError, resetTrade]);
@@ -316,8 +328,38 @@ export const TradingPanel = ({ selectedMarket }) => {
   if (error || !market) return <div className="flex items-center justify-center h-full text-red-500 text-xs">Error loading market</div>;
 
   const handleTrade = async () => {
+    setPreflightError(null);
+
+    // ── 1. Local preview check ──────────────────────────────────────────────
     if (!size || sizeNum <= 0) return toast.error("Please enter a valid size");
-    if (!preview.ok) return toast.error(invalidReason || "Order is not executable");
+    if (!preview.ok) {
+      const diag = { severity: "error", title: "Order Invalid", message: invalidReason || "Order is not executable." };
+      setPreflightError(diag);
+      return toast.error(diag.message, { id: "trade" });
+    }
+
+    // ── 2. Funding / liquidation scan across active positions ───────────────
+    const blocker = diagnoseFundingBlocker(allPositions || []);
+    if (blocker) {
+      setPreflightError(blocker);
+      toast.error(blocker.message, { id: "trade" });
+      return;
+    }
+
+    // ── 3. Simulate via eth_call before opening wallet ──────────────────────
+    setIsSimulating(true);
+    try {
+      await simulateOpenPosition(isLong, size, amountLimit);
+    } catch (simErr) {
+      const diag = diagnoseOpenPositionError(simErr, { marketName: market.displayName || market.name });
+      setPreflightError(diag);
+      toast.error(diag.message, { id: "trade" });
+      setIsSimulating(false);
+      return;
+    }
+    setIsSimulating(false);
+
+    // ── 4. Simulation passed — open wallet ──────────────────────────────────
     try {
       submittedOpenOrderRef.current = {
         sideLabel: isLong ? "Long" : "Short",
@@ -335,7 +377,9 @@ export const TradingPanel = ({ selectedMarket }) => {
       toast.loading("Review order transaction in wallet...", { id: "trade" });
       openPosition(isLong, size, amountLimit);
     } catch (err) {
-      toast.error(formatTransactionError(err, { action: "open" }), { id: "trade" });
+      const diag = diagnoseOpenPositionError(err, { marketName: market.name });
+      setPreflightError(diag);
+      toast.error(diag.message, { id: "trade" });
     }
   };
 
@@ -566,11 +610,28 @@ export const TradingPanel = ({ selectedMarket }) => {
             valueClass="text-yellow-400"
             tooltip={{ title: "Liquidation Price", desc: "Price level where margin approaches maintenance requirements using current order and risk inputs." }}
           />
-          {isOverMax && (
-            <div className="mt-2 rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 text-[11px] text-red-300">
-              {invalidReason || "Order is not executable."}
-            </div>
-          )}
+          {/* Inline preflight error — shown for local, simulation, and position blockers */}
+          {(isOverMax || preflightError) && (() => {
+            const diag = preflightError || { severity: "error", message: invalidReason || "Order is not executable." };
+            const isWarning = diag.severity === "warning";
+            return (
+              <div className={`mt-2 rounded-md border px-3 py-2 text-[11px] leading-4 ${
+                isWarning
+                  ? "border-yellow-500/20 bg-yellow-500/[0.06] text-yellow-300"
+                  : "border-red-500/20 bg-red-500/[0.06] text-red-300"
+              }`}>
+                {diag.title && (
+                  <div className="font-semibold mb-0.5">{diag.title}</div>
+                )}
+                <div>{diag.message}</div>
+                {diag.actionLabel && diag.actionHref && (
+                  <a href={diag.actionHref} className="mt-1 inline-block underline opacity-80 hover:opacity-100">
+                    {diag.actionLabel} →
+                  </a>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Risk parameters — low-priority info, integrated */}
@@ -614,9 +675,14 @@ export const TradingPanel = ({ selectedMarket }) => {
               : "bg-red-500 hover:bg-red-400"
           }`}
           onClick={handleTrade}
-          disabled={isPending || !size || sizeNum <= 0 || !preview.ok}
+          disabled={isPending || isSimulating || !size || sizeNum <= 0 || !preview.ok}
         >
-          {isPending ? (
+          {isSimulating ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Checking…
+            </>
+          ) : isPending ? (
             <>
               <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Processing

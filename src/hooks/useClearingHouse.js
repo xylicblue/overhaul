@@ -5,6 +5,7 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useAccount,
+  usePublicClient,
 } from "wagmi";
 import { parseUnits, formatUnits } from "ethers";
 import {
@@ -205,6 +206,9 @@ export function useAccountValue(userAddress = null) {
  * @param {string} marketId - Market ID
  */
 export function useOpenPosition(marketId) {
+  const { address }    = useAccount();
+  const publicClient   = usePublicClient({ chainId: SEPOLIA_CHAIN_ID });
+
   const {
     writeContract,
     data: hash,
@@ -217,15 +221,11 @@ export function useOpenPosition(marketId) {
     isSuccess,
     isError: isReceiptError,
     error: receiptError,
-  } = useWaitForTransactionReceipt({
-    hash,
-  });
+  } = useWaitForTransactionReceipt({ hash });
 
   const openPosition = (isLong, size, amountLimit = 0) => {
-    const sizeWei = parseUnits(size.toString(), 18);
-    const amountLimitWei =
-      typeof amountLimit === "bigint" ? amountLimit : parseUnits(amountLimit.toString(), 18);
-
+    const sizeWei        = parseUnits(size.toString(), 18);
+    const amountLimitWei = typeof amountLimit === "bigint" ? amountLimit : parseUnits(amountLimit.toString(), 18);
     writeContract({
       address: SEPOLIA_CONTRACTS.clearingHouse,
       abi: ClearingHouseABI.abi,
@@ -235,8 +235,25 @@ export function useOpenPosition(marketId) {
     });
   };
 
+  // Dry-run via eth_call before sending to wallet. Throws if the contract
+  // would revert, letting the caller decode the error without a real tx.
+  const simulateOpenPosition = async (isLong, size, amountLimit = 0n) => {
+    if (!address)      throw new Error("Wallet not connected");
+    if (!publicClient) throw new Error("RPC client unavailable");
+    const sizeWei        = parseUnits(size.toString(), 18);
+    const amountLimitWei = typeof amountLimit === "bigint" ? amountLimit : BigInt(0);
+    return publicClient.simulateContract({
+      address: SEPOLIA_CONTRACTS.clearingHouse,
+      abi:     ClearingHouseABI.abi,
+      functionName: "openPosition",
+      args:    [marketId, isLong, sizeWei, amountLimitWei],
+      account: address,
+    });
+  };
+
   return {
     openPosition,
+    simulateOpenPosition,
     isPending: isPending || isConfirming,
     isWalletPending: isPending,
     isConfirming,
