@@ -50,7 +50,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
 
   // ── Resizable panel state (desktop only) ──────────────────────────────────
   const [orderPanelWidth, setOrderPanelWidth] = useState(340);
-  const [positionsHeight, setPositionsHeight] = useState(300);
+  const [positionsHeight, setPositionsHeight] = useState(420);
   const [isResizingPos,   setIsResizingPos]   = useState(false);
   const [isResizingOrder, setIsResizingOrder] = useState(false);
 
