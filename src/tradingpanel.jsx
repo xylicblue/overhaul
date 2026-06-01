@@ -1,28 +1,32 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useTradingStore } from "./stores/useTradingStore";
 import ReactDOM from "react-dom";
 import { toast } from "react-hot-toast";
 import { useAccount, useReadContract } from "wagmi";
-import { supabase } from "./creatclient";
+import { parseUnits } from "ethers";
 import { recordTradeWithRetry } from "./services/tradeQueue";
 import { useMarketRealTimeData } from "./marketData";
 import {
   useOpenPosition,
-  useAccountValue,
+  usePosition,
   useMarketRiskParams,
-  useVaultBalance,
+  useReservedMarginForQuoteToken,
 } from "./hooks/useClearingHouse";
+import { useVAMMReserves } from "./hooks/useVAMM";
 import { MARKET_IDS, SEPOLIA_CONTRACTS } from "./contracts/addresses";
 import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
+import CollateralVaultABI from "./contracts/abis/CollateralVault.json";
 import { Info, ShieldCheck } from "lucide-react";
 import { formatTransactionError, getSepoliaTxUrl } from "./utils/transactionErrors";
+import {
+  buildOpenOrderPreview,
+  findMaxOpenSize,
+  formatX18Number,
+  toNumberX18,
+} from "./utils/orderPreview";
 
-const BPS_DENOMINATOR = 10000;
-const DEFAULT_IMR_BPS = 1000;
-const DEFAULT_MMR_BPS = 500;
 const DEFAULT_FEE_BPS = 10;
-const ORDER_HEADROOM_BPS = 100;
-const PRICE_IMPACT_BUFFER_BPS = 50;
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const toNumber = (value) => {
   if (typeof value === "string") {
@@ -33,6 +37,19 @@ const toNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const parseX18Input = (value) => {
+  try {
+    if (value === undefined || value === null || value === "") return 0n;
+    return parseUnits(value.toString(), 18);
+  } catch {
+    return 0n;
+  }
+};
+
+const formatUsd = (value, digits = 2) => `$${formatX18Number(value, digits)}`;
+
+const valueAt = (result, key, index) => result?.[key] ?? result?.[index];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Info Tooltip
@@ -105,11 +122,8 @@ export const TradingPanel = ({ selectedMarket }) => {
           setSide, setSize, setPriceLimit,
           resetOrder, setLastTx } = useTradingStore();
   const { address }               = useAccount();
-  const [leverage, setLeverage]   = useState(5);
 
   const marketId                 = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
-  const { accountValue, accountValueRaw } = useAccountValue();
-  const { totalCollateralValue } = useVaultBalance();
   const { riskParams }           = useMarketRiskParams(marketId);
   const { data: marketConfig }   = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
@@ -136,75 +150,101 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
+  const { position } = usePosition(marketId, address);
+  const vammAddress = selectedMarket?.vammAddress || selectedMarket?.vamm || market?.vammAddress;
+  const reserves = useVAMMReserves(vammAddress);
+  const quoteToken = valueAt(marketConfig, "quoteToken", 7) || SEPOLIA_CONTRACTS.mockUSDC;
+  const quoteTokenEnabled = !!address && !!quoteToken && quoteToken !== ZERO_ADDRESS;
+  const { reservedMarginRaw } = useReservedMarginForQuoteToken(quoteToken, address);
+  const { data: quoteBalanceRaw } = useReadContract({
+    address: SEPOLIA_CONTRACTS.collateralVault,
+    abi: CollateralVaultABI.abi,
+    functionName: "balanceOf",
+    args: [address, quoteToken],
+    chainId: 11155111,
+    query: {
+      enabled: quoteTokenEnabled,
+      refetchInterval: 5000,
+    },
+  });
+  const { data: quoteValueRaw } = useReadContract({
+    address: SEPOLIA_CONTRACTS.collateralVault,
+    abi: CollateralVaultABI.abi,
+    functionName: "getTokenValueX18",
+    args: [quoteToken, quoteBalanceRaw || 0n],
+    chainId: 11155111,
+    query: {
+      enabled: quoteTokenEnabled && quoteBalanceRaw !== undefined,
+      refetchInterval: 5000,
+    },
+  });
 
   const isLong = side === "Buy";
   const submittedOpenOrderRef = useRef(null);
 
   // ── Calculations (memoised — only rerun when inputs actually change) ───────
   const {
-    effectiveBalance, currentPrice, marketPrice,
-    maxSize, sizeNum, notionalValue, fees, marginRequired, collateralRequired,
-    derivedLeverage, riskPrice, feeBps, liqPrice, isOverMax,
+    effectiveBalance, currentPrice, marketPrice, executionPrice,
+    maxSize, sizeNum, notionalValue,
+    derivedLeverage, riskPrice, feeBps, liqPrice, isOverMax, invalidReason,
+    preview, amountLimit,
   } = useMemo(() => {
-    const accountValueNum = toNumber(accountValue);
-    const vaultBalanceNum = toNumber(totalCollateralValue);
-    const hasAccountValue = accountValueRaw !== undefined && accountValueRaw !== null;
-    const effectiveBalance = hasAccountValue
-      ? Math.max(accountValueNum, 0)
-      : Math.max(vaultBalanceNum, 0);
-
+    const quoteFreeCollateralRaw = quoteValueRaw && quoteValueRaw > reservedMarginRaw
+      ? quoteValueRaw - reservedMarginRaw
+      : 0n;
+    const effectiveBalance = toNumberX18(quoteFreeCollateralRaw);
     const currentPrice  = toNumber(market?.markPriceRaw);
     const indexPrice    = toNumber(market?.oraclePriceRaw);
-    const marketPrice   = toNumber(market?.price) || currentPrice || indexPrice;
-    const limitPrice    = toNumber(priceLimit);
-    const executionPrice = limitPrice > 0 ? limitPrice : marketPrice;
-    const riskPrice     = Math.max(currentPrice, indexPrice, executionPrice);
-    const imrBps        = Number(riskParams?.imrBps || DEFAULT_IMR_BPS);
-    const mmrBps        = Number(riskParams?.mmrBps || DEFAULT_MMR_BPS);
-    const feeBps        = Number(marketConfig?.feeBps ?? marketConfig?.[1] ?? selectedMarket?.feeBps ?? market?.feeBps ?? DEFAULT_FEE_BPS);
-    const executionBuffer = 1 + PRICE_IMPACT_BUFFER_BPS / BPS_DENOMINATOR;
-    const marginRiskPrice = riskPrice * executionBuffer;
-    const availableForOrder = effectiveBalance * (1 - ORDER_HEADROOM_BPS / BPS_DENOMINATOR);
-    const marginPerUnit = marginRiskPrice * imrBps / BPS_DENOMINATOR;
-    const feePerUnit = executionPrice * feeBps / BPS_DENOMINATOR * executionBuffer;
-    const maxSize = marginPerUnit + feePerUnit > 0
-      ? availableForOrder / (marginPerUnit + feePerUnit)
-      : 0;
-
-    const sizeNum = toNumber(size);
-    const notionalValue = sizeNum * executionPrice;
-    const riskNotional = sizeNum * marginRiskPrice;
-    const fees = notionalValue * feeBps / BPS_DENOMINATOR * executionBuffer;
-    const marginRequired = riskNotional * imrBps / BPS_DENOMINATOR;
-    const collateralRequired = marginRequired + fees;
-    const derivedLeverage = marginRequired > 0 ? notionalValue / marginRequired : 0;
-    const maintenanceMargin = riskNotional * mmrBps / BPS_DENOMINATOR;
-    const liqPrice = executionPrice > 0 && sizeNum > 0
-      ? isLong
-        ? (executionPrice - (marginRequired - maintenanceMargin) / sizeNum).toFixed(2)
-        : (executionPrice + (marginRequired - maintenanceMargin) / sizeNum).toFixed(2)
-      : "—";
-    const isOverMax = sizeNum > 0 && (sizeNum > maxSize || collateralRequired > effectiveBalance);
+    const marketPrice   = currentPrice || indexPrice || toNumber(market?.price);
+    const sizeX18 = parseX18Input(size);
+    const limitPriceX18 = parseX18Input(priceLimit);
+    const feeBps        = Number(valueAt(marketConfig, "feeBps", 1) ?? reserves.feeBps ?? selectedMarket?.feeBps ?? market?.feeBps ?? DEFAULT_FEE_BPS);
+    const previewParams = {
+      isLong,
+      sizeX18,
+      limitPriceX18,
+      reserveBase: reserves.baseReserveRaw || 0n,
+      reserveQuote: reserves.quoteReserveRaw || 0n,
+      minReserveBase: reserves.minReserveBaseRaw || 0n,
+      minReserveQuote: reserves.minReserveQuoteRaw || 0n,
+      feeBps: BigInt(feeBps || 0),
+      imrBps: BigInt(riskParams?.imrBps || 0),
+      mmrBps: BigInt(riskParams?.mmrBps || 0),
+      oraclePrice: market?.oraclePriceRaw ? parseX18Input(market.oraclePriceRaw) : 0n,
+      quoteFreeCollateral: quoteFreeCollateralRaw,
+      minPositionSize: riskParams?.minPositionSizeRaw || 0n,
+      maxPositionSize: riskParams?.maxPositionSizeRaw || 0n,
+      existingSizeX18: position?.sizeRaw || 0n,
+    };
+    const preview = buildOpenOrderPreview(previewParams);
+    const maxSizeRaw = findMaxOpenSize(previewParams);
 
     return {
       effectiveBalance,
       currentPrice,
-      marketPrice: executionPrice,
-      maxSize,
-      sizeNum,
-      notionalValue,
-      fees,
-      marginRequired,
-      collateralRequired,
-      derivedLeverage,
-      riskPrice: marginRiskPrice,
+      marketPrice,
+      executionPrice: toNumberX18(preview.avgPrice),
+      maxSize: toNumberX18(maxSizeRaw),
+      sizeNum: toNumber(size),
+      notionalValue: toNumberX18(preview.notional),
+      fees: toNumberX18(preview.fee),
+      marginRequired: toNumberX18(preview.initialMargin),
+      collateralRequired: toNumberX18(preview.totalRequired),
+      derivedLeverage: toNumberX18(preview.effectiveLeverageX18),
+      riskPrice: toNumberX18(preview.postTradeMark > previewParams.oraclePrice ? preview.postTradeMark : previewParams.oraclePrice),
       feeBps,
-      liqPrice,
-      isOverMax,
+      liqPrice: preview.liqPrice > 0n ? formatX18Number(preview.liqPrice, 2) : "—",
+      isOverMax: sizeX18 > 0n && !preview.ok,
+      invalidReason: sizeX18 > 0n ? preview.reason : null,
+      preview,
+      amountLimit: preview.amountLimit,
     };
-  }, [accountValue, totalCollateralValue, market?.markPriceRaw, market?.price,
-      market?.oraclePriceRaw, market?.feeBps, priceLimit, riskParams?.imrBps,
-      riskParams?.mmrBps, marketConfig, selectedMarket?.feeBps, size, isLong, accountValueRaw]);
+  }, [
+    quoteValueRaw, reservedMarginRaw, market?.markPriceRaw, market?.price, market?.oraclePriceRaw,
+    market?.feeBps, priceLimit, riskParams, marketConfig, reserves.baseReserveRaw,
+    reserves.quoteReserveRaw, reserves.minReserveBaseRaw, reserves.minReserveQuoteRaw,
+    reserves.feeBps, selectedMarket?.feeBps, size, isLong, position?.sizeRaw,
+  ]);
 
   // ── Trade success ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -275,16 +315,10 @@ export const TradingPanel = ({ selectedMarket }) => {
   if (isLoading)        return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Loading…</div>;
   if (error || !market) return <div className="flex items-center justify-center h-full text-red-500 text-xs">Error loading market</div>;
 
-  const handleSizeButtonClick = (pct) => {
-    const calc = maxSize * (pct / 100);
-    setSize(calc > 0 ? calc.toFixed(4) : "");
-  };
-
   const handleTrade = async () => {
     if (!size || sizeNum <= 0) return toast.error("Please enter a valid size");
-    if (isOverMax) return toast.error("Order exceeds available collateral after IMR and fees");
+    if (!preview.ok) return toast.error(invalidReason || "Order is not executable");
     try {
-      const priceLimitValue = priceLimit && parseFloat(priceLimit) > 0 ? parseFloat(priceLimit) : 0;
       submittedOpenOrderRef.current = {
         sideLabel: isLong ? "Long" : "Short",
         isLong,
@@ -292,20 +326,18 @@ export const TradingPanel = ({ selectedMarket }) => {
         marketDisplayName: market.displayName || market.name,
         marketName: market.name,
         marketKey: market.name,
-        marketPrice,
+        marketPrice: executionPrice || marketPrice,
         markRaw: parseFloat(market.markPriceRaw) || marketPrice,
         twapRaw: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
         notional: notionalValue,
         txActionText: side,
       };
       toast.loading("Review order transaction in wallet...", { id: "trade" });
-      openPosition(isLong, size, priceLimitValue);
+      openPosition(isLong, size, amountLimit);
     } catch (err) {
       toast.error(formatTransactionError(err, { action: "open" }), { id: "trade" });
     }
   };
-
-  const sideAccent = isLong ? "text-emerald-400" : "text-red-400";
 
   return (
     <div className="flex flex-col h-full bg-[#06060a]">
@@ -456,7 +488,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em]">Price limit</label>
               <button
                 className="text-[10px] text-zinc-400 hover:text-white font-medium transition-colors duration-150"
-                onClick={() => setPriceLimit(market.price)}
+                onClick={() => setPriceLimit(market.markPriceRaw ? String(market.markPriceRaw) : "")}
               >
                 Use mark
               </button>
@@ -480,61 +512,26 @@ export const TradingPanel = ({ selectedMarket }) => {
             </div>
           </div>
 
-          {/* Leverage */}
+          {/* Effective leverage */}
           <div>
             <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em] block mb-3">
-              Leverage
+              Effective leverage
             </label>
             <div className="flex items-center gap-3">
-              {/* Track area — h-5 gives a comfortable drag target */}
               <div className="flex-1 relative h-5 flex items-center">
-                <div className="relative w-full h-[2px] bg-zinc-800 rounded-full">
-                  {/* Colored fill */}
+                <div className="relative w-full h-[2px] bg-zinc-800 rounded-full overflow-hidden">
                   <div
                     className={`absolute inset-y-0 left-0 rounded-full ${isLong ? "bg-emerald-500" : "bg-red-500"}`}
-                    style={{ width: `${((leverage - 1) / 9) * 100}%` }}
-                  />
-                  {/* Uniform tick dots 1×–10× */}
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
-                    <div
-                      key={v}
-                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full pointer-events-none"
-                      style={{
-                        left: `${((v - 1) / 9) * 100}%`,
-                        backgroundColor: v <= leverage
-                          ? isLong ? "#10b981" : "#ef4444"
-                          : "#3f3f46",
-                      }}
-                    />
-                  ))}
-                  {/* Thumb */}
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full pointer-events-none z-10"
-                    style={{
-                      left: `${((leverage - 1) / 9) * 100}%`,
-                      backgroundColor: isLong ? "#10b981" : "#ef4444",
-                      boxShadow: `0 0 0 3px ${isLong ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}`,
-                    }}
+                    style={{ width: `${Math.min(100, (derivedLeverage / 10) * 100)}%` }}
                   />
                 </div>
-                {/* Native input overlays the full h-5 area */}
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  step="1"
-                  value={leverage}
-                  onChange={(e) => setLeverage(Number(e.target.value))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                />
               </div>
-              {/* Value to the right */}
               <span
-                className={`shrink-0 w-8 text-right text-[13px] font-mono font-semibold tabular-nums ${
+                className={`shrink-0 w-12 text-right text-[13px] font-mono font-semibold tabular-nums ${
                   isLong ? "text-emerald-400" : "text-red-400"
                 }`}
               >
-                {leverage}×
+                {derivedLeverage > 0 ? `${derivedLeverage.toFixed(2)}×` : "—"}
               </span>
             </div>
           </div>
@@ -544,34 +541,34 @@ export const TradingPanel = ({ selectedMarket }) => {
         <div className="px-3 py-3 border-b border-zinc-800/80 space-y-1">
           <SummaryRow
             label="Notional"
-            value={notionalValue > 0 ? `$${notionalValue.toFixed(2)}` : "—"}
+            value={preview.notional > 0n ? formatUsd(preview.notional) : "—"}
           />
           <SummaryRow
-            label={`Est. fees (${(feeBps / 100).toFixed(2)}%)`}
-            value={fees > 0 ? `$${fees.toFixed(2)}` : "—"}
+            label={`Fees (${(feeBps / 100).toFixed(2)}%)`}
+            value={preview.fee > 0n ? formatUsd(preview.fee) : "—"}
             valueClass="text-zinc-400"
           />
           <SummaryRow
             label="Initial margin"
-            value={marginRequired > 0 ? `$${marginRequired.toFixed(2)}` : "—"}
+            value={preview.initialMargin > 0n ? formatUsd(preview.initialMargin) : "—"}
             valueClass="text-white font-medium"
-            tooltip={{ title: "Initial Margin", desc: "Collateral reserved by the contract using market IMR and the higher of mark or index price." }}
+            tooltip={{ title: "Initial Margin", desc: "Collateral reserved by the contract using market IMR and the higher of post-trade mark or index price." }}
           />
           <SummaryRow
             label="Total required"
-            value={collateralRequired > 0 ? `$${collateralRequired.toFixed(2)}` : "—"}
+            value={preview.totalRequired > 0n ? formatUsd(preview.totalRequired) : "—"}
             valueClass={isOverMax ? "text-red-400 font-medium" : "text-zinc-300"}
-            tooltip={{ title: "Total Required", desc: "Initial margin plus estimated trading fee, including a small execution buffer." }}
+            tooltip={{ title: "Total Required", desc: "Initial margin plus trading fee from mirrored vAMM execution." }}
           />
           <SummaryRow
             label="Liq. price"
             value={sizeNum > 0 ? `$${liqPrice}` : "—"}
             valueClass="text-yellow-400"
-            tooltip={{ title: "Estimated Liquidation Price", desc: "Approximate price at which your position will be liquidated. Actual price depends on funding and fees." }}
+            tooltip={{ title: "Liquidation Price", desc: "Price level where margin approaches maintenance requirements using current order and risk inputs." }}
           />
           {isOverMax && (
             <div className="mt-2 rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 text-[11px] text-red-300">
-              Order exceeds available collateral after initial margin and estimated fees.
+              {invalidReason || "Order is not executable."}
             </div>
           )}
         </div>
@@ -595,6 +592,11 @@ export const TradingPanel = ({ selectedMarket }) => {
             tooltip={{ title: "Risk Price", desc: "The higher of mark, index, or order price used to estimate contract margin." }}
           />
           <SummaryRow
+            label="Min / Max size"
+            value={`${riskParams?.minPositionSize ? Number(riskParams.minPositionSize).toFixed(2) : "0.00"} / ${riskParams?.maxPositionSize && Number(riskParams.maxPositionSize) > 0 ? Number(riskParams.maxPositionSize).toFixed(2) : "∞"}`}
+            valueClass="text-zinc-400"
+          />
+          <SummaryRow
             label="Liq. penalty"
             value={`${riskParams?.liquidationPenaltyPercent ? riskParams.liquidationPenaltyPercent.toFixed(1) : "5.0"}%`}
             valueClass="text-yellow-400"
@@ -612,7 +614,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               : "bg-red-500 hover:bg-red-400"
           }`}
           onClick={handleTrade}
-          disabled={isPending || !size || sizeNum <= 0 || isOverMax}
+          disabled={isPending || !size || sizeNum <= 0 || !preview.ok}
         >
           {isPending ? (
             <>

@@ -1,6 +1,7 @@
 // Hooks for ClearingHouse contract interactions
 import {
   useReadContract,
+  useReadContracts,
   useWriteContract,
   useWaitForTransactionReceipt,
   useAccount,
@@ -220,15 +221,16 @@ export function useOpenPosition(marketId) {
     hash,
   });
 
-  const openPosition = (isLong, size, priceLimit = 0) => {
+  const openPosition = (isLong, size, amountLimit = 0) => {
     const sizeWei = parseUnits(size.toString(), 18);
-    const priceLimitWei = parseUnits(priceLimit.toString(), 18);
+    const amountLimitWei =
+      typeof amountLimit === "bigint" ? amountLimit : parseUnits(amountLimit.toString(), 18);
 
     writeContract({
       address: SEPOLIA_CONTRACTS.clearingHouse,
       abi: ClearingHouseABI.abi,
       functionName: "openPosition",
-      args: [marketId, isLong, sizeWei, priceLimitWei],
+      args: [marketId, isLong, sizeWei, amountLimitWei],
       chainId: SEPOLIA_CHAIN_ID,
     });
   };
@@ -467,18 +469,25 @@ export function useMarketRiskParams(marketId) {
     };
   }
 
-  // MarketRiskParams struct: { imrBps, mmrBps, liquidationPenaltyBps, penaltyCap }
-  // Data may be returned as array [imrBps, mmrBps, liquidationPenaltyBps, penaltyCap]
+  // MarketRiskParams struct:
+  // { imrBps, mmrBps, liquidationPenaltyBps, penaltyCap, maxPositionSize, minPositionSize }
   const imrBps                = data[0] || data.imrBps                || 0n;
   const mmrBps                = data[1] || data.mmrBps                || 0n;
   const liquidationPenaltyBps = data[2] || data.liquidationPenaltyBps || 0n;
   const penaltyCap            = data[3] || data.penaltyCap            || 0n;
+  const maxPositionSize       = data[4] || data.maxPositionSize       || 0n;
+  const minPositionSize       = data[5] || data.minPositionSize       || 0n;
 
   const riskParams = {
     imrBps:                   Number(imrBps),
     mmrBps:                   Number(mmrBps),
     liquidationPenaltyBps:    Number(liquidationPenaltyBps),
     penaltyCap:               formatUnits(penaltyCap, 18),
+    penaltyCapRaw:            penaltyCap,
+    maxPositionSize:          formatUnits(maxPositionSize, 18),
+    maxPositionSizeRaw:       maxPositionSize,
+    minPositionSize:          formatUnits(minPositionSize, 18),
+    minPositionSizeRaw:       minPositionSize,
     imrPercent:               Number(imrBps) / 100,
     mmrPercent:               Number(mmrBps) / 100,
     liquidationPenaltyPercent: Number(liquidationPenaltyBps) / 100,
@@ -488,6 +497,64 @@ export function useMarketRiskParams(marketId) {
     riskParams,
     isLoading,
     error,
+    refetch,
+  };
+}
+
+export function useReservedMarginForQuoteToken(quoteToken, userAddress = null) {
+  const { address: connectedAddress } = useAccount();
+  const addressToUse = userAddress || connectedAddress;
+  const markets = MARKET_POSITION_CONFIG;
+
+  const marketContracts = markets.map((market) => ({
+    address: SEPOLIA_CONTRACTS.marketRegistry,
+    abi: MarketRegistryABI.abi,
+    functionName: "getMarket",
+    args: [market.marketId],
+    chainId: SEPOLIA_CHAIN_ID,
+  }));
+
+  const positionContracts = markets.map((market) => ({
+    address: SEPOLIA_CONTRACTS.clearingHouse,
+    abi: ClearingHouseABI.abi,
+    functionName: "getPosition",
+    args: [addressToUse, market.marketId],
+    chainId: SEPOLIA_CHAIN_ID,
+  }));
+
+  const { data: marketData, isLoading: marketsLoading } = useReadContracts({
+    contracts: marketContracts,
+    query: {
+      enabled: !!quoteToken,
+      refetchInterval: 30000,
+    },
+  });
+
+  const { data: positionData, isLoading: positionsLoading, refetch } = useReadContracts({
+    contracts: positionContracts,
+    query: {
+      enabled: !!addressToUse && !!quoteToken,
+      refetchInterval: 5000,
+    },
+  });
+
+  const normalizedQuoteToken = quoteToken?.toLowerCase();
+  let reservedRaw = 0n;
+
+  markets.forEach((_, index) => {
+    const marketResult = marketData?.[index];
+    const positionResult = positionData?.[index];
+    if (marketResult?.status !== "success" || positionResult?.status !== "success") return;
+    const marketQuoteToken = marketResult.result?.quoteToken ?? marketResult.result?.[7];
+    if (!marketQuoteToken || marketQuoteToken.toLowerCase() !== normalizedQuoteToken) return;
+    const margin = positionResult.result?.margin ?? positionResult.result?.[1] ?? 0n;
+    reservedRaw += BigInt(margin);
+  });
+
+  return {
+    reservedMargin: formatUnits(reservedRaw, 18),
+    reservedMarginRaw: reservedRaw,
+    isLoading: marketsLoading || positionsLoading,
     refetch,
   };
 }
