@@ -609,7 +609,6 @@ const SharedLayout = () => {
     setProfile(null);
     // 6. Sign out of Supabase (fires onAuthStateChange → setSession(null))
     await supabase.auth.signOut();
-    navigate("/");
   };
 
   return (

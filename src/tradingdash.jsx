@@ -13,29 +13,88 @@ import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAllPositions } from "./hooks/useClearingHouse";
 import { motion } from "framer-motion";
+import { supabase } from "./creatclient";
+import { useAuthModalStore } from "./stores/useAuthModalStore";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ConnectStrip
+// OrderPanelGate — handles all three states of the right-side order panel
 // ─────────────────────────────────────────────────────────────────────────────
-const ConnectStrip = () => (
-  <div className="px-3 py-2 border-b border-zinc-800/80 bg-white/[0.015] flex items-center justify-between gap-2 shrink-0">
-    <div className="flex flex-col min-w-0">
-      <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Read only</span>
-      <span className="text-[11px] text-zinc-300 leading-tight">Connect wallet to trade</span>
-    </div>
-    <ConnectButton.Custom>
-      {({ openConnectModal, mounted }) => (
-        <button
-          onClick={openConnectModal}
-          disabled={!mounted}
-          className="shrink-0 px-3 py-1.5 rounded-md bg-white text-zinc-900 hover:bg-zinc-200 text-[11px] font-medium transition-colors duration-150"
+const OrderPanelGate = ({ session, sessionLoading, isConnected, selectedMarket }) => {
+  const { openLogin } = useAuthModalStore();
+
+  // Not signed in → blurred panel preview + sign-in overlay
+  if (!sessionLoading && !session) {
+    return (
+      <div className="flex-1 relative flex flex-col overflow-hidden min-h-0">
+        {/* Blurred trading panel shown underneath */}
+        <div
+          className="absolute inset-0 overflow-hidden pointer-events-none"
+          style={{ filter: "blur(7px)", opacity: 0.22, transform: "scale(1.04)" }}
+          aria-hidden="true"
         >
-          Connect
-        </button>
-      )}
-    </ConnectButton.Custom>
-  </div>
-);
+          <TradingPanel selectedMarket={selectedMarket} />
+        </div>
+
+        {/* Overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center bg-[#06060a]/65 backdrop-blur-[2px]">
+          <div className="w-10 h-10 rounded-full bg-zinc-800/90 border border-white/[0.07] flex items-center justify-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="text-zinc-400">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold text-white mb-1">Sign in to trade</p>
+            <p className="text-[11px] text-zinc-500 leading-relaxed max-w-[190px]">
+              You need to be signed in to access the trading panel.
+            </p>
+          </div>
+          <button
+            onClick={openLogin}
+            className="px-4 py-2 rounded-md bg-white text-zinc-900 hover:bg-zinc-200 text-[12px] font-semibold transition-colors duration-150"
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Signed in but wallet not connected → connect strip + dimmed panel
+  if (!isConnected) {
+    return (
+      <>
+        <div className="px-3 py-2 border-b border-zinc-800/80 bg-white/[0.015] flex items-center justify-between gap-2 shrink-0">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Read only</span>
+            <span className="text-[11px] text-zinc-300 leading-tight">Connect wallet to trade</span>
+          </div>
+          <ConnectButton.Custom>
+            {({ openConnectModal, mounted }) => (
+              <button
+                onClick={openConnectModal}
+                disabled={!mounted}
+                className="shrink-0 px-3 py-1.5 rounded-md bg-white text-zinc-900 hover:bg-zinc-200 text-[11px] font-medium transition-colors duration-150"
+              >
+                Connect
+              </button>
+            )}
+          </ConnectButton.Custom>
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 opacity-50 pointer-events-none select-none">
+          <TradingPanel selectedMarket={selectedMarket} />
+        </div>
+      </>
+    );
+  }
+
+  // Fully authenticated and wallet connected
+  return (
+    <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+      <TradingPanel selectedMarket={selectedMarket} />
+    </div>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TradingDashboard
@@ -47,6 +106,17 @@ export const TradingDashboard = ({ onHelpClick }) => {
   const [shouldBounce, setShouldBounce]       = useState(false);
   const { isConnected }    = useAccount();
   const { positions: allPositions } = useAllPositions();
+  const [session, setSession] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setSessionLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => subscription.unsubscribe();
+  }, []);
 
   // ── Resizable panel state (desktop only) ──────────────────────────────────
   const [orderPanelWidth, setOrderPanelWidth] = useState(340);
@@ -248,15 +318,12 @@ export const TradingDashboard = ({ onHelpClick }) => {
             </div>
           </div>
 
-          {!isConnected && <ConnectStrip />}
-
-          <div
-            className={`flex-1 overflow-y-auto custom-scrollbar min-h-0 ${
-              !isConnected ? "opacity-50 pointer-events-none select-none" : ""
-            }`}
-          >
-            <TradingPanel selectedMarket={selectedMarket} />
-          </div>
+          <OrderPanelGate
+            session={session}
+            sessionLoading={sessionLoading}
+            isConnected={isConnected}
+            selectedMarket={selectedMarket}
+          />
         </div>
       </div>
 
@@ -270,14 +337,12 @@ export const TradingDashboard = ({ onHelpClick }) => {
           )}
           {activeMobileTab === "trade" && (
             <div className="absolute inset-0 flex flex-col bg-[#06060a]">
-              {!isConnected && <ConnectStrip />}
-              <div
-                className={`flex-1 overflow-y-auto custom-scrollbar min-h-0 ${
-                  !isConnected ? "opacity-50 pointer-events-none select-none" : ""
-                }`}
-              >
-                <TradingPanel selectedMarket={selectedMarket} />
-              </div>
+              <OrderPanelGate
+                session={session}
+                sessionLoading={sessionLoading}
+                isConnected={isConnected}
+                selectedMarket={selectedMarket}
+              />
             </div>
           )}
           {activeMobileTab === "positions" && (

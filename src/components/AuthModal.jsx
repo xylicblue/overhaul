@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../creatclient";
 import toast from "react-hot-toast";
@@ -34,12 +34,15 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const signInWithGoogle = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/welcome` },
+        options: {
+          redirectTo: `${window.location.origin}/welcome?next=${encodeURIComponent(location.pathname)}`,
+        },
       });
       if (error) throw error;
     } catch (error) {
@@ -189,7 +192,7 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
       <WalletAuthButtons
         variant="compact"
         onSuccess={onClose}
-        onNewUser={() => { onClose(); navigate("/welcome"); }}
+        onNewUser={() => { onClose(); navigate(`/welcome?next=${encodeURIComponent(location.pathname)}`); }}
       />
 
       {/* Switch mode */}
@@ -208,6 +211,7 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const SignupForm = ({ onSwitchMode, onClose }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -376,7 +380,7 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
       <WalletAuthButtons
         variant="compact"
         onSuccess={onClose}
-        onNewUser={() => { onClose(); navigate("/welcome"); }}
+        onNewUser={() => { onClose(); navigate(`/welcome?next=${encodeURIComponent(location.pathname)}`); }}
       />
 
       {/* Switch mode */}

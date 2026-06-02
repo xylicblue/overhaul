@@ -46,7 +46,7 @@ const LoginPage = () => {
         password,
       });
       if (error) throw error;
-      navigate("/"); // Redirect to homepage on successful login
+      navigate(-1);
     } catch (error) {
       if (error.message.includes("Email not confirmed")) {
         setEmailNotConfirmed(true);

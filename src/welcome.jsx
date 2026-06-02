@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./creatclient";
 import { setUsername as apiSetUsername } from "./services/api";
 import AuthLayout from "./components/AuthLayout";
@@ -12,6 +12,8 @@ const CreateUsernamePage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+  const nextPath = new URLSearchParams(location.search).get("next") || "/trade";
 
   useEffect(() => {
     const checkProfile = async () => {
@@ -32,7 +34,7 @@ const CreateUsernamePage = () => {
       if (error && error.code !== "PGRST116") {
         setError(error.message);
       } else if (profile && profile.username) {
-        navigate("/");
+        navigate(nextPath, { replace: true });
       } else {
         setLoading(false);
       }
@@ -54,7 +56,7 @@ const CreateUsernamePage = () => {
       await apiSetUsername(username);
 
       toast.success("Profile completed successfully!");
-      navigate("/");
+      navigate(nextPath);
     } catch (error) {
       if (
         error.message.includes("already taken")
