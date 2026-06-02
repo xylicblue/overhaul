@@ -246,6 +246,128 @@ export function findMaxOpenSize(params) {
   return low;
 }
 
+export function findBaseSizeForNotional(params, targetNotionalX18) {
+  if (!targetNotionalX18 || targetNotionalX18 <= 0n) {
+    return {
+      sizeX18: 0n,
+      maxSizeX18: 0n,
+      maxNotionalX18: 0n,
+      preview: ZERO_PREVIEW,
+      ok: false,
+      reason: "Enter a notional",
+    };
+  }
+
+  const maxSizeX18 = findMaxOpenSize(params);
+  if (maxSizeX18 <= 0n) {
+    const preview = buildOpenOrderPreview({ ...params, sizeX18: targetNotionalX18, limitPriceX18: 0n });
+    return {
+      sizeX18: 0n,
+      maxSizeX18,
+      maxNotionalX18: 0n,
+      preview,
+      ok: false,
+      reason: preview.reason || "No executable size available",
+    };
+  }
+
+  const maxPreview = buildOpenOrderPreview({ ...params, sizeX18: maxSizeX18, limitPriceX18: 0n });
+  const maxNotionalX18 = maxPreview.ok ? maxPreview.notional : 0n;
+  if (maxNotionalX18 <= 0n) {
+    return {
+      sizeX18: 0n,
+      maxSizeX18,
+      maxNotionalX18: 0n,
+      preview: maxPreview,
+      ok: false,
+      reason: maxPreview.reason || "No executable notional available",
+    };
+  }
+
+  const tolerance = max(1n, targetNotionalX18 / 10000n);
+  if (targetNotionalX18 > maxNotionalX18 + tolerance) {
+    return {
+      sizeX18: maxSizeX18,
+      maxSizeX18,
+      maxNotionalX18,
+      preview: maxPreview,
+      ok: false,
+      reason: "Above maximum executable notional",
+    };
+  }
+
+  let low = 0n;
+  let high = maxSizeX18;
+  let bestSize = 0n;
+  let bestPreview = ZERO_PREVIEW;
+  let bestDiff = targetNotionalX18;
+
+  for (let i = 0; i < 96; i += 1) {
+    if (low + 1n >= high) break;
+    const mid = (low + high) / 2n;
+    const preview = buildOpenOrderPreview({ ...params, sizeX18: mid, limitPriceX18: 0n });
+
+    if (!preview.ok) {
+      high = mid;
+      continue;
+    }
+
+    const diff = abs(preview.notional - targetNotionalX18);
+    if (bestSize === 0n || diff < bestDiff) {
+      bestSize = mid;
+      bestPreview = preview;
+      bestDiff = diff;
+    }
+
+    if (preview.notional === targetNotionalX18) break;
+    if (preview.notional < targetNotionalX18) low = mid;
+    else high = mid;
+  }
+
+  for (const candidate of [low, high]) {
+    if (candidate <= 0n || candidate > maxSizeX18) continue;
+    const preview = buildOpenOrderPreview({ ...params, sizeX18: candidate, limitPriceX18: 0n });
+    if (!preview.ok) continue;
+    const diff = abs(preview.notional - targetNotionalX18);
+    if (bestSize === 0n || diff < bestDiff) {
+      bestSize = candidate;
+      bestPreview = preview;
+      bestDiff = diff;
+    }
+  }
+
+  if (bestSize <= 0n) {
+    return {
+      sizeX18: 0n,
+      maxSizeX18,
+      maxNotionalX18,
+      preview: ZERO_PREVIEW,
+      ok: false,
+      reason: "Unable to derive executable size",
+    };
+  }
+
+  if (bestPreview.notional > targetNotionalX18 + tolerance) {
+    return {
+      sizeX18: bestSize,
+      maxSizeX18,
+      maxNotionalX18,
+      preview: bestPreview,
+      ok: false,
+      reason: "Below minimum executable notional",
+    };
+  }
+
+  return {
+    sizeX18: bestSize,
+    maxSizeX18,
+    maxNotionalX18,
+    preview: bestPreview,
+    ok: true,
+    reason: null,
+  };
+}
+
 export function toNumberX18(value) {
   if (value == null) return 0;
   return Number(value) / 1e18;
