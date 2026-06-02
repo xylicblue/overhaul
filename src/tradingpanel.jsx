@@ -18,10 +18,12 @@ import { MARKET_IDS, SEPOLIA_CONTRACTS } from "./contracts/addresses";
 import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
 import CollateralVaultABI from "./contracts/abis/CollateralVault.json";
 import { Info, ShieldCheck } from "lucide-react";
-import { formatTransactionError, getSepoliaTxUrl } from "./utils/transactionErrors";
+import { getSepoliaTxUrl } from "./utils/transactionErrors";
 import { diagnoseOpenPositionError, diagnoseFundingBlocker } from "./utils/tradeFailureDiagnosis";
 import {
+  ZERO_PREVIEW,
   buildOpenOrderPreview,
+  findBaseSizeForNotional,
   findMaxOpenSize,
   formatX18Number,
   toNumberX18,
@@ -29,6 +31,7 @@ import {
 
 const DEFAULT_FEE_BPS = 10;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const WAD = 10n ** 18n;
 
 const toNumber = (value) => {
   if (typeof value === "string") {
@@ -47,6 +50,15 @@ const parseX18Input = (value) => {
   } catch {
     return 0n;
   }
+};
+
+const formatX18Input = (value) => {
+  if (!value || value <= 0n) return "";
+  const whole = value / WAD;
+  const fraction = value % WAD;
+  if (fraction === 0n) return whole.toString();
+  const fractionText = fraction.toString().padStart(18, "0").replace(/0+$/, "");
+  return `${whole}.${fractionText}`;
 };
 
 const formatUsd = (value, digits = 2) => `$${formatX18Number(value, digits)}`;
@@ -154,6 +166,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   const { positions: allPositions } = useAllPositions();
   const [preflightError, setPreflightError] = useState(null);
   const [isSimulating,   setIsSimulating]   = useState(false);
+  const [orderInputMode, setOrderInputMode] = useState("base");
 
   const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
@@ -192,9 +205,9 @@ export const TradingPanel = ({ selectedMarket }) => {
   // ── Calculations (memoised — only rerun when inputs actually change) ───────
   const {
     effectiveBalance, currentPrice, marketPrice, executionPrice,
-    maxSize, sizeNum, notionalValue,
+    maxSize, maxNotional, sizeNum, inputNum, sliderMax, sliderValue,
     derivedLeverage, riskPrice, feeBps, liqPrice, isOverMax, invalidReason,
-    preview, amountLimit,
+    preview, amountLimit, protocolSize,
   } = useMemo(() => {
     const quoteFreeCollateralRaw = quoteValueRaw && quoteValueRaw > reservedMarginRaw
       ? quoteValueRaw - reservedMarginRaw
@@ -203,12 +216,12 @@ export const TradingPanel = ({ selectedMarket }) => {
     const currentPrice  = toNumber(market?.markPriceRaw);
     const indexPrice    = toNumber(market?.oraclePriceRaw);
     const marketPrice   = currentPrice || indexPrice || toNumber(market?.price);
-    const sizeX18 = parseX18Input(size);
+    const inputX18 = parseX18Input(size);
     const limitPriceX18 = parseX18Input(priceLimit);
     const feeBps        = Number(valueAt(marketConfig, "feeBps", 1) ?? reserves.feeBps ?? selectedMarket?.feeBps ?? market?.feeBps ?? DEFAULT_FEE_BPS);
     const previewParams = {
       isLong,
-      sizeX18,
+      sizeX18: 0n,
       limitPriceX18,
       reserveBase: reserves.baseReserveRaw || 0n,
       reserveQuote: reserves.quoteReserveRaw || 0n,
@@ -223,17 +236,40 @@ export const TradingPanel = ({ selectedMarket }) => {
       maxPositionSize: riskParams?.maxPositionSizeRaw || 0n,
       existingSizeX18: position?.sizeRaw || 0n,
     };
-    const preview = buildOpenOrderPreview(previewParams);
     const maxSizeRaw = findMaxOpenSize(previewParams);
+    const notionalConversion = orderInputMode === "notional"
+      ? findBaseSizeForNotional(previewParams, inputX18)
+      : null;
+    const sizeX18 = orderInputMode === "notional" ? notionalConversion.sizeX18 : inputX18;
+    const protocolSize = formatX18Input(sizeX18);
+    let preview = buildOpenOrderPreview({ ...previewParams, sizeX18 });
+    if (orderInputMode === "notional" && inputX18 > 0n && notionalConversion && !notionalConversion.ok) {
+      preview = {
+        ...preview,
+        ok: false,
+        reason: notionalConversion.reason || preview.reason || "Notional is not executable",
+      };
+    }
+    const maxPreview = maxSizeRaw > 0n
+      ? buildOpenOrderPreview({ ...previewParams, sizeX18: maxSizeRaw, limitPriceX18: 0n })
+      : ZERO_PREVIEW;
+    const maxNotionalRaw = maxPreview.ok ? maxPreview.notional : 0n;
+    const inputNum = toNumber(size);
+    const sizeNum = toNumberX18(sizeX18);
+    const maxSize = toNumberX18(maxSizeRaw);
+    const maxNotional = toNumberX18(maxNotionalRaw);
 
     return {
       effectiveBalance,
       currentPrice,
       marketPrice,
       executionPrice: toNumberX18(preview.avgPrice),
-      maxSize: toNumberX18(maxSizeRaw),
-      sizeNum: toNumber(size),
-      notionalValue: toNumberX18(preview.notional),
+      maxSize,
+      maxNotional,
+      sizeNum,
+      inputNum,
+      sliderMax: orderInputMode === "notional" ? maxNotional : maxSize,
+      sliderValue: orderInputMode === "notional" ? inputNum : sizeNum,
       fees: toNumberX18(preview.fee),
       marginRequired: toNumberX18(preview.initialMargin),
       collateralRequired: toNumberX18(preview.totalRequired),
@@ -241,16 +277,17 @@ export const TradingPanel = ({ selectedMarket }) => {
       riskPrice: toNumberX18(preview.postTradeMark > previewParams.oraclePrice ? preview.postTradeMark : previewParams.oraclePrice),
       feeBps,
       liqPrice: preview.liqPrice > 0n ? formatX18Number(preview.liqPrice, 2) : "—",
-      isOverMax: sizeX18 > 0n && !preview.ok,
-      invalidReason: sizeX18 > 0n ? preview.reason : null,
+      isOverMax: inputX18 > 0n && !preview.ok,
+      invalidReason: inputX18 > 0n ? preview.reason : null,
       preview,
       amountLimit: preview.amountLimit,
+      protocolSize,
     };
   }, [
     quoteValueRaw, reservedMarginRaw, market?.markPriceRaw, market?.price, market?.oraclePriceRaw,
     market?.feeBps, priceLimit, riskParams, marketConfig, reserves.baseReserveRaw,
     reserves.quoteReserveRaw, reserves.minReserveBaseRaw, reserves.minReserveQuoteRaw,
-    reserves.feeBps, selectedMarket?.feeBps, size, isLong, position?.sizeRaw,
+    reserves.feeBps, selectedMarket?.feeBps, size, isLong, position?.sizeRaw, orderInputMode,
   ]);
 
   // ── Trade success ─────────────────────────────────────────────────────────
@@ -309,7 +346,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   }, [isSuccess, hash, lastTxHash, address, resetTrade, setLastTx, resetOrder]);
 
   // ── Clear preflight error when the user changes inputs ───────────────────
-  useEffect(() => { setPreflightError(null); }, [size, side, priceLimit]);
+  useEffect(() => { setPreflightError(null); }, [size, side, priceLimit, orderInputMode]);
 
   // ── Trade error (post-wallet fallback) ────────────────────────────────────
   useEffect(() => {
@@ -320,7 +357,7 @@ export const TradingPanel = ({ selectedMarket }) => {
       toast.error(diag.message, { id: "trade" });
       resetTrade();
     }
-  }, [tradeError, receiptError, resetTrade]);
+  }, [tradeError, receiptError, resetTrade, market?.displayName, market?.name]);
 
   // ── Guards ────────────────────────────────────────────────────────────────
   if (!selectedMarket) return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Select a market</div>;
@@ -331,7 +368,9 @@ export const TradingPanel = ({ selectedMarket }) => {
     setPreflightError(null);
 
     // ── 1. Local preview check ──────────────────────────────────────────────
-    if (!size || sizeNum <= 0) return toast.error("Please enter a valid size");
+    if (!size || inputNum <= 0 || !protocolSize) {
+      return toast.error(orderInputMode === "notional" ? "Please enter a valid notional" : "Please enter a valid size");
+    }
     if (!preview.ok) {
       const diag = { severity: "error", title: "Order Invalid", message: invalidReason || "Order is not executable." };
       setPreflightError(diag);
@@ -349,7 +388,7 @@ export const TradingPanel = ({ selectedMarket }) => {
     // ── 3. Simulate via eth_call before opening wallet ──────────────────────
     setIsSimulating(true);
     try {
-      await simulateOpenPosition(isLong, size, amountLimit);
+      await simulateOpenPosition(isLong, protocolSize, amountLimit);
     } catch (simErr) {
       const diag = diagnoseOpenPositionError(simErr, { marketName: market.displayName || market.name });
       setPreflightError(diag);
@@ -365,17 +404,19 @@ export const TradingPanel = ({ selectedMarket }) => {
         sideLabel: isLong ? "Long" : "Short",
         isLong,
         sizeNum,
+        inputMode: orderInputMode,
+        requestedInput: inputNum,
         marketDisplayName: market.displayName || market.name,
         marketName: market.name,
         marketKey: market.name,
         marketPrice: executionPrice || marketPrice,
         markRaw: parseFloat(market.markPriceRaw) || marketPrice,
         twapRaw: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
-        notional: notionalValue,
+        notional: toNumberX18(preview.notional),
         txActionText: side,
       };
       toast.loading("Review order transaction in wallet...", { id: "trade" });
-      openPosition(isLong, size, amountLimit);
+      openPosition(isLong, protocolSize, amountLimit);
     } catch (err) {
       const diag = diagnoseOpenPositionError(err, { marketName: market.name });
       setPreflightError(diag);
@@ -420,7 +461,13 @@ export const TradingPanel = ({ selectedMarket }) => {
           {[
             { label: "Balance", value: `$${effectiveBalance.toFixed(2)}`,                      align: "items-start" },
             { label: "Mark",    value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—", align: "items-center" },
-            { label: "Max",     value: maxSize > 0 ? maxSize.toFixed(2) : "—",                 align: "items-end" },
+            {
+              label: "Max",
+              value: orderInputMode === "notional"
+                ? (maxNotional > 0 ? `$${maxNotional.toFixed(2)}` : "—")
+                : (maxSize > 0 ? maxSize.toFixed(2) : "—"),
+              align: "items-end",
+            },
           ].map(({ label, value, align }) => (
             <div key={label} className={`flex flex-col ${align}`}>
               <span className="text-[9px] font-medium text-zinc-400 uppercase tracking-[0.14em]">{label}</span>
@@ -442,12 +489,41 @@ export const TradingPanel = ({ selectedMarket }) => {
             Order
           </SectionLabel>
 
+          <div className="grid grid-cols-2 gap-px bg-zinc-800/80 rounded-md overflow-hidden p-px">
+            {[
+              { key: "base", label: "GPU Hours" },
+              { key: "notional", label: "USDC Notional" },
+            ].map((mode) => (
+              <button
+                key={mode.key}
+                type="button"
+                onClick={() => {
+                  if (orderInputMode !== mode.key) {
+                    setOrderInputMode(mode.key);
+                    setSize("");
+                  }
+                }}
+                className={`py-1.5 text-[11px] font-medium transition-colors duration-100 ${
+                  orderInputMode === mode.key
+                    ? "bg-zinc-200 text-zinc-950"
+                    : "bg-[#06060a] text-zinc-500 hover:text-zinc-200"
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+
           {/* Size */}
           <div>
             <div className="flex items-baseline justify-between mb-1.5">
-              <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em]">Size</label>
+              <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em]">
+                {orderInputMode === "notional" ? "Notional" : "Size"}
+              </label>
               <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
-                Max {maxSize > 0 ? maxSize.toFixed(2) : "0.00"} {market.baseAsset}
+                Max {orderInputMode === "notional"
+                  ? `$${maxNotional > 0 ? maxNotional.toFixed(2) : "0.00"}`
+                  : `${maxSize > 0 ? maxSize.toFixed(2) : "0.00"} ${market.baseAsset}`}
               </span>
             </div>
             <div className="relative">
@@ -464,9 +540,17 @@ export const TradingPanel = ({ selectedMarket }) => {
                 }}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
-                {market.baseAsset}
+                {orderInputMode === "notional" ? "USDC" : market.baseAsset}
               </span>
             </div>
+            {orderInputMode === "notional" && (
+              <div className="mt-1.5 flex items-center justify-between text-[10px] leading-4">
+                <span className="text-zinc-600">Derived size</span>
+                <span className="font-mono tabular-nums text-zinc-400">
+                  {sizeNum > 0 ? `${sizeNum.toFixed(6)} ${market.baseAsset}` : `— ${market.baseAsset}`}
+                </span>
+              </div>
+            )}
             {/* Size slider — 0 to maxSize, tick dots at 0/25/50/75/100% */}
             <div className="flex items-center gap-3 mt-3">
               <div className="flex-1 relative h-5 flex items-center">
@@ -474,11 +558,11 @@ export const TradingPanel = ({ selectedMarket }) => {
                   {/* Fill */}
                   <div
                     className="absolute inset-y-0 left-0 rounded-full bg-white/70"
-                    style={{ width: maxSize > 0 ? `${Math.min(100, (sizeNum / maxSize) * 100)}%` : "0%" }}
+                    style={{ width: sliderMax > 0 ? `${Math.min(100, (sliderValue / sliderMax) * 100)}%` : "0%" }}
                   />
                   {/* Tick dots at 0, 25, 50, 75, 100% */}
                   {[0, 25, 50, 75, 100].map(pct => {
-                    const filled = maxSize > 0 && (sizeNum / maxSize) * 100 >= pct && sizeNum > 0;
+                    const filled = sliderMax > 0 && (sliderValue / sliderMax) * 100 >= pct && sliderValue > 0;
                     return (
                       <div
                         key={pct}
@@ -491,11 +575,11 @@ export const TradingPanel = ({ selectedMarket }) => {
                     );
                   })}
                   {/* Thumb — always visible, calc() keeps it in bounds at 0% and 100% */}
-                  {maxSize > 0 && (
+                  {sliderMax > 0 && (
                     <div
                       className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full pointer-events-none z-10"
                       style={{
-                        left: `calc(${Math.min(100, (sizeNum / maxSize) * 100)}% - ${(Math.min(100, (sizeNum / maxSize) * 100) / 100) * 12}px)`,
+                        left: `calc(${Math.min(100, (sliderValue / sliderMax) * 100)}% - ${(Math.min(100, (sliderValue / sliderMax) * 100) / 100) * 12}px)`,
                         backgroundColor: "#ffffff",
                         boxShadow: "0 0 0 3px rgba(255,255,255,0.15)",
                       }}
@@ -505,23 +589,23 @@ export const TradingPanel = ({ selectedMarket }) => {
                   <input
                     type="range"
                     min="0"
-                    max={maxSize > 0 ? maxSize : 1}
-                    step={maxSize > 0 ? maxSize / 1000 : 0.0001}
-                    value={sizeNum || 0}
+                    max={sliderMax > 0 ? sliderMax : 1}
+                    step={sliderMax > 0 ? sliderMax / 1000 : 0.0001}
+                    value={sliderValue || 0}
                     onChange={e => {
                       const v = parseFloat(e.target.value);
                       setSize(v > 0 ? v.toFixed(4) : "");
                     }}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                    disabled={maxSize <= 0}
+                    disabled={sliderMax <= 0}
                   />
                 </div>
               </div>
               {/* Current % of max */}
               <span className={`shrink-0 w-10 text-right text-[11px] font-mono tabular-nums ${
-                sizeNum > 0 ? (isLong ? "text-emerald-400" : "text-red-400") : "text-zinc-600"
+                sliderValue > 0 ? (isLong ? "text-emerald-400" : "text-red-400") : "text-zinc-600"
               }`}>
-                {maxSize > 0 ? `${Math.min(100, Math.round((sizeNum / maxSize) * 100))}%` : "0%"}
+                {sliderMax > 0 ? `${Math.min(100, Math.round((sliderValue / sliderMax) * 100))}%` : "0%"}
               </span>
             </div>
           </div>
@@ -584,7 +668,11 @@ export const TradingPanel = ({ selectedMarket }) => {
         {/* Order summary — clean key/value list */}
         <div className="px-3 py-3 border-b border-zinc-800/80 space-y-1">
           <SummaryRow
-            label="Notional"
+            label="Size"
+            value={sizeNum > 0 ? `${sizeNum.toFixed(6)} ${market.baseAsset}` : "—"}
+          />
+          <SummaryRow
+            label={orderInputMode === "notional" ? "Executable notional" : "Notional"}
             value={preview.notional > 0n ? formatUsd(preview.notional) : "—"}
           />
           <SummaryRow
@@ -690,8 +778,8 @@ export const TradingPanel = ({ selectedMarket }) => {
           ) : (
             <>
               {isLong ? "Long" : "Short"} {market.baseAsset}
-              {notionalValue > 0 && (
-                <span className="text-white/60 font-normal text-[11px] tabular-nums">· ${notionalValue.toFixed(0)}</span>
+              {preview.notional > 0n && (
+                <span className="text-white/60 font-normal text-[11px] tabular-nums">· ${toNumberX18(preview.notional).toFixed(0)}</span>
               )}
             </>
           )}
