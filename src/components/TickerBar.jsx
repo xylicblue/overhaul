@@ -139,7 +139,7 @@ const InfoTooltip = ({ title, description }) => {
       </div>
       {hovered && ReactDOM.createPortal(
         <div
-          className="fixed z-[100] w-56 p-3 bg-[#0A0A0A] border border-zinc-800 rounded-lg shadow-xl text-xs text-zinc-300 pointer-events-none"
+          className="fixed z-[100] w-56 p-3 bg-surface-2 border border-line rounded-lg shadow-xl text-xs text-ink-muted pointer-events-none"
           style={{ top: `${pos.top}px`, left: `${pos.left}px` }}
         >
           <div className="font-semibold text-white mb-1">{title}</div>
@@ -667,10 +667,11 @@ const TickerBar = () => {
   const changeIsPositive = marketData?.change24hValue >= 0;
 
   // ── Stat column helper ──────────────────────────────────────────────────
-  // Value leads (larger, bright, tabular); label is quiet and uppercase.
-  const Stat = ({ value, label, valueClass = "text-ink", tooltip }) => (
-    <div className="flex flex-col justify-center gap-1.5 px-4 shrink-0 h-full">
-      <div className={`stat-value text-[13px] whitespace-nowrap ${valueClass}`}>{value}</div>
+  // Tier-2 value over a Tier-3 label. No box, no border — stats are spaced
+  // apart by the parent's gap so the row reads as one continuous strip.
+  const Stat = ({ value, label, valueClass = "text-ink-muted", tooltip }) => (
+    <div className="flex flex-col justify-center gap-1.5 shrink-0">
+      <div className={`stat-value text-[14px] whitespace-nowrap ${valueClass}`}>{value}</div>
       <div className="flex items-center stat-label whitespace-nowrap gap-1">
         {label}
         {tooltip && <div onClick={e => e.stopPropagation()}>{tooltip}</div>}
@@ -679,14 +680,14 @@ const TickerBar = () => {
   );
 
   return (
-    <div className="h-12 bg-surface-1 border-b border-line flex items-stretch px-0 shrink-0 overflow-x-auto no-scrollbar">
+    <div className="h-12 bg-surface-1 border-b border-line flex items-center gap-7 px-4 shrink-0 overflow-x-auto no-scrollbar">
       {/* ── Market name (static) + Switch button ───────────────────────── */}
-      <div className="relative shrink-0 flex items-center gap-2.5 px-4 border-r border-line-subtle">
+      <div className="relative shrink-0 flex items-center gap-2.5">
         {/* Market name — not clickable, just display */}
         <span className="text-[15px] font-semibold text-ink tracking-tight">
           {marketData?.displayName || marketName.replace("-PERP", "")}
         </span>
-        <span className="text-[9px] font-semibold text-ink-faint border border-line px-1 py-0.5 rounded tracking-wider">PERP</span>
+        <span className="text-[9px] font-semibold text-ink-faint bg-surface-2 px-1.5 py-0.5 rounded tracking-wider">PERP</span>
 
         {/* Dedicated Switch button */}
         <button
@@ -698,7 +699,7 @@ const TickerBar = () => {
             }
             setIsModalOpen(prev => !prev);
           }}
-          className="flex items-center gap-1 px-2 py-1 rounded-md bg-surface-2 hover:bg-surface-3 border border-line hover:border-line-strong text-ink-muted hover:text-ink text-[10px] font-medium tracking-wide transition-colors duration-150"
+          className="flex items-center gap-1 px-2 py-1 rounded-md bg-surface-2 hover:bg-surface-3 text-ink-muted hover:text-ink text-[10px] font-medium tracking-wide transition-colors duration-150"
         >
           Switch
           <ChevronDown size={10} className={`transition-transform duration-150 ${isModalOpen ? "rotate-180" : ""}`} />
@@ -714,9 +715,9 @@ const TickerBar = () => {
         />
       </div>
 
-      {/* ── Mark price (primary — largest value in the bar) ───────────────── */}
-      <div className="flex flex-col justify-center gap-1.5 px-4 shrink-0 border-r border-line-subtle">
-        <div className={`stat-value text-[17px] font-semibold whitespace-nowrap ${changeIsPositive ? "text-up" : "text-down"}`}>
+      {/* ── Mark price (Tier 1 — the hero number) ─────────────────────────── */}
+      <div className="flex flex-col justify-center gap-1.5 shrink-0">
+        <div className={`stat-hero text-[20px] whitespace-nowrap ${changeIsPositive ? "text-up" : "text-down"}`}>
           ${marketData?.price || "0.00"}
         </div>
         <div className="flex items-center gap-1.5">
@@ -731,44 +732,33 @@ const TickerBar = () => {
         </div>
       </div>
 
-      {/* ── Group A: oracle reference + funding ───────────────────────────── */}
-      <div className="flex items-stretch">
-        <Stat
-          value={marketData?.indexPrice && marketData.indexPrice !== "N/A" ? `$${marketData.indexPrice}` : "N/A"}
-          valueClass="text-ink-muted"
-          label="Index Price"
-          tooltip={<InfoTooltip title="Index Price (Oracle)" description="Reference price from external oracles tracking real GPU rental rates. Used to calculate funding rates." />}
-        />
-        <Stat
-          value={marketData?.fundingRate || "0.0000%"}
-          valueClass={(() => { const r = parseFloat(marketData?.fundingRate); if (!r || r === 0) return "text-ink-muted"; return r > 0 ? "text-up" : "text-down"; })()}
-          label="Funding / 8h"
-          tooltip={<InfoTooltip title="Funding Rate" description="Periodic payment between longs and shorts every 8 hours. Keeps the perpetual price anchored to real GPU rental rates." />}
-        />
-      </div>
-
-      {/* Divider between logical groups */}
-      <div className="self-center h-5 w-px bg-line-subtle mx-1 shrink-0" />
-
-      {/* ── Group B: fee + activity (volume, open interest) ───────────────── */}
-      <div className="flex items-stretch">
-        <Stat
-          value={marketFee}
-          valueClass="text-ink-muted"
-          label="Taker Fee"
-          tooltip={<InfoTooltip title="Trading Fee" description="Fee charged on each trade as a percentage of notional value." />}
-        />
-        <Stat
-          value={marketData?.volume24h || "$0.00"}
-          label="24h Volume"
-          tooltip={<InfoTooltip title="24h Volume" description="Total trading volume in USD over the last 24 hours." />}
-        />
-        <Stat
-          value={marketData?.openInterest || "$0.00"}
-          label="Open Interest"
-          tooltip={<InfoTooltip title="Open Interest" description="Total outstanding long and short notional for this market." />}
-        />
-      </div>
+      {/* ── Secondary stats — continuous, evenly spaced (no boxes) ────────── */}
+      <Stat
+        value={marketData?.indexPrice && marketData.indexPrice !== "N/A" ? `$${marketData.indexPrice}` : "N/A"}
+        label="Index Price"
+        tooltip={<InfoTooltip title="Index Price (Oracle)" description="Reference price from external oracles tracking real GPU rental rates. Used to calculate funding rates." />}
+      />
+      <Stat
+        value={marketData?.fundingRate || "0.0000%"}
+        valueClass={(() => { const r = parseFloat(marketData?.fundingRate); if (!r || r === 0) return "text-ink-muted"; return r > 0 ? "text-up" : "text-down"; })()}
+        label="Funding / 8h"
+        tooltip={<InfoTooltip title="Funding Rate" description="Periodic payment between longs and shorts every 8 hours. Keeps the perpetual price anchored to real GPU rental rates." />}
+      />
+      <Stat
+        value={marketFee}
+        label="Taker Fee"
+        tooltip={<InfoTooltip title="Trading Fee" description="Fee charged on each trade as a percentage of notional value." />}
+      />
+      <Stat
+        value={marketData?.volume24h || "$0.00"}
+        label="24h Volume"
+        tooltip={<InfoTooltip title="24h Volume" description="Total trading volume in USD over the last 24 hours." />}
+      />
+      <Stat
+        value={marketData?.openInterest || "$0.00"}
+        label="Open Interest"
+        tooltip={<InfoTooltip title="Open Interest" description="Total outstanding long and short notional for this market." />}
+      />
     </div>
   );
 };

@@ -142,6 +142,14 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
             "mainSeriesProperties.areaStyle.color2": "rgba(5, 211, 148, 0.01)",
             "mainSeriesProperties.areaStyle.linecolor": "#05d394",
             "mainSeriesProperties.areaStyle.linewidth": 2,
+
+            // HLC area style — teal, matches the line/area theme
+            "mainSeriesProperties.hlcAreaStyle.closeLineColor": "#05d394",
+            "mainSeriesProperties.hlcAreaStyle.closeLineWidth": 2,
+            "mainSeriesProperties.hlcAreaStyle.highLineColor": "rgba(5, 211, 148, 0.45)",
+            "mainSeriesProperties.hlcAreaStyle.lowLineColor": "rgba(5, 211, 148, 0.45)",
+            "mainSeriesProperties.hlcAreaStyle.highCloseFillColor": "rgba(5, 211, 148, 0.18)",
+            "mainSeriesProperties.hlcAreaStyle.closeLowFillColor": "rgba(5, 211, 148, 0.04)",
           },
           
           // Studies overrides
@@ -175,8 +183,8 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
           const chart = widget.activeChart();
           
           // Set default chart type based on priceType
-          // 1 = Candles, 2 = Line
-          chart.setChartType(priceType === "index" ? 2 : 1);
+          // 1 = Candles, 16 = HLC Area (ChartStyle/SeriesType enum)
+          chart.setChartType(priceType === "index" ? 16 : 1);
 
           const lineOverrides = {
             "mainSeriesProperties.lineStyle.color":      "#05d394",
@@ -185,6 +193,12 @@ const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
             "mainSeriesProperties.areaStyle.color2":     "rgba(5, 211, 148, 0.01)",
             "mainSeriesProperties.areaStyle.linecolor":  "#05d394",
             "mainSeriesProperties.areaStyle.linewidth":  2,
+            "mainSeriesProperties.hlcAreaStyle.closeLineColor":     "#05d394",
+            "mainSeriesProperties.hlcAreaStyle.closeLineWidth":     2,
+            "mainSeriesProperties.hlcAreaStyle.highLineColor":      "rgba(5, 211, 148, 0.45)",
+            "mainSeriesProperties.hlcAreaStyle.lowLineColor":       "rgba(5, 211, 148, 0.45)",
+            "mainSeriesProperties.hlcAreaStyle.highCloseFillColor": "rgba(5, 211, 148, 0.18)",
+            "mainSeriesProperties.hlcAreaStyle.closeLowFillColor":  "rgba(5, 211, 148, 0.04)",
           };
 
           // Apply immediately, then again after a short delay so the color

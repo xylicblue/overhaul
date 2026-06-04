@@ -46,18 +46,18 @@ export function PositionPanel({ selectedMarket = null }) {
   return (
     <div className="flex flex-col h-full bg-surface-1">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="px-4 py-2.5 border-b border-line flex items-center justify-between bg-surface-1 sticky top-0 z-10 shrink-0">
-        <h3 className="text-[10px] font-bold text-zinc-400 flex items-center gap-2 uppercase tracking-widest">
+      <div className="px-4 py-2.5 border-b border-line-subtle flex items-center justify-between bg-surface-1 sticky top-0 z-10 shrink-0">
+        <h3 className="text-[10px] font-bold text-ink-faint flex items-center gap-2 uppercase tracking-widest">
           <Activity size={12} className="text-blue-400" />
           Positions
           {marketName && (
-            <span className="text-[9px] text-zinc-600 font-normal normal-case tracking-normal">
+            <span className="text-[9px] text-ink-faint font-normal normal-case tracking-normal">
               · {marketName.replace("-PERP", "")}
             </span>
           )}
         </h3>
         {count > 0 && (
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">
             {count} Active
           </span>
         )}
@@ -69,8 +69,8 @@ export function PositionPanel({ selectedMarket = null }) {
           <CompactEmptyState icon={Wallet} title="Connect Wallet" description="Connect your wallet to view positions." />
         </div>
       ) : isLoading ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-zinc-600">
-          <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-ink-faint">
+          <div className="w-4 h-4 border-2 border-line border-t-blue-500 rounded-full animate-spin" />
           <span className="text-[10px]">Loading…</span>
         </div>
       ) : error ? (
@@ -456,7 +456,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  const rowBg = isClosing || isAddingMargin ? "bg-zinc-900/40" : "hover:bg-white/[0.018]";
+  const rowBg = isClosing || isAddingMargin ? "bg-surface-2" : "hover:bg-surface-2/50";
 
   return (
     <React.Fragment>
@@ -466,26 +466,26 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         {/* Market + size */}
         <td className="px-3 py-2.5 min-w-[100px]">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-white leading-none">
+            <span className="text-[11px] font-semibold text-ink leading-none">
               {position.marketName?.replace("-PERP", "") || "GPU"}
             </span>
             {leverage > 0 && (
-              <span className="text-[8px] font-mono text-zinc-500 border border-zinc-800 px-1 py-px rounded leading-none">
+              <span className="text-[8px] num text-ink-faint bg-surface-2 px-1 py-px rounded leading-none">
                 {leverage.toFixed(1)}×
               </span>
             )}
           </div>
-          <div className="text-[9px] font-mono text-zinc-600 mt-0.5">
+          <div className="text-[9px] num text-ink-faint mt-0.5">
             {absSize.toFixed(4)} GPU-HRS
           </div>
         </td>
 
         {/* Side */}
         <td className="px-3 py-2.5">
-          <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${
+          <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
             isLong
-              ? "text-up bg-up/10 border-up/20"
-              : "text-down bg-down/10 border-down/20"
+              ? "text-up bg-up/10"
+              : "text-down bg-down/10"
           }`}>
             {isLong ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
             {isLong ? "Long" : "Short"}
@@ -494,22 +494,22 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
         {/* Notional / size */}
         <td className="px-3 py-2.5 text-right">
-          <div className="text-[11px] font-mono text-zinc-200">${openNotional.toFixed(2)}</div>
-          <div className="text-[9px] font-mono text-zinc-600">{absSize.toFixed(4)}</div>
+          <div className="text-[11px] num text-ink">${openNotional.toFixed(2)}</div>
+          <div className="text-[9px] num text-ink-faint">{absSize.toFixed(4)}</div>
         </td>
 
         {/* Entry */}
-        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-zinc-400">
+        <td className="px-3 py-2.5 text-right num text-[11px] text-ink-muted">
           ${entryPrice.toFixed(2)}
         </td>
 
         {/* Mark */}
-        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-zinc-200">
+        <td className="px-3 py-2.5 text-right num text-[11px] text-ink">
           {currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—"}
         </td>
 
         {/* Liq */}
-        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-yellow-400">
+        <td className="px-3 py-2.5 text-right num text-[11px] text-warn">
           {liqPrice && liqPrice > 0 ? `$${liqPrice.toFixed(2)}` : "—"}
         </td>
 
@@ -536,7 +536,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               className={`p-1.5 rounded transition-all disabled:opacity-40 ${
                 isAddingMargin
                   ? "text-blue-400 bg-blue-500/15 border border-blue-500/25"
-                  : "text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent"
+                  : "text-ink-faint hover:text-blue-400 hover:bg-blue-500/10 border border-transparent"
               }`}
             >
               <Plus size={11} />
@@ -550,7 +550,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               disabled={isAddMarginBusy}
               className={`px-2 py-1 text-[9px] font-bold rounded border transition-all disabled:opacity-40 ${
                 isClosing
-                  ? "text-zinc-400 bg-zinc-800 border-zinc-700"
+                  ? "text-ink-muted bg-surface-3 border-line"
                   : "text-down bg-red-500/10 hover:bg-red-500/20 border-red-500/20 hover:border-red-500/35"
               }`}
             >
@@ -565,7 +565,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         <tr className="border-b border-line-subtle bg-surface-2">
           <td colSpan={8} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold shrink-0">Close size</span>
+              <span className="text-[9px] text-ink-faint uppercase tracking-widest font-bold shrink-0">Close size</span>
 
               {/* Presets */}
               <div className="flex gap-1">
@@ -578,7 +578,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                       className={`px-2 py-1 text-[9px] font-bold rounded border transition-all ${
                         closeSize === val
                           ? "bg-red-500/15 border-red-500/35 text-down"
-                          : "bg-white/[0.02] border-white/[0.06] text-zinc-500 hover:text-zinc-200 hover:border-white/[0.12]"
+                          : "bg-surface-2 border-line-subtle text-ink-faint hover:text-ink hover:border-line"
                       }`}
                     >
                       {pct}%
@@ -594,10 +594,10 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                   placeholder="0.0000"
                   value={closeSize}
                   onChange={e => setCloseSize(e.target.value)}
-                  className="w-36 bg-white/[0.03] border border-white/[0.08] rounded px-2 pr-16 py-1.5 text-[11px] text-white font-mono focus:outline-none focus:border-red-500/30 placeholder-zinc-700 transition-colors"
+                  className="w-36 bg-surface-2 border border-line rounded px-2 pr-16 py-1.5 text-[11px] text-ink num focus:outline-none focus:border-red-500/30 placeholder-ink-ghost transition-colors"
                   step="0.0001"
                 />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-mono text-zinc-600 pointer-events-none">
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] num text-ink-faint pointer-events-none">
                   GPU-HRS
                 </span>
               </div>
@@ -613,9 +613,9 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
               {/* Est P&L */}
               {closeSize && parseFloat(closeSize) > 0 && (
-                <span className="text-[9px] text-zinc-600 ml-1">
+                <span className="text-[9px] text-ink-faint ml-1">
                   Est. P&L:{" "}
-                  <span className={`font-mono font-semibold ${currentPnL >= 0 ? "text-up" : "text-down"}`}>
+                  <span className={`num font-semibold ${currentPnL >= 0 ? "text-up" : "text-down"}`}>
                     {currentPnL >= 0 ? "+" : ""}${((currentPnL / absSize) * parseFloat(closeSize)).toFixed(3)}
                   </span>
                 </span>
@@ -636,9 +636,9 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         <tr className="border-b border-line-subtle bg-surface-2">
           <td colSpan={8} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold shrink-0">Add margin</span>
-              <span className="text-[9px] text-zinc-600">
-                Available: <span className="font-mono text-zinc-400">{availableQuoteCollateral.toFixed(2)} USDC</span>
+              <span className="text-[9px] text-ink-faint uppercase tracking-widest font-bold shrink-0">Add margin</span>
+              <span className="text-[9px] text-ink-faint">
+                Available: <span className="num text-ink-muted">{availableQuoteCollateral.toFixed(2)} USDC</span>
               </span>
 
               {/* Amount input */}
@@ -649,7 +649,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                   value={addMarginAmount}
                   onChange={e => { if (!isAddMarginBusy) { setAddMarginAmount(e.target.value); setAddMarginInlineError(""); } }}
                   disabled={isAddMarginBusy}
-                  className="w-36 bg-white/[0.03] border border-white/[0.08] rounded px-2 pr-16 py-1.5 text-[11px] text-white font-mono focus:outline-none focus:border-blue-500/30 placeholder-zinc-700 transition-colors disabled:opacity-60"
+                  className="w-36 bg-surface-2 border border-line rounded px-2 pr-16 py-1.5 text-[11px] text-ink num focus:outline-none focus:border-blue-500/30 placeholder-ink-ghost transition-colors disabled:opacity-60"
                   step="0.01"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
@@ -657,11 +657,11 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                     type="button"
                     onClick={() => { if (!isAddMarginBusy) setAddMarginAmount(availableQuoteCollateral > 0 ? availableQuoteCollateral.toFixed(2) : ""); }}
                     disabled={isAddMarginBusy || availableQuoteCollateral <= 0}
-                    className="text-[8px] font-bold text-blue-400 hover:text-blue-300 disabled:text-zinc-700"
+                    className="text-[8px] font-bold text-blue-400 hover:text-blue-300 disabled:text-ink-ghost"
                   >
                     MAX
                   </button>
-                  <span className="text-[8px] font-mono text-zinc-600">USDC</span>
+                  <span className="text-[8px] num text-ink-faint">USDC</span>
                 </div>
               </div>
 
@@ -676,11 +676,11 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
               {/* Preview */}
               {addMarginAmountNum > 0 && !isAddMarginOverAvailable && (
-                <span className="text-[9px] text-zinc-600 ml-1">
+                <span className="text-[9px] text-ink-faint ml-1">
                   New lev:{" "}
-                  <span className="font-mono text-blue-300">{projectedLeverage.toFixed(1)}×</span>
+                  <span className="num text-blue-300">{projectedLeverage.toFixed(1)}×</span>
                   {" "}· New margin:{" "}
-                  <span className="font-mono text-zinc-300">{projectedMargin.toFixed(2)} USDC</span>
+                  <span className="num text-ink-muted">{projectedMargin.toFixed(2)} USDC</span>
                 </span>
               )}
             </div>
@@ -722,8 +722,8 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               },
             ].map(({ label, value, mono, cls }) => (
               <div key={label} className="flex items-center justify-between">
-                <span className="text-[11px] text-zinc-500 uppercase tracking-[0.1em]">{label}</span>
-                <span className={`text-[12px] font-medium ${mono ? "font-mono" : ""} ${cls || "text-zinc-200"}`}>{value}</span>
+                <span className="text-[11px] text-ink-faint uppercase tracking-[0.1em]">{label}</span>
+                <span className={`text-[12px] font-medium ${mono ? "num" : ""} ${cls || "text-ink"}`}>{value}</span>
               </div>
             ))}
             {closeInlineError && (

@@ -30,11 +30,12 @@
   --color-line: rgba(255, 255, 255, 0.10);
   --color-line-strong: rgba(255, 255, 255, 0.18);
 
-  /* Text / ink hierarchy */
-  --color-ink: #f4f4f6;        /* primary values, headings */
-  --color-ink-muted: #9a9aa6;  /* secondary text */
-  --color-ink-faint: #65656f;  /* labels, captions */
-  --color-ink-ghost: #41414a;  /* disabled, placeholders */
+  /* Text / ink hierarchy — opacity tiers matched to a pro terminal:
+     primary ~95%, secondary ~70%, labels ~52%, ghost ~30%. Never pure white. */
+  --color-ink: #f3f3f6;        /* Tier 1 — primary values, headings (~95%) */
+  --color-ink-muted: #adadb8;  /* Tier 2 — secondary values (~70%) */
+  --color-ink-faint: #7c7c87;  /* Tier 3 — labels, captions (~52%) */
+  --color-ink-ghost: #4a4a54;  /* disabled, placeholders (~30%) */
 
   /* Market direction — refined, accessible on dark */
   --color-up: #29d28b;         /* data text (mark up, P&L+, funding+) */
@@ -129,7 +130,7 @@
         letter-spacing: -0.01em;
     }
 
-    /* Primary market value — the number that should be read first.
+    /* Tier 2 — secondary market value (funding, OI, volume, balances).
        (Numeric props are inlined rather than @apply'd from .num, since
         Tailwind v4 can only @apply real utilities, not custom classes.) */
     .stat-value {
@@ -137,13 +138,23 @@
         font-feature-settings: 'tnum' on, 'lnum' on, 'zero' on, 'ss01' on;
         font-variant-numeric: tabular-nums lining-nums;
         letter-spacing: -0.01em;
-        @apply text-ink font-medium leading-none;
+        @apply text-ink-muted font-medium leading-none;
     }
 
-    /* Quiet, secondary label that sits beneath a value. */
+    /* Tier 1 — the hero number the eye should find first (mark / last / PnL).
+       Heavier weight, brighter ink, tighter tracking. Size set per use. */
+    .stat-hero {
+        font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-feature-settings: 'tnum' on, 'lnum' on, 'zero' on, 'ss01' on;
+        font-variant-numeric: tabular-nums lining-nums;
+        letter-spacing: -0.02em;
+        @apply text-ink font-semibold leading-none;
+    }
+
+    /* Tier 3 — quiet uppercase label. Clarity comes from treatment, not weight. */
     .stat-label {
-        @apply text-[10px] font-medium text-ink-faint uppercase leading-none;
-        letter-spacing: 0.1em;
+        @apply text-[11px] font-medium text-ink-faint uppercase leading-none;
+        letter-spacing: 0.08em;
     }
 }
 

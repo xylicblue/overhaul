@@ -225,13 +225,13 @@ export const TradingDashboard = ({ onHelpClick }) => {
             >
               <button
                 onClick={() => setDrawerOpen(o => !o)}
-                className={`flex items-center gap-2 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 border ${
+                className={`flex items-center gap-2 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors duration-150 border ${
                   drawerOpen
-                    ? "bg-white/[0.06] border-white/[0.1] text-white"
-                    : "bg-transparent border-white/[0.06] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] hover:border-white/[0.1]"
+                    ? "bg-surface-3 border-line-strong text-ink"
+                    : "bg-surface-2 border-line text-ink hover:bg-surface-3 hover:border-line-strong"
                 }`}
               >
-                <Activity size={11} strokeWidth={1.75} className="text-zinc-500" />
+                <Activity size={11} strokeWidth={2} className="text-blue-400" />
                 Open positions
                 {positionCount > 0 && (
                   <span className="bg-blue-500/15 text-blue-400 text-[9px] font-semibold tabular-nums px-1.5 py-px rounded">
@@ -297,7 +297,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
 
         {/* Right: Order Form */}
         <div
-          className="shrink-0 flex flex-col bg-surface-1 border-l border-line shadow-[-10px_0_28px_-16px_rgba(0,0,0,0.8)]"
+          className="shrink-0 flex flex-col bg-surface-1 border-l border-line-subtle"
           style={{ width: orderPanelWidth }}
         >
           {/* Header */}

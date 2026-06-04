@@ -85,7 +85,7 @@ const InfoTooltip = ({ title, description }) => {
     <>
       <span
         ref={ref}
-        className="inline-flex text-zinc-700 hover:text-zinc-500 cursor-help transition-colors"
+        className="inline-flex text-ink-ghost hover:text-ink-faint cursor-help transition-colors"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setHovered(false)}
       >
@@ -93,11 +93,11 @@ const InfoTooltip = ({ title, description }) => {
       </span>
       {hovered && ReactDOM.createPortal(
         <div
-          className="fixed z-[200] w-56 p-3 bg-[#0e0e18] border border-zinc-700/50 rounded-xl shadow-2xl text-xs pointer-events-none"
+          className="fixed z-[200] w-56 p-3 bg-surface-2 border border-line rounded-xl shadow-2xl text-xs pointer-events-none"
           style={{ top: `${pos.top}px`, left: `${pos.left}px` }}
         >
-          <div className="font-semibold text-white mb-1">{title}</div>
-          <div className="text-zinc-400 leading-relaxed">{description}</div>
+          <div className="font-semibold text-ink mb-1">{title}</div>
+          <div className="text-ink-muted leading-relaxed">{description}</div>
         </div>,
         document.body
       )}
@@ -360,8 +360,8 @@ export const TradingPanel = ({ selectedMarket }) => {
   }, [tradeError, receiptError, resetTrade, market?.displayName, market?.name]);
 
   // ── Guards ────────────────────────────────────────────────────────────────
-  if (!selectedMarket) return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Select a market</div>;
-  if (isLoading)        return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Loading…</div>;
+  if (!selectedMarket) return <div className="flex items-center justify-center h-full text-ink-faint text-xs">Select a market</div>;
+  if (isLoading)        return <div className="flex items-center justify-center h-full text-ink-faint text-xs">Loading…</div>;
   if (error || !market) return <div className="flex items-center justify-center h-full text-red-500 text-xs">Error loading market</div>;
 
   const handleTrade = async () => {
@@ -428,7 +428,7 @@ export const TradingPanel = ({ selectedMarket }) => {
     <div className="flex flex-col h-full bg-surface-1">
 
       {/* ── Direction toggle ────────────────────────────────────────────── */}
-      <div className="px-3 pt-3 pb-3 border-b border-line">
+      <div className="px-3 pt-3 pb-2">
         <div className="grid grid-cols-2 gap-px bg-line rounded-md overflow-hidden p-px">
           <button
             onClick={() => setSide("Buy")}
@@ -456,8 +456,8 @@ export const TradingPanel = ({ selectedMarket }) => {
       {/* ── Scrollable body ─────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
 
-        {/* Key stats row */}
-        <div className="grid grid-cols-3 px-3 py-3 border-b border-line bg-surface-2/30">
+        {/* Key stats row — separated by a faint full-width surface band, not a border */}
+        <div className="grid grid-cols-3 px-3 py-3 bg-surface-2/30">
           {[
             { label: "Balance", value: `$${effectiveBalance.toFixed(2)}`,                      align: "items-start" },
             { label: "Mark",    value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—", align: "items-center" },
@@ -477,12 +477,12 @@ export const TradingPanel = ({ selectedMarket }) => {
         </div>
 
         {/* Order */}
-        <div className="px-3 py-3 border-b border-line space-y-3">
+        <div className="px-3 py-3 border-b border-line-subtle space-y-3">
           <SectionLabel
             right={
               <div className="flex items-center gap-3 text-[11px]">
-                <span className="text-white font-medium">Market</span>
-                <span className="text-zinc-700 cursor-not-allowed">Limit<span className="ml-1 text-[9px] text-zinc-700">soon</span></span>
+                <span className="text-ink font-medium">Market</span>
+                <span className="text-ink-ghost cursor-not-allowed">Limit<span className="ml-1 text-[9px] text-ink-ghost">soon</span></span>
               </div>
             }
           >
@@ -505,8 +505,8 @@ export const TradingPanel = ({ selectedMarket }) => {
                 }}
                 className={`py-1.5 text-[11px] font-medium transition-colors duration-100 ${
                   orderInputMode === mode.key
-                    ? "bg-ink text-surface-0"
-                    : "bg-surface-2 text-ink-faint hover:text-ink"
+                    ? "bg-surface-3 text-ink"
+                    : "bg-surface-1 text-ink-faint hover:text-ink-muted"
                 }`}
               >
                 {mode.label}
@@ -520,7 +520,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               <label className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">
                 {orderInputMode === "notional" ? "Notional" : "Size"}
               </label>
-              <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
+              <span className="text-[10px] text-ink-faint font-mono tabular-nums">
                 Max {orderInputMode === "notional"
                   ? `$${maxNotional > 0 ? maxNotional.toFixed(2) : "0.00"}`
                   : `${maxSize > 0 ? maxSize.toFixed(2) : "0.00"} ${market.baseAsset}`}
@@ -530,7 +530,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               <input
                 type="number"
                 placeholder="0.0000"
-                className="w-full bg-surface-2 border border-line rounded-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] pl-3 pr-16 py-2 text-[13px] text-white focus:outline-none focus:border-line-strong focus:bg-surface-3/40 transition-colors duration-150 placeholder-zinc-700 num"
+                className="w-full bg-surface-2 border border-line-subtle rounded-md pl-3 pr-16 py-2 text-[13px] text-white focus:outline-none focus:border-line-strong transition-colors duration-150 placeholder-ink-ghost num"
                 min="0"
                 value={size}
                 onKeyDown={e => e.key === "-" && e.preventDefault()}
@@ -539,14 +539,14 @@ export const TradingPanel = ({ selectedMarket }) => {
                   if (v === "" || parseFloat(v) >= 0) setSize(v);
                 }}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-ink-faint">
                 {orderInputMode === "notional" ? "USDC" : market.baseAsset}
               </span>
             </div>
             {orderInputMode === "notional" && (
               <div className="mt-1.5 flex items-center justify-between text-[10px] leading-4">
-                <span className="text-zinc-600">Derived size</span>
-                <span className="font-mono tabular-nums text-zinc-400">
+                <span className="text-ink-faint">Derived size</span>
+                <span className="font-mono tabular-nums text-ink-muted">
                   {sizeNum > 0 ? `${sizeNum.toFixed(6)} ${market.baseAsset}` : `— ${market.baseAsset}`}
                 </span>
               </div>
@@ -603,7 +603,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               </div>
               {/* Current % of max */}
               <span className={`shrink-0 w-10 text-right text-[11px] font-mono tabular-nums ${
-                sliderValue > 0 ? (isLong ? "text-up" : "text-down") : "text-zinc-600"
+                sliderValue > 0 ? (isLong ? "text-up" : "text-down") : "text-ink-faint"
               }`}>
                 {sliderMax > 0 ? `${Math.min(100, Math.round((sliderValue / sliderMax) * 100))}%` : "0%"}
               </span>
@@ -615,7 +615,7 @@ export const TradingPanel = ({ selectedMarket }) => {
             <div className="flex items-baseline justify-between mb-1.5">
               <label className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Price limit</label>
               <button
-                className="text-[10px] text-zinc-400 hover:text-white font-medium transition-colors duration-150"
+                className="text-[10px] text-ink-faint hover:text-ink font-medium transition-colors duration-150"
                 onClick={() => setPriceLimit(market.markPriceRaw ? String(market.markPriceRaw) : "")}
               >
                 Use mark
@@ -625,7 +625,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               <input
                 type="number"
                 placeholder="Market"
-                className="w-full bg-surface-2 border border-line rounded-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] pl-3 pr-12 py-2 text-[13px] text-white focus:outline-none focus:border-line-strong focus:bg-surface-3/40 transition-colors duration-150 placeholder-zinc-700 num"
+                className="w-full bg-surface-2 border border-line-subtle rounded-md pl-3 pr-12 py-2 text-[13px] text-white focus:outline-none focus:border-line-strong transition-colors duration-150 placeholder-ink-ghost num"
                 min="0"
                 value={priceLimit}
                 onKeyDown={e => e.key === "-" && e.preventDefault()}
@@ -634,7 +634,7 @@ export const TradingPanel = ({ selectedMarket }) => {
                   if (v === "" || parseFloat(v) >= 0) setPriceLimit(v);
                 }}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-ink-faint">
                 USDC
               </span>
             </div>
@@ -666,7 +666,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         </div>
 
         {/* Order summary — clean key/value list */}
-        <div className="px-3 py-3 border-b border-line space-y-1">
+        <div className="px-3 py-3 border-b border-line-subtle space-y-1">
           <SummaryRow
             label="Size"
             value={sizeNum > 0 ? `${sizeNum.toFixed(6)} ${market.baseAsset}` : "—"}
@@ -678,18 +678,18 @@ export const TradingPanel = ({ selectedMarket }) => {
           <SummaryRow
             label={`Fees (${(feeBps / 100).toFixed(2)}%)`}
             value={preview.fee > 0n ? formatUsd(preview.fee) : "—"}
-            valueClass="text-zinc-400"
+            valueClass="text-ink-muted"
           />
           <SummaryRow
             label="Initial margin"
             value={preview.initialMargin > 0n ? formatUsd(preview.initialMargin) : "—"}
-            valueClass="text-white font-medium"
+            valueClass="text-ink font-medium"
             tooltip={{ title: "Initial Margin", desc: "Collateral reserved by the contract using market IMR and the higher of post-trade mark or index price." }}
           />
           <SummaryRow
             label="Total required"
             value={preview.totalRequired > 0n ? formatUsd(preview.totalRequired) : "—"}
-            valueClass={isOverMax ? "text-down font-medium" : "text-zinc-300"}
+            valueClass={isOverMax ? "text-down font-medium" : "text-ink-muted"}
             tooltip={{ title: "Total Required", desc: "Initial margin plus trading fee from mirrored vAMM execution." }}
           />
           <SummaryRow
@@ -725,25 +725,25 @@ export const TradingPanel = ({ selectedMarket }) => {
         {/* Risk parameters — low-priority info, integrated */}
         <div className="px-3 py-3 space-y-1">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <ShieldCheck size={10} strokeWidth={1.75} className="text-zinc-600" />
+            <ShieldCheck size={10} strokeWidth={1.75} className="text-ink-faint" />
             <span className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Risk</span>
           </div>
           <SummaryRow
             label="IMR / MMR"
             value={`${riskParams?.imrPercent ? riskParams.imrPercent.toFixed(1) : "10.0"}% / ${riskParams?.mmrPercent ? riskParams.mmrPercent.toFixed(1) : "5.0"}%`}
-            valueClass="text-zinc-400"
+            valueClass="text-ink-muted"
             tooltip={{ title: "Initial / Maintenance Margin", desc: "IMR is the minimum margin to open a position. MMR is the minimum to keep it open before liquidation." }}
           />
           <SummaryRow
             label="Risk price"
             value={riskPrice > 0 ? `$${riskPrice.toFixed(2)}` : "—"}
-            valueClass="text-zinc-400"
+            valueClass="text-ink-muted"
             tooltip={{ title: "Risk Price", desc: "The higher of mark, index, or order price used to estimate contract margin." }}
           />
           <SummaryRow
             label="Min / Max size"
             value={`${riskParams?.minPositionSize ? Number(riskParams.minPositionSize).toFixed(2) : "0.00"} / ${riskParams?.maxPositionSize && Number(riskParams.maxPositionSize) > 0 ? Number(riskParams.maxPositionSize).toFixed(2) : "∞"}`}
-            valueClass="text-zinc-400"
+            valueClass="text-ink-muted"
           />
           <SummaryRow
             label="Liq. penalty"
@@ -755,12 +755,12 @@ export const TradingPanel = ({ selectedMarket }) => {
       </div>
 
       {/* ── Submit ──────────────────────────────────────────────────────── */}
-      <div className="px-3 py-3 border-t border-line bg-surface-1">
+      <div className="px-3 py-3 border-t border-line-subtle bg-surface-1">
         <button
-          className={`w-full h-11 rounded-md font-semibold text-white text-[13px] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 ${
+          className={`w-full h-11 rounded-md font-semibold text-white text-[13px] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
             isLong
-              ? "bg-up-solid hover:brightness-110 shadow-[0_6px_22px_-6px_rgba(20,178,119,0.55)]"
-              : "bg-down-solid hover:brightness-110 shadow-[0_6px_22px_-6px_rgba(226,59,65,0.55)]"
+              ? "bg-up-solid hover:brightness-110"
+              : "bg-down-solid hover:brightness-110"
           }`}
           onClick={handleTrade}
           disabled={isPending || isSimulating || !size || sizeNum <= 0 || !preview.ok}
