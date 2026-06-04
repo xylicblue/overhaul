@@ -44,9 +44,9 @@ export function PositionPanel({ selectedMarket = null }) {
   const count = positions?.length ?? 0;
 
   return (
-    <div className="flex flex-col h-full bg-[#06060a]">
+    <div className="flex flex-col h-full bg-surface-1">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="px-4 py-2.5 border-b border-zinc-800/80 flex items-center justify-between bg-[#06060a] sticky top-0 z-10 shrink-0">
+      <div className="px-4 py-2.5 border-b border-line flex items-center justify-between bg-surface-1 sticky top-0 z-10 shrink-0">
         <h3 className="text-[10px] font-bold text-zinc-400 flex items-center gap-2 uppercase tracking-widest">
           <Activity size={12} className="text-blue-400" />
           Positions
@@ -89,7 +89,7 @@ export function PositionPanel({ selectedMarket = null }) {
         <div className="flex-1 overflow-auto custom-scrollbar">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="border-b border-zinc-800/60 bg-[#06060a] sticky top-0 z-10">
+              <tr className="border-b border-line bg-surface-1 sticky top-0 z-10">
                 {[
                   { label: "Market",    right: false },
                   { label: "Side",      right: false },
@@ -99,7 +99,7 @@ export function PositionPanel({ selectedMarket = null }) {
                   { label: "Liq.",      right: true  },
                   { label: "P&L / ROE", right: true  },
                 ].map(({ label, right }) => (
-                  <th key={label} className={`px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-zinc-600 whitespace-nowrap ${right ? "text-right" : ""}`}>
+                  <th key={label} className={`px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-ink-faint whitespace-nowrap ${right ? "text-right" : ""}`}>
                     {label}
                   </th>
                 ))}
@@ -461,7 +461,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
   return (
     <React.Fragment>
       {/* ── Main position row ──────────────────────────────────────────── */}
-      <tr className={`transition-colors border-b border-zinc-800/40 ${rowBg}`}>
+      <tr className={`transition-colors border-b border-line-subtle ${rowBg}`}>
 
         {/* Market + size */}
         <td className="px-3 py-2.5 min-w-[100px]">
@@ -484,8 +484,8 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         <td className="px-3 py-2.5">
           <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${
             isLong
-              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-              : "text-red-400 bg-red-500/10 border-red-500/20"
+              ? "text-up bg-up/10 border-up/20"
+              : "text-down bg-down/10 border-down/20"
           }`}>
             {isLong ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
             {isLong ? "Long" : "Short"}
@@ -515,10 +515,10 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
         {/* P&L + ROE */}
         <td className="px-3 py-2.5 text-right">
-          <div className={`text-[12px] font-mono font-semibold leading-none ${isProfitable ? "text-emerald-400" : "text-red-400"}`}>
+          <div className={`text-[12px] num font-semibold leading-none ${isProfitable ? "text-up" : "text-down"}`}>
             {isProfitable ? "+" : ""}{netPnL.toFixed(3)}
           </div>
-          <div className={`text-[9px] font-mono mt-0.5 ${isProfitable ? "text-emerald-500/60" : "text-red-500/60"}`}>
+          <div className={`text-[9px] num mt-0.5 ${isProfitable ? "text-up/70" : "text-down/70"}`}>
             {roe >= 0 ? "+" : ""}{roe.toFixed(2)}%
           </div>
         </td>
@@ -551,7 +551,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               className={`px-2 py-1 text-[9px] font-bold rounded border transition-all disabled:opacity-40 ${
                 isClosing
                   ? "text-zinc-400 bg-zinc-800 border-zinc-700"
-                  : "text-red-400 bg-red-500/10 hover:bg-red-500/20 border-red-500/20 hover:border-red-500/35"
+                  : "text-down bg-red-500/10 hover:bg-red-500/20 border-red-500/20 hover:border-red-500/35"
               }`}
             >
               {isClosing ? "Cancel" : "Close"}
@@ -562,7 +562,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
       {/* ── Close controls row ─────────────────────────────────────────── */}
       {isClosing && (
-        <tr className="border-b border-zinc-800/40 bg-zinc-900/50">
+        <tr className="border-b border-line-subtle bg-surface-2">
           <td colSpan={8} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold shrink-0">Close size</span>
@@ -577,7 +577,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                       onClick={() => setCloseSize(val)}
                       className={`px-2 py-1 text-[9px] font-bold rounded border transition-all ${
                         closeSize === val
-                          ? "bg-red-500/15 border-red-500/35 text-red-400"
+                          ? "bg-red-500/15 border-red-500/35 text-down"
                           : "bg-white/[0.02] border-white/[0.06] text-zinc-500 hover:text-zinc-200 hover:border-white/[0.12]"
                       }`}
                     >
@@ -606,7 +606,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               <button
                 onClick={() => initiateClose(closeSize)}
                 disabled={isCloseBusy || !closeSize}
-                className="px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-[10px] font-bold rounded border border-red-500/25 hover:border-red-500/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-down text-[10px] font-bold rounded border border-red-500/25 hover:border-red-500/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isCloseBusy ? "…" : "Confirm Close"}
               </button>
@@ -615,7 +615,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               {closeSize && parseFloat(closeSize) > 0 && (
                 <span className="text-[9px] text-zinc-600 ml-1">
                   Est. P&L:{" "}
-                  <span className={`font-mono font-semibold ${currentPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  <span className={`font-mono font-semibold ${currentPnL >= 0 ? "text-up" : "text-down"}`}>
                     {currentPnL >= 0 ? "+" : ""}${((currentPnL / absSize) * parseFloat(closeSize)).toFixed(3)}
                   </span>
                 </span>
@@ -633,7 +633,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
       {/* ── Add-margin controls row ────────────────────────────────────── */}
       {isAddingMargin && (
-        <tr className="border-b border-zinc-800/40 bg-zinc-900/50">
+        <tr className="border-b border-line-subtle bg-surface-2">
           <td colSpan={8} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold shrink-0">Add margin</span>
@@ -718,7 +718,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               {
                 label: "Est. P&L",
                 value: `${currentPnL >= 0 ? "+" : ""}$${((currentPnL / absSize) * parseFloat(pendingCloseAmount || 0)).toFixed(3)}`,
-                cls:   currentPnL >= 0 ? "text-emerald-400" : "text-red-400",
+                cls:   currentPnL >= 0 ? "text-up" : "text-down",
               },
             ].map(({ label, value, mono, cls }) => (
               <div key={label} className="flex items-center justify-between">

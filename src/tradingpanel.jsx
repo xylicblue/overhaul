@@ -108,13 +108,13 @@ const InfoTooltip = ({ title, description }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // SummaryRow — single label/value line used in order summary & risk params
 // ─────────────────────────────────────────────────────────────────────────────
-const SummaryRow = ({ label, value, valueClass = "text-zinc-200", tooltip }) => (
+const SummaryRow = ({ label, value, valueClass = "text-ink-muted", tooltip }) => (
   <div className="flex items-center justify-between text-[11px] leading-5">
-    <span className="text-zinc-500 flex items-center gap-1">
+    <span className="text-ink-faint flex items-center gap-1">
       {label}
       {tooltip && <InfoTooltip title={tooltip.title} description={tooltip.desc} />}
     </span>
-    <span className={`font-mono tabular-nums ${valueClass}`}>{value}</span>
+    <span className={`num ${valueClass}`}>{value}</span>
   </div>
 );
 
@@ -123,7 +123,7 @@ const SummaryRow = ({ label, value, valueClass = "text-zinc-200", tooltip }) => 
 // ─────────────────────────────────────────────────────────────────────────────
 const SectionLabel = ({ children, right }) => (
   <div className="flex items-center justify-between mb-2">
-    <span className="text-[10px] font-semibold text-zinc-300 uppercase tracking-[0.14em]">{children}</span>
+    <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-[0.14em]">{children}</span>
     {right}
   </div>
 );
@@ -425,27 +425,27 @@ export const TradingPanel = ({ selectedMarket }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#06060a]">
+    <div className="flex flex-col h-full bg-surface-1">
 
       {/* ── Direction toggle ────────────────────────────────────────────── */}
-      <div className="px-3 pt-3 pb-3 border-b border-zinc-800/80">
-        <div className="grid grid-cols-2 gap-px bg-zinc-800/80 rounded-md overflow-hidden p-px">
+      <div className="px-3 pt-3 pb-3 border-b border-line">
+        <div className="grid grid-cols-2 gap-px bg-line rounded-md overflow-hidden p-px">
           <button
             onClick={() => setSide("Buy")}
-            className={`py-1.5 text-[12px] font-medium transition-colors duration-100 ${
+            className={`py-2 text-[12px] font-semibold transition-colors duration-100 ${
               isLong
-                ? "bg-emerald-500 text-white"
-                : "bg-[#06060a] text-zinc-400 hover:text-zinc-200"
+                ? "bg-up-solid text-white"
+                : "bg-surface-2 text-ink-muted hover:text-ink"
             }`}
           >
             Long
           </button>
           <button
             onClick={() => setSide("Sell")}
-            className={`py-1.5 text-[12px] font-medium transition-colors duration-100 ${
+            className={`py-2 text-[12px] font-semibold transition-colors duration-100 ${
               !isLong
-                ? "bg-red-500 text-white"
-                : "bg-[#06060a] text-zinc-400 hover:text-zinc-200"
+                ? "bg-down-solid text-white"
+                : "bg-surface-2 text-ink-muted hover:text-ink"
             }`}
           >
             Short
@@ -457,7 +457,7 @@ export const TradingPanel = ({ selectedMarket }) => {
       <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
 
         {/* Key stats row */}
-        <div className="grid grid-cols-3 px-3 py-2.5 border-b border-zinc-800/80">
+        <div className="grid grid-cols-3 px-3 py-3 border-b border-line bg-surface-2/30">
           {[
             { label: "Balance", value: `$${effectiveBalance.toFixed(2)}`,                      align: "items-start" },
             { label: "Mark",    value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—", align: "items-center" },
@@ -469,15 +469,15 @@ export const TradingPanel = ({ selectedMarket }) => {
               align: "items-end",
             },
           ].map(({ label, value, align }) => (
-            <div key={label} className={`flex flex-col ${align}`}>
-              <span className="text-[9px] font-medium text-zinc-400 uppercase tracking-[0.14em]">{label}</span>
-              <span className="text-[12px] font-mono font-medium text-zinc-200 tabular-nums truncate mt-0.5">{value}</span>
+            <div key={label} className={`flex flex-col gap-1.5 ${align}`}>
+              <span className="stat-label">{label}</span>
+              <span className="stat-value text-[13px] truncate">{value}</span>
             </div>
           ))}
         </div>
 
         {/* Order */}
-        <div className="px-3 py-3 border-b border-zinc-800/80 space-y-3">
+        <div className="px-3 py-3 border-b border-line space-y-3">
           <SectionLabel
             right={
               <div className="flex items-center gap-3 text-[11px]">
@@ -489,7 +489,7 @@ export const TradingPanel = ({ selectedMarket }) => {
             Order
           </SectionLabel>
 
-          <div className="grid grid-cols-2 gap-px bg-zinc-800/80 rounded-md overflow-hidden p-px">
+          <div className="grid grid-cols-2 gap-px bg-line rounded-md overflow-hidden p-px">
             {[
               { key: "base", label: "GPU Hours" },
               { key: "notional", label: "USDC Notional" },
@@ -505,8 +505,8 @@ export const TradingPanel = ({ selectedMarket }) => {
                 }}
                 className={`py-1.5 text-[11px] font-medium transition-colors duration-100 ${
                   orderInputMode === mode.key
-                    ? "bg-zinc-200 text-zinc-950"
-                    : "bg-[#06060a] text-zinc-500 hover:text-zinc-200"
+                    ? "bg-ink text-surface-0"
+                    : "bg-surface-2 text-ink-faint hover:text-ink"
                 }`}
               >
                 {mode.label}
@@ -517,7 +517,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           {/* Size */}
           <div>
             <div className="flex items-baseline justify-between mb-1.5">
-              <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em]">
+              <label className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">
                 {orderInputMode === "notional" ? "Notional" : "Size"}
               </label>
               <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
@@ -530,7 +530,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               <input
                 type="number"
                 placeholder="0.0000"
-                className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md pl-3 pr-16 py-2 text-[13px] text-white focus:outline-none focus:border-white/[0.16] transition-colors duration-150 placeholder-zinc-700 font-mono tabular-nums"
+                className="w-full bg-surface-2 border border-line rounded-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] pl-3 pr-16 py-2 text-[13px] text-white focus:outline-none focus:border-line-strong focus:bg-surface-3/40 transition-colors duration-150 placeholder-zinc-700 num"
                 min="0"
                 value={size}
                 onKeyDown={e => e.key === "-" && e.preventDefault()}
@@ -554,7 +554,7 @@ export const TradingPanel = ({ selectedMarket }) => {
             {/* Size slider — 0 to maxSize, tick dots at 0/25/50/75/100% */}
             <div className="flex items-center gap-3 mt-3">
               <div className="flex-1 relative h-5 flex items-center">
-                <div className="relative w-full h-[2px] bg-zinc-800 rounded-full">
+                <div className="relative w-full h-[2px] bg-surface-3 rounded-full">
                   {/* Fill */}
                   <div
                     className="absolute inset-y-0 left-0 rounded-full bg-white/70"
@@ -603,7 +603,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               </div>
               {/* Current % of max */}
               <span className={`shrink-0 w-10 text-right text-[11px] font-mono tabular-nums ${
-                sliderValue > 0 ? (isLong ? "text-emerald-400" : "text-red-400") : "text-zinc-600"
+                sliderValue > 0 ? (isLong ? "text-up" : "text-down") : "text-zinc-600"
               }`}>
                 {sliderMax > 0 ? `${Math.min(100, Math.round((sliderValue / sliderMax) * 100))}%` : "0%"}
               </span>
@@ -613,7 +613,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           {/* Price limit */}
           <div>
             <div className="flex items-baseline justify-between mb-1.5">
-              <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em]">Price limit</label>
+              <label className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Price limit</label>
               <button
                 className="text-[10px] text-zinc-400 hover:text-white font-medium transition-colors duration-150"
                 onClick={() => setPriceLimit(market.markPriceRaw ? String(market.markPriceRaw) : "")}
@@ -625,7 +625,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               <input
                 type="number"
                 placeholder="Market"
-                className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md pl-3 pr-12 py-2 text-[13px] text-white focus:outline-none focus:border-white/[0.16] transition-colors duration-150 placeholder-zinc-700 font-mono tabular-nums"
+                className="w-full bg-surface-2 border border-line rounded-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] pl-3 pr-12 py-2 text-[13px] text-white focus:outline-none focus:border-line-strong focus:bg-surface-3/40 transition-colors duration-150 placeholder-zinc-700 num"
                 min="0"
                 value={priceLimit}
                 onKeyDown={e => e.key === "-" && e.preventDefault()}
@@ -642,21 +642,21 @@ export const TradingPanel = ({ selectedMarket }) => {
 
           {/* Effective leverage */}
           <div>
-            <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em] block mb-3">
+            <label className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em] block mb-3">
               Effective leverage
             </label>
             <div className="flex items-center gap-3">
               <div className="flex-1 relative h-5 flex items-center">
-                <div className="relative w-full h-[2px] bg-zinc-800 rounded-full overflow-hidden">
+                <div className="relative w-full h-[2px] bg-surface-3 rounded-full overflow-hidden">
                   <div
-                    className={`absolute inset-y-0 left-0 rounded-full ${isLong ? "bg-emerald-500" : "bg-red-500"}`}
+                    className={`absolute inset-y-0 left-0 rounded-full ${isLong ? "bg-up" : "bg-down"}`}
                     style={{ width: `${Math.min(100, (derivedLeverage / 10) * 100)}%` }}
                   />
                 </div>
               </div>
               <span
                 className={`shrink-0 w-12 text-right text-[13px] font-mono font-semibold tabular-nums ${
-                  isLong ? "text-emerald-400" : "text-red-400"
+                  isLong ? "text-up" : "text-down"
                 }`}
               >
                 {derivedLeverage > 0 ? `${derivedLeverage.toFixed(2)}×` : "—"}
@@ -666,7 +666,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         </div>
 
         {/* Order summary — clean key/value list */}
-        <div className="px-3 py-3 border-b border-zinc-800/80 space-y-1">
+        <div className="px-3 py-3 border-b border-line space-y-1">
           <SummaryRow
             label="Size"
             value={sizeNum > 0 ? `${sizeNum.toFixed(6)} ${market.baseAsset}` : "—"}
@@ -689,13 +689,13 @@ export const TradingPanel = ({ selectedMarket }) => {
           <SummaryRow
             label="Total required"
             value={preview.totalRequired > 0n ? formatUsd(preview.totalRequired) : "—"}
-            valueClass={isOverMax ? "text-red-400 font-medium" : "text-zinc-300"}
+            valueClass={isOverMax ? "text-down font-medium" : "text-zinc-300"}
             tooltip={{ title: "Total Required", desc: "Initial margin plus trading fee from mirrored vAMM execution." }}
           />
           <SummaryRow
             label="Liq. price"
             value={sizeNum > 0 ? `$${liqPrice}` : "—"}
-            valueClass="text-yellow-400"
+            valueClass="text-warn"
             tooltip={{ title: "Liquidation Price", desc: "Price level where margin approaches maintenance requirements using current order and risk inputs." }}
           />
           {/* Inline preflight error — shown for local, simulation, and position blockers */}
@@ -726,7 +726,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         <div className="px-3 py-3 space-y-1">
           <div className="flex items-center gap-1.5 mb-1.5">
             <ShieldCheck size={10} strokeWidth={1.75} className="text-zinc-600" />
-            <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-[0.14em]">Risk</span>
+            <span className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Risk</span>
           </div>
           <SummaryRow
             label="IMR / MMR"
@@ -748,19 +748,19 @@ export const TradingPanel = ({ selectedMarket }) => {
           <SummaryRow
             label="Liq. penalty"
             value={`${riskParams?.liquidationPenaltyPercent ? riskParams.liquidationPenaltyPercent.toFixed(1) : "5.0"}%`}
-            valueClass="text-yellow-400"
+            valueClass="text-warn"
             tooltip={{ title: "Liquidation Penalty", desc: "Penalty charged on liquidation, split between the liquidator and the insurance fund." }}
           />
         </div>
       </div>
 
       {/* ── Submit ──────────────────────────────────────────────────────── */}
-      <div className="px-3 py-3 border-t border-zinc-800/80 bg-[#06060a]">
+      <div className="px-3 py-3 border-t border-line bg-surface-1">
         <button
-          className={`w-full h-10 rounded-md font-medium text-white text-[13px] transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+          className={`w-full h-11 rounded-md font-semibold text-white text-[13px] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 ${
             isLong
-              ? "bg-emerald-500 hover:bg-emerald-400"
-              : "bg-red-500 hover:bg-red-400"
+              ? "bg-up-solid hover:brightness-110 shadow-[0_6px_22px_-6px_rgba(20,178,119,0.55)]"
+              : "bg-down-solid hover:brightness-110 shadow-[0_6px_22px_-6px_rgba(226,59,65,0.55)]"
           }`}
           onClick={handleTrade}
           disabled={isPending || isSimulating || !size || sizeNum <= 0 || !preview.ok}

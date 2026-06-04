@@ -36,9 +36,9 @@ const OrderPanelGate = ({ session, sessionLoading, isConnected, selectedMarket }
         </div>
 
         {/* Overlay */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center bg-[#06060a]/65 backdrop-blur-[2px]">
-          <div className="w-10 h-10 rounded-full bg-zinc-800/90 border border-white/[0.07] flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="text-zinc-400">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center bg-surface-1/65 backdrop-blur-[2px]">
+          <div className="w-10 h-10 rounded-full bg-surface-3 border border-line flex items-center justify-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="text-ink-faint">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
@@ -64,10 +64,10 @@ const OrderPanelGate = ({ session, sessionLoading, isConnected, selectedMarket }
   if (!isConnected) {
     return (
       <>
-        <div className="px-3 py-2 border-b border-zinc-800/80 bg-white/[0.015] flex items-center justify-between gap-2 shrink-0">
+        <div className="px-3 py-2 border-b border-line bg-surface-2/40 flex items-center justify-between gap-2 shrink-0">
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.14em]">Read only</span>
-            <span className="text-[11px] text-zinc-300 leading-tight">Connect wallet to trade</span>
+            <span className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Read only</span>
+            <span className="text-[11px] text-ink-muted leading-tight">Connect wallet to trade</span>
           </div>
           <ConnectButton.Custom>
             {({ openConnectModal, mounted }) => (
@@ -191,7 +191,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-56px)] bg-[#06060a] text-zinc-200 overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-56px)] bg-surface-0 text-ink-muted overflow-hidden">
       {/* Drag overlay — covers TradingView iframe so it can't steal mousemove events */}
       {(isResizingOrder || isResizingPos) && (
         <div
@@ -217,7 +217,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
           </div>
 
           {/* Positions tab bar */}
-          <div className="shrink-0 h-10 border-t border-zinc-800/80 bg-[#06060a] flex items-center px-3 gap-3">
+          <div className="shrink-0 h-10 border-t border-line bg-surface-1 flex items-center px-3 gap-3">
             <motion.div
               animate={shouldBounce ? { y: [0, -5, 2, -2, 0] } : {}}
               transition={{ duration: 0.5, ease: "easeOut" }}
@@ -257,7 +257,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
 
           {/* Positions Drawer — resizable */}
           <div
-            className="shrink-0 bg-[#06060a] overflow-hidden flex flex-col"
+            className="shrink-0 bg-surface-1 overflow-hidden flex flex-col"
             style={{
               height: drawerOpen ? positionsHeight : 0,
               transition: isResizingPos ? "none" : "height 0.25s cubic-bezier(0.4,0,0.2,1)",
@@ -267,7 +267,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
             {/* ↕ Drag handle — drag up to expand, down to shrink */}
             <div
               onMouseDown={startPositionsResize}
-              className="shrink-0 h-[18px] w-full cursor-row-resize flex items-center justify-center bg-zinc-900/60 hover:bg-blue-500/10 border-b border-zinc-800/60 hover:border-blue-500/25 transition-colors duration-150 select-none group"
+              className="shrink-0 h-[18px] w-full cursor-row-resize flex items-center justify-center bg-surface-2 hover:bg-blue-500/10 border-b border-line hover:border-blue-500/25 transition-colors duration-150 select-none group"
               title="Drag to resize"
             >
               <GripHorizontal
@@ -285,7 +285,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
         {/* ↔ Drag handle between chart area and order panel */}
         <div
           onMouseDown={startOrderResize}
-          className="w-[18px] shrink-0 cursor-col-resize flex items-center justify-center bg-zinc-900/60 hover:bg-blue-500/10 border-x border-zinc-800/60 hover:border-blue-500/25 transition-colors duration-150 select-none group relative z-10"
+          className="w-[18px] shrink-0 cursor-col-resize flex items-center justify-center bg-surface-2 hover:bg-blue-500/10 border-x border-line hover:border-blue-500/25 transition-colors duration-150 select-none group relative z-10"
           title="Drag to resize"
         >
           <GripVertical
@@ -297,12 +297,12 @@ export const TradingDashboard = ({ onHelpClick }) => {
 
         {/* Right: Order Form */}
         <div
-          className="shrink-0 flex flex-col bg-[#06060a]"
+          className="shrink-0 flex flex-col bg-surface-1 border-l border-line shadow-[-10px_0_28px_-16px_rgba(0,0,0,0.8)]"
           style={{ width: orderPanelWidth }}
         >
           {/* Header */}
-          <div className="h-9 px-3 flex items-center justify-between border-b border-zinc-800/80 shrink-0">
-            <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.16em]">Order</span>
+          <div className="h-10 px-3 flex items-center justify-between border-b border-line shrink-0">
+            <span className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.16em]">Order</span>
             <div className="group/tip relative flex items-center gap-1.5 cursor-default select-none">
               <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
               <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-yellow-400/80">Testnet · Sepolia</span>
@@ -336,7 +336,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
             </div>
           )}
           {activeMobileTab === "trade" && (
-            <div className="absolute inset-0 flex flex-col bg-[#06060a]">
+            <div className="absolute inset-0 flex flex-col bg-surface-1">
               <OrderPanelGate
                 session={session}
                 sessionLoading={sessionLoading}
@@ -346,14 +346,14 @@ export const TradingDashboard = ({ onHelpClick }) => {
             </div>
           )}
           {activeMobileTab === "positions" && (
-            <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-[#06060a]">
+            <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-surface-1">
               <PositionPanel />
             </div>
           )}
         </div>
 
         {/* Mobile Bottom Nav */}
-        <div className="shrink-0 h-16 bg-[#06060a] border-t border-zinc-800/80 flex items-center justify-around px-2">
+        <div className="shrink-0 h-16 bg-surface-1 border-t border-line flex items-center justify-around px-2">
           {[
             { key: "chart",     icon: <CandlestickChart size={20} />, label: "Chart"     },
             { key: "trade",     icon: <ArrowLeftRight   size={20} />, label: "Trade"     },

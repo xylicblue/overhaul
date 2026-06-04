@@ -270,12 +270,12 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
   // ── Mobile: full-screen overlay ──────────────────────────────────────────
   if (isMobile) {
     return ReactDOM.createPortal(
-      <div className="fixed inset-0 z-[9999] flex flex-col bg-[#08080c]">
+      <div className="fixed inset-0 z-[9999] flex flex-col bg-surface-2">
         {/* Top accent */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/60 to-transparent" />
 
         {/* Header */}
-        <div className="px-4 pt-5 pb-0 bg-[#08080c] shrink-0">
+        <div className="px-4 pt-5 pb-0 bg-surface-2 shrink-0">
           <div className="flex items-center gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4" />
@@ -395,7 +395,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 bg-[#08080c] border-t border-zinc-800/60 shrink-0">
+        <div className="px-4 py-3 bg-surface-2 border-t border-zinc-800/60 shrink-0">
           <p className="text-[10px] text-zinc-600 text-center">
             {filteredMarkets.length} market{filteredMarkets.length !== 1 ? "s" : ""}
             {!isLoggedIn && <span className="ml-2 text-yellow-600">· Log in to save favorites</span>}
@@ -411,10 +411,10 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
     <div className="fixed z-[9999]" style={{ top: position.top, left: position.left }}>
       <div
         ref={modalRef}
-        className="relative w-[760px] bg-[#08080c] border border-white/[0.07] rounded-lg shadow-[0_24px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[540px] animate-in fade-in duration-100 origin-top-left"
+        className="relative w-[760px] bg-surface-2 border border-white/[0.07] rounded-lg shadow-[0_24px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[540px] animate-in fade-in duration-100 origin-top-left"
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="px-3 pt-3 bg-[#08080c]">
+        <div className="px-3 pt-3 bg-surface-2">
           {/* Search row */}
           <div className="flex items-center gap-2 mb-3">
             <div className="relative flex-1">
@@ -607,7 +607,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────────── */}
-        <div className="px-3 py-1.5 bg-[#08080c] border-t border-white/[0.05] flex items-center justify-between">
+        <div className="px-3 py-1.5 bg-surface-2 border-t border-white/[0.05] flex items-center justify-between">
           <div className="flex items-center gap-3 text-[10px] text-zinc-600">
             <span className="flex items-center gap-1">
               <kbd className="bg-white/[0.03] border border-white/[0.06] px-1 py-px rounded text-zinc-500 font-mono text-[9px]">↑</kbd>
@@ -667,10 +667,11 @@ const TickerBar = () => {
   const changeIsPositive = marketData?.change24hValue >= 0;
 
   // ── Stat column helper ──────────────────────────────────────────────────
-  const Stat = ({ value, label, valueClass = "text-zinc-200", tooltip }) => (
-    <div className="flex flex-col justify-center px-4 shrink-0 h-full">
-      <div className={`text-xs font-mono font-medium tabular-nums whitespace-nowrap ${valueClass}`}>{value}</div>
-      <div className="flex items-center text-[10px] text-zinc-500 whitespace-nowrap mt-0.5 tracking-wide gap-0.5">
+  // Value leads (larger, bright, tabular); label is quiet and uppercase.
+  const Stat = ({ value, label, valueClass = "text-ink", tooltip }) => (
+    <div className="flex flex-col justify-center gap-1.5 px-4 shrink-0 h-full">
+      <div className={`stat-value text-[13px] whitespace-nowrap ${valueClass}`}>{value}</div>
+      <div className="flex items-center stat-label whitespace-nowrap gap-1">
         {label}
         {tooltip && <div onClick={e => e.stopPropagation()}>{tooltip}</div>}
       </div>
@@ -678,14 +679,14 @@ const TickerBar = () => {
   );
 
   return (
-    <div className="h-10 bg-[#050505] border-b border-zinc-800/80 flex items-stretch px-0 shrink-0 overflow-x-auto no-scrollbar">
+    <div className="h-12 bg-surface-1 border-b border-line flex items-stretch px-0 shrink-0 overflow-x-auto no-scrollbar">
       {/* ── Market name (static) + Switch button ───────────────────────── */}
-      <div className="relative shrink-0 flex items-center gap-2 px-4 border-r border-zinc-800/80">
+      <div className="relative shrink-0 flex items-center gap-2.5 px-4 border-r border-line-subtle">
         {/* Market name — not clickable, just display */}
-        <span className="text-sm font-semibold text-white tracking-tight">
+        <span className="text-[15px] font-semibold text-ink tracking-tight">
           {marketData?.displayName || marketName.replace("-PERP", "")}
         </span>
-        <span className="text-[9px] font-medium text-zinc-500 border border-zinc-800 px-1 py-0.5 rounded font-mono">PERP</span>
+        <span className="text-[9px] font-semibold text-ink-faint border border-line px-1 py-0.5 rounded tracking-wider">PERP</span>
 
         {/* Dedicated Switch button */}
         <button
@@ -697,7 +698,7 @@ const TickerBar = () => {
             }
             setIsModalOpen(prev => !prev);
           }}
-          className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.08] hover:border-white/[0.14] text-zinc-300 hover:text-white text-[10px] font-medium tracking-wide transition-colors duration-150"
+          className="flex items-center gap-1 px-2 py-1 rounded-md bg-surface-2 hover:bg-surface-3 border border-line hover:border-line-strong text-ink-muted hover:text-ink text-[10px] font-medium tracking-wide transition-colors duration-150"
         >
           Switch
           <ChevronDown size={10} className={`transition-transform duration-150 ${isModalOpen ? "rotate-180" : ""}`} />
@@ -713,40 +714,47 @@ const TickerBar = () => {
         />
       </div>
 
-      {/* ── Mark price (primary, large) ──────────────────────────────────── */}
-      <div className="flex flex-col justify-center px-4 shrink-0">
-        <div className={`text-sm font-mono font-semibold tabular-nums whitespace-nowrap ${changeIsPositive ? "text-emerald-400" : "text-red-400"}`}>
+      {/* ── Mark price (primary — largest value in the bar) ───────────────── */}
+      <div className="flex flex-col justify-center gap-1.5 px-4 shrink-0 border-r border-line-subtle">
+        <div className={`stat-value text-[17px] font-semibold whitespace-nowrap ${changeIsPositive ? "text-up" : "text-down"}`}>
           ${marketData?.price || "0.00"}
         </div>
-        <div className="flex items-center gap-1 mt-0.5">
-          <span className={`flex items-center gap-0.5 font-mono font-medium text-[10px] tabular-nums ${changeIsPositive ? "text-emerald-500" : "text-red-500"}`}>
-            {changeIsPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+        <div className="flex items-center gap-1.5">
+          <span className={`flex items-center gap-0.5 num font-medium text-[11px] ${changeIsPositive ? "text-up" : "text-down"}`}>
+            {changeIsPositive ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
             {marketData?.change24h || "0.00%"}
           </span>
-          <span className="text-zinc-700 text-[10px]">·</span>
-          <span className="text-zinc-500 text-[10px] tracking-wide">Mark</span>
+          <span className="stat-label">Mark</span>
           <div onClick={e => e.stopPropagation()}>
             <InfoTooltip title="Mark Price ($/hour)" description="The current trading price for GPU compute hours from the vAMM." />
           </div>
         </div>
       </div>
 
-      {/* ── Secondary stats ──────────────────────────────────────────────── */}
-      <div className="flex items-stretch overflow-x-auto no-scrollbar">
+      {/* ── Group A: oracle reference + funding ───────────────────────────── */}
+      <div className="flex items-stretch">
         <Stat
           value={marketData?.indexPrice && marketData.indexPrice !== "N/A" ? `$${marketData.indexPrice}` : "N/A"}
+          valueClass="text-ink-muted"
           label="Index Price"
           tooltip={<InfoTooltip title="Index Price (Oracle)" description="Reference price from external oracles tracking real GPU rental rates. Used to calculate funding rates." />}
         />
         <Stat
           value={marketData?.fundingRate || "0.0000%"}
-          valueClass={(() => { const r = parseFloat(marketData?.fundingRate); if (!r || r === 0) return "text-zinc-400"; return r > 0 ? "text-emerald-400" : "text-red-400"; })()}
+          valueClass={(() => { const r = parseFloat(marketData?.fundingRate); if (!r || r === 0) return "text-ink-muted"; return r > 0 ? "text-up" : "text-down"; })()}
           label="Funding / 8h"
           tooltip={<InfoTooltip title="Funding Rate" description="Periodic payment between longs and shorts every 8 hours. Keeps the perpetual price anchored to real GPU rental rates." />}
         />
+      </div>
+
+      {/* Divider between logical groups */}
+      <div className="self-center h-5 w-px bg-line-subtle mx-1 shrink-0" />
+
+      {/* ── Group B: fee + activity (volume, open interest) ───────────────── */}
+      <div className="flex items-stretch">
         <Stat
           value={marketFee}
-          valueClass="text-zinc-300"
+          valueClass="text-ink-muted"
           label="Taker Fee"
           tooltip={<InfoTooltip title="Trading Fee" description="Fee charged on each trade as a percentage of notional value." />}
         />
