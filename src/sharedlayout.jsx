@@ -260,7 +260,7 @@ const AppHeader = ({ session, profile, sessionLoading, handleLogout, openLogin, 
               }`}
             >
               <Vault size={12} strokeWidth={1.75} />
-              Vault
+              Transfer
             </button>
 
             <AnimatePresence>
