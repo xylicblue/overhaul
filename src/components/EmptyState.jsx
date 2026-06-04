@@ -101,20 +101,20 @@ const EmptyState = ({
           initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-          className="relative w-20 h-20 bg-zinc-900/80 rounded-full flex items-center justify-center border border-zinc-800 shadow-xl"
+          className="relative w-20 h-20 bg-surface-2 rounded-full flex items-center justify-center border border-line shadow-xl"
         >
           {/* Animated ring */}
-          <div className="absolute inset-0 rounded-full border-2 border-dashed border-zinc-700/50 animate-[spin_20s_linear_infinite]" />
+          <div className="absolute inset-0 rounded-full border-2 border-dashed border-line animate-[spin_20s_linear_infinite]" />
           
           <Icon size={32} className={`${config.iconColor} relative z-10`} />
         </motion.div>
       </div>
 
       {/* Title */}
-      <h3 className="text-lg font-semibold text-white mb-2">{displayTitle}</h3>
+      <h3 className="text-lg font-semibold text-ink mb-2">{displayTitle}</h3>
 
       {/* Description */}
-      <p className="text-sm text-zinc-400 max-w-xs mb-6 leading-relaxed">
+      <p className="text-sm text-ink-muted max-w-xs mb-6 leading-relaxed">
         {displayDescription}
       </p>
 
@@ -144,7 +144,7 @@ const EmptyState = ({
           secondaryActionHref ? (
             <Link
               to={secondaryActionHref}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-sm font-medium rounded-xl transition-all border border-zinc-700"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-surface-2 hover:bg-surface-3 text-ink-muted hover:text-ink text-sm font-medium rounded-xl transition-all border border-line"
             >
               {secondaryActionLabel}
               <ExternalLink size={14} />
@@ -152,7 +152,7 @@ const EmptyState = ({
           ) : (
             <button
               onClick={onSecondaryAction}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-sm font-medium rounded-xl transition-all border border-zinc-700"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-surface-2 hover:bg-surface-3 text-ink-muted hover:text-ink text-sm font-medium rounded-xl transition-all border border-line"
             >
               {secondaryActionLabel}
             </button>
@@ -163,7 +163,7 @@ const EmptyState = ({
       {/* Tips Section */}
       {displayTips.length > 0 && (
         <div className="w-full max-w-sm">
-          <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+          <div className="text-[11px] font-semibold text-ink-faint uppercase tracking-wider mb-2">
             Quick Tips
           </div>
           <div className="space-y-2">
@@ -176,7 +176,7 @@ const EmptyState = ({
                 className="flex items-start gap-2 text-left"
               >
                 <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-500/50 shrink-0" />
-                <span className="text-xs text-zinc-500">{tip}</span>
+                <span className="text-xs text-ink-faint">{tip}</span>
               </motion.div>
             ))}
           </div>
@@ -201,12 +201,12 @@ export const CompactEmptyState = ({
     animate={{ opacity: 1 }}
     className="flex flex-col items-center justify-center py-8 px-4 text-center"
   >
-    <div className="w-12 h-12 bg-zinc-900/50 rounded-full flex items-center justify-center mb-3 border border-dashed border-zinc-700">
-      <Icon size={20} className="text-zinc-600" />
+    <div className="w-12 h-12 bg-surface-2 rounded-full flex items-center justify-center mb-3 border border-dashed border-line">
+      <Icon size={20} className="text-ink-faint" />
     </div>
-    <p className="text-sm font-medium text-zinc-300 mb-1">{title}</p>
+    <p className="text-sm font-medium text-ink-muted mb-1">{title}</p>
     {description && (
-      <span className="text-xs text-zinc-500 max-w-[200px]">{description}</span>
+      <span className="text-xs text-ink-faint max-w-[200px]">{description}</span>
     )}
     {actionLabel && onAction && (
       <button

@@ -155,38 +155,40 @@ function App() {
                   gutter={12}
                   containerStyle={{ top: 20, right: 20 }}
                   toastOptions={{
+                    // Matches the trading design tokens: surface-2 base, ink text,
+                    // up/down accents for success/error.
                     style: {
-                      background: "rgba(15, 15, 20, 0.95)",
+                      background: "rgba(26, 26, 36, 0.96)",      // surface-2
                       backdropFilter: "blur(20px)",
-                      color: "#f1f5f9",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      color: "#f3f3f6",                          // ink
+                      border: "1px solid rgba(255, 255, 255, 0.10)", // line
                       borderRadius: "12px",
                       padding: "14px 18px",
                       fontSize: "14px",
                       fontWeight: "500",
-                      boxShadow: "0 20px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)",
+                      boxShadow: "0 20px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05)",
                       maxWidth: "380px",
                     },
                     duration: 4000,
                     success: {
                       style: {
-                        background: "linear-gradient(135deg, rgba(15,15,20,0.95) 0%, rgba(16,185,129,0.1) 100%)",
-                        border: "1px solid rgba(16,185,129,0.3)",
+                        background: "linear-gradient(135deg, rgba(26,26,36,0.96) 0%, rgba(41,210,139,0.12) 100%)",
+                        border: "1px solid rgba(41,210,139,0.30)", // up
                       },
-                      iconTheme: { primary: "#10b981", secondary: "#0f0f14" },
+                      iconTheme: { primary: "#29d28b", secondary: "#0a0a10" }, // up / surface-1
                     },
                     error: {
                       duration: 10000,
                       style: {
-                        background: "linear-gradient(135deg, rgba(15,15,20,0.95) 0%, rgba(239,68,68,0.1) 100%)",
-                        border: "1px solid rgba(239,68,68,0.3)",
+                        background: "linear-gradient(135deg, rgba(26,26,36,0.96) 0%, rgba(245,72,78,0.12) 100%)",
+                        border: "1px solid rgba(245,72,78,0.30)", // down
                       },
-                      iconTheme: { primary: "#ef4444", secondary: "#0f0f14" },
+                      iconTheme: { primary: "#f5484e", secondary: "#0a0a10" }, // down / surface-1
                     },
                     loading: {
                       style: {
-                        background: "linear-gradient(135deg, rgba(15,15,20,0.95) 0%, rgba(99,102,241,0.1) 100%)",
-                        border: "1px solid rgba(99,102,241,0.3)",
+                        background: "linear-gradient(135deg, rgba(26,26,36,0.96) 0%, rgba(99,102,241,0.12) 100%)",
+                        border: "1px solid rgba(99,102,241,0.30)", // indigo loading accent
                       },
                     },
                   }}

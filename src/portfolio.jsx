@@ -43,21 +43,21 @@ const mono3 = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt3(Math.abs
 const TYPE_STYLES = {
   open:               "text-blue-400    bg-blue-500/10    border-blue-500/20",
   increase:           "text-blue-400    bg-blue-500/10    border-blue-500/20",
-  reduce:             "text-yellow-400  bg-yellow-500/10  border-yellow-500/20",
-  close:              "text-red-400     bg-red-500/10     border-red-500/20",
+  reduce:             "text-warn  bg-warn/10  border-warn/20",
+  close:              "text-down     bg-down/10     border-down/20",
   flip:               "text-purple-400  bg-purple-500/10  border-purple-500/20",
-  liquidation:        "text-red-400     bg-red-500/10     border-red-500/20",
-  funding_settlement: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  margin_added:       "text-zinc-400    bg-zinc-800       border-zinc-700",
-  margin_removed:     "text-zinc-400    bg-zinc-800       border-zinc-700",
+  liquidation:        "text-down     bg-down/10     border-down/20",
+  funding_settlement: "text-up bg-up/10 border-up/20",
+  margin_added:       "text-ink-muted    bg-surface-3       border-line",
+  margin_removed:     "text-ink-muted    bg-surface-3       border-line",
 };
-const typeStyle = (t) => TYPE_STYLES[t] || "text-zinc-400 bg-zinc-800 border-zinc-700";
+const typeStyle = (t) => TYPE_STYLES[t] || "text-ink-muted bg-surface-3 border-line";
 
 const SideBadge = ({ isLong }) => (
-  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
     isLong
-      ? "bg-emerald-500/8 text-emerald-400 border-emerald-500/20"
-      : "bg-red-500/8 text-red-400 border-red-500/20"
+      ? "bg-up/10 text-up"
+      : "bg-down/10 text-down"
   }`}>
     {isLong ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
     {isLong ? "Long" : "Short"}
@@ -65,7 +65,7 @@ const SideBadge = ({ isLong }) => (
 );
 
 const Th = ({ children, right }) => (
-  <th className={`px-4 py-3 text-[9px] font-bold uppercase tracking-widest text-zinc-600 ${right ? "text-right" : ""}`}>
+  <th className={`px-4 py-3 text-[9px] font-bold uppercase tracking-widest text-ink-faint ${right ? "text-right" : ""}`}>
     {children}
   </th>
 );
@@ -102,23 +102,23 @@ const PositionRow = ({ pos }) => {
   const roe           = margin > 0 ? (netPnL / margin) * 100 : 0;
 
   return (
-    <tr className="hover:bg-zinc-800/20 transition-colors group">
+    <tr className="hover:bg-surface-2/50 transition-colors group">
       <td className="px-4 py-3">
-        <span className="text-xs font-bold text-white">{pos.marketName?.replace("-PERP", "")}</span>
-        <span className="text-[10px] text-zinc-600 ml-1">PERP</span>
+        <span className="text-xs font-bold text-ink">{pos.marketName?.replace("-PERP", "")}</span>
+        <span className="text-[10px] text-ink-faint ml-1">PERP</span>
       </td>
       <td className="px-4 py-3"><SideBadge isLong={isLong} /></td>
-      <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">{absSize.toFixed(4)}</td>
-      <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">${entryPrice.toFixed(2)}</td>
-      <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+      <td className="px-4 py-3 text-right num text-xs text-ink-muted">{absSize.toFixed(4)}</td>
+      <td className="px-4 py-3 text-right num text-xs text-ink-muted">${entryPrice.toFixed(2)}</td>
+      <td className="px-4 py-3 text-right num text-xs text-ink-muted">
         {currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—"}
       </td>
-      <td className="px-4 py-3 text-right font-mono text-xs text-zinc-400">${margin.toFixed(2)}</td>
+      <td className="px-4 py-3 text-right num text-xs text-ink-muted">${margin.toFixed(2)}</td>
       <td className="px-4 py-3 text-right">
-        <div className={`text-xs font-mono font-bold ${netPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+        <div className={`text-xs num font-bold ${netPnL >= 0 ? "text-up" : "text-down"}`}>
           {mono(netPnL, true)}
         </div>
-        <div className={`text-[10px] font-mono ${netPnL >= 0 ? "text-emerald-500/50" : "text-red-500/50"}`}>
+        <div className={`text-[10px] num ${netPnL >= 0 ? "text-up/60" : "text-down/60"}`}>
           {netPnL >= 0 ? "+" : ""}{roe.toFixed(2)}% ROE
         </div>
       </td>
@@ -138,7 +138,7 @@ const StatBar = ({ username, totalCollateral, realizedPnL, availableMargin, buyi
       label: "Realized P&L",
       value: mono(realizedPnL, true),
       icon: realizedPnL >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />,
-      valueClass: realizedPnL >= 0 ? "text-emerald-400" : "text-red-400",
+      valueClass: realizedPnL >= 0 ? "text-up" : "text-down",
       sub: null,
     },
     { label: "Open Positions", value: positionCount, icon: <Activity size={12} />, sub: null },
@@ -147,21 +147,20 @@ const StatBar = ({ username, totalCollateral, realizedPnL, availableMargin, buyi
   return (
     <div className="mb-8">
       <div className="mb-5">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-1">Portfolio</p>
-        <h1 className="text-2xl font-bold text-white tracking-tight">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-ink-faint mb-1">Portfolio</p>
+        <h1 className="text-2xl font-bold text-ink tracking-tight">
           {username ? username.toUpperCase() : "TRADER"}
         </h1>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
         {stats.map(({ label, value, icon, sub, valueClass }) => (
-          <div key={label} className="relative bg-[#0a0a10] border border-zinc-800/80 rounded-xl p-4 overflow-hidden">
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-700/50 to-transparent" />
-            <div className="flex items-center gap-1.5 text-zinc-600 mb-2">
+          <div key={label} className="bg-surface-1 border border-line-subtle rounded-xl p-4">
+            <div className="flex items-center gap-1.5 text-ink-faint mb-2.5">
               {icon}
               <span className="text-[9px] font-bold uppercase tracking-widest">{label}</span>
             </div>
-            <div className={`text-base font-mono font-bold ${valueClass || "text-white"}`}>{value}</div>
-            {sub && <div className="text-[9px] text-zinc-700 mt-0.5">{sub}</div>}
+            <div className={`stat-hero text-[18px] ${valueClass || "text-ink"}`}>{value}</div>
+            {sub && <div className="text-[9px] text-ink-ghost mt-1">{sub}</div>}
           </div>
         ))}
       </div>
@@ -173,7 +172,7 @@ const StatBar = ({ username, totalCollateral, realizedPnL, availableMargin, buyi
 // Tabs
 // ─────────────────────────────────────────────────────────────────────────────
 const Tabs = ({ active, setActive }) => (
-  <div className="flex gap-0 bg-[#0a0a10] border border-zinc-800/80 rounded-lg p-1 w-fit mb-4">
+  <div className="flex gap-0 bg-surface-1 border border-line-subtle rounded-lg p-1 w-fit mb-4">
     {[
       { id: "positions", icon: <LayoutList size={12} />,     label: "Open Positions" },
       { id: "trades",    icon: <ArrowLeftRight size={12} />, label: "Trade History"  },
@@ -182,7 +181,7 @@ const Tabs = ({ active, setActive }) => (
         key={id}
         onClick={() => setActive(id)}
         className={`flex items-center gap-1.5 px-3.5 py-2 rounded-md text-[11px] font-bold transition-all ${
-          active === id ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+          active === id ? "bg-surface-3 text-ink" : "text-ink-faint hover:text-ink-muted"
         }`}
       >
         {icon}{label}
@@ -192,12 +191,12 @@ const Tabs = ({ active, setActive }) => (
 );
 
 const TableWrap = ({ children }) => (
-  <div className="bg-[#0a0a10] border border-zinc-800/80 rounded-xl overflow-hidden">{children}</div>
+  <div className="bg-surface-1 border border-line-subtle rounded-xl overflow-hidden">{children}</div>
 );
 
 const TableHead = ({ children }) => (
   <thead>
-    <tr className="border-b border-zinc-800/80 bg-zinc-900/30">{children}</tr>
+    <tr className="border-b border-line bg-surface-2/40">{children}</tr>
   </thead>
 );
 
@@ -311,7 +310,7 @@ const PortfolioPage = () => {
 
   if (!isConnected) {
     return (
-      <PageTransition className="min-h-screen bg-[#06060a] pt-24 pb-12 px-4 flex items-center justify-center">
+      <PageTransition className="min-h-screen bg-surface-0 pt-24 pb-12 px-4 flex items-center justify-center">
         <EmptyState
           type="wallet"
           title="Connect Your Wallet"
@@ -324,7 +323,7 @@ const PortfolioPage = () => {
   }
 
   return (
-    <PageTransition className="min-h-screen bg-[#06060a] pt-16 pb-12 px-4 md:px-8 lg:px-12">
+    <PageTransition className="min-h-screen bg-surface-0 pt-16 pb-12 px-4 md:px-8 lg:px-12">
       <div className="max-w-7xl mx-auto">
 
         <StatBar
@@ -348,8 +347,8 @@ const PortfolioPage = () => {
         {activeTab === "positions" && (
           <TableWrap>
             {posLoading ? (
-              <div className="py-16 flex flex-col items-center gap-2 text-zinc-600">
-                <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
+              <div className="py-16 flex flex-col items-center gap-2 text-ink-faint">
+                <div className="w-4 h-4 border-2 border-line border-t-blue-500 rounded-full animate-spin" />
                 <span className="text-xs">Loading positions…</span>
               </div>
             ) : !positions?.length ? (
@@ -366,7 +365,7 @@ const PortfolioPage = () => {
                     <Th right>Margin</Th>
                     <Th right>Unrealized P&L</Th>
                   </TableHead>
-                  <tbody className="divide-y divide-zinc-800/40">
+                  <tbody className="divide-y divide-line-subtle">
                     {positions.map((pos) => <PositionRow key={pos.marketId} pos={pos} />)}
                   </tbody>
                 </table>
@@ -379,15 +378,15 @@ const PortfolioPage = () => {
         {activeTab === "trades" && (
           <TableWrap>
             {eventsLoading ? (
-              <div className="py-16 flex flex-col items-center gap-2 text-zinc-600">
-                <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
+              <div className="py-16 flex flex-col items-center gap-2 text-ink-faint">
+                <div className="w-4 h-4 border-2 border-line border-t-blue-500 rounded-full animate-spin" />
                 <span className="text-xs">Loading history…</span>
               </div>
             ) : !canonicalEvents.length && !visiblePending.length ? (
               <EmptyState type="trades" title="No Trade History" description="Your trade history will appear here after your first trade." actionLabel="Start Trading" actionHref="/trade" tips={[]} />
             ) : (
               <>
-                <div className="flex items-center gap-1.5 px-4 py-3 border-b border-zinc-800/60">
+                <div className="flex items-center gap-1.5 px-4 py-3 border-b border-line-subtle">
                   {[
                     { id: "all", label: "All" },
                     { id: "30d", label: "30d" },
@@ -399,14 +398,14 @@ const PortfolioPage = () => {
                       onClick={() => setTimeFilter(id)}
                       className={`px-2.5 py-1 text-[10px] font-bold rounded border transition-all ${
                         timeFilter === id
-                          ? "bg-zinc-800 border-zinc-700 text-white"
-                          : "bg-transparent border-zinc-800/60 text-zinc-600 hover:text-zinc-300 hover:border-zinc-700"
+                          ? "bg-surface-3 border-line text-ink"
+                          : "bg-transparent border-line-subtle text-ink-faint hover:text-ink-muted hover:border-line"
                       }`}
                     >
                       {label}
                     </button>
                   ))}
-                  <span className="ml-auto text-[10px] text-zinc-700 font-mono">{filteredEvents.length} events</span>
+                  <span className="ml-auto text-[10px] text-ink-ghost num">{filteredEvents.length} events</span>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -424,38 +423,38 @@ const PortfolioPage = () => {
                       <Th right>Net P&L</Th>
                       <Th right>Tx</Th>
                     </TableHead>
-                    <tbody className="divide-y divide-zinc-800/40">
+                    <tbody className="divide-y divide-line-subtle">
                       {/* Pending indexer rows — show immediately after close confirms */}
                       {visiblePending.map(pending => (
-                        <tr key={`pending-${pending.tx_hash}`} className="hover:bg-zinc-800/20 transition-colors">
-                          <td className="px-4 py-3 text-[10px] font-mono text-zinc-600 whitespace-nowrap">Just now</td>
+                        <tr key={`pending-${pending.tx_hash}`} className="hover:bg-surface-2/50 transition-colors">
+                          <td className="px-4 py-3 text-[10px] num text-ink-faint whitespace-nowrap">Just now</td>
                           <td className="px-4 py-3">
-                            <span className="text-xs font-bold text-white">{pending.market_name?.replace(/-PERP.*/, "") || "—"}</span>
-                            {pending.market_name?.includes("PERP") && <span className="text-[10px] text-zinc-600 ml-1">PERP</span>}
+                            <span className="text-xs font-bold text-ink">{pending.market_name?.replace(/-PERP.*/, "") || "—"}</span>
+                            {pending.market_name?.includes("PERP") && <span className="text-[10px] text-ink-faint ml-1">PERP</span>}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border text-blue-400 bg-blue-500/10 border-blue-500/20">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded text-blue-400 bg-blue-500/10">
                               <span className="w-2 h-2 rounded-full border border-blue-400 border-t-transparent animate-spin inline-block" />
                               indexing
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            {pending.side ? <SideBadge isLong={pending.side === "Long"} /> : <span className="text-zinc-700 text-xs">—</span>}
+                            {pending.side ? <SideBadge isLong={pending.side === "Long"} /> : <span className="text-ink-ghost text-xs">—</span>}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+                          <td className="px-4 py-3 text-right num text-xs text-ink-muted">
                             {pending.size != null ? Number(pending.size).toFixed(4) : "—"}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+                          <td className="px-4 py-3 text-right num text-xs text-ink-muted">
                             {pending.price != null ? `$${Number(pending.price).toFixed(2)}` : "—"}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-700">—</td>
-                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-700">·</td>
-                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-700">·</td>
-                          <td className="px-4 py-3 text-right font-mono text-xs text-zinc-500 italic text-[10px]">Indexing…</td>
+                          <td className="px-4 py-3 text-right num text-xs text-ink-ghost">—</td>
+                          <td className="px-4 py-3 text-right num text-xs text-ink-ghost">·</td>
+                          <td className="px-4 py-3 text-right num text-xs text-ink-ghost">·</td>
+                          <td className="px-4 py-3 text-right num text-xs text-ink-faint italic text-[10px]">Indexing…</td>
                           <td className="px-4 py-3 text-right">
                             {pending.tx_hash ? (
                               <a href={`https://sepolia.etherscan.io/tx/${pending.tx_hash}`} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[10px] font-mono text-blue-400 hover:text-blue-300 transition-colors">
+                                className="inline-flex items-center gap-1 text-[10px] num text-blue-400 hover:text-blue-300 transition-colors">
                                 {pending.tx_hash.slice(0, 6)}…{pending.tx_hash.slice(-4)}
                                 <ExternalLink size={9} />
                               </a>
@@ -474,45 +473,45 @@ const PortfolioPage = () => {
                         const name     = marketDisplayName(row);
 
                         return (
-                          <tr key={row.id || i} className="hover:bg-zinc-800/20 transition-colors">
-                            <td className="px-4 py-3 text-[10px] font-mono text-zinc-600 whitespace-nowrap">
+                          <tr key={row.id || i} className="hover:bg-surface-2/50 transition-colors">
+                            <td className="px-4 py-3 text-[10px] num text-ink-faint whitespace-nowrap">
                               {new Date(row.block_timestamp).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" })}
                             </td>
                             <td className="px-4 py-3">
-                              <span className="text-xs font-bold text-white">{name.replace(/-PERP.*/, "")}</span>
-                              {name.includes("PERP") && <span className="text-[10px] text-zinc-600 ml-1">PERP</span>}
+                              <span className="text-xs font-bold text-ink">{name.replace(/-PERP.*/, "")}</span>
+                              {name.includes("PERP") && <span className="text-[10px] text-ink-faint ml-1">PERP</span>}
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${typeStyle(row.accounting_type)}`}>
+                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${typeStyle(row.accounting_type)}`}>
                                 {row.accounting_type?.replace(/_/g, " ")}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               {row.side
                                 ? <SideBadge isLong={row.side === "Long"} />
-                                : <span className="text-zinc-700 text-xs">—</span>}
+                                : <span className="text-ink-ghost text-xs">—</span>}
                             </td>
-                            <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+                            <td className="px-4 py-3 text-right num text-xs text-ink-muted">
                               {size != null ? Number(size).toFixed(4) : "—"}
                             </td>
-                            <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300">
+                            <td className="px-4 py-3 text-right num text-xs text-ink-muted">
                               {price != null ? `$${Number(price).toFixed(2)}` : "—"}
                             </td>
-                            <td className={`px-4 py-3 text-right font-mono text-xs font-bold ${
-                              !isPnlRow ? "text-zinc-700" : realPnl >= 0 ? "text-emerald-400" : "text-red-400"
+                            <td className={`px-4 py-3 text-right num text-xs font-bold ${
+                              !isPnlRow ? "text-ink-ghost" : realPnl >= 0 ? "text-up" : "text-down"
                             }`}>
                               {isPnlRow ? mono3(realPnl, true) : "—"}
                             </td>
-                            <td className={`px-4 py-3 text-right font-mono text-xs ${
-                              funding === 0 ? "text-zinc-700" : funding > 0 ? "text-emerald-400" : "text-red-400"
+                            <td className={`px-4 py-3 text-right num text-xs ${
+                              funding === 0 ? "text-ink-ghost" : funding > 0 ? "text-up" : "text-down"
                             }`}>
                               {funding !== 0 ? mono3(funding, true) : "·"}
                             </td>
-                            <td className={`px-4 py-3 text-right font-mono text-xs ${fee > 0 ? "text-red-400" : "text-zinc-700"}`}>
+                            <td className={`px-4 py-3 text-right num text-xs ${fee > 0 ? "text-down" : "text-ink-ghost"}`}>
                               {fee > 0 ? `-$${fmt3(fee)}` : "·"}
                             </td>
-                            <td className={`px-4 py-3 text-right font-mono text-xs font-bold ${
-                              netPnl === 0 ? "text-zinc-600" : netPnl > 0 ? "text-emerald-400" : "text-red-400"
+                            <td className={`px-4 py-3 text-right num text-xs font-bold ${
+                              netPnl === 0 ? "text-ink-faint" : netPnl > 0 ? "text-up" : "text-down"
                             }`}>
                               {mono3(netPnl, true)}
                             </td>
@@ -522,7 +521,7 @@ const PortfolioPage = () => {
                                   href={`https://sepolia.etherscan.io/tx/${row.tx_hash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-[10px] font-mono text-blue-400 hover:text-blue-300 transition-colors"
+                                  className="inline-flex items-center gap-1 text-[10px] num text-blue-400 hover:text-blue-300 transition-colors"
                                 >
                                   {row.tx_hash.slice(0, 6)}…{row.tx_hash.slice(-4)}
                                   <ExternalLink size={9} />
