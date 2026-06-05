@@ -34,7 +34,7 @@ const SolanaIcon = () => (
  * @param {function} [props.onSuccess] - Called after successful auth
  * @param {string} [props.variant] - "full" (default) or "compact"
  */
-const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full" }) => {
+const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full", disabled = false }) => {
   const { signInWithEthereum, signInWithSolana, loading } = useWalletAuth();
 
   const handleResult = (result) => {
@@ -62,7 +62,7 @@ const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full" }) => {
         <button
           type="button"
           onClick={handleEthSignIn}
-          disabled={loading}
+          disabled={loading || disabled}
           className="py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] rounded-md text-[12px] font-medium transition-colors duration-150 flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <EthereumIcon />
@@ -73,7 +73,7 @@ const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full" }) => {
         <button
           type="button"
           onClick={handleSolSignIn}
-          disabled={loading}
+          disabled={loading || disabled}
           className="py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] rounded-md text-[12px] font-medium transition-colors duration-150 flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <SolanaIcon />

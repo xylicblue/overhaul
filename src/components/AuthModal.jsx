@@ -24,6 +24,52 @@ const inputCls =
 const labelCls = "block text-[11px] font-medium text-zinc-500 mb-1";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TermsCheckbox — explicit Terms of Service / Privacy Policy acceptance.
+// Required before any account-creation path (email signup, Google OAuth, wallet).
+// Controlled component; links open in a new tab so the user keeps their place.
+// ─────────────────────────────────────────────────────────────────────────────
+const TermsCheckbox = ({ checked, onChange, id = "terms" }) => (
+  <label htmlFor={id} className="flex items-start gap-2.5 cursor-pointer select-none">
+    <input
+      id={id}
+      type="checkbox"
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      className="sr-only"
+    />
+    <span
+      className={`mt-px w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors duration-150 ${
+        checked ? "bg-white border-white" : "bg-white/[0.02] border-white/[0.18] hover:border-white/[0.3]"
+      }`}
+    >
+      {checked && <HiCheck className="w-3 h-3 text-zinc-900" />}
+    </span>
+    <span className="text-[11px] leading-relaxed text-zinc-400">
+      I agree to ByteStrike's{" "}
+      <a
+        href="/terms"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="text-zinc-200 hover:text-white underline underline-offset-2 transition-colors duration-150"
+      >
+        Terms of Service
+      </a>{" "}
+      and{" "}
+      <a
+        href="/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="text-zinc-200 hover:text-white underline underline-offset-2 transition-colors duration-150"
+      >
+        Privacy Policy
+      </a>.
+    </span>
+  </label>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Login Form
 // ─────────────────────────────────────────────────────────────────────────────
 const LoginForm = ({ onSwitchMode, onClose }) => {
@@ -33,10 +79,12 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   const signInWithGoogle = async () => {
+    if (!agreed) return; // OAuth can onboard new users — require terms first
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -173,11 +221,15 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
         </div>
       </div>
 
+      {/* Terms acceptance — required for Google / wallet (these can create a new account) */}
+      <TermsCheckbox checked={agreed} onChange={setAgreed} id="login-terms" />
+
       {/* Google */}
       <button
         type="button"
         onClick={signInWithGoogle}
-        className="w-full py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] text-zinc-300 hover:text-white rounded-md transition-colors duration-150 flex items-center justify-center gap-2.5 text-[12px] font-medium"
+        disabled={!agreed}
+        className="w-full py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] text-zinc-300 hover:text-white rounded-md transition-colors duration-150 flex items-center justify-center gap-2.5 text-[12px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/[0.02] disabled:hover:border-white/[0.07]"
       >
         <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -188,12 +240,16 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
         Continue with Google
       </button>
 
-      {/* Wallet */}
+      {/* Wallet — also gated behind terms acceptance */}
       <WalletAuthButtons
         variant="compact"
+        disabled={!agreed}
         onSuccess={onClose}
         onNewUser={() => { onClose(); navigate(`/welcome?next=${encodeURIComponent(location.pathname)}`); }}
       />
+      {!agreed && (
+        <p className="text-center text-zinc-600 text-[10px] -mt-1">Accept the terms to continue with Google or wallet</p>
+      )}
 
       {/* Switch mode */}
       <p className="text-center text-zinc-600 text-[12px] pt-1">
@@ -219,6 +275,7 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const passwordRequirements = {
     length: password.length >= 8,
@@ -234,12 +291,17 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
     setError("");
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
     if (!allRequirementsMet) { setError("Please meet all password requirements"); return; }
+    if (!agreed) { setError("Please accept the Terms of Service and Privacy Policy to continue"); return; }
     setLoading(true);
     try {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${window.location.origin}/welcome` },
+        options: {
+          emailRedirectTo: `${window.location.origin}/welcome`,
+          // Record affirmative consent (audit trail) in the user's metadata
+          data: { terms_accepted_at: new Date().toISOString() },
+        },
       });
       if (error) throw error;
       setSuccess(true);
@@ -357,10 +419,13 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
         </div>
       )}
 
+      {/* Terms acceptance — required to create an account */}
+      <TermsCheckbox checked={agreed} onChange={setAgreed} id="signup-terms" />
+
       {/* Submit */}
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !agreed}
         className="w-full py-2.5 rounded-md bg-white hover:bg-zinc-100 text-zinc-900 font-semibold text-[13px] transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? "Creating account…" : "Create account"}
@@ -376,12 +441,16 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
         </div>
       </div>
 
-      {/* Wallet */}
+      {/* Wallet — also gated behind terms acceptance */}
       <WalletAuthButtons
         variant="compact"
+        disabled={!agreed}
         onSuccess={onClose}
         onNewUser={() => { onClose(); navigate(`/welcome?next=${encodeURIComponent(location.pathname)}`); }}
       />
+      {!agreed && (
+        <p className="text-center text-zinc-600 text-[10px] -mt-1">Accept the terms above to continue</p>
+      )}
 
       {/* Switch mode */}
       <p className="text-center text-zinc-600 text-[12px] pt-1">
