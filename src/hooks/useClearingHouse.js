@@ -211,6 +211,7 @@ export function useOpenPosition(marketId) {
 
   const {
     writeContract,
+    writeContractAsync,
     data: hash,
     isPending,
     error,
@@ -223,16 +224,23 @@ export function useOpenPosition(marketId) {
     error: receiptError,
   } = useWaitForTransactionReceipt({ hash });
 
-  const openPosition = (isLong, size, amountLimit = 0) => {
+  const openPosition = async (isLong, size, amountLimit = 0) => {
     const sizeWei        = parseUnits(size.toString(), 18);
     const amountLimitWei = typeof amountLimit === "bigint" ? amountLimit : parseUnits(amountLimit.toString(), 18);
-    writeContract({
+
+    const request = {
       address: SEPOLIA_CONTRACTS.clearingHouse,
       abi: ClearingHouseABI.abi,
       functionName: "openPosition",
       args: [marketId, isLong, sizeWei, amountLimitWei],
       chainId: SEPOLIA_CHAIN_ID,
-    });
+    };
+
+    if (writeContractAsync) {
+      return writeContractAsync(request);
+    }
+
+    return writeContract(request);
   };
 
   // Dry-run via eth_call before sending to wallet. Throws if the contract
