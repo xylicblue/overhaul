@@ -144,7 +144,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   const { address }               = useAccount();
   const publicClient              = usePublicClient({ chainId: 11155111 });
 
-  const marketId                 = selectedMarket?.marketId || MARKET_IDS["H100-PERP"];
+  const marketId                 = selectedMarket?.marketId || selectedMarket?.id || MARKET_IDS[selectedMarket?.name] || MARKET_IDS["H100-PERP"];
   const targetLeverageEnabled    = marketId === T4_TARGET_LEVERAGE_MARKET_ID;
   const { riskParams }           = useMarketRiskParams(marketId);
   const { data: marketConfig }   = useReadContract({
@@ -181,7 +181,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   const [isSimulating,   setIsSimulating]   = useState(false);
   const [isAddingTargetMargin, setIsAddingTargetMargin] = useState(false);
   const [orderInputMode, setOrderInputMode] = useState("base");
-  const [targetLeverage, setTargetLeverage] = useState(5);
+  const [targetLeverage, setTargetLeverage] = useState(MAX_TARGET_LEVERAGE);
 
   const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
@@ -216,6 +216,7 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   const isLong = side === "Buy";
   const submittedOpenOrderRef = useRef(null);
+  const lastTargetLeverageMarketRef = useRef(null);
   const maxSelectableLeverage = useMemo(() => {
     const imrBps = Number(riskParams?.imrBps || 0);
     if (imrBps <= 0) return MAX_TARGET_LEVERAGE;
@@ -226,9 +227,19 @@ export const TradingPanel = ({ selectedMarket }) => {
     : targetLeverage;
 
   useEffect(() => {
-    if (!targetLeverageEnabled) return;
-    setTargetLeverage((current) => clamp(current || 5, MIN_TARGET_LEVERAGE, maxSelectableLeverage));
-  }, [targetLeverageEnabled, maxSelectableLeverage]);
+    if (!targetLeverageEnabled) {
+      lastTargetLeverageMarketRef.current = null;
+      return;
+    }
+
+    const marketChanged = lastTargetLeverageMarketRef.current !== marketId;
+    lastTargetLeverageMarketRef.current = marketId;
+
+    setTargetLeverage((current) => {
+      if (marketChanged) return maxSelectableLeverage;
+      return clamp(current || maxSelectableLeverage, MIN_TARGET_LEVERAGE, maxSelectableLeverage);
+    });
+  }, [targetLeverageEnabled, marketId, maxSelectableLeverage]);
 
   // ── Calculations (memoised — only rerun when inputs actually change) ───────
   const {
