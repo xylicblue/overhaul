@@ -29,6 +29,8 @@ import {
   formatX18Number,
   toNumberX18,
 } from "./utils/orderPreview";
+import PrivacyDisclosureModal from "./components/PrivacyDisclosureModal";
+import { hasAcceptedTradingPrivacy, acceptTradingPrivacy } from "./services/privacyAck";
 
 const DEFAULT_FEE_BPS = 10;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -182,6 +184,19 @@ export const TradingPanel = ({ selectedMarket }) => {
   const [isAddingTargetMargin, setIsAddingTargetMargin] = useState(false);
   const [orderInputMode, setOrderInputMode] = useState("base");
   const [targetLeverage, setTargetLeverage] = useState(MAX_TARGET_LEVERAGE);
+
+  // ── First-ever-trade Privacy Disclosure gate ──────────────────────────────
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [privacySubmitting, setPrivacySubmitting] = useState(false);
+  const privacyAcceptedRef = useRef(false); // synchronous source of truth for the gate
+
+  useEffect(() => {
+    let cancelled = false;
+    hasAcceptedTradingPrivacy().then((accepted) => {
+      if (!cancelled) privacyAcceptedRef.current = accepted;
+    });
+    return () => { cancelled = true; };
+  }, [address]);
 
   const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
@@ -454,6 +469,15 @@ export const TradingPanel = ({ selectedMarket }) => {
       return;
     }
 
+    // ── 2.5 First-ever-trade Privacy Disclosure ─────────────────────────────
+    // Order is valid — before processing the user's first trade, require them
+    // to read and accept the Privacy Policy. handleTrade is re-invoked from the
+    // modal's confirm handler once the ref is set, so it falls through here.
+    if (!privacyAcceptedRef.current) {
+      setShowPrivacyModal(true);
+      return;
+    }
+
     // ── 3. Simulate via eth_call before opening wallet ──────────────────────
     setIsSimulating(true);
     try {
@@ -549,6 +573,19 @@ export const TradingPanel = ({ selectedMarket }) => {
     } finally {
       setIsAddingTargetMargin(false);
     }
+  };
+
+  // Privacy Disclosure confirmed — record acceptance, then resume the trade.
+  const handlePrivacyConfirm = async () => {
+    setPrivacySubmitting(true);
+    try {
+      await acceptTradingPrivacy();
+      privacyAcceptedRef.current = true;
+    } finally {
+      setPrivacySubmitting(false);
+    }
+    setShowPrivacyModal(false);
+    handleTrade();
   };
 
   return (
@@ -934,6 +971,14 @@ export const TradingPanel = ({ selectedMarket }) => {
           )}
         </button>
       </div>
+
+      {/* First-ever-trade Privacy Disclosure (portals to body) */}
+      <PrivacyDisclosureModal
+        isOpen={showPrivacyModal}
+        submitting={privacySubmitting}
+        onCancel={() => { if (!privacySubmitting) setShowPrivacyModal(false); }}
+        onConfirm={handlePrivacyConfirm}
+      />
     </div>
   );
 };
