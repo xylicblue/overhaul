@@ -29,8 +29,8 @@ import {
   formatX18Number,
   toNumberX18,
 } from "./utils/orderPreview";
-import PrivacyDisclosureModal from "./components/PrivacyDisclosureModal";
-import { hasAcceptedTradingPrivacy, acceptTradingPrivacy } from "./services/privacyAck";
+import FirstTradeConsentModal from "./components/FirstTradeConsentModal";
+import { hasAcceptedTradingConsent, acceptTradingConsent } from "./services/privacyAck";
 
 const DEFAULT_FEE_BPS = 10;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -185,15 +185,15 @@ export const TradingPanel = ({ selectedMarket }) => {
   const [orderInputMode, setOrderInputMode] = useState("base");
   const [targetLeverage, setTargetLeverage] = useState(MAX_TARGET_LEVERAGE);
 
-  // ── First-ever-trade Privacy Disclosure gate ──────────────────────────────
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [privacySubmitting, setPrivacySubmitting] = useState(false);
-  const privacyAcceptedRef = useRef(false); // synchronous source of truth for the gate
+  // ── First-ever-trade consent gate (Risk Disclosure + Privacy Policy) ───────
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [consentSubmitting, setConsentSubmitting] = useState(false);
+  const consentAcceptedRef = useRef(false); // synchronous source of truth for the gate
 
   useEffect(() => {
     let cancelled = false;
-    hasAcceptedTradingPrivacy().then((accepted) => {
-      if (!cancelled) privacyAcceptedRef.current = accepted;
+    hasAcceptedTradingConsent().then((accepted) => {
+      if (!cancelled) consentAcceptedRef.current = accepted;
     });
     return () => { cancelled = true; };
   }, [address]);
@@ -469,12 +469,12 @@ export const TradingPanel = ({ selectedMarket }) => {
       return;
     }
 
-    // ── 2.5 First-ever-trade Privacy Disclosure ─────────────────────────────
-    // Order is valid — before processing the user's first trade, require them
-    // to read and accept the Privacy Policy. handleTrade is re-invoked from the
-    // modal's confirm handler once the ref is set, so it falls through here.
-    if (!privacyAcceptedRef.current) {
-      setShowPrivacyModal(true);
+    // ── 2.5 First-ever-trade consent (Risk Disclosure + Privacy Policy) ──────
+    // Order is valid — before processing the user's first trade, require them to
+    // read and accept both documents. handleTrade is re-invoked from the modal's
+    // confirm handler once the ref is set, so it falls through here.
+    if (!consentAcceptedRef.current) {
+      setShowConsentModal(true);
       return;
     }
 
@@ -575,16 +575,16 @@ export const TradingPanel = ({ selectedMarket }) => {
     }
   };
 
-  // Privacy Disclosure confirmed — record acceptance, then resume the trade.
-  const handlePrivacyConfirm = async () => {
-    setPrivacySubmitting(true);
+  // Both disclosures accepted — record acceptance, then resume the trade.
+  const handleConsentConfirm = async () => {
+    setConsentSubmitting(true);
     try {
-      await acceptTradingPrivacy();
-      privacyAcceptedRef.current = true;
+      await acceptTradingConsent();
+      consentAcceptedRef.current = true;
     } finally {
-      setPrivacySubmitting(false);
+      setConsentSubmitting(false);
     }
-    setShowPrivacyModal(false);
+    setShowConsentModal(false);
     handleTrade();
   };
 
@@ -972,12 +972,12 @@ export const TradingPanel = ({ selectedMarket }) => {
         </button>
       </div>
 
-      {/* First-ever-trade Privacy Disclosure (portals to body) */}
-      <PrivacyDisclosureModal
-        isOpen={showPrivacyModal}
-        submitting={privacySubmitting}
-        onCancel={() => { if (!privacySubmitting) setShowPrivacyModal(false); }}
-        onConfirm={handlePrivacyConfirm}
+      {/* First-ever-trade consent: Risk Disclosure → Privacy Policy (portals to body) */}
+      <FirstTradeConsentModal
+        isOpen={showConsentModal}
+        submitting={consentSubmitting}
+        onCancel={() => { if (!consentSubmitting) setShowConsentModal(false); }}
+        onConfirm={handleConsentConfirm}
       />
     </div>
   );

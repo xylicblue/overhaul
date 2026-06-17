@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared Privacy Policy content.
 // Single source of truth for both the /privacy page (PrivacyPolicy.jsx) and the
-// first-trade Privacy Disclosure modal (PrivacyDisclosureModal.jsx), so the terms
-// shown in the modal are always identical to the published policy.
+// first-trade consent modal (FirstTradeConsentModal.jsx), so the terms shown in
+// the modal are always identical to the published policy.
 // ─────────────────────────────────────────────────────────────────────────────
 export const PRIVACY_EFFECTIVE_DATE = "Jan 1, 2026";
 export const PRIVACY_LAST_UPDATED = "March 3, 2026";
