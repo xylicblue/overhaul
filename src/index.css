@@ -158,6 +158,18 @@
     }
 }
 
+/* Hide native number-input spin buttons (the up/down arrows) across the app */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;

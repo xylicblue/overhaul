@@ -18,7 +18,7 @@ import { useVAMMReserves } from "./hooks/useVAMM";
 import { MARKET_IDS, SEPOLIA_CONTRACTS } from "./contracts/addresses";
 import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
 import CollateralVaultABI from "./contracts/abis/CollateralVault.json";
-import { Info, ShieldCheck } from "lucide-react";
+import { Info, ShieldCheck, ChevronDown } from "lucide-react";
 import { getSepoliaTxUrl } from "./utils/transactionErrors";
 import { diagnoseOpenPositionError, diagnoseFundingBlocker } from "./utils/tradeFailureDiagnosis";
 import {
@@ -127,14 +127,57 @@ const SummaryRow = ({ label, value, valueClass = "text-ink-muted", tooltip }) =>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SectionLabel — small uppercase label used to group sections
+// PanelSlider — sample-style range slider (green gradient fill, ruler ticks, vertical-bar handle)
 // ─────────────────────────────────────────────────────────────────────────────
-const SectionLabel = ({ children, right }) => (
-  <div className="flex items-center justify-between mb-2">
-    <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-[0.14em]">{children}</span>
-    {right}
-  </div>
-);
+const PanelSlider = ({ value, min = 0, max, step, onChange, disabled = false, down = false }) => {
+  const range = max - min;
+  const pct = range > 0 ? Math.min(100, Math.max(0, ((value - min) / range) * 100)) : 0;
+  const active = !disabled && max > min;
+  return (
+    <div className="flex-1 relative h-6 flex items-center">
+      <div className="relative w-full h-1.5 bg-surface-3 rounded-full">
+        {/* gradient fill */}
+        <div
+          className={`absolute inset-y-0 left-0 rounded-full ${down ? "bg-gradient-to-r from-down-solid to-down" : "bg-gradient-to-r from-up-solid to-up"}`}
+          style={{ width: `${pct}%` }}
+        />
+        {/* ruler ticks every 5% — only on the unfilled track so the fill stays clean */}
+        {Array.from({ length: 21 }).map((_, i) => {
+          const tickPct = i * 5;
+          if (tickPct <= pct + 0.01) return null;
+          return (
+            <div
+              key={i}
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-px h-2 bg-line pointer-events-none"
+              style={{ left: `${tickPct}%` }}
+            />
+          );
+        })}
+        {/* vertical-bar handle */}
+        {active && (
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 w-1.5 h-4 rounded-full pointer-events-none z-10 ${down ? "bg-down" : "bg-up"}`}
+            style={{
+              left: `calc(${pct}% - 3px)`,
+              boxShadow: down ? "0 0 8px rgba(245,72,78,0.55)" : "0 0 8px rgba(41,210,139,0.55)",
+            }}
+          />
+        )}
+        {/* native range input — full-area, transparent, drives the value */}
+        <input
+          type="range"
+          min={min}
+          max={max > min ? max : min + 1}
+          step={step}
+          value={value || 0}
+          onChange={onChange}
+          disabled={disabled}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 disabled:cursor-not-allowed"
+        />
+      </div>
+    </div>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TradingPanel
@@ -183,6 +226,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   const [isSimulating,   setIsSimulating]   = useState(false);
   const [isAddingTargetMargin, setIsAddingTargetMargin] = useState(false);
   const [orderInputMode, setOrderInputMode] = useState("base");
+  const [unitMenuOpen, setUnitMenuOpen] = useState(false);
   const [targetLeverage, setTargetLeverage] = useState(MAX_TARGET_LEVERAGE);
 
   // ── First-ever-trade consent gate (Risk Disclosure + Privacy Policy) ───────
@@ -590,360 +634,277 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   return (
     <div className="flex flex-col h-full bg-surface-1">
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 px-4 pt-4 pb-4 space-y-4">
 
-      {/* ── Direction toggle ────────────────────────────────────────────── */}
-      <div className="px-3 pt-3 pb-2">
-        <div className="grid grid-cols-2 gap-px bg-line rounded-md overflow-hidden p-px">
+        {/* ── Leverage (margin mode is not offered, so only leverage is shown) ── */}
+        <div>
           <button
-            onClick={() => setSide("Buy")}
-            className={`py-2 text-[12px] font-semibold transition-colors duration-100 ${
-              isLong
-                ? "bg-up-solid text-white"
-                : "bg-surface-2 text-ink-muted hover:text-ink"
+            type="button"
+            className={`w-full h-11 rounded-lg border border-line bg-surface-2 flex items-center justify-center gap-2 ${
+              targetLeverageEnabled
+                ? "hover:bg-surface-3 hover:border-line-strong transition-colors cursor-pointer"
+                : "cursor-default"
             }`}
           >
-            Long
+            <span className="text-[13px] font-medium text-ink-faint">Leverage</span>
+            <span className="text-[14px] font-semibold num text-white">
+              {targetLeverageEnabled
+                ? `${selectedTargetLeverage.toFixed(2)}×`
+                : (derivedLeverage > 0 ? `${derivedLeverage.toFixed(2)}×` : "Auto")}
+            </span>
+          </button>
+          {targetLeverageEnabled && (
+            <div className="flex items-center gap-3 mt-3 px-0.5">
+              <PanelSlider
+                value={selectedTargetLeverage}
+                min={MIN_TARGET_LEVERAGE}
+                max={maxSelectableLeverage}
+                step={0.25}
+                onChange={(e) => {
+                  const next = Number.parseFloat(e.target.value);
+                  if (Number.isFinite(next)) {
+                    setTargetLeverage(clamp(next, MIN_TARGET_LEVERAGE, maxSelectableLeverage));
+                  }
+                }}
+                down={!isLong}
+              />
+              <span className={`shrink-0 w-12 text-right text-[12px] font-mono font-semibold tabular-nums ${isLong ? "text-up" : "text-down"}`}>
+                {selectedTargetLeverage.toFixed(2)}×
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* ── Order type tabs (only Market is offered; Limit is upcoming) ── */}
+        <div className="flex items-center gap-6 border-b border-line-subtle">
+          <span className="relative pb-2.5 text-[14px] font-semibold text-white cursor-default">
+            Market
+            <span className="absolute left-0 -bottom-px h-[2px] w-full bg-blue-500 rounded-full" />
+          </span>
+          <span className="pb-2.5 text-[14px] font-medium text-ink-ghost cursor-not-allowed flex items-center gap-1.5">
+            Limit
+            <span className="text-[9px] uppercase tracking-wide border border-line-subtle rounded px-1 py-px text-ink-faint">soon</span>
+          </span>
+        </div>
+
+        {/* ── Buy / Sell ── */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setSide("Buy")}
+            className={`h-11 rounded-lg text-[14px] font-semibold transition-colors duration-100 ${
+              isLong
+                ? "bg-up-solid text-white"
+                : "bg-surface-2 border border-line text-ink-muted hover:text-ink"
+            }`}
+          >
+            Buy / Long
           </button>
           <button
             onClick={() => setSide("Sell")}
-            className={`py-2 text-[12px] font-semibold transition-colors duration-100 ${
+            className={`h-11 rounded-lg text-[14px] font-semibold transition-colors duration-100 ${
               !isLong
                 ? "bg-down-solid text-white"
-                : "bg-surface-2 text-ink-muted hover:text-ink"
+                : "bg-surface-2 border border-line text-ink-muted hover:text-ink"
             }`}
           >
-            Short
+            Sell / Short
           </button>
         </div>
-      </div>
 
-      {/* ── Scrollable body ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
-
-        {/* Key stats row — separated by a faint full-width surface band, not a border */}
-        <div className="grid grid-cols-3 px-3 py-3 bg-surface-2/30">
-          {[
-            { label: "Balance", value: `$${effectiveBalance.toFixed(2)}`,                      align: "items-start" },
-            { label: "Mark",    value: currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—", align: "items-center" },
-            {
-              label: "Max",
-              value: orderInputMode === "notional"
-                ? (maxNotional > 0 ? `$${maxNotional.toFixed(2)}` : "—")
-                : (maxSize > 0 ? maxSize.toFixed(2) : "—"),
-              align: "items-end",
-            },
-          ].map(({ label, value, align }) => (
-            <div key={label} className={`flex flex-col gap-1.5 ${align}`}>
-              <span className="stat-label">{label}</span>
-              <span className="stat-value text-[13px] truncate">{value}</span>
-            </div>
-          ))}
+        {/* ── Available / Position ── */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-ink-faint">Available to Trade:</span>
+            <span className="num font-semibold text-white">${effectiveBalance.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-ink-faint">Position:</span>
+            <span className={`num font-semibold ${
+              position?.hasPosition && toNumber(position?.size) !== 0
+                ? (toNumber(position?.size) > 0 ? "text-up" : "text-down")
+                : "text-ink-muted"
+            }`}>
+              {position?.hasPosition && toNumber(position?.size) !== 0
+                ? `${toNumber(position?.size) > 0 ? "+" : ""}${toNumber(position?.size).toFixed(4)} ${market.baseAsset}`
+                : "—"}
+            </span>
+          </div>
         </div>
 
-        {/* Order */}
-        <div className="px-3 py-3 border-b border-line-subtle space-y-3">
-          <SectionLabel
-            right={
-              <div className="flex items-center gap-3 text-[11px]">
-                <span className="text-ink font-medium">Market</span>
-                <span className="text-ink-ghost cursor-not-allowed">Limit<span className="ml-1 text-[9px] text-ink-ghost">soon</span></span>
-              </div>
-            }
-          >
-            Order
-          </SectionLabel>
-
-          <div className="grid grid-cols-2 gap-px bg-line rounded-md overflow-hidden p-px">
-            {[
-              { key: "base", label: "GPU Hours" },
-              { key: "notional", label: "USDC Notional" },
-            ].map((mode) => (
+        {/* ── Amount (with unit dropdown — GPU base ⇄ USDC notional) ── */}
+        <div>
+          <div className="flex items-center gap-2 h-12 rounded-lg border border-line bg-surface-2 px-3 focus-within:border-line-strong transition-colors">
+            <span className="text-[13px] text-ink-faint shrink-0">Amount</span>
+            <input
+              type="number"
+              placeholder="0.00"
+              className="flex-1 min-w-0 bg-transparent text-right text-[16px] text-white focus:outline-none placeholder-ink-ghost num"
+              min="0"
+              value={size}
+              onKeyDown={e => e.key === "-" && e.preventDefault()}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === "" || parseFloat(v) >= 0) setSize(v);
+              }}
+            />
+            <div className="relative shrink-0">
               <button
-                key={mode.key}
                 type="button"
-                onClick={() => {
-                  if (orderInputMode !== mode.key) {
-                    setOrderInputMode(mode.key);
-                    setSize("");
-                  }
-                }}
-                className={`py-1.5 text-[11px] font-medium transition-colors duration-100 ${
-                  orderInputMode === mode.key
-                    ? "bg-surface-3 text-ink"
-                    : "bg-surface-1 text-ink-faint hover:text-ink-muted"
-                }`}
+                onClick={() => setUnitMenuOpen(o => !o)}
+                className="flex items-center gap-1 text-[13px] font-medium text-ink hover:text-white transition-colors"
               >
-                {mode.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Size */}
-          <div>
-            <div className="flex items-baseline justify-between mb-1.5">
-              <label className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">
-                {orderInputMode === "notional" ? "Notional" : "Size"}
-              </label>
-              <span className="text-[10px] text-ink-faint font-mono tabular-nums">
-                Max {orderInputMode === "notional"
-                  ? `$${maxNotional > 0 ? maxNotional.toFixed(2) : "0.00"}`
-                  : `${maxSize > 0 ? maxSize.toFixed(2) : "0.00"} ${market.baseAsset}`}
-              </span>
-            </div>
-            <div className="relative">
-              <input
-                type="number"
-                placeholder="0.0000"
-                className="w-full bg-surface-2 border border-line-subtle rounded-md pl-3 pr-16 py-2 text-[13px] text-white focus:outline-none focus:border-line-strong transition-colors duration-150 placeholder-ink-ghost num"
-                min="0"
-                value={size}
-                onKeyDown={e => e.key === "-" && e.preventDefault()}
-                onChange={e => {
-                  const v = e.target.value;
-                  if (v === "" || parseFloat(v) >= 0) setSize(v);
-                }}
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-ink-faint">
                 {orderInputMode === "notional" ? "USDC" : market.baseAsset}
-              </span>
-            </div>
-            {orderInputMode === "notional" && (
-              <div className="mt-1.5 flex items-center justify-between text-[10px] leading-4">
-                <span className="text-ink-faint">Derived size</span>
-                <span className="font-mono tabular-nums text-ink-muted">
-                  {sizeNum > 0 ? `${sizeNum.toFixed(6)} ${market.baseAsset}` : `— ${market.baseAsset}`}
-                </span>
-              </div>
-            )}
-            {/* Size slider — 0 to maxSize, tick dots at 0/25/50/75/100% */}
-            <div className="flex items-center gap-3 mt-3">
-              <div className="flex-1 relative h-5 flex items-center">
-                <div className="relative w-full h-[2px] bg-surface-3 rounded-full">
-                  {/* Fill */}
-                  <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-white/70"
-                    style={{ width: sliderMax > 0 ? `${Math.min(100, (sliderValue / sliderMax) * 100)}%` : "0%" }}
+                <ChevronDown size={14} className="text-ink-faint" />
+              </button>
+              {unitMenuOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-hidden="true"
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setUnitMenuOpen(false)}
                   />
-                  {/* Tick dots at 0, 25, 50, 75, 100% */}
-                  {[0, 25, 50, 75, 100].map(pct => {
-                    const filled = sliderMax > 0 && (sliderValue / sliderMax) * 100 >= pct && sliderValue > 0;
-                    return (
-                      <div
-                        key={pct}
-                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full pointer-events-none"
-                        style={{
-                          left: `${pct}%`,
-                          backgroundColor: filled ? "rgba(255,255,255,0.8)" : "#3f3f46",
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-36 rounded-md border border-line bg-surface-2 shadow-xl overflow-hidden">
+                    {[
+                      { key: "base", label: market.baseAsset },
+                      { key: "notional", label: "USDC" },
+                    ].map(opt => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => {
+                          if (orderInputMode !== opt.key) {
+                            setOrderInputMode(opt.key);
+                            setSize("");
+                          }
+                          setUnitMenuOpen(false);
                         }}
-                      />
-                    );
-                  })}
-                  {/* Thumb — always visible, calc() keeps it in bounds at 0% and 100% */}
-                  {sliderMax > 0 && (
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full pointer-events-none z-10"
-                      style={{
-                        left: `calc(${Math.min(100, (sliderValue / sliderMax) * 100)}% - ${(Math.min(100, (sliderValue / sliderMax) * 100) / 100) * 12}px)`,
-                        backgroundColor: "#ffffff",
-                        boxShadow: "0 0 0 3px rgba(255,255,255,0.15)",
-                      }}
-                    />
-                  )}
-                  {/* Native input spanning full hit area */}
-                  <input
-                    type="range"
-                    min="0"
-                    max={sliderMax > 0 ? sliderMax : 1}
-                    step={sliderMax > 0 ? sliderMax / 1000 : 0.0001}
-                    value={sliderValue || 0}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value);
-                      setSize(v > 0 ? v.toFixed(4) : "");
-                    }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                    disabled={sliderMax <= 0}
-                  />
-                </div>
-              </div>
-              {/* Current % of max */}
-              <span className={`shrink-0 w-10 text-right text-[11px] font-mono tabular-nums ${
-                sliderValue > 0 ? (isLong ? "text-up" : "text-down") : "text-ink-faint"
-              }`}>
-                {sliderMax > 0 ? `${Math.min(100, Math.round((sliderValue / sliderMax) * 100))}%` : "0%"}
-              </span>
+                        className={`w-full text-left px-3 py-2 text-[12px] transition-colors ${
+                          orderInputMode === opt.key
+                            ? "bg-surface-3 text-ink"
+                            : "text-ink-muted hover:bg-surface-3 hover:text-ink"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Price limit */}
-          <div>
-            <div className="flex items-baseline justify-between mb-1.5">
-              <label className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Price limit</label>
-              <button
-                className="text-[10px] text-ink-faint hover:text-ink font-medium transition-colors duration-150"
-                onClick={() => setPriceLimit(market.markPriceRaw ? String(market.markPriceRaw) : "")}
-              >
-                Use mark
-              </button>
-            </div>
-            <div className="relative">
+          {/* Derived size (notional mode) + Max */}
+          <div className="flex items-center justify-between mt-1.5 text-[11px] leading-4">
+            <span className="text-ink-faint">
+              {orderInputMode === "notional"
+                ? (sizeNum > 0 ? `≈ ${sizeNum.toFixed(4)} ${market.baseAsset}` : " ")
+                : " "}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const m = orderInputMode === "notional" ? maxNotional : maxSize;
+                setSize(m > 0 ? m.toFixed(4) : "");
+              }}
+              className="text-ink-faint hover:text-ink font-mono tabular-nums transition-colors"
+            >
+              Max {orderInputMode === "notional"
+                ? `$${maxNotional > 0 ? maxNotional.toFixed(2) : "0.00"}`
+                : `${maxSize > 0 ? maxSize.toFixed(2) : "0.00"}`}
+            </button>
+          </div>
+
+          {/* Slider + editable % box */}
+          <div className="flex items-center gap-3 mt-3">
+            <PanelSlider
+              value={sliderValue}
+              max={sliderMax}
+              step={sliderMax > 0 ? sliderMax / 1000 : 0.0001}
+              onChange={e => {
+                const v = parseFloat(e.target.value);
+                setSize(v > 0 ? v.toFixed(4) : "");
+              }}
+              disabled={sliderMax <= 0}
+              down={!isLong}
+            />
+            <div className="flex items-center h-8 w-16 shrink-0 rounded-md border border-line bg-surface-2 px-2 focus-within:border-line-strong transition-colors">
               <input
                 type="number"
-                placeholder="Market"
-                className="w-full bg-surface-2 border border-line-subtle rounded-md pl-3 pr-12 py-2 text-[13px] text-white focus:outline-none focus:border-line-strong transition-colors duration-150 placeholder-ink-ghost num"
                 min="0"
-                value={priceLimit}
-                onKeyDown={e => e.key === "-" && e.preventDefault()}
+                max="100"
+                value={sliderMax > 0 ? Math.min(100, Math.round((sliderValue / sliderMax) * 100)) : 0}
                 onChange={e => {
-                  const v = e.target.value;
-                  if (v === "" || parseFloat(v) >= 0) setPriceLimit(v);
+                  if (sliderMax <= 0) return;
+                  const p = clamp(parseFloat(e.target.value) || 0, 0, 100);
+                  const v = (p / 100) * sliderMax;
+                  setSize(v > 0 ? v.toFixed(4) : "");
                 }}
+                disabled={sliderMax <= 0}
+                className="w-full bg-transparent text-right text-[13px] num text-white focus:outline-none"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-ink-faint">
-                USDC
-              </span>
+              <span className="text-[12px] text-ink-faint ml-1">%</span>
             </div>
           </div>
+        </div>
 
-          {/* Effective leverage */}
-          <div>
-            <label className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em] block mb-3">
-              Effective leverage
+        {/* ── Limit price (optional slippage bound; we only execute market orders) ── */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[12px] text-ink-faint">
+              Limit price <span className="text-ink-ghost">(optional)</span>
             </label>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 relative h-5 flex items-center">
-                <div className="relative w-full h-[2px] bg-surface-3 rounded-full overflow-hidden">
-                  <div
-                    className={`absolute inset-y-0 left-0 rounded-full ${isLong ? "bg-up" : "bg-down"}`}
-                    style={{
-                      width: targetLeverageEnabled
-                        ? `${Math.min(100, (selectedTargetLeverage / maxSelectableLeverage) * 100)}%`
-                        : `${Math.min(100, (derivedLeverage / 10) * 100)}%`,
-                    }}
-                  />
-                </div>
-                {targetLeverageEnabled && (
-                  <input
-                    type="range"
-                    min={MIN_TARGET_LEVERAGE}
-                    max={maxSelectableLeverage}
-                    step="0.25"
-                    value={selectedTargetLeverage}
-                    onChange={(e) => {
-                      const next = Number.parseFloat(e.target.value);
-                      if (Number.isFinite(next)) {
-                        setTargetLeverage(clamp(next, MIN_TARGET_LEVERAGE, maxSelectableLeverage));
-                      }
-                    }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                  />
-                )}
-              </div>
-              <span
-                className={`shrink-0 w-12 text-right text-[13px] font-mono font-semibold tabular-nums ${
-                  isLong ? "text-up" : "text-down"
-                }`}
-              >
-                {targetLeverageEnabled
-                  ? `${selectedTargetLeverage.toFixed(2)}×`
-                  : (derivedLeverage > 0 ? `${derivedLeverage.toFixed(2)}×` : "—")}
-              </span>
+            <button
+              type="button"
+              className="text-[11px] text-ink-faint hover:text-ink font-medium transition-colors"
+              onClick={() => setPriceLimit(market.markPriceRaw ? String(market.markPriceRaw) : "")}
+            >
+              Use mark
+            </button>
+          </div>
+          <div className="flex items-center gap-2 h-11 rounded-lg border border-line bg-surface-2 px-3 focus-within:border-line-strong transition-colors">
+            <input
+              type="number"
+              placeholder="Market"
+              className="flex-1 min-w-0 bg-transparent text-[14px] text-white focus:outline-none placeholder-ink-ghost num"
+              min="0"
+              value={priceLimit}
+              onKeyDown={e => e.key === "-" && e.preventDefault()}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === "" || parseFloat(v) >= 0) setPriceLimit(v);
+              }}
+            />
+            <span className="text-[12px] text-ink-faint shrink-0">USDC</span>
+          </div>
+        </div>
+
+        {/* ── Inline preflight error (local, simulation, and position blockers) ── */}
+        {(isOverMax || preflightError) && (() => {
+          const diag = preflightError || { severity: "error", message: invalidReason || "Order is not executable." };
+          const isWarning = diag.severity === "warning";
+          return (
+            <div className={`rounded-md border px-3 py-2 text-[11px] leading-4 ${
+              isWarning
+                ? "border-yellow-500/20 bg-yellow-500/[0.06] text-yellow-300"
+                : "border-red-500/20 bg-red-500/[0.06] text-red-300"
+            }`}>
+              {diag.title && (
+                <div className="font-semibold mb-0.5">{diag.title}</div>
+              )}
+              <div>{diag.message}</div>
+              {diag.actionLabel && diag.actionHref && (
+                <a href={diag.actionHref} className="mt-1 inline-block underline opacity-80 hover:opacity-100">
+                  {diag.actionLabel} →
+                </a>
+              )}
             </div>
-          </div>
-        </div>
+          );
+        })()}
 
-        {/* Order summary — clean key/value list */}
-        <div className="px-3 py-3 border-b border-line-subtle space-y-1">
-          <SummaryRow
-            label="Size"
-            value={sizeNum > 0 ? `${sizeNum.toFixed(6)} ${market.baseAsset}` : "—"}
-          />
-          <SummaryRow
-            label={orderInputMode === "notional" ? "Executable notional" : "Notional"}
-            value={preview.notional > 0n ? formatUsd(preview.notional) : "—"}
-          />
-          <SummaryRow
-            label={`Fees (${(feeBps / 100).toFixed(2)}%)`}
-            value={preview.fee > 0n ? formatUsd(preview.fee) : "—"}
-            valueClass="text-ink-muted"
-          />
-          <SummaryRow
-            label="Initial margin"
-            value={preview.initialMargin > 0n ? formatUsd(preview.initialMargin) : "—"}
-            valueClass="text-ink font-medium"
-            tooltip={{ title: "Initial Margin", desc: "Collateral reserved by the contract using market IMR and the higher of post-trade mark or index price." }}
-          />
-          <SummaryRow
-            label="Total required"
-            value={targetTotalRequiredRaw > 0n ? formatUsd(targetTotalRequiredRaw) : "—"}
-            valueClass={isOverMax ? "text-down font-medium" : "text-ink-muted"}
-            tooltip={{ title: "Total Required", desc: "Initial margin, trading fee, and any extra collateral needed for the selected leverage." }}
-          />
-          <SummaryRow
-            label="Liq. price"
-            value={sizeNum > 0 ? `$${liqPrice}` : "—"}
-            valueClass="text-warn"
-            tooltip={{ title: "Liquidation Price", desc: "Price level where margin approaches maintenance requirements using current order and risk inputs." }}
-          />
-          {/* Inline preflight error — shown for local, simulation, and position blockers */}
-          {(isOverMax || preflightError) && (() => {
-            const diag = preflightError || { severity: "error", message: invalidReason || "Order is not executable." };
-            const isWarning = diag.severity === "warning";
-            return (
-              <div className={`mt-2 rounded-md border px-3 py-2 text-[11px] leading-4 ${
-                isWarning
-                  ? "border-yellow-500/20 bg-yellow-500/[0.06] text-yellow-300"
-                  : "border-red-500/20 bg-red-500/[0.06] text-red-300"
-              }`}>
-                {diag.title && (
-                  <div className="font-semibold mb-0.5">{diag.title}</div>
-                )}
-                <div>{diag.message}</div>
-                {diag.actionLabel && diag.actionHref && (
-                  <a href={diag.actionHref} className="mt-1 inline-block underline opacity-80 hover:opacity-100">
-                    {diag.actionLabel} →
-                  </a>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Risk parameters — low-priority info, integrated */}
-        <div className="px-3 py-3 space-y-1">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <ShieldCheck size={10} strokeWidth={1.75} className="text-ink-faint" />
-            <span className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Risk</span>
-          </div>
-          <SummaryRow
-            label="IMR / MMR"
-            value={`${riskParams?.imrPercent ? riskParams.imrPercent.toFixed(1) : "10.0"}% / ${riskParams?.mmrPercent ? riskParams.mmrPercent.toFixed(1) : "5.0"}%`}
-            valueClass="text-ink-muted"
-            tooltip={{ title: "Initial / Maintenance Margin", desc: "IMR is the minimum margin to open a position. MMR is the minimum to keep it open before liquidation." }}
-          />
-          <SummaryRow
-            label="Risk price"
-            value={riskPrice > 0 ? `$${riskPrice.toFixed(2)}` : "—"}
-            valueClass="text-ink-muted"
-            tooltip={{ title: "Risk Price", desc: "The higher of mark, index, or order price used to estimate contract margin." }}
-          />
-          <SummaryRow
-            label="Min / Max size"
-            value={`${riskParams?.minPositionSize ? Number(riskParams.minPositionSize).toFixed(2) : "0.00"} / ${riskParams?.maxPositionSize && Number(riskParams.maxPositionSize) > 0 ? Number(riskParams.maxPositionSize).toFixed(2) : "∞"}`}
-            valueClass="text-ink-muted"
-          />
-          <SummaryRow
-            label="Liq. penalty"
-            value={`${riskParams?.liquidationPenaltyPercent ? riskParams.liquidationPenaltyPercent.toFixed(1) : "5.0"}%`}
-            valueClass="text-warn"
-            tooltip={{ title: "Liquidation Penalty", desc: "Penalty charged on liquidation, split between the liquidator and the insurance fund." }}
-          />
-        </div>
-      </div>
-
-      {/* ── Submit ──────────────────────────────────────────────────────── */}
-      <div className="px-3 py-3 border-t border-line-subtle bg-surface-1">
+        {/* ── Place order ── */}
         <button
-          className={`w-full h-11 rounded-md font-semibold text-white text-[13px] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+          className={`w-full h-12 rounded-lg font-semibold text-white text-[15px] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
             isLong
               ? "bg-up-solid hover:brightness-110"
               : "bg-down-solid hover:brightness-110"
@@ -962,14 +923,83 @@ export const TradingPanel = ({ selectedMarket }) => {
               Processing
             </>
           ) : (
-            <>
-              {isLong ? "Long" : "Short"} {market.baseAsset}
-              {preview.notional > 0n && (
-                <span className="text-white/60 font-normal text-[11px] tabular-nums">· ${toNumberX18(preview.notional).toFixed(0)}</span>
-              )}
-            </>
+            "Place Market Order"
           )}
         </button>
+
+        {/* ── Order details ── */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-ink-faint">Order Size:</span>
+            <span className="num text-white">
+              {sizeNum > 0 ? `${sizeNum.toFixed(4)} ${market.baseAsset}` : "—"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-ink-faint">{orderInputMode === "notional" ? "Executable Notional:" : "Notional:"}</span>
+            <span className="num text-white">{preview.notional > 0n ? formatUsd(preview.notional) : "—"}</span>
+          </div>
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-ink-faint">Est. Price:</span>
+            <span className="num text-white">{executionPrice > 0 ? `$${executionPrice.toFixed(2)}` : "—"}</span>
+          </div>
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-ink-faint flex items-center gap-1">
+              Est. Liq. Price:
+              <InfoTooltip title="Liquidation Price" description="Price level where margin approaches maintenance requirements using current order and risk inputs." />
+            </span>
+            <span className="num text-warn">{sizeNum > 0 ? `$${liqPrice}` : "—"}</span>
+          </div>
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-ink-faint flex items-center gap-1">
+              Position Margin:
+              <InfoTooltip title="Position Margin" description="Margin currently backing your position and the projected margin after this order." />
+            </span>
+            <span className="num text-white">
+              {sizeNum > 0
+                ? `$${toNumber(position?.margin).toFixed(2)} → $${(toNumber(position?.margin) + toNumberX18(targetLeverageEnabled ? targetMarginRaw : preview.initialMargin)).toFixed(2)}`
+                : `$${toNumber(position?.margin).toFixed(2)}`}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-ink-faint">Fees ({(feeBps / 100).toFixed(2)}%):</span>
+            <span className="num text-ink-muted">{preview.fee > 0n ? formatUsd(preview.fee) : "—"}</span>
+          </div>
+        </div>
+
+        {/* ── Risk parameters (collapsible — kept available without crowding the form) ── */}
+        <details className="group border-t border-line-subtle pt-3">
+          <summary className="flex items-center gap-1.5 cursor-pointer list-none select-none">
+            <ShieldCheck size={11} strokeWidth={1.75} className="text-ink-faint" />
+            <span className="text-[11px] font-medium text-ink-faint uppercase tracking-[0.14em]">Risk parameters</span>
+            <ChevronDown size={13} className="text-ink-faint ml-auto transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="mt-2.5 space-y-1">
+            <SummaryRow
+              label="IMR / MMR"
+              value={`${riskParams?.imrPercent ? riskParams.imrPercent.toFixed(1) : "10.0"}% / ${riskParams?.mmrPercent ? riskParams.mmrPercent.toFixed(1) : "5.0"}%`}
+              valueClass="text-ink-muted"
+              tooltip={{ title: "Initial / Maintenance Margin", desc: "IMR is the minimum margin to open a position. MMR is the minimum to keep it open before liquidation." }}
+            />
+            <SummaryRow
+              label="Risk price"
+              value={riskPrice > 0 ? `$${riskPrice.toFixed(2)}` : "—"}
+              valueClass="text-ink-muted"
+              tooltip={{ title: "Risk Price", desc: "The higher of mark, index, or order price used to estimate contract margin." }}
+            />
+            <SummaryRow
+              label="Min / Max size"
+              value={`${riskParams?.minPositionSize ? Number(riskParams.minPositionSize).toFixed(2) : "0.00"} / ${riskParams?.maxPositionSize && Number(riskParams.maxPositionSize) > 0 ? Number(riskParams.maxPositionSize).toFixed(2) : "∞"}`}
+              valueClass="text-ink-muted"
+            />
+            <SummaryRow
+              label="Liq. penalty"
+              value={`${riskParams?.liquidationPenaltyPercent ? riskParams.liquidationPenaltyPercent.toFixed(1) : "5.0"}%`}
+              valueClass="text-warn"
+              tooltip={{ title: "Liquidation Penalty", desc: "Penalty charged on liquidation, split between the liquidator and the insurance fund." }}
+            />
+          </div>
+        </details>
       </div>
 
       {/* First-ever-trade consent: Risk Disclosure → Privacy Policy (portals to body) */}
