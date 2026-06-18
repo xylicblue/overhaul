@@ -634,44 +634,32 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   return (
     <div className="flex flex-col h-full bg-surface-1">
-      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 px-4 pt-4 pb-4 space-y-4">
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 px-4 pt-3 pb-3 space-y-3">
 
         {/* ── Leverage (margin mode is not offered, so only leverage is shown) ── */}
-        <div>
-          <button
-            type="button"
-            className={`w-full h-11 rounded-lg border border-line bg-surface-2 flex items-center justify-center gap-2 ${
-              targetLeverageEnabled
-                ? "hover:bg-surface-3 hover:border-line-strong transition-colors cursor-pointer"
-                : "cursor-default"
-            }`}
-          >
-            <span className="text-[13px] font-medium text-ink-faint">Leverage</span>
-            <span className="text-[14px] font-semibold num text-white">
+        <div className="rounded-lg border border-line bg-surface-2 px-3 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-medium text-ink-faint uppercase tracking-wide">Leverage</span>
+            <span className={`text-[15px] font-bold num ${isLong ? "text-up" : "text-down"}`}>
               {targetLeverageEnabled
                 ? `${selectedTargetLeverage.toFixed(2)}×`
                 : (derivedLeverage > 0 ? `${derivedLeverage.toFixed(2)}×` : "Auto")}
             </span>
-          </button>
+          </div>
           {targetLeverageEnabled && (
-            <div className="flex items-center gap-3 mt-3 px-0.5">
-              <PanelSlider
-                value={selectedTargetLeverage}
-                min={MIN_TARGET_LEVERAGE}
-                max={maxSelectableLeverage}
-                step={0.25}
-                onChange={(e) => {
-                  const next = Number.parseFloat(e.target.value);
-                  if (Number.isFinite(next)) {
-                    setTargetLeverage(clamp(next, MIN_TARGET_LEVERAGE, maxSelectableLeverage));
-                  }
-                }}
-                down={!isLong}
-              />
-              <span className={`shrink-0 w-12 text-right text-[12px] font-mono font-semibold tabular-nums ${isLong ? "text-up" : "text-down"}`}>
-                {selectedTargetLeverage.toFixed(2)}×
-              </span>
-            </div>
+            <PanelSlider
+              value={selectedTargetLeverage}
+              min={MIN_TARGET_LEVERAGE}
+              max={maxSelectableLeverage}
+              step={0.25}
+              onChange={(e) => {
+                const next = Number.parseFloat(e.target.value);
+                if (Number.isFinite(next)) {
+                  setTargetLeverage(clamp(next, MIN_TARGET_LEVERAGE, maxSelectableLeverage));
+                }
+              }}
+              down={!isLong}
+            />
           )}
         </div>
 
@@ -691,7 +679,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setSide("Buy")}
-            className={`h-11 rounded-lg text-[14px] font-semibold transition-colors duration-100 ${
+            className={`h-10 rounded-lg text-[14px] font-semibold transition-colors duration-100 ${
               isLong
                 ? "bg-up-solid text-white"
                 : "bg-surface-2 border border-line text-ink-muted hover:text-ink"
@@ -701,7 +689,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           </button>
           <button
             onClick={() => setSide("Sell")}
-            className={`h-11 rounded-lg text-[14px] font-semibold transition-colors duration-100 ${
+            className={`h-10 rounded-lg text-[14px] font-semibold transition-colors duration-100 ${
               !isLong
                 ? "bg-down-solid text-white"
                 : "bg-surface-2 border border-line text-ink-muted hover:text-ink"
@@ -733,7 +721,7 @@ export const TradingPanel = ({ selectedMarket }) => {
 
         {/* ── Amount (with unit dropdown — GPU base ⇄ USDC notional) ── */}
         <div>
-          <div className="flex items-center gap-2 h-12 rounded-lg border border-line bg-surface-2 px-3 focus-within:border-line-strong transition-colors">
+          <div className="flex items-center gap-2 h-11 rounded-lg border border-line bg-surface-2 px-3 focus-within:border-line-strong transition-colors">
             <span className="text-[13px] text-ink-faint shrink-0">Amount</span>
             <input
               type="number"

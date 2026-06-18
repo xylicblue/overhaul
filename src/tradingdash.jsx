@@ -5,8 +5,7 @@ import PositionPanel from "./components/PositionPanel";
 import TickerBar from "./components/TickerBar";
 import { useMarket } from "./marketcontext";
 import {
-  LayoutDashboard, CandlestickChart, ArrowLeftRight,
-  ChevronUp, ChevronDown, Activity,
+  LayoutDashboard, CandlestickChart, ArrowLeftRight, Activity,
   GripVertical, GripHorizontal,
 } from "lucide-react";
 import { useAccount } from "wagmi";
@@ -218,31 +217,27 @@ export const TradingDashboard = ({ onHelpClick }) => {
 
           {/* Positions tab bar */}
           <div className="shrink-0 h-10 border-t border-line bg-surface-1 flex items-center px-3 gap-3">
-            <motion.div
+            <motion.button
+              onClick={() => setDrawerOpen(o => !o)}
               animate={shouldBounce ? { y: [0, -5, 2, -2, 0] } : {}}
               transition={{ duration: 0.5, ease: "easeOut" }}
               onAnimationComplete={() => setShouldBounce(false)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] font-semibold border transition-colors duration-150 ${
+                drawerOpen
+                  ? "bg-blue-500/15 border-blue-500/40 text-white"
+                  : positionCount > 0
+                    ? "bg-blue-500/10 border-blue-500/30 text-white hover:bg-blue-500/15"
+                    : "bg-surface-2 border-line text-ink-muted hover:text-white hover:border-line-strong"
+              }`}
             >
-              <button
-                onClick={() => setDrawerOpen(o => !o)}
-                className={`flex items-center gap-2 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors duration-150 border ${
-                  drawerOpen
-                    ? "bg-surface-3 border-line-strong text-ink"
-                    : "bg-surface-2 border-line text-ink hover:bg-surface-3 hover:border-line-strong"
-                }`}
-              >
-                <Activity size={11} strokeWidth={2} className="text-blue-400" />
-                Open positions
-                {positionCount > 0 && (
-                  <span className="bg-blue-500/15 text-blue-400 text-[9px] font-semibold tabular-nums px-1.5 py-px rounded">
-                    {positionCount}
-                  </span>
-                )}
-                {drawerOpen
-                  ? <ChevronDown size={11} strokeWidth={1.75} />
-                  : <ChevronUp   size={11} strokeWidth={1.75} />}
-              </button>
-            </motion.div>
+              <Activity size={13} strokeWidth={2.25} className="text-blue-400" />
+              Open positions
+              {positionCount > 0 && (
+                <span className="bg-blue-500 text-white text-[10px] font-bold tabular-nums px-1.5 py-px rounded-full">
+                  {positionCount}
+                </span>
+              )}
+            </motion.button>
             {positionCount === 0 && (
               <span className="text-[10px] text-zinc-700">No open positions</span>
             )}
