@@ -724,15 +724,19 @@ export const TradingPanel = ({ selectedMarket }) => {
           <div className="flex items-center gap-2 h-11 rounded-lg border border-line bg-surface-2 px-3 focus-within:border-line-strong transition-colors">
             <span className="text-[13px] text-ink-faint shrink-0">Amount</span>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
               placeholder="0.00"
               className="flex-1 min-w-0 bg-transparent text-right text-[16px] text-white focus:outline-none placeholder-ink-ghost num"
-              min="0"
               value={size}
-              onKeyDown={e => e.key === "-" && e.preventDefault()}
               onChange={e => {
-                const v = e.target.value;
-                if (v === "" || parseFloat(v) >= 0) setSize(v);
+                // Digits + a single decimal point only. Using type=text (not number)
+                // keeps the right-aligned fill and backspacing smooth across browsers.
+                let v = e.target.value.replace(/[^0-9.]/g, "");
+                const dot = v.indexOf(".");
+                if (dot !== -1) v = v.slice(0, dot + 1) + v.slice(dot + 1).replace(/\./g, "");
+                setSize(v);
               }}
             />
             <div className="relative shrink-0">
