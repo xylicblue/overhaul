@@ -331,6 +331,8 @@ export function useClosePosition(marketId) {
  * @param {string} marketId - Market ID
  */
 export function useAddMargin(marketId) {
+  const { address } = useAccount();
+  const publicClient = usePublicClient({ chainId: SEPOLIA_CHAIN_ID });
   const { writeContract, writeContractAsync, data: hash, isPending, error, reset } = useWriteContract();
   const {
     data: receipt,
@@ -342,14 +344,14 @@ export function useAddMargin(marketId) {
     hash,
   });
 
-  const addMargin = async (amount) => {
-    const amountWei = parseUnits(amount.toString(), 18);
+  const addMarginRaw = async (amountWei) => {
+    const rawAmount = BigInt(amountWei);
 
     const request = {
       address: SEPOLIA_CONTRACTS.clearingHouse,
       abi: ClearingHouseABI.abi,
       functionName: "addMargin",
-      args: [marketId, amountWei],
+      args: [marketId, rawAmount],
       chainId: SEPOLIA_CHAIN_ID,
     };
 
@@ -360,8 +362,24 @@ export function useAddMargin(marketId) {
     return writeContract(request);
   };
 
+  const addMargin = async (amount) => addMarginRaw(parseUnits(amount.toString(), 18));
+
+  const simulateAddMarginRaw = async (amountWei) => {
+    if (!address) throw new Error("Wallet not connected");
+    if (!publicClient) throw new Error("RPC client unavailable");
+    return publicClient.simulateContract({
+      address: SEPOLIA_CONTRACTS.clearingHouse,
+      abi: ClearingHouseABI.abi,
+      functionName: "addMargin",
+      args: [marketId, BigInt(amountWei)],
+      account: address,
+    });
+  };
+
   return {
     addMargin,
+    addMarginRaw,
+    simulateAddMarginRaw,
     isPending: isPending || isConfirming,
     isWalletPending: isPending,
     isConfirming,

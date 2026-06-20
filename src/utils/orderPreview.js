@@ -1,5 +1,6 @@
 const WAD = 10n ** 18n;
 const BPS_DENOMINATOR = 10000n;
+export const MARGIN_TOP_UP_DUST_X18 = 10n ** 12n; // $0.000001 at WAD precision
 
 export const ZERO_PREVIEW = {
   ok: false,
@@ -11,8 +12,17 @@ export const ZERO_PREVIEW = {
   notional: 0n,
   fee: 0n,
   initialMargin: 0n,
+  automaticMargin: 0n,
+  marginReleased: 0n,
+  projectedMargin: 0n,
+  targetMargin: 0n,
+  finalMargin: 0n,
+  extraMargin: 0n,
   maintenanceMargin: 0n,
   riskNotional: 0n,
+  resultingRiskNotional: 0n,
+  resultingSize: 0n,
+  resultingEntryPrice: 0n,
   totalRequired: 0n,
   effectiveLeverageX18: 0n,
   liqPrice: 0n,
@@ -36,6 +46,118 @@ function mulDivRoundUp(a, b, denominator) {
 
 function max(a, b) {
   return a > b ? a : b;
+}
+
+export function calculateTargetMargin({ sizeX18, riskPriceX18, targetLeverageX18 }) {
+  const absoluteSize = abs(sizeX18 || 0n);
+  if (absoluteSize === 0n || !riskPriceX18 || !targetLeverageX18) return 0n;
+  const riskNotional = mulDivRoundUp(absoluteSize, riskPriceX18, WAD);
+  return mulDivRoundUp(riskNotional, WAD, targetLeverageX18);
+}
+
+export function calculateMarginTopUp({ sizeX18, marginX18, riskPriceX18, targetLeverageX18 }) {
+  const targetMargin = calculateTargetMargin({ sizeX18, riskPriceX18, targetLeverageX18 });
+  return targetMargin > (marginX18 || 0n) ? targetMargin - (marginX18 || 0n) : 0n;
+}
+
+export function calculateLeverageX18({ sizeX18, marginX18, riskPriceX18 }) {
+  const absoluteSize = abs(sizeX18 || 0n);
+  if (absoluteSize === 0n || !marginX18 || !riskPriceX18) return 0n;
+  const notional = mulDivRoundUp(absoluteSize, riskPriceX18, WAD);
+  return mulDiv(notional, WAD, marginX18);
+}
+
+export function estimateLiquidationPrice({ sizeX18, entryPriceX18, marginX18, mmrBps }) {
+  const absoluteSize = abs(sizeX18 || 0n);
+  if (absoluteSize === 0n || !entryPriceX18 || !marginX18) return 0n;
+
+  const entryNotional = mulDiv(absoluteSize, entryPriceX18, WAD);
+  const maintenanceBps = BigInt(mmrBps || 0n);
+  if (sizeX18 > 0n) {
+    if (marginX18 >= entryNotional || maintenanceBps >= BPS_DENOMINATOR) return 0n;
+    return mulDivRoundUp(
+      (entryNotional - marginX18) * WAD,
+      BPS_DENOMINATOR,
+      absoluteSize * (BPS_DENOMINATOR - maintenanceBps)
+    );
+  }
+
+  return mulDivRoundUp(
+    (entryNotional + marginX18) * WAD,
+    BPS_DENOMINATOR,
+    absoluteSize * (BPS_DENOMINATOR + maintenanceBps)
+  );
+}
+
+export function projectPositionAfterTrade({
+  existingSizeX18 = 0n,
+  existingMarginX18 = 0n,
+  existingEntryPriceX18 = 0n,
+  signedBaseDeltaX18,
+  executionPriceX18,
+  riskPriceX18,
+  imrBps,
+}) {
+  const oldSize = existingSizeX18 || 0n;
+  const delta = signedBaseDeltaX18 || 0n;
+  const nextSize = oldSize + delta;
+  const oldAbs = abs(oldSize);
+  const deltaAbs = abs(delta);
+  const nextAbs = abs(nextSize);
+  const sameDirection = oldSize === 0n || (oldSize > 0n && delta > 0n) || (oldSize < 0n && delta < 0n);
+
+  let realizedPnl = 0n;
+  let nextEntryPrice = existingEntryPriceX18 || 0n;
+  if (oldSize === 0n) {
+    nextEntryPrice = executionPriceX18;
+  } else if (sameDirection) {
+    nextEntryPrice = nextAbs > 0n
+      ? ((oldAbs * existingEntryPriceX18) + (deltaAbs * executionPriceX18)) / nextAbs
+      : 0n;
+  } else {
+    const reduceAmount = deltaAbs <= oldAbs ? deltaAbs : oldAbs;
+    realizedPnl = oldSize > 0n
+      ? mulDiv(int256Difference(executionPriceX18, existingEntryPriceX18), reduceAmount, WAD)
+      : mulDiv(int256Difference(existingEntryPriceX18, executionPriceX18), reduceAmount, WAD);
+    if (nextSize === 0n) nextEntryPrice = 0n;
+    else if ((oldSize > 0n && nextSize < 0n) || (oldSize < 0n && nextSize > 0n)) nextEntryPrice = executionPriceX18;
+  }
+
+  let marginAfterPnl = existingMarginX18 || 0n;
+  if (realizedPnl >= 0n) marginAfterPnl += realizedPnl;
+  else marginAfterPnl = -realizedPnl >= marginAfterPnl ? 0n : marginAfterPnl + realizedPnl;
+
+  let automaticMargin = 0n;
+  let marginReleased = 0n;
+  let projectedMargin = marginAfterPnl;
+  if (sameDirection) {
+    const tradeRiskNotional = mulDiv(deltaAbs, riskPriceX18, WAD);
+    automaticMargin = mulDiv(tradeRiskNotional, BigInt(imrBps || 0n), BPS_DENOMINATOR);
+    projectedMargin += automaticMargin;
+  } else if (oldAbs > 0n) {
+    const reduceAmount = deltaAbs <= oldAbs ? deltaAbs : oldAbs;
+    marginReleased = mulDiv(marginAfterPnl, reduceAmount, oldAbs);
+    projectedMargin -= marginReleased;
+    if (deltaAbs > oldAbs) {
+      const openAmount = deltaAbs - oldAbs;
+      const openRiskNotional = mulDiv(openAmount, riskPriceX18, WAD);
+      automaticMargin = mulDiv(openRiskNotional, BigInt(imrBps || 0n), BPS_DENOMINATOR);
+      projectedMargin += automaticMargin;
+    }
+  }
+
+  return {
+    resultingSize: nextSize,
+    resultingEntryPrice: nextEntryPrice,
+    projectedMargin,
+    automaticMargin,
+    marginReleased,
+    realizedPnl,
+  };
+}
+
+function int256Difference(a, b) {
+  return BigInt(a || 0n) - BigInt(b || 0n);
 }
 
 function clampBuyBaseAmount(baseAmount, reserveBase, minReserveBase) {
@@ -123,6 +245,9 @@ export function buildOpenOrderPreview({
   minPositionSize = 0n,
   maxPositionSize = 0n,
   existingSizeX18 = 0n,
+  existingMarginX18 = 0n,
+  existingEntryPriceX18 = 0n,
+  targetLeverageX18 = 0n,
 }) {
   if (!sizeX18 || sizeX18 <= 0n) return ZERO_PREVIEW;
   if (!reserveBase || reserveBase <= 0n || !reserveQuote || reserveQuote <= 0n) {
@@ -156,14 +281,36 @@ export function buildOpenOrderPreview({
     const initialMargin = mulDiv(riskNotional, imrBps, BPS_DENOMINATOR);
     const notional = mulDivRoundUp(tradeAbsSize, quote.avgPrice, WAD);
     const fee = mulDivRoundUp(notional, feeBps, BPS_DENOMINATOR);
-    const totalRequired = initialMargin + fee;
+    const projection = projectPositionAfterTrade({
+      existingSizeX18,
+      existingMarginX18,
+      existingEntryPriceX18,
+      signedBaseDeltaX18: signedDelta,
+      executionPriceX18: quote.avgPrice,
+      riskPriceX18: imrPrice,
+      imrBps,
+    });
+    const resultingRiskNotional = mulDivRoundUp(resultingAbsSize, imrPrice, WAD);
+    const targetMargin = targetLeverageX18 > 0n
+      ? calculateTargetMargin({ sizeX18: resultingSize, riskPriceX18: imrPrice, targetLeverageX18 })
+      : projection.projectedMargin;
+    const marginGap = targetMargin > projection.projectedMargin ? targetMargin - projection.projectedMargin : 0n;
+    const extraMargin = marginGap > MARGIN_TOP_UP_DUST_X18 ? marginGap : 0n;
+    const finalMargin = projection.projectedMargin + extraMargin;
+    const totalRequired = projection.automaticMargin + fee + extraMargin;
+    const availableWithRelease = quoteFreeCollateral + projection.marginReleased;
     const maintenanceMargin = mulDivRoundUp(mulDivRoundUp(resultingAbsSize, oraclePrice, WAD), mmrBps, BPS_DENOMINATOR);
-    const marginGap = initialMargin > maintenanceMargin ? initialMargin - maintenanceMargin : 0n;
-    const liqMove = tradeAbsSize > 0n ? mulDiv(marginGap, WAD, tradeAbsSize) : 0n;
-    const liqPrice = isLong
-      ? (quote.avgPrice > liqMove ? quote.avgPrice - liqMove : 0n)
-      : quote.avgPrice + liqMove;
-    const effectiveLeverageX18 = initialMargin > 0n ? mulDiv(notional, WAD, initialMargin) : 0n;
+    const liqPrice = estimateLiquidationPrice({
+      sizeX18: resultingSize,
+      entryPriceX18: projection.resultingEntryPrice,
+      marginX18: finalMargin,
+      mmrBps,
+    });
+    const effectiveLeverageX18 = calculateLeverageX18({
+      sizeX18: resultingSize,
+      marginX18: finalMargin,
+      riskPriceX18: imrPrice,
+    });
     const amountLimit = amountLimitFromPrice({ isLong, sizeX18: tradeAbsSize, limitPriceX18 });
     const limitInvalid = amountLimit > 0n && (isLong ? amountLimit < quote.quoteAmount : amountLimit > quote.quoteAmount);
 
@@ -176,8 +323,17 @@ export function buildOpenOrderPreview({
         notional,
         fee,
         initialMargin,
+        automaticMargin: projection.automaticMargin,
+        marginReleased: projection.marginReleased,
+        projectedMargin: projection.projectedMargin,
+        targetMargin,
+        finalMargin,
+        extraMargin,
         maintenanceMargin,
         riskNotional,
+        resultingRiskNotional,
+        resultingSize,
+        resultingEntryPrice: projection.resultingEntryPrice,
         totalRequired,
         effectiveLeverageX18,
         liqPrice,
@@ -185,7 +341,7 @@ export function buildOpenOrderPreview({
       };
     }
 
-    if (quoteFreeCollateral < totalRequired) {
+    if (availableWithRelease < totalRequired) {
       return {
         ...ZERO_PREVIEW,
         ...quote,
@@ -194,8 +350,17 @@ export function buildOpenOrderPreview({
         notional,
         fee,
         initialMargin,
+        automaticMargin: projection.automaticMargin,
+        marginReleased: projection.marginReleased,
+        projectedMargin: projection.projectedMargin,
+        targetMargin,
+        finalMargin,
+        extraMargin,
         maintenanceMargin,
         riskNotional,
+        resultingRiskNotional,
+        resultingSize,
+        resultingEntryPrice: projection.resultingEntryPrice,
         totalRequired,
         effectiveLeverageX18,
         liqPrice,
@@ -213,8 +378,17 @@ export function buildOpenOrderPreview({
       notional,
       fee,
       initialMargin,
+      automaticMargin: projection.automaticMargin,
+      marginReleased: projection.marginReleased,
+      projectedMargin: projection.projectedMargin,
+      targetMargin,
+      finalMargin,
+      extraMargin,
       maintenanceMargin,
       riskNotional,
+      resultingRiskNotional,
+      resultingSize,
+      resultingEntryPrice: projection.resultingEntryPrice,
       totalRequired,
       effectiveLeverageX18,
       liqPrice,
@@ -226,8 +400,14 @@ export function buildOpenOrderPreview({
 }
 
 export function findMaxOpenSize(params) {
-  const upperByCollateral = params.oraclePrice && params.imrBps
-    ? mulDiv(params.quoteFreeCollateral, BPS_DENOMINATOR * WAD, params.oraclePrice * params.imrBps)
+  const leverageCapacity = params.targetLeverageX18 > 0n
+    ? params.targetLeverageX18
+    : params.imrBps > 0n
+      ? mulDiv(BPS_DENOMINATOR, WAD, params.imrBps)
+      : 0n;
+  const availableCapital = (params.quoteFreeCollateral || 0n) + (params.existingMarginX18 || 0n);
+  const upperByCollateral = params.oraclePrice && leverageCapacity > 0n
+    ? mulDiv(availableCapital, leverageCapacity, params.oraclePrice)
     : 0n;
   let high = params.maxPositionSize && params.maxPositionSize > 0n
     ? params.maxPositionSize
