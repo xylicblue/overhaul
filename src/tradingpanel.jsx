@@ -18,15 +18,19 @@ import { useVAMMReserves } from "./hooks/useVAMM";
 import { MARKET_IDS, SEPOLIA_CONTRACTS } from "./contracts/addresses";
 import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
 import CollateralVaultABI from "./contracts/abis/CollateralVault.json";
+import ClearingHouseABI from "./contracts/abis/ClearingHouse.json";
 import { Info, ShieldCheck, ChevronDown } from "lucide-react";
 import { getSepoliaTxUrl } from "./utils/transactionErrors";
 import { diagnoseOpenPositionError, diagnoseFundingBlocker } from "./utils/tradeFailureDiagnosis";
 import {
   ZERO_PREVIEW,
   buildOpenOrderPreview,
+  calculateLeverageX18,
+  calculateMarginTopUp,
   findBaseSizeForNotional,
   findMaxOpenSize,
   formatX18Number,
+  MARGIN_TOP_UP_DUST_X18,
   toNumberX18,
 } from "./utils/orderPreview";
 import FirstTradeConsentModal from "./components/FirstTradeConsentModal";
@@ -35,9 +39,23 @@ import { hasAcceptedTradingConsent, acceptTradingConsent } from "./services/priv
 const DEFAULT_FEE_BPS = 10;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const WAD = 10n ** 18n;
-const T4_TARGET_LEVERAGE_MARKET_ID = MARKET_IDS["T4-PERP"];
 const MIN_TARGET_LEVERAGE = 1;
-const MAX_TARGET_LEVERAGE = 10;
+const MAX_TARGET_LEVERAGE_CAP = 10;
+
+const PRICE_READ_ABI = [{
+  type: "function",
+  name: "getPrice",
+  inputs: [],
+  outputs: [{ type: "uint256" }],
+  stateMutability: "view",
+}];
+const MARK_READ_ABI = [{
+  type: "function",
+  name: "getMarkPrice",
+  inputs: [],
+  outputs: [{ type: "uint256" }],
+  stateMutability: "view",
+}];
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -72,6 +90,12 @@ const formatX18Input = (value) => {
 const formatUsd = (value, digits = 2) => `$${formatX18Number(value, digits)}`;
 
 const valueAt = (result, key, index) => result?.[key] ?? result?.[index];
+
+const normalizePositionResult = (result) => ({
+  size: valueAt(result, "size", 0) || 0n,
+  margin: valueAt(result, "margin", 1) || 0n,
+  entryPrice: valueAt(result, "entryPriceX18", 2) || 0n,
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Info Tooltip
@@ -190,8 +214,8 @@ export const TradingPanel = ({ selectedMarket }) => {
   const publicClient              = usePublicClient({ chainId: 11155111 });
 
   const marketId                 = selectedMarket?.marketId || selectedMarket?.id || MARKET_IDS[selectedMarket?.name] || MARKET_IDS["H100-PERP"];
-  const targetLeverageEnabled    = marketId === T4_TARGET_LEVERAGE_MARKET_ID;
   const { riskParams }           = useMarketRiskParams(marketId);
+  const leverageEnabled          = Number(riskParams?.imrBps || 0) > 0;
   const { data: marketConfig }   = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
     abi: MarketRegistryABI.abi,
@@ -216,7 +240,8 @@ export const TradingPanel = ({ selectedMarket }) => {
     reset: resetTrade,
   } = useOpenPosition(marketId);
   const {
-    addMargin,
+    addMarginRaw,
+    simulateAddMarginRaw,
     isPending: isAddMarginPending,
     reset: resetAddMargin,
   } = useAddMargin(marketId);
@@ -227,7 +252,8 @@ export const TradingPanel = ({ selectedMarket }) => {
   const [isAddingTargetMargin, setIsAddingTargetMargin] = useState(false);
   const [orderInputMode, setOrderInputMode] = useState("base");
   const [unitMenuOpen, setUnitMenuOpen] = useState(false);
-  const [targetLeverage, setTargetLeverage] = useState(MAX_TARGET_LEVERAGE);
+  const [targetLeverage, setTargetLeverage] = useState(MIN_TARGET_LEVERAGE);
+  const [lastAchievedLeverage, setLastAchievedLeverage] = useState(null);
 
   // ── First-ever-trade consent gate (Risk Disclosure + Privacy Policy) ───────
   const [showConsentModal, setShowConsentModal] = useState(false);
@@ -244,7 +270,7 @@ export const TradingPanel = ({ selectedMarket }) => {
 
   const marketName = typeof selectedMarket === "string" ? selectedMarket : selectedMarket?.name;
   const { data: market, isLoading, error } = useMarketRealTimeData(marketName);
-  const { position } = usePosition(marketId, address);
+  const { position, refetch: refetchPosition } = usePosition(marketId, address);
   const vammAddress = selectedMarket?.vammAddress || selectedMarket?.vamm || market?.vammAddress;
   const reserves = useVAMMReserves(vammAddress);
   const quoteToken = valueAt(marketConfig, "quoteToken", 7) || SEPOLIA_CONTRACTS.mockUSDC;
@@ -278,15 +304,15 @@ export const TradingPanel = ({ selectedMarket }) => {
   const lastTargetLeverageMarketRef = useRef(null);
   const maxSelectableLeverage = useMemo(() => {
     const imrBps = Number(riskParams?.imrBps || 0);
-    if (imrBps <= 0) return MAX_TARGET_LEVERAGE;
-    return clamp(10000 / imrBps, MIN_TARGET_LEVERAGE, MAX_TARGET_LEVERAGE);
+    if (imrBps <= 0) return MIN_TARGET_LEVERAGE;
+    return clamp(Math.floor(10000 / imrBps), MIN_TARGET_LEVERAGE, MAX_TARGET_LEVERAGE_CAP);
   }, [riskParams?.imrBps]);
-  const selectedTargetLeverage = targetLeverageEnabled
+  const selectedTargetLeverage = leverageEnabled
     ? clamp(targetLeverage, MIN_TARGET_LEVERAGE, maxSelectableLeverage)
     : targetLeverage;
 
   useEffect(() => {
-    if (!targetLeverageEnabled) {
+    if (!leverageEnabled) {
       lastTargetLeverageMarketRef.current = null;
       return;
     }
@@ -298,15 +324,16 @@ export const TradingPanel = ({ selectedMarket }) => {
       if (marketChanged) return maxSelectableLeverage;
       return clamp(current || maxSelectableLeverage, MIN_TARGET_LEVERAGE, maxSelectableLeverage);
     });
-  }, [targetLeverageEnabled, marketId, maxSelectableLeverage]);
+  }, [leverageEnabled, marketId, maxSelectableLeverage]);
+
+  useEffect(() => setLastAchievedLeverage(null), [marketId, address]);
 
   // ── Calculations (memoised — only rerun when inputs actually change) ───────
   const {
-    effectiveBalance, currentPrice, marketPrice, executionPrice,
+    effectiveBalance, marketPrice, executionPrice,
     maxSize, maxNotional, sizeNum, inputNum, sliderMax, sliderValue,
-    derivedLeverage, riskPrice, feeBps, liqPrice, isOverMax, invalidReason,
+    riskPrice, feeBps, liqPrice, isOverMax, invalidReason,
     preview, amountLimit, protocolSize, targetMarginRaw, extraMarginRaw,
-    targetTotalRequiredRaw, targetMarginOverAvailable,
   } = useMemo(() => {
     const quoteFreeCollateralRaw = quoteValueRaw && quoteValueRaw > reservedMarginRaw
       ? quoteValueRaw - reservedMarginRaw
@@ -317,6 +344,7 @@ export const TradingPanel = ({ selectedMarket }) => {
     const marketPrice   = currentPrice || indexPrice || toNumber(market?.price);
     const inputX18 = parseX18Input(size);
     const limitPriceX18 = parseX18Input(priceLimit);
+    const targetLeverageRaw = leverageEnabled ? parseX18Input(selectedTargetLeverage.toString()) : 0n;
     const feeBps        = Number(valueAt(marketConfig, "feeBps", 1) ?? reserves.feeBps ?? selectedMarket?.feeBps ?? market?.feeBps ?? DEFAULT_FEE_BPS);
     const previewParams = {
       isLong,
@@ -334,6 +362,9 @@ export const TradingPanel = ({ selectedMarket }) => {
       minPositionSize: riskParams?.minPositionSizeRaw || 0n,
       maxPositionSize: riskParams?.maxPositionSizeRaw || 0n,
       existingSizeX18: position?.sizeRaw || 0n,
+      existingMarginX18: position?.marginRaw || 0n,
+      existingEntryPriceX18: parseX18Input(position?.entryPriceX18 || "0"),
+      targetLeverageX18: targetLeverageRaw,
     };
     const maxSizeRaw = findMaxOpenSize(previewParams);
     const notionalConversion = orderInputMode === "notional"
@@ -357,19 +388,11 @@ export const TradingPanel = ({ selectedMarket }) => {
     const sizeNum = toNumberX18(sizeX18);
     const maxSize = toNumberX18(maxSizeRaw);
     const maxNotional = toNumberX18(maxNotionalRaw);
-    const targetLeverageRaw = targetLeverageEnabled ? parseX18Input(selectedTargetLeverage.toString()) : 0n;
-    const targetMarginRaw = targetLeverageEnabled && preview.ok && preview.riskNotional > 0n && targetLeverageRaw > 0n
-      ? (preview.riskNotional * WAD + targetLeverageRaw - 1n) / targetLeverageRaw
-      : preview.initialMargin;
-    const extraMarginRaw = targetLeverageEnabled && targetMarginRaw > preview.initialMargin
-      ? targetMarginRaw - preview.initialMargin
-      : 0n;
-    const targetTotalRequiredRaw = preview.totalRequired + extraMarginRaw;
-    const targetMarginOverAvailable = targetLeverageEnabled && inputX18 > 0n && preview.ok && quoteFreeCollateralRaw < targetTotalRequiredRaw;
+    const targetMarginRaw = preview.targetMargin;
+    const extraMarginRaw = preview.extraMargin;
 
     return {
       effectiveBalance,
-      currentPrice,
       marketPrice,
       executionPrice: toNumberX18(preview.avgPrice),
       maxSize,
@@ -379,30 +402,25 @@ export const TradingPanel = ({ selectedMarket }) => {
       sliderMax: orderInputMode === "notional" ? maxNotional : maxSize,
       sliderValue: orderInputMode === "notional" ? inputNum : sizeNum,
       fees: toNumberX18(preview.fee),
-      marginRequired: toNumberX18(preview.initialMargin),
+      marginRequired: toNumberX18(preview.finalMargin),
       collateralRequired: toNumberX18(preview.totalRequired),
-      derivedLeverage: toNumberX18(preview.effectiveLeverageX18),
       riskPrice: toNumberX18(preview.postTradeMark > previewParams.oraclePrice ? preview.postTradeMark : previewParams.oraclePrice),
       feeBps,
       liqPrice: preview.liqPrice > 0n ? formatX18Number(preview.liqPrice, 2) : "—",
-      isOverMax: inputX18 > 0n && (!preview.ok || targetMarginOverAvailable),
-      invalidReason: inputX18 > 0n
-        ? (targetMarginOverAvailable ? "Insufficient quote collateral for selected leverage" : preview.reason)
-        : null,
+      isOverMax: inputX18 > 0n && !preview.ok,
+      invalidReason: inputX18 > 0n ? preview.reason : null,
       preview,
       amountLimit: preview.amountLimit,
       protocolSize,
       targetMarginRaw,
       extraMarginRaw,
-      targetTotalRequiredRaw,
-      targetMarginOverAvailable,
     };
   }, [
     quoteValueRaw, reservedMarginRaw, market?.markPriceRaw, market?.price, market?.oraclePriceRaw,
     market?.feeBps, priceLimit, riskParams, marketConfig, reserves.baseReserveRaw,
     reserves.quoteReserveRaw, reserves.minReserveBaseRaw, reserves.minReserveQuoteRaw,
-    reserves.feeBps, selectedMarket?.feeBps, size, isLong, position?.sizeRaw, orderInputMode,
-    targetLeverageEnabled, selectedTargetLeverage,
+    reserves.feeBps, selectedMarket?.feeBps, size, isLong, position?.sizeRaw,
+    position?.marginRaw, position?.entryPriceX18, orderInputMode, leverageEnabled, selectedTargetLeverage,
   ]);
 
   const saveSubmittedTrade = useCallback(async (submittedOrder, txHash) => {
@@ -425,6 +443,96 @@ export const TradingPanel = ({ selectedMarket }) => {
       }
     );
   }, [address]);
+
+  const readLeverageSnapshot = useCallback(async () => {
+    if (!publicClient || !address || !marketId) throw new Error("Position state is unavailable");
+    const freshMarket = await publicClient.readContract({
+      address: SEPOLIA_CONTRACTS.marketRegistry,
+      abi: MarketRegistryABI.abi,
+      functionName: "getMarket",
+      args: [marketId],
+    });
+    const vamm = valueAt(freshMarket, "vamm", 0);
+    const oracle = valueAt(freshMarket, "oracle", 3);
+    if (!vamm || !oracle || vamm === ZERO_ADDRESS || oracle === ZERO_ADDRESS) {
+      throw new Error("Market pricing is unavailable");
+    }
+
+    const [positionResult, markPrice, indexPrice] = await Promise.all([
+      publicClient.readContract({
+        address: SEPOLIA_CONTRACTS.clearingHouse,
+        abi: ClearingHouseABI.abi,
+        functionName: "getPosition",
+        args: [address, marketId],
+      }),
+      publicClient.readContract({ address: vamm, abi: MARK_READ_ABI, functionName: "getMarkPrice" }),
+      publicClient.readContract({ address: oracle, abi: PRICE_READ_ABI, functionName: "getPrice" }),
+    ]);
+    const freshPosition = normalizePositionResult(positionResult);
+    const riskPrice = markPrice > indexPrice ? markPrice : indexPrice;
+    return { position: freshPosition, riskPrice };
+  }, [publicClient, address, marketId]);
+
+  const reconcileTargetLeverage = useCallback(async (adjustment) => {
+    if (adjustment.openHash) {
+      if (!publicClient) throw new Error("RPC client unavailable");
+      const openReceipt = await publicClient.waitForTransactionReceipt({ hash: adjustment.openHash });
+      if (openReceipt?.status === "reverted") {
+        throw new Error("Position transaction reverted");
+      }
+    }
+
+    const targetLeverageX18 = parseX18Input(adjustment.targetLeverage.toString());
+    const snapshot = await readLeverageSnapshot();
+    if (snapshot.position.size === 0n) {
+      setLastAchievedLeverage(null);
+      return { topUp: 0n, achievedLeverage: 0 };
+    }
+
+    const achievedBeforeX18 = calculateLeverageX18({
+      sizeX18: snapshot.position.size,
+      marginX18: snapshot.position.margin,
+      riskPriceX18: snapshot.riskPrice,
+    });
+    const topUp = calculateMarginTopUp({
+      sizeX18: snapshot.position.size,
+      marginX18: snapshot.position.margin,
+      riskPriceX18: snapshot.riskPrice,
+      targetLeverageX18,
+    });
+
+    if (topUp <= MARGIN_TOP_UP_DUST_X18) {
+      const achievedLeverage = toNumberX18(achievedBeforeX18);
+      setLastAchievedLeverage(achievedLeverage);
+      return { topUp, achievedLeverage };
+    }
+
+    await simulateAddMarginRaw(topUp);
+    setIsAddingTargetMargin(true);
+    toast.loading("Review margin adjustment in wallet...", { id: "trade" });
+    const marginHash = await addMarginRaw(topUp);
+    if (!marginHash || !publicClient) throw new Error("Margin adjustment was not submitted");
+
+    toast.loading("Applying target leverage...", { id: "trade" });
+    const marginReceipt = await publicClient.waitForTransactionReceipt({ hash: marginHash });
+    if (marginReceipt?.status === "reverted") throw new Error("Margin adjustment reverted");
+
+    const finalMargin = snapshot.position.margin + topUp;
+    const achievedLeverage = toNumberX18(calculateLeverageX18({
+      sizeX18: snapshot.position.size,
+      marginX18: finalMargin,
+      riskPriceX18: snapshot.riskPrice,
+    }));
+    setLastAchievedLeverage(achievedLeverage);
+    await refetchPosition?.();
+    return { topUp, marginHash, achievedLeverage };
+  }, [
+    readLeverageSnapshot,
+    simulateAddMarginRaw,
+    addMarginRaw,
+    publicClient,
+    refetchPosition,
+  ]);
 
   // ── Trade success ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -476,6 +584,18 @@ export const TradingPanel = ({ selectedMarket }) => {
     }
   }, [tradeError, receiptError, resetTrade, market?.displayName, market?.name]);
 
+  const currentPositionLeverage = useMemo(() => {
+    if (!position?.hasPosition || !position?.marginRaw) return 0;
+    const mark = parseX18Input(market?.markPriceRaw || "0");
+    const index = parseX18Input(market?.oraclePriceRaw || "0");
+    const riskPriceRaw = mark > index ? mark : index;
+    return toNumberX18(calculateLeverageX18({
+      sizeX18: position.sizeRaw,
+      marginX18: position.marginRaw,
+      riskPriceX18: riskPriceRaw,
+    }));
+  }, [position?.hasPosition, position?.sizeRaw, position?.marginRaw, market?.markPriceRaw, market?.oraclePriceRaw]);
+
   // ── Guards ────────────────────────────────────────────────────────────────
   if (!selectedMarket) return <div className="flex items-center justify-center h-full text-ink-faint text-xs">Select a market</div>;
   if (isLoading)        return <div className="flex items-center justify-center h-full text-ink-faint text-xs">Loading…</div>;
@@ -495,16 +615,6 @@ export const TradingPanel = ({ selectedMarket }) => {
       setPreflightError(diag);
       return toast.error(diag.message, { id: "trade" });
     }
-    if (targetMarginOverAvailable) {
-      const diag = {
-        severity: "error",
-        title: "Insufficient Collateral",
-        message: "Available quote collateral cannot support the selected T4 leverage.",
-      };
-      setPreflightError(diag);
-      return toast.error(diag.message, { id: "trade" });
-    }
-
     // ── 2. Funding / liquidation scan across active positions ───────────────
     const blocker = diagnoseFundingBlocker(allPositions || []);
     if (blocker) {
@@ -538,7 +648,6 @@ export const TradingPanel = ({ selectedMarket }) => {
     // ── 4. Simulation passed — open wallet ──────────────────────────────────
     let openSubmittedHash = null;
     let openConfirmed = false;
-    const needsPostOpenMargin = targetLeverageEnabled && extraMarginRaw > 0n;
     try {
       submittedOpenOrderRef.current = {
         sideLabel: isLong ? "Long" : "Short",
@@ -554,16 +663,22 @@ export const TradingPanel = ({ selectedMarket }) => {
         twapRaw: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
         notional: toNumberX18(preview.notional),
         txActionText: side,
-        deferOpenSuccess: needsPostOpenMargin,
+        deferOpenSuccess: true,
       };
       toast.loading("Review order transaction in wallet...", { id: "trade" });
       openSubmittedHash = await openPosition(isLong, protocolSize, amountLimit);
 
-      if (!needsPostOpenMargin) return;
       if (!openSubmittedHash || !publicClient) {
-        throw new Error("Position submitted, but the app could not confirm the transaction before adding margin.");
+        throw new Error("Position submitted, but the app could not confirm the transaction.");
       }
 
+      const adjustment = {
+        targetLeverage: selectedTargetLeverage,
+        openHash: openSubmittedHash,
+        marketId,
+        marketName: market.displayName || market.name,
+        createdAt: Date.now(),
+      };
       toast.loading("Submitted, waiting for confirmation...", { id: "trade" });
       const openReceipt = await publicClient.waitForTransactionReceipt({ hash: openSubmittedHash });
       if (openReceipt?.status === "reverted") {
@@ -571,24 +686,20 @@ export const TradingPanel = ({ selectedMarket }) => {
       }
       openConfirmed = true;
 
-      await saveSubmittedTrade(submittedOpenOrderRef.current, openSubmittedHash);
-      setIsAddingTargetMargin(true);
-      toast.loading("Review add margin transaction in wallet...", { id: "trade" });
-      const marginHash = await addMargin(formatX18Input(extraMarginRaw));
-      if (!marginHash || !publicClient) {
-        throw new Error("Position opened, but the app could not confirm the add-margin transaction.");
-      }
-
-      toast.loading("Adding margin...", { id: "trade" });
-      const marginReceipt = await publicClient.waitForTransactionReceipt({ hash: marginHash });
-      if (marginReceipt?.status === "reverted") {
-        throw new Error("Add margin transaction reverted.");
+      const reconciliation = await reconcileTargetLeverage(adjustment);
+      try {
+        await saveSubmittedTrade(submittedOpenOrderRef.current, openSubmittedHash);
+      } catch {
+        // Trade indexing is non-critical and must not interrupt margin reconciliation.
       }
 
       setLastTx(openSubmittedHash, submittedOpenOrderRef.current?.txActionText || side);
       toast.success(
         <div>
-          <div>{submittedOpenOrderRef.current?.sideLabel || "Position"} opened.</div>
+          <div>
+            {submittedOpenOrderRef.current?.sideLabel || "Position"} opened
+            {reconciliation.achievedLeverage > 0 ? ` at ${reconciliation.achievedLeverage.toFixed(2)}× or lower.` : "."}
+          </div>
           <a href={getSepoliaTxUrl(openSubmittedHash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
             View on Etherscan
           </a>
@@ -602,18 +713,14 @@ export const TradingPanel = ({ selectedMarket }) => {
         submittedOpenOrderRef.current = null;
       }, 100);
     } catch (err) {
-      const diag = needsPostOpenMargin && openSubmittedHash && openConfirmed
-        ? {
-            severity: "error",
-            title: "Margin Not Added",
-            message: "Position opened, but the selected T4 leverage margin was not added. Add margin from the position panel to reach the intended leverage.",
-          }
-        : diagnoseOpenPositionError(err, { marketName: market.name });
-      if (needsPostOpenMargin && openSubmittedHash && openConfirmed) {
+      if (openSubmittedHash && openConfirmed) {
         setLastTx(openSubmittedHash, submittedOpenOrderRef.current?.txActionText || side);
+        toast.error("Margin transaction was not completed.", { id: "trade" });
+      } else {
+        const diag = diagnoseOpenPositionError(err, { marketName: market.name });
+        setPreflightError(diag);
+        toast.error(diag.message, { id: "trade" });
       }
-      setPreflightError(diag);
-      toast.error(diag.message, { id: "trade" });
     } finally {
       setIsAddingTargetMargin(false);
     }
@@ -636,31 +743,37 @@ export const TradingPanel = ({ selectedMarket }) => {
     <div className="flex flex-col h-full bg-surface-1">
       <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 px-4 pt-3 pb-3 space-y-3">
 
-        {/* ── Leverage (margin mode is not offered, so only leverage is shown) ── */}
+        {/* ── Target leverage for the complete post-trade position ── */}
         <div className="rounded-lg border border-line bg-surface-2 px-3 py-2">
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-medium text-ink-faint uppercase tracking-wide">Leverage</span>
+            <span className="text-[12px] font-medium text-ink-faint uppercase tracking-wide">Target leverage</span>
             <span className={`text-[15px] font-bold num ${isLong ? "text-up" : "text-down"}`}>
-              {targetLeverageEnabled
-                ? `${selectedTargetLeverage.toFixed(2)}×`
-                : (derivedLeverage > 0 ? `${derivedLeverage.toFixed(2)}×` : "Auto")}
+              {leverageEnabled ? `≤ ${selectedTargetLeverage}×` : "Unavailable"}
             </span>
           </div>
-          {targetLeverageEnabled && (
+          {leverageEnabled && (
             <PanelSlider
               value={selectedTargetLeverage}
               min={MIN_TARGET_LEVERAGE}
               max={maxSelectableLeverage}
-              step={0.25}
-              onChange={(e) => {
-                const next = Number.parseFloat(e.target.value);
-                if (Number.isFinite(next)) {
-                  setTargetLeverage(clamp(next, MIN_TARGET_LEVERAGE, maxSelectableLeverage));
-                }
+              step={1}
+              onChange={(event) => {
+                const next = Number.parseInt(event.target.value, 10);
+                if (Number.isFinite(next)) setTargetLeverage(next);
               }}
               down={!isLong}
             />
           )}
+          <div className="flex items-center justify-between gap-3 text-[10px] text-ink-faint">
+            <span>
+              {(lastAchievedLeverage || currentPositionLeverage) > 0
+                ? `Current ${(lastAchievedLeverage || currentPositionLeverage).toFixed(2)}× → target applies to the resulting position`
+                : "Target applies to the resulting position"}
+            </span>
+            <span className="shrink-0 num">
+              {extraMarginRaw > 0n ? "2 steps" : "1 step"}
+            </span>
+          </div>
         </div>
 
         {/* ── Order type tabs (only Market is offered; Limit is upcoming) ── */}
@@ -915,7 +1028,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               Processing
             </>
           ) : (
-            "Place Market Order"
+            extraMarginRaw > 0n ? "Place order · 2 steps" : "Place Market Order"
           )}
         </button>
 
@@ -949,7 +1062,7 @@ export const TradingPanel = ({ selectedMarket }) => {
             </span>
             <span className="num text-white">
               {sizeNum > 0
-                ? `$${toNumber(position?.margin).toFixed(2)} → $${(toNumber(position?.margin) + toNumberX18(targetLeverageEnabled ? targetMarginRaw : preview.initialMargin)).toFixed(2)}`
+                ? `$${toNumber(position?.margin).toFixed(2)} → $${toNumberX18(preview.finalMargin || targetMarginRaw).toFixed(2)}`
                 : `$${toNumber(position?.margin).toFixed(2)}`}
             </span>
           </div>
