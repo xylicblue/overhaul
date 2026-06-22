@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useTradingStore } from "../stores/useTradingStore";
 import { useAccount, useReadContract } from "wagmi";
 import { toast } from "react-hot-toast";
+import { formatUnits, parseUnits } from "ethers";
 import {
   calculatePendingFunding,
   useAccountValue,
@@ -20,6 +21,7 @@ import { Wallet, TrendingUp, TrendingDown, X, AlertCircle, Activity, Plus } from
 import { supabase } from "../creatclient";
 import { recordTradeWithRetry } from "../services/tradeQueue";
 import { formatTransactionError, getSepoliaTxUrl } from "../utils/transactionErrors";
+import { absolutePositionSize, closePresetSize, formatPositionSize } from "../utils/positionSize";
 
 const hasOpenPositionData = (data) => {
   if (!data) return false;
@@ -131,7 +133,9 @@ export function PositionPanel({ selectedMarket = null }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function PositionRow({ position, closingPosition, setClosingPosition, closeSize, setCloseSize, refetchPositions }) {
   const isLong     = position.isLong;
+  const absSizeRaw = absolutePositionSize(position.sizeRaw);
   const absSize    = Math.abs(parseFloat(position.size));
+  const displayedSize = formatPositionSize(absSizeRaw);
   const entryPrice = parseFloat(position.entryPriceX18);
   const margin     = parseFloat(position.margin);
 
@@ -175,7 +179,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       position.lastFundingPayIndex, position.lastFundingReceiveIndex,
       position.size, entryPrice, absSize, margin, isLong]);
 
-  const { closePosition, isPending, isConfirming, isSuccess, isReverted, error: closeError, receiptError, hash, receipt, reset: resetClose } = useClosePosition(position.marketId);
+  const { closePositionRaw, isPending, isConfirming, isSuccess, isReverted, error: closeError, receiptError, hash, receipt, reset: resetClose } = useClosePosition(position.marketId);
   const { address } = useAccount();
   const { position: livePosition, refetch: refetchLivePosition } = usePosition(position.marketId, address);
   const { accountValue, refetch: refetchAccountValue }           = useAccountValue(address);
@@ -212,8 +216,15 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
   const initiateClose = (closeAmount) => {
     if (isCloseBusy) return;
-    if (!closeAmount || parseFloat(closeAmount) <= 0) { toast.error("Enter a valid size to close"); return; }
-    if (parseFloat(closeAmount) > absSize) { toast.error(`Max size: ${absSize.toFixed(4)}`); return; }
+    let closeAmountRaw;
+    try {
+      closeAmountRaw = parseUnits(closeAmount?.toString() || "0", 18);
+    } catch {
+      toast.error("Enter a valid size to close");
+      return;
+    }
+    if (closeAmountRaw <= 0n) { toast.error("Enter a valid size to close"); return; }
+    if (closeAmountRaw > absSizeRaw) { toast.error(`Max size: ${formatUnits(absSizeRaw, 18)}`); return; }
     setCloseInlineError("");
     setPendingCloseAmount(closeAmount);
     setShowConfirmModal(true);
@@ -224,6 +235,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
     setIsCloseSubmitting(true);
     setCloseInlineError("");
     try {
+      const closeAmountRaw = parseUnits(closeAmount.toString(), 18);
       const submittedClosedSize = parseFloat(closeAmount);
       const closePrice          = currentPrice || entryPrice;
       const closeNotional       = submittedClosedSize * closePrice;
@@ -244,7 +256,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         feesPaid:      (closeNotional * feeBps) / 10000,
       };
       toast.loading("Review close transaction in wallet...", { id: "close" });
-      await closePosition(closeAmount, 0);
+      await closePositionRaw(closeAmountRaw, 0n);
     } catch (err) {
       const message = formatTransactionError(err, { action: "close" });
       setCloseInlineError(message);
@@ -476,7 +488,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
             )}
           </div>
           <div className="text-[9px] num text-ink-faint mt-0.5">
-            {absSize.toFixed(4)} GPU-HRS
+            {displayedSize} GPU-HRS
           </div>
         </td>
 
@@ -495,7 +507,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         {/* Notional / size */}
         <td className="px-3 py-2.5 text-right">
           <div className="text-[11px] num text-ink">${openNotional.toFixed(2)}</div>
-          <div className="text-[9px] num text-ink-faint">{absSize.toFixed(4)}</div>
+          <div className="text-[9px] num text-ink-faint">{displayedSize}</div>
         </td>
 
         {/* Entry */}
@@ -570,7 +582,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               {/* Presets */}
               <div className="flex gap-1">
                 {[25, 50, 75, 100].map(pct => {
-                  const val = (absSize * pct / 100).toFixed(4);
+                  const val = closePresetSize(absSizeRaw, pct).formatted;
                   return (
                     <button
                       key={pct}
@@ -595,7 +607,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                   value={closeSize}
                   onChange={e => setCloseSize(e.target.value)}
                   className="w-36 bg-surface-2 border border-line rounded px-2 pr-16 py-1.5 text-[11px] text-ink num focus:outline-none focus:border-red-500/30 placeholder-ink-ghost transition-colors"
-                  step="0.0001"
+                  step="any"
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] num text-ink-faint pointer-events-none">
                   GPU-HRS
