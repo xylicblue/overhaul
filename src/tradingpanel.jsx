@@ -636,6 +636,9 @@ export const TradingPanel = ({ selectedMarket }) => {
     setIsSimulating(true);
     try {
       await simulateOpenPosition(isLong, protocolSize, amountLimit);
+      if (extraMarginRaw > MARGIN_TOP_UP_DUST_X18) {
+        await simulateAddMarginRaw(extraMarginRaw);
+      }
     } catch (simErr) {
       const diag = diagnoseOpenPositionError(simErr, { marketName: market.displayName || market.name });
       setPreflightError(diag);
@@ -647,6 +650,8 @@ export const TradingPanel = ({ selectedMarket }) => {
 
     // ── 4. Simulation passed — open wallet ──────────────────────────────────
     let openSubmittedHash = null;
+    let marginSubmittedHash = null;
+    let marginSubmissionError = null;
     let openConfirmed = false;
     try {
       submittedOpenOrderRef.current = {
@@ -679,12 +684,34 @@ export const TradingPanel = ({ selectedMarket }) => {
         marketName: market.displayName || market.name,
         createdAt: Date.now(),
       };
+
+      // Request the margin transaction immediately after the open transaction.
+      // Waiting for the first receipt before requesting the second transaction
+      // causes some wallets to suppress the delayed prompt. Wallet nonces keep
+      // these transactions ordered on-chain.
+      if (extraMarginRaw > MARGIN_TOP_UP_DUST_X18) {
+        setIsAddingTargetMargin(true);
+        toast.loading("Review margin transaction in wallet...", { id: "trade" });
+        try {
+          marginSubmittedHash = await addMarginRaw(extraMarginRaw);
+        } catch (marginError) {
+          marginSubmissionError = marginError;
+        }
+      }
+
       toast.loading("Submitted, waiting for confirmation...", { id: "trade" });
       const openReceipt = await publicClient.waitForTransactionReceipt({ hash: openSubmittedHash });
       if (openReceipt?.status === "reverted") {
         throw new Error("Position transaction reverted.");
       }
       openConfirmed = true;
+
+      if (marginSubmissionError) throw marginSubmissionError;
+      if (marginSubmittedHash) {
+        toast.loading("Applying target leverage...", { id: "trade" });
+        const marginReceipt = await publicClient.waitForTransactionReceipt({ hash: marginSubmittedHash });
+        if (marginReceipt?.status === "reverted") throw new Error("Margin adjustment reverted");
+      }
 
       const reconciliation = await reconcileTargetLeverage(adjustment);
       try {
