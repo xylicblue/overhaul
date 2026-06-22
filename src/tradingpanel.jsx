@@ -231,7 +231,6 @@ export const TradingPanel = ({ selectedMarket }) => {
   const {
     openPosition,
     simulateOpenPosition,
-    isPending,
     isConfirming,
     isSuccess,
     error: tradeError,
@@ -242,14 +241,13 @@ export const TradingPanel = ({ selectedMarket }) => {
   const {
     addMarginRaw,
     simulateAddMarginRaw,
-    isPending: isAddMarginPending,
     reset: resetAddMargin,
   } = useAddMargin(marketId);
 
   const { positions: allPositions } = useAllPositions();
   const [preflightError, setPreflightError] = useState(null);
   const [isSimulating,   setIsSimulating]   = useState(false);
-  const [isAddingTargetMargin, setIsAddingTargetMargin] = useState(false);
+  const [isOrderExecuting, setIsOrderExecuting] = useState(false);
   const [orderInputMode, setOrderInputMode] = useState("base");
   const [unitMenuOpen, setUnitMenuOpen] = useState(false);
   const [targetLeverage, setTargetLeverage] = useState(MIN_TARGET_LEVERAGE);
@@ -508,7 +506,6 @@ export const TradingPanel = ({ selectedMarket }) => {
     }
 
     await simulateAddMarginRaw(topUp);
-    setIsAddingTargetMargin(true);
     toast.loading("Review margin adjustment in wallet...", { id: "trade" });
     const marginHash = await addMarginRaw(topUp);
     if (!marginHash || !publicClient) throw new Error("Margin adjustment was not submitted");
@@ -601,7 +598,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   if (isLoading)        return <div className="flex items-center justify-center h-full text-ink-faint text-xs">Loading…</div>;
   if (error || !market) return <div className="flex items-center justify-center h-full text-red-500 text-xs">Error loading market</div>;
 
-  const isTradeBusy = isPending || isAddMarginPending || isAddingTargetMargin;
+  const isTradeBusy = isOrderExecuting;
 
   const handleTrade = async () => {
     setPreflightError(null);
@@ -653,6 +650,7 @@ export const TradingPanel = ({ selectedMarket }) => {
     let marginSubmittedHash = null;
     let marginSubmissionError = null;
     let openConfirmed = false;
+    setIsOrderExecuting(true);
     try {
       submittedOpenOrderRef.current = {
         sideLabel: isLong ? "Long" : "Short",
@@ -690,7 +688,6 @@ export const TradingPanel = ({ selectedMarket }) => {
       // causes some wallets to suppress the delayed prompt. Wallet nonces keep
       // these transactions ordered on-chain.
       if (extraMarginRaw > MARGIN_TOP_UP_DUST_X18) {
-        setIsAddingTargetMargin(true);
         toast.loading("Review margin transaction in wallet...", { id: "trade" });
         try {
           marginSubmittedHash = await addMarginRaw(extraMarginRaw);
@@ -749,7 +746,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         toast.error(diag.message, { id: "trade" });
       }
     } finally {
-      setIsAddingTargetMargin(false);
+      setIsOrderExecuting(false);
     }
   };
 
