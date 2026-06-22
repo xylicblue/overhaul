@@ -26,7 +26,6 @@ import {
   ZERO_PREVIEW,
   buildOpenOrderPreview,
   calculateLeverageX18,
-  calculateMarginTopUp,
   findBaseSizeForNotional,
   findMaxOpenSize,
   formatX18Number,
@@ -471,66 +470,6 @@ export const TradingPanel = ({ selectedMarket }) => {
     return { position: freshPosition, riskPrice };
   }, [publicClient, address, marketId]);
 
-  const reconcileTargetLeverage = useCallback(async (adjustment) => {
-    if (adjustment.openHash) {
-      if (!publicClient) throw new Error("RPC client unavailable");
-      const openReceipt = await publicClient.waitForTransactionReceipt({ hash: adjustment.openHash });
-      if (openReceipt?.status === "reverted") {
-        throw new Error("Position transaction reverted");
-      }
-    }
-
-    const targetLeverageX18 = parseX18Input(adjustment.targetLeverage.toString());
-    const snapshot = await readLeverageSnapshot();
-    if (snapshot.position.size === 0n) {
-      setLastAchievedLeverage(null);
-      return { topUp: 0n, achievedLeverage: 0 };
-    }
-
-    const achievedBeforeX18 = calculateLeverageX18({
-      sizeX18: snapshot.position.size,
-      marginX18: snapshot.position.margin,
-      riskPriceX18: snapshot.riskPrice,
-    });
-    const topUp = calculateMarginTopUp({
-      sizeX18: snapshot.position.size,
-      marginX18: snapshot.position.margin,
-      riskPriceX18: snapshot.riskPrice,
-      targetLeverageX18,
-    });
-
-    if (topUp <= MARGIN_TOP_UP_DUST_X18) {
-      const achievedLeverage = toNumberX18(achievedBeforeX18);
-      setLastAchievedLeverage(achievedLeverage);
-      return { topUp, achievedLeverage };
-    }
-
-    await simulateAddMarginRaw(topUp);
-    toast.loading("Review margin adjustment in wallet...", { id: "trade" });
-    const marginHash = await addMarginRaw(topUp);
-    if (!marginHash || !publicClient) throw new Error("Margin adjustment was not submitted");
-
-    toast.loading("Applying target leverage...", { id: "trade" });
-    const marginReceipt = await publicClient.waitForTransactionReceipt({ hash: marginHash });
-    if (marginReceipt?.status === "reverted") throw new Error("Margin adjustment reverted");
-
-    const finalMargin = snapshot.position.margin + topUp;
-    const achievedLeverage = toNumberX18(calculateLeverageX18({
-      sizeX18: snapshot.position.size,
-      marginX18: finalMargin,
-      riskPriceX18: snapshot.riskPrice,
-    }));
-    setLastAchievedLeverage(achievedLeverage);
-    await refetchPosition?.();
-    return { topUp, marginHash, achievedLeverage };
-  }, [
-    readLeverageSnapshot,
-    simulateAddMarginRaw,
-    addMarginRaw,
-    publicClient,
-    refetchPosition,
-  ]);
-
   // ── Trade success ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (hash && isConfirming && hash !== lastTxHash) {
@@ -675,14 +614,6 @@ export const TradingPanel = ({ selectedMarket }) => {
         throw new Error("Position submitted, but the app could not confirm the transaction.");
       }
 
-      const adjustment = {
-        targetLeverage: selectedTargetLeverage,
-        openHash: openSubmittedHash,
-        marketId,
-        marketName: market.displayName || market.name,
-        createdAt: Date.now(),
-      };
-
       // Request the margin transaction immediately after the open transaction.
       // Waiting for the first receipt before requesting the second transaction
       // causes some wallets to suppress the delayed prompt. Wallet nonces keep
@@ -710,19 +641,27 @@ export const TradingPanel = ({ selectedMarket }) => {
         if (marginReceipt?.status === "reverted") throw new Error("Margin adjustment reverted");
       }
 
-      const reconciliation = await reconcileTargetLeverage(adjustment);
-      try {
-        await saveSubmittedTrade(submittedOpenOrderRef.current, openSubmittedHash);
-      } catch {
-        // Trade indexing is non-critical and must not interrupt margin reconciliation.
-      }
+      void saveSubmittedTrade(submittedOpenOrderRef.current, openSubmittedHash).catch(() => {
+        // Trade indexing is non-critical and must not interrupt order completion.
+      });
+      void readLeverageSnapshot()
+        .then((snapshot) => {
+          const achievedLeverage = toNumberX18(calculateLeverageX18({
+            sizeX18: snapshot.position.size,
+            marginX18: snapshot.position.margin,
+            riskPriceX18: snapshot.riskPrice,
+          }));
+          setLastAchievedLeverage(achievedLeverage || null);
+        })
+        .catch(() => {});
+      void refetchPosition?.();
 
       setLastTx(openSubmittedHash, submittedOpenOrderRef.current?.txActionText || side);
       toast.success(
         <div>
           <div>
             {submittedOpenOrderRef.current?.sideLabel || "Position"} opened
-            {reconciliation.achievedLeverage > 0 ? ` at ${reconciliation.achievedLeverage.toFixed(2)}× or lower.` : "."}
+            {leverageEnabled ? ` at ≤ ${selectedTargetLeverage}×.` : "."}
           </div>
           <a href={getSepoliaTxUrl(openSubmittedHash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
             View on Etherscan
