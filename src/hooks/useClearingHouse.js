@@ -290,15 +290,15 @@ export function useClosePosition(marketId) {
     hash,
   });
 
-  const closePosition = async (size, priceLimit = 0) => {
-    const sizeWei = parseUnits(size.toString(), 18);
-    const priceLimitWei = parseUnits(priceLimit.toString(), 18);
+  const closePositionRaw = async (sizeWei, priceLimitWei = 0n) => {
+    const rawSize = BigInt(sizeWei);
+    const rawPriceLimit = BigInt(priceLimitWei);
 
     const request = {
       address: SEPOLIA_CONTRACTS.clearingHouse,
       abi: ClearingHouseABI.abi,
       functionName: "closePosition",
-      args: [marketId, sizeWei, priceLimitWei],
+      args: [marketId, rawSize, rawPriceLimit],
       chainId: SEPOLIA_CHAIN_ID,
     };
 
@@ -309,8 +309,14 @@ export function useClosePosition(marketId) {
     return writeContract(request);
   };
 
+  const closePosition = async (size, priceLimit = 0) => closePositionRaw(
+    parseUnits(size.toString(), 18),
+    parseUnits(priceLimit.toString(), 18)
+  );
+
   return {
     closePosition,
+    closePositionRaw,
     isPending: isPending || isConfirming,
     isWalletPending: isPending,
     isConfirming,
