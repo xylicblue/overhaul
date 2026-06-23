@@ -100,6 +100,7 @@ const PositionRow = ({ pos }) => {
   const feesPaid      = (openNotional * feeBps) / 10000;
   const netPnL        = tradingPnL + fundingEarned - feesPaid;
   const roe           = margin > 0 ? (netPnL / margin) * 100 : 0;
+  const leverage      = margin > 0 ? openNotional / margin : 0;
 
   return (
     <tr className="hover:bg-surface-2/50 transition-colors group">
@@ -108,11 +109,12 @@ const PositionRow = ({ pos }) => {
         <span className="text-[10px] text-ink-faint ml-1">PERP</span>
       </td>
       <td className="px-4 py-3"><SideBadge isLong={isLong} /></td>
-      <td className="px-4 py-3 text-right num text-xs text-ink-muted">{absSize.toFixed(4)}</td>
-      <td className="px-4 py-3 text-right num text-xs text-ink-muted">${entryPrice.toFixed(2)}</td>
-      <td className="px-4 py-3 text-right num text-xs text-ink-muted">
-        {currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—"}
+      <td className="px-4 py-3 text-right">
+        <div className="num text-xs text-ink leading-tight">${openNotional.toFixed(2)}</div>
+        <div className="num text-[10px] text-ink-muted leading-tight mt-0.5">{absSize.toFixed(4)}</div>
       </td>
+      <td className="px-4 py-3 text-right num text-xs text-ink-muted">${entryPrice.toFixed(2)}</td>
+      <td className="px-4 py-3 text-right num text-xs text-ink">{leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}</td>
       <td className="px-4 py-3 text-right num text-xs text-ink-muted">${margin.toFixed(2)}</td>
       <td className="px-4 py-3 text-right">
         <div className={`text-xs num font-bold ${netPnL >= 0 ? "text-up" : "text-down"}`}>
@@ -361,7 +363,7 @@ const PortfolioPage = () => {
                     <Th>Side</Th>
                     <Th right>Size</Th>
                     <Th right>Entry</Th>
-                    <Th right>Mark</Th>
+                    <Th right>Leverage</Th>
                     <Th right>Margin</Th>
                     <Th right>Unrealized P&L</Th>
                   </TableHead>

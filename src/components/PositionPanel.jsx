@@ -97,7 +97,8 @@ export function PositionPanel({ selectedMarket = null }) {
                   { label: "Side",      right: false },
                   { label: "Size",      right: true  },
                   { label: "Entry",     right: true  },
-                  { label: "Mark",      right: true  },
+                  { label: "Leverage",  right: true  },
+                  { label: "Margin",    right: true  },
                   { label: "Liq.",      right: true  },
                   { label: "P&L / ROE", right: true  },
                 ].map(({ label, right }) => (
@@ -475,21 +476,12 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       {/* ── Main position row ──────────────────────────────────────────── */}
       <tr className={`transition-colors border-b border-line-subtle ${rowBg}`}>
 
-        {/* Market + size */}
+        {/* Market */}
         <td className="px-3 py-2.5 min-w-[100px]">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-ink leading-none">
-              {position.marketName?.replace("-PERP", "") || "GPU"}
-            </span>
-            {leverage > 0 && (
-              <span className="text-[8px] num text-ink-faint bg-surface-2 px-1 py-px rounded leading-none">
-                {leverage.toFixed(1)}×
-              </span>
-            )}
-          </div>
-          <div className="text-[9px] num text-ink-faint mt-0.5">
-            {displayedSize} GPU-HRS
-          </div>
+          <span className="text-[11px] font-semibold text-ink leading-none">
+            {position.marketName?.replace("-PERP", "") || "GPU"}
+          </span>
+          <span className="text-[9px] text-ink-faint ml-1">PERP</span>
         </td>
 
         {/* Side */}
@@ -504,10 +496,10 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
           </span>
         </td>
 
-        {/* Notional / size */}
+        {/* Size — dollar value on top (bright), GPU hours opened below (dim) */}
         <td className="px-3 py-2.5 text-right">
-          <div className="text-[11px] num text-ink">${openNotional.toFixed(2)}</div>
-          <div className="text-[9px] num text-ink-faint">{displayedSize}</div>
+          <div className="num text-[12px] text-ink leading-tight">${openNotional.toFixed(2)}</div>
+          <div className="num text-[10px] text-ink-muted leading-tight mt-0.5">{displayedSize}</div>
         </td>
 
         {/* Entry */}
@@ -515,9 +507,14 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
           ${entryPrice.toFixed(2)}
         </td>
 
-        {/* Mark */}
+        {/* Leverage */}
         <td className="px-3 py-2.5 text-right num text-[11px] text-ink">
-          {currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—"}
+          {leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}
+        </td>
+
+        {/* Margin */}
+        <td className="px-3 py-2.5 text-right num text-[11px] text-ink-muted">
+          ${margin.toFixed(2)}
         </td>
 
         {/* Liq */}
@@ -575,7 +572,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       {/* ── Close controls row ─────────────────────────────────────────── */}
       {isClosing && (
         <tr className="border-b border-line-subtle bg-surface-2">
-          <td colSpan={8} className="px-4 py-3">
+          <td colSpan={9} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[9px] text-ink-faint uppercase tracking-widest font-bold shrink-0">Close size</span>
 
@@ -646,7 +643,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       {/* ── Add-margin controls row ────────────────────────────────────── */}
       {isAddingMargin && (
         <tr className="border-b border-line-subtle bg-surface-2">
-          <td colSpan={8} className="px-4 py-3">
+          <td colSpan={9} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[9px] text-ink-faint uppercase tracking-widest font-bold shrink-0">Add margin</span>
               <span className="text-[9px] text-ink-faint">

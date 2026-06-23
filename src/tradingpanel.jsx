@@ -727,16 +727,6 @@ export const TradingPanel = ({ selectedMarket }) => {
               down={!isLong}
             />
           )}
-          <div className="flex items-center justify-between gap-3 text-[10px] text-ink-faint">
-            <span>
-              {(lastAchievedLeverage || currentPositionLeverage) > 0
-                ? `Current ${(lastAchievedLeverage || currentPositionLeverage).toFixed(2)}× → target applies to the resulting position`
-                : "Target applies to the resulting position"}
-            </span>
-            <span className="shrink-0 num">
-              {extraMarginRaw > 0n ? "2 steps" : "1 step"}
-            </span>
-          </div>
         </div>
 
         {/* ── Order type tabs (only Market is offered; Limit is upcoming) ── */}
