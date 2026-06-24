@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTradingStore } from "../stores/useTradingStore";
 import { useAccount, useReadContract } from "wagmi";
 import { toast } from "react-hot-toast";
 import { formatUnits, parseUnits } from "ethers";
 import {
-  calculatePendingFunding,
   useAccountValue,
   useAddMargin,
   useAllPositions,
@@ -12,8 +11,8 @@ import {
   usePosition,
   useVaultBalance,
 } from "../hooks/useClearingHouse";
-import { useMarkPrice, useFundingRate } from "../hooks/useVAMM";
-import { SEPOLIA_CONTRACTS, MARKET_IDS } from "../contracts/addresses";
+import { usePositionMetrics } from "../hooks/usePositionMetrics";
+import { MARKET_IDS, SEPOLIA_CONTRACTS } from "../contracts/addresses";
 import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
 import ConfirmationModal from "./ConfirmationModal";
 import { CompactEmptyState } from "./EmptyState";
@@ -137,16 +136,18 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
   const absSizeRaw = absolutePositionSize(position.sizeRaw);
   const absSize    = Math.abs(parseFloat(position.size));
   const displayedSize = formatPositionSize(absSizeRaw);
-  const entryPrice = parseFloat(position.entryPriceX18);
-  const margin     = parseFloat(position.margin);
-
-  const vammAddress = position.vammAddress ||
-    (position.marketKey === "H100-PERP" || position.marketKey === "ETH-PERP-V2"
-      ? SEPOLIA_CONTRACTS.vammProxy
-      : SEPOLIA_CONTRACTS.vammProxyOld);
-
-  const { price: markPrice }                         = useMarkPrice(vammAddress);
-  const { longPay, longReceive, shortPay, shortReceive } = useFundingRate(vammAddress);
+  const metrics = usePositionMetrics(position);
+  const entryPrice = metrics.entryPrice;
+  const margin = metrics.margin;
+  const currentPrice = metrics.markPrice;
+  const openNotional = metrics.riskNotional;
+  const leverage = metrics.leverage;
+  const currentPnL = metrics.unrealizedPnl;
+  const fundingEarned = metrics.pendingFunding;
+  const netPnL = metrics.positionPnl;
+  const roe = metrics.roePercent;
+  const isProfitable = netPnL >= 0;
+  const liqPrice = metrics.liquidationPrice;
 
   const { data: marketConfig } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
@@ -156,29 +157,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
     chainId: 11155111,
   });
 
-  const { currentPrice, openNotional, feeBps, leverage, currentPnL, fundingEarned, netPnL, roe, isProfitable, liqPrice } = useMemo(() => {
-    const currentPrice  = markPrice ? parseFloat(markPrice) : 0;
-    const fundingEarned = calculatePendingFunding(position, { longPay, longReceive, shortPay, shortReceive });
-    const feeBps        = marketConfig?.feeBps || 10;
-    const openNotional  = entryPrice * absSize;
-    const feesPaid      = (openNotional * feeBps) / 10000;
-    const leverage      = margin > 0 ? openNotional / margin : 0;
-    const currentPnL    = currentPrice > 0
-      ? isLong ? (currentPrice - entryPrice) * absSize : (entryPrice - currentPrice) * absSize
-      : 0;
-    const netPnL        = currentPnL + fundingEarned - feesPaid;
-    const roe           = margin > 0 ? (netPnL / margin) * 100 : 0;
-    const isProfitable  = netPnL >= 0;
-    const mmr           = 0.05;
-    const liqPrice      = currentPrice > 0 && margin > 0
-      ? isLong
-        ? entryPrice - (margin - mmr * openNotional) / absSize
-        : entryPrice + (margin - mmr * openNotional) / absSize
-      : null;
-    return { currentPrice, openNotional, feeBps, leverage, currentPnL, fundingEarned, netPnL, roe, isProfitable, liqPrice };
-  }, [markPrice, longPay, longReceive, shortPay, shortReceive, marketConfig?.feeBps,
-      position.lastFundingPayIndex, position.lastFundingReceiveIndex,
-      position.size, entryPrice, absSize, margin, isLong]);
+  const feeBps = Number(marketConfig?.feeBps ?? marketConfig?.[1] ?? 10);
 
   const { closePositionRaw, isPending, isConfirming, isSuccess, isReverted, error: closeError, receiptError, hash, receipt, reset: resetClose } = useClosePosition(position.marketId);
   const { address } = useAccount();
@@ -498,7 +477,9 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
         {/* Size — dollar value on top (bright), GPU hours opened below (dim) */}
         <td className="px-3 py-2.5 text-right">
-          <div className="num text-[12px] text-ink leading-tight">${openNotional.toFixed(2)}</div>
+          <div className="num text-[12px] text-ink leading-tight">
+            {metrics.hasRiskData ? `$${openNotional.toFixed(2)}` : "—"}
+          </div>
           <div className="num text-[10px] text-ink-muted leading-tight mt-0.5">{displayedSize}</div>
         </td>
 
@@ -509,7 +490,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
         {/* Leverage */}
         <td className="px-3 py-2.5 text-right num text-[11px] text-ink">
-          {leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}
+          {metrics.hasRiskData && leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}
         </td>
 
         {/* Margin */}
@@ -519,16 +500,16 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
         {/* Liq */}
         <td className="px-3 py-2.5 text-right num text-[11px] text-warn">
-          {liqPrice && liqPrice > 0 ? `$${liqPrice.toFixed(2)}` : "—"}
+          {metrics.hasLiquidationData && liqPrice > 0 ? `$${liqPrice.toFixed(2)}` : "—"}
         </td>
 
         {/* P&L + ROE */}
         <td className="px-3 py-2.5 text-right">
           <div className={`text-[12px] num font-semibold leading-none ${isProfitable ? "text-up" : "text-down"}`}>
-            {isProfitable ? "+" : ""}{netPnL.toFixed(3)}
+            {metrics.hasPnlData ? `${isProfitable ? "+" : ""}${netPnL.toFixed(3)}` : "—"}
           </div>
           <div className={`text-[9px] num mt-0.5 ${isProfitable ? "text-up/70" : "text-down/70"}`}>
-            {roe >= 0 ? "+" : ""}{roe.toFixed(2)}%
+            {metrics.hasPnlData ? `${roe >= 0 ? "+" : ""}${roe.toFixed(2)}%` : "—"}
           </div>
         </td>
 
@@ -687,7 +668,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               {addMarginAmountNum > 0 && !isAddMarginOverAvailable && (
                 <span className="text-[9px] text-ink-faint ml-1">
                   New lev:{" "}
-                  <span className="num text-blue-300">{projectedLeverage.toFixed(1)}×</span>
+                  <span className="num text-blue-300">{metrics.hasRiskData ? `${projectedLeverage.toFixed(1)}×` : "—"}</span>
                   {" "}· New margin:{" "}
                   <span className="num text-ink-muted">{projectedMargin.toFixed(2)} USDC</span>
                 </span>

@@ -22,6 +22,7 @@ import ClearingHouseABI from "./contracts/abis/ClearingHouse.json";
 import { Info, ShieldCheck, ChevronDown } from "lucide-react";
 import { getSepoliaTxUrl } from "./utils/transactionErrors";
 import { diagnoseOpenPositionError, diagnoseFundingBlocker } from "./utils/tradeFailureDiagnosis";
+import { waitForPositionMargin } from "./utils/positionRefresh";
 import {
   ZERO_PREVIEW,
   buildOpenOrderPreview,
@@ -243,7 +244,7 @@ export const TradingPanel = ({ selectedMarket }) => {
     reset: resetAddMargin,
   } = useAddMargin(marketId);
 
-  const { positions: allPositions } = useAllPositions();
+  const { positions: allPositions, refetch: refetchAllPositions } = useAllPositions();
   const [preflightError, setPreflightError] = useState(null);
   const [isSimulating,   setIsSimulating]   = useState(false);
   const [isOrderExecuting, setIsOrderExecuting] = useState(false);
@@ -329,7 +330,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   const {
     effectiveBalance, marketPrice, executionPrice,
     maxSize, maxNotional, sizeNum, inputNum, sliderMax, sliderValue,
-    riskPrice, feeBps, liqPrice, isOverMax, invalidReason,
+    riskPrice, marginPriceSource, feeBps, liqPrice, isOverMax, invalidReason,
     preview, amountLimit, protocolSize, targetMarginRaw, extraMarginRaw,
   } = useMemo(() => {
     const quoteFreeCollateralRaw = quoteValueRaw && quoteValueRaw > reservedMarginRaw
@@ -387,6 +388,15 @@ export const TradingPanel = ({ selectedMarket }) => {
     const maxNotional = toNumberX18(maxNotionalRaw);
     const targetMarginRaw = preview.targetMargin;
     const extraMarginRaw = preview.extraMargin;
+    const currentMarkRaw = parseX18Input(market?.markPriceRaw || market?.price || "0");
+    const marginMarkRaw = preview.postTradeMark > 0n ? preview.postTradeMark : currentMarkRaw;
+    const indexPriceRaw = previewParams.oraclePrice;
+    const riskPriceRaw = marginMarkRaw > indexPriceRaw ? marginMarkRaw : indexPriceRaw;
+    const marginPriceSource = marginMarkRaw === indexPriceRaw
+      ? "Mark / Index"
+      : marginMarkRaw > indexPriceRaw
+        ? (sizeX18 > 0n ? "Post-trade mark" : "Mark")
+        : "Index";
 
     return {
       effectiveBalance,
@@ -401,7 +411,8 @@ export const TradingPanel = ({ selectedMarket }) => {
       fees: toNumberX18(preview.fee),
       marginRequired: toNumberX18(preview.finalMargin),
       collateralRequired: toNumberX18(preview.totalRequired),
-      riskPrice: toNumberX18(preview.postTradeMark > previewParams.oraclePrice ? preview.postTradeMark : previewParams.oraclePrice),
+      riskPrice: toNumberX18(riskPriceRaw),
+      marginPriceSource,
       feeBps,
       liqPrice: preview.liqPrice > 0n ? formatX18Number(preview.liqPrice, 2) : "—",
       isOverMax: inputX18 > 0n && !preview.ok,
@@ -469,6 +480,18 @@ export const TradingPanel = ({ selectedMarket }) => {
     const riskPrice = markPrice > indexPrice ? markPrice : indexPrice;
     return { position: freshPosition, riskPrice };
   }, [publicClient, address, marketId]);
+
+  const refreshConfirmedPosition = useCallback(async (minimumMarginRaw = 0n) => {
+    const { snapshot } = await waitForPositionMargin({
+      readSnapshot: readLeverageSnapshot,
+      minimumMarginRaw,
+    });
+    await Promise.allSettled([
+      refetchPosition?.(),
+      refetchAllPositions?.(),
+    ]);
+    return snapshot;
+  }, [readLeverageSnapshot, refetchPosition, refetchAllPositions]);
 
   // ── Trade success ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -644,24 +667,26 @@ export const TradingPanel = ({ selectedMarket }) => {
       void saveSubmittedTrade(submittedOpenOrderRef.current, openSubmittedHash).catch(() => {
         // Trade indexing is non-critical and must not interrupt order completion.
       });
-      void readLeverageSnapshot()
-        .then((snapshot) => {
-          const achievedLeverage = toNumberX18(calculateLeverageX18({
-            sizeX18: snapshot.position.size,
-            marginX18: snapshot.position.margin,
-            riskPriceX18: snapshot.riskPrice,
-          }));
-          setLastAchievedLeverage(achievedLeverage || null);
-        })
-        .catch(() => {});
-      void refetchPosition?.();
+      try {
+        const snapshot = await refreshConfirmedPosition(preview.finalMargin || targetMarginRaw || 0n);
+        const achievedLeverage = toNumberX18(calculateLeverageX18({
+          sizeX18: snapshot.position.size,
+          marginX18: snapshot.position.margin,
+          riskPriceX18: snapshot.riskPrice,
+        }));
+        setLastAchievedLeverage(achievedLeverage || null);
+      } catch {
+        // Both transactions are confirmed. Background polling remains active if
+        // an RPC node has not exposed the updated position state yet.
+        void Promise.allSettled([refetchPosition?.(), refetchAllPositions?.()]);
+      }
 
       setLastTx(openSubmittedHash, submittedOpenOrderRef.current?.txActionText || side);
       toast.success(
         <div>
           <div>
             {submittedOpenOrderRef.current?.sideLabel || "Position"} opened
-            {leverageEnabled ? ` at ≤ ${selectedTargetLeverage}×.` : "."}
+            {leverageEnabled ? ` at ${selectedTargetLeverage}×.` : "."}
           </div>
           <a href={getSepoliaTxUrl(openSubmittedHash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
             View on Etherscan
@@ -706,12 +731,12 @@ export const TradingPanel = ({ selectedMarket }) => {
     <div className="flex flex-col h-full bg-surface-1">
       <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 px-4 pt-3 pb-3 space-y-3">
 
-        {/* ── Target leverage for the complete post-trade position ── */}
-        <div className="rounded-lg border border-line bg-surface-2 px-3 py-2">
+        {/* ── Leverage slider + market-specific margin basis ── */}
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-medium text-ink-faint uppercase tracking-wide">Target leverage</span>
+            <span className="text-[12px] font-medium text-ink-faint uppercase tracking-wide">Leverage</span>
             <span className={`text-[15px] font-bold num ${isLong ? "text-up" : "text-down"}`}>
-              {leverageEnabled ? `≤ ${selectedTargetLeverage}×` : "Unavailable"}
+              {leverageEnabled ? `${selectedTargetLeverage}×` : "Unavailable"}
             </span>
           </div>
           {leverageEnabled && (
@@ -727,6 +752,9 @@ export const TradingPanel = ({ selectedMarket }) => {
               down={!isLong}
             />
           )}
+          <div className="text-[10px] text-ink-faint">
+            Margin allocation uses {marginPriceSource} price{riskPrice > 0 ? ` ($${riskPrice.toFixed(2)})` : ""}.
+          </div>
         </div>
 
         {/* ── Order type tabs (only Market is offered; Limit is upcoming) ── */}
