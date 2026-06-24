@@ -123,6 +123,7 @@ export function usePosition(marketId, userAddress = null) {
     margin: formatX18(margin),
     marginRaw: margin,
     entryPriceX18: formatX18(entryPriceX18),
+    entryPriceRaw: entryPriceX18,
     lastFundingPayIndex: formatX18(lastFundingPayIndex),
     lastFundingPayIndexRaw: lastFundingPayIndex,
     lastFundingReceiveIndex: formatX18(lastFundingReceiveIndex),
@@ -720,6 +721,7 @@ export function useLiquidationStatus(marketId, userAddress = null) {
     riskNotionalRaw: riskNotional,
     riskPrice: oraclePrice ? formatUnits(oraclePrice, 18) : "0",
     riskPriceRaw: oraclePrice,
+    mmrBps: Number(riskParams?.mmrBps ?? 0),
     isLoading:
       isPositionLoading ||
       isRiskParamsLoading ||

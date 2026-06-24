@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./creatclient";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount } from "wagmi";
 import {
-  calculatePendingFunding,
   useAllPositions,
   useAccountValue,
   useVaultBalance,
 } from "./hooks/useClearingHouse";
-import { useMarkPrice, useFundingRate } from "./hooks/useVAMM";
-import { SEPOLIA_CONTRACTS } from "./contracts/addresses";
-import MarketRegistryABI from "./contracts/abis/MarketRegistry.json";
+import { usePositionMetrics } from "./hooks/usePositionMetrics";
 import PageTransition from "./components/PageTransition";
 import EmptyState from "./components/EmptyState";
 import PnLChart from "./components/PnLChart";
@@ -74,32 +71,15 @@ const Th = ({ children, right }) => (
 // PositionRow — live unrealized P&L from on-chain reads
 // ─────────────────────────────────────────────────────────────────────────────
 const PositionRow = ({ pos }) => {
-  const { price: markPrice } = useMarkPrice(pos.vammAddress);
-  const { longPay, longReceive, shortPay, shortReceive } = useFundingRate(pos.vammAddress);
-
-  const { data: marketConfig } = useReadContract({
-    address: SEPOLIA_CONTRACTS.marketRegistry,
-    abi: MarketRegistryABI.abi,
-    functionName: "getMarket",
-    args: [pos.marketId],
-    chainId: 11155111,
-  });
-
-  const entryPrice   = parseFloat(pos.entryPriceX18);
+  const metrics = usePositionMetrics(pos);
+  const entryPrice   = metrics.entryPrice;
   const absSize      = Math.abs(parseFloat(pos.size));
-  const currentPrice = markPrice ? parseFloat(markPrice) : 0;
   const isLong       = pos.isLong;
-  const margin       = parseFloat(pos.margin);
-
-  const tradingPnL    = currentPrice > 0
-    ? isLong ? (currentPrice - entryPrice) * absSize : (entryPrice - currentPrice) * absSize
-    : 0;
-  const fundingEarned = calculatePendingFunding(pos, { longPay, longReceive, shortPay, shortReceive });
-  const feeBps        = marketConfig?.feeBps || 10;
-  const openNotional  = entryPrice * absSize;
-  const feesPaid      = (openNotional * feeBps) / 10000;
-  const netPnL        = tradingPnL + fundingEarned - feesPaid;
-  const roe           = margin > 0 ? (netPnL / margin) * 100 : 0;
+  const margin       = metrics.margin;
+  const openNotional = metrics.riskNotional;
+  const netPnL       = metrics.positionPnl;
+  const roe          = metrics.roePercent;
+  const leverage     = metrics.leverage;
 
   return (
     <tr className="hover:bg-surface-2/50 transition-colors group">
@@ -108,18 +88,21 @@ const PositionRow = ({ pos }) => {
         <span className="text-[10px] text-ink-faint ml-1">PERP</span>
       </td>
       <td className="px-4 py-3"><SideBadge isLong={isLong} /></td>
-      <td className="px-4 py-3 text-right num text-xs text-ink-muted">{absSize.toFixed(4)}</td>
-      <td className="px-4 py-3 text-right num text-xs text-ink-muted">${entryPrice.toFixed(2)}</td>
-      <td className="px-4 py-3 text-right num text-xs text-ink-muted">
-        {currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : "—"}
+      <td className="px-4 py-3 text-right">
+        <div className="num text-xs text-ink leading-tight">
+          {metrics.hasRiskData ? `$${openNotional.toFixed(2)}` : "—"}
+        </div>
+        <div className="num text-[10px] text-ink-muted leading-tight mt-0.5">{absSize.toFixed(4)}</div>
       </td>
+      <td className="px-4 py-3 text-right num text-xs text-ink-muted">${entryPrice.toFixed(2)}</td>
+      <td className="px-4 py-3 text-right num text-xs text-ink">{metrics.hasRiskData && leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}</td>
       <td className="px-4 py-3 text-right num text-xs text-ink-muted">${margin.toFixed(2)}</td>
       <td className="px-4 py-3 text-right">
         <div className={`text-xs num font-bold ${netPnL >= 0 ? "text-up" : "text-down"}`}>
-          {mono(netPnL, true)}
+          {metrics.hasPnlData ? mono(netPnL, true) : "—"}
         </div>
         <div className={`text-[10px] num ${netPnL >= 0 ? "text-up/60" : "text-down/60"}`}>
-          {netPnL >= 0 ? "+" : ""}{roe.toFixed(2)}% ROE
+          {metrics.hasPnlData ? `${netPnL >= 0 ? "+" : ""}${roe.toFixed(2)}% ROE` : "—"}
         </div>
       </td>
     </tr>
@@ -361,7 +344,7 @@ const PortfolioPage = () => {
                     <Th>Side</Th>
                     <Th right>Size</Th>
                     <Th right>Entry</Th>
-                    <Th right>Mark</Th>
+                    <Th right>Leverage</Th>
                     <Th right>Margin</Th>
                     <Th right>Unrealized P&L</Th>
                   </TableHead>

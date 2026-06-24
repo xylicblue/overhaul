@@ -717,15 +717,15 @@ const TickerBar = () => {
 
       {/* ── Mark price (Tier 1 — the hero number) ─────────────────────────── */}
       <div className="flex flex-col justify-center gap-1.5 shrink-0">
-        <div className={`stat-hero text-[20px] whitespace-nowrap ${changeIsPositive ? "text-up" : "text-down"}`}>
+        <div className={`stat-value text-[15px] whitespace-nowrap relative -top-0.5 ${changeIsPositive ? "text-up" : "text-down"}`}>
           ${marketData?.price || "0.00"}
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className={`flex items-center gap-0.5 num font-medium text-[11px] ${changeIsPositive ? "text-up" : "text-down"}`}>
+        <div className="flex items-center stat-label whitespace-nowrap gap-1">
+          <span className={`inline-flex items-center gap-0.5 num ${changeIsPositive ? "text-up" : "text-down"}`}>
             {changeIsPositive ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
             {marketData?.change24h || "0.00%"}
           </span>
-          <span className="stat-label">Mark</span>
+          Mark
           <div onClick={e => e.stopPropagation()}>
             <InfoTooltip title="Mark Price ($/hour)" description="The current trading price for GPU compute hours from the vAMM." />
           </div>
