@@ -671,7 +671,7 @@ const LandingPage = () => {
         className="relative min-h-screen pt-28 md:pt-32 pb-20 flex items-center"
       >
         <motion.div
-          className="container mx-auto px-6 lg:px-12 max-w-7xl relative z-10"
+          className="container mx-auto px-6 lg:px-12 max-w-7xl 2xl:max-w-[90rem] relative z-10"
           style={{ y: heroTextY, opacity: heroTextOpacity }}
         >
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-14 lg:gap-12 items-center">
@@ -697,7 +697,7 @@ const LandingPage = () => {
               {/* Headline — declarative, specific */}
               <motion.h1
                 variants={blurFadeIn}
-                className="text-[42px] sm:text-5xl md:text-[58px] lg:text-[68px] font-semibold text-white tracking-[-0.025em] leading-[1.04] mb-6"
+                className="text-[42px] sm:text-5xl md:text-[58px] lg:text-[68px] 2xl:text-[80px] font-semibold text-white tracking-[-0.025em] leading-[1.04] mb-6"
               >
                 A Futures Exchange<br className="hidden sm:block" /> For AI Compute.
               </motion.h1>
@@ -705,7 +705,7 @@ const LandingPage = () => {
               {/* Subheading — what it is, in one sentence */}
               <motion.p
                 variants={fadeUp}
-                className="text-base md:text-lg text-zinc-400 leading-relaxed max-w-xl mb-10"
+                className="text-base md:text-lg 2xl:text-xl text-zinc-400 leading-relaxed max-w-xl 2xl:max-w-2xl mb-10"
               >
                 Perpetual contracts on H100, H200, B200, and T4 rental rates -
                 settled live against aggregated cloud provider indices.
@@ -976,7 +976,7 @@ const LandingPage = () => {
 
       {/* ═══ PRICE INDEX CHART ═══ */}
       <section id="what-we-do" className="py-20 md:py-24 relative z-10">
-        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+        <div className="container mx-auto px-6 lg:px-12 max-w-6xl 2xl:max-w-[84rem]">
           <AnimatedSection className="flex flex-col items-center">
 
             {/* Section header — restrained, product-driven */}
@@ -1127,7 +1127,7 @@ const LandingPage = () => {
 
       {/* ═══ TRADING INTERFACE PREVIEW ═══ */}
       <section className="relative z-10 py-20 md:py-24">
-        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+        <div className="container mx-auto px-6 lg:px-12 max-w-6xl 2xl:max-w-[84rem]">
 
           {/* Section header — eyebrow + tight heading + corner CTA */}
           <AnimatedSection className="mb-8 flex items-end justify-between flex-wrap gap-4">
@@ -1271,7 +1271,7 @@ const LandingPage = () => {
 
       {/* ═══ MARKET CONTEXT ═══ */}
       <section id="why-it-matters" className="relative z-10 py-20 md:py-28">
-        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+        <div className="container mx-auto px-6 lg:px-12 max-w-6xl 2xl:max-w-[84rem]">
 
           {/* Section header — statement, not a question */}
           <AnimatedSection className="mb-12 md:mb-14 max-w-3xl mx-auto text-center">
@@ -1330,7 +1330,7 @@ const LandingPage = () => {
 
       {/* ═══ REQUEST ACCESS ═══ */}
       <section id="contact" className="py-20 md:py-28 relative z-10">
-        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+        <div className="container mx-auto px-6 lg:px-12 max-w-6xl 2xl:max-w-[84rem]">
           <AnimatedSection variants={staggerContainer}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
 
