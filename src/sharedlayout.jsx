@@ -1,5 +1,6 @@
 // src/SharedLayout.js
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useDisconnect, useAccount } from "wagmi";
@@ -30,6 +31,7 @@ const AppHeader = ({ session, profile, sessionLoading, handleLogout, openLogin, 
   const [docsOpen,        setDocsOpen]        = useState(false);
   const [methodologyOpen, setMethodologyOpen] = useState(false);
   const [vaultOpen,       setVaultOpen]       = useState(false);
+  const [mobileVaultOpen, setMobileVaultOpen] = useState(false);
   const docsRef        = useRef(null);
   const methodologyRef = useRef(null);
   const vaultRef       = useRef(null);
@@ -284,8 +286,23 @@ const AppHeader = ({ session, profile, sessionLoading, handleLogout, openLogin, 
           </div>
         )}
 
+        {/* Notification bell — desktop only */}
         {!sessionLoading && session && (
-          <NotificationBell userId={session.user?.id} />
+          <div className="hidden md:block">
+            <NotificationBell userId={session.user?.id} />
+          </div>
+        )}
+
+        {/* Mobile: Transfer button (takes the bell's place on small screens) */}
+        {!sessionLoading && session && isConnected && (
+          <button
+            onClick={() => setMobileVaultOpen(true)}
+            className="md:hidden flex items-center justify-center w-9 h-9 rounded-md border border-white/[0.08] text-zinc-300 hover:text-white hover:bg-white/[0.04] transition-colors"
+            aria-label="Transfer"
+            title="Transfer"
+          >
+            <Vault size={16} strokeWidth={1.75} />
+          </button>
         )}
 
         <div className="hidden md:block">
@@ -514,6 +531,34 @@ const AppHeader = ({ session, profile, sessionLoading, handleLogout, openLogin, 
             </div>
           )}
         </div>
+      )}
+
+      {/* Mobile Vault / Transfer — bottom sheet. Portaled to <body> so the header's
+          backdrop-blur (which creates a containing block) doesn't trap fixed positioning. */}
+      {mobileVaultOpen && createPortal(
+        <div className="lg:hidden fixed inset-0 z-[300]">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobileVaultOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] flex flex-col bg-[#0e0e18] border-t border-white/[0.08] rounded-t-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="shrink-0 px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-[0.18em]">Vault · Transfer</span>
+              <button
+                onClick={() => setMobileVaultOpen(false)}
+                className="text-zinc-500 hover:text-white p-1 -mr-1"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-3 space-y-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <CollateralManager />
+              <MintUSDC />
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </header>
   );
