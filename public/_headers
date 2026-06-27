@@ -1,0 +1,11 @@
+# Security headers — applied to every route of the SPA (Cloudflare Pages / Netlify).
+# Clickjacking protection: block framing by any OTHER origin.
+#
+# We use SAMEORIGIN / frame-ancestors 'self' (not DENY / 'none') on purpose:
+# the trade & landing pages embed the TradingView charting_library in a
+# SAME-ORIGIN iframe (/charting_library/). DENY / 'none' would also block our
+# own page from embedding it and break the chart. 'self' still blocks all
+# cross-origin framing, so clickjacking is fully prevented.
+/*
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
