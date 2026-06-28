@@ -757,15 +757,11 @@ export const TradingPanel = ({ selectedMarket }) => {
           </div>
         </div>
 
-        {/* ── Order type tabs (only Market is offered; Limit is upcoming) ── */}
+        {/* ── Order type ── */}
         <div className="flex items-center gap-6 border-b border-line-subtle">
           <span className="relative pb-2.5 text-[14px] font-semibold text-white cursor-default">
             Market
             <span className="absolute left-0 -bottom-px h-[2px] w-full bg-blue-500 rounded-full" />
-          </span>
-          <span className="pb-2.5 text-[14px] font-medium text-ink-ghost cursor-not-allowed flex items-center gap-1.5">
-            Limit
-            <span className="text-[9px] uppercase tracking-wide border border-line-subtle rounded px-1 py-px text-ink-faint">soon</span>
           </span>
         </div>
 
@@ -934,7 +930,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           </div>
         </div>
 
-        {/* ── Limit price (optional slippage bound; we only execute market orders) ── */}
+        {/* ── Limit price (optional on-chain execution bound) ── */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-[12px] text-ink-faint">
@@ -962,6 +958,11 @@ export const TradingPanel = ({ selectedMarket }) => {
               }}
             />
             <span className="text-[12px] text-ink-faint shrink-0">USDC</span>
+          </div>
+          <div className="mt-1.5 text-[10px] leading-4 text-ink-faint">
+            {isLong
+              ? "Order executes only if the vAMM cost is at or below this price."
+              : "Order executes only if the vAMM output is at or above this price."}
           </div>
         </div>
 
