@@ -64,7 +64,8 @@ export function calculatePositionMetrics({
   const markNotionalRaw = mulDiv(absoluteSize, mark, WAD);
   const indexNotionalRaw = mulDivUp(absoluteSize, index, WAD);
   const riskNotionalRaw = mulDivUp(absoluteSize, riskPriceRaw, WAD);
-  const leverageX18 = margin > 0n ? mulDiv(riskNotionalRaw, WAD, margin) : 0n;
+  const markLeverageX18 = margin > 0n ? mulDiv(markNotionalRaw, WAD, margin) : 0n;
+  const riskLeverageX18 = margin > 0n ? mulDiv(riskNotionalRaw, WAD, margin) : 0n;
   const unrealizedPnlRaw = calculateUnrealizedPnlRaw(size, entry, mark);
   const indexPnlRaw = calculateUnrealizedPnlRaw(size, entry, index);
   const pendingFundingRaw = calculatePendingFundingRaw({
@@ -104,7 +105,9 @@ export function calculatePositionMetrics({
     indexNotionalRaw,
     riskPriceRaw,
     riskNotionalRaw,
-    leverageX18,
+    markLeverageX18,
+    riskLeverageX18,
+    leverageX18: markLeverageX18,
     unrealizedPnlRaw,
     indexPnlRaw,
     pendingFundingRaw,

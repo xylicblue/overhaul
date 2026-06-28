@@ -4,15 +4,18 @@ import {
   buildOpenOrderPreview,
   calculateLeverageX18,
   calculateMarginTopUp,
+  calculateNormalizedMaxLeverageX18,
   calculateTargetMargin,
   estimateLiquidationPrice,
   findMaxOpenSize,
+  floorLeverageX18ToInteger,
   projectPositionAfterTrade,
 } from "./orderPreview.js";
 
 const WAD = 10n ** 18n;
 const x18 = (value) => BigInt(value) * WAD;
 const decimalX18 = (whole, fraction = 0n) => BigInt(whole) * WAD + BigInt(fraction);
+const divUp = (a, b) => (a + b - 1n) / b;
 
 test("calculates target margin and leverage for a new T4-style position", () => {
   const size = x18(100);
@@ -110,8 +113,41 @@ test("order preview includes selected leverage in collateral and liquidation est
   assert.equal(preview.ok, true);
   assert.ok(preview.extraMargin > 0n);
   assert.equal(preview.finalMargin, preview.targetMargin);
+  assert.equal(preview.displayLeverageX18, x18(5));
   assert.ok(preview.effectiveLeverageX18 <= x18(5));
   assert.ok(preview.liqPrice > 0n);
+});
+
+test("normalized max leverage floors decimal caps to an integer", () => {
+  const normalized = calculateNormalizedMaxLeverageX18({
+    protocolMaxLeverageX18: x18(10),
+    markPriceX18: decimalX18(4, 4n * 10n ** 16n),
+    indexPriceX18: decimalX18(4, 18n * 10n ** 16n),
+  });
+
+  assert.equal(floorLeverageX18ToInteger(normalized), 9);
+});
+
+test("decimal selected leverage targets mark notional margin", () => {
+  const selectedLeverage = decimalX18(7, 25n * 10n ** 16n);
+  const preview = buildOpenOrderPreview({
+    isLong: true,
+    sizeX18: x18(100),
+    reserveBase: x18(100_000),
+    reserveQuote: x18(404_000),
+    feeBps: 10n,
+    imrBps: 1000n,
+    mmrBps: 500n,
+    oraclePrice: decimalX18(4, 18n * 10n ** 16n),
+    quoteFreeCollateral: x18(100),
+    targetLeverageX18: selectedLeverage,
+  });
+
+  assert.equal(preview.ok, true);
+  assert.equal(preview.targetMargin, divUp(preview.displayNotional * WAD, selectedLeverage));
+  assert.ok(selectedLeverage - preview.displayLeverageX18 <= 1n);
+  assert.ok(preview.effectiveLeverageX18 > preview.displayLeverageX18);
+  assert.ok(preview.effectiveLeverageX18 <= x18(10));
 });
 
 test("maximum protocol leverage does not create a dust-sized second transaction", () => {

@@ -17,6 +17,8 @@ export const ZERO_PREVIEW = {
   projectedMargin: 0n,
   targetMargin: 0n,
   finalMargin: 0n,
+  displayNotional: 0n,
+  displayLeverageX18: 0n,
   extraMargin: 0n,
   maintenanceMargin: 0n,
   riskNotional: 0n,
@@ -65,6 +67,26 @@ export function calculateLeverageX18({ sizeX18, marginX18, riskPriceX18 }) {
   if (absoluteSize === 0n || !marginX18 || !riskPriceX18) return 0n;
   const notional = mulDivRoundUp(absoluteSize, riskPriceX18, WAD);
   return mulDiv(notional, WAD, marginX18);
+}
+
+export function calculateNormalizedMaxLeverageX18({
+  protocolMaxLeverageX18,
+  markPriceX18,
+  indexPriceX18,
+}) {
+  const protocolMax = BigInt(protocolMaxLeverageX18 || 0n);
+  const mark = BigInt(markPriceX18 || 0n);
+  const index = BigInt(indexPriceX18 || 0n);
+  if (protocolMax <= 0n || mark <= 0n) return 0n;
+  const riskPrice = max(mark, index);
+  if (riskPrice <= 0n) return 0n;
+  return mulDiv(protocolMax, mark, riskPrice);
+}
+
+export function floorLeverageX18ToInteger(leverageX18) {
+  const value = BigInt(leverageX18 || 0n);
+  if (value <= 0n) return 0;
+  return Number(value / WAD);
 }
 
 export function estimateLiquidationPrice({ sizeX18, entryPriceX18, marginX18, mmrBps }) {
@@ -291,8 +313,9 @@ export function buildOpenOrderPreview({
       imrBps,
     });
     const resultingRiskNotional = mulDivRoundUp(resultingAbsSize, imrPrice, WAD);
+    const displayNotional = mulDivRoundUp(resultingAbsSize, quote.postTradeMark, WAD);
     const targetMargin = targetLeverageX18 > 0n
-      ? calculateTargetMargin({ sizeX18: resultingSize, riskPriceX18: imrPrice, targetLeverageX18 })
+      ? calculateTargetMargin({ sizeX18: resultingSize, riskPriceX18: quote.postTradeMark, targetLeverageX18 })
       : projection.projectedMargin;
     const marginGap = targetMargin > projection.projectedMargin ? targetMargin - projection.projectedMargin : 0n;
     const extraMargin = marginGap > MARGIN_TOP_UP_DUST_X18 ? marginGap : 0n;
@@ -311,6 +334,11 @@ export function buildOpenOrderPreview({
       marginX18: finalMargin,
       riskPriceX18: imrPrice,
     });
+    const displayLeverageX18 = calculateLeverageX18({
+      sizeX18: resultingSize,
+      marginX18: finalMargin,
+      riskPriceX18: quote.postTradeMark,
+    });
     const amountLimit = amountLimitFromPrice({ isLong, sizeX18: tradeAbsSize, limitPriceX18 });
     const limitInvalid = amountLimit > 0n && (isLong ? amountLimit < quote.quoteAmount : amountLimit > quote.quoteAmount);
 
@@ -328,6 +356,8 @@ export function buildOpenOrderPreview({
         projectedMargin: projection.projectedMargin,
         targetMargin,
         finalMargin,
+        displayNotional,
+        displayLeverageX18,
         extraMargin,
         maintenanceMargin,
         riskNotional,
@@ -355,6 +385,8 @@ export function buildOpenOrderPreview({
         projectedMargin: projection.projectedMargin,
         targetMargin,
         finalMargin,
+        displayNotional,
+        displayLeverageX18,
         extraMargin,
         maintenanceMargin,
         riskNotional,
@@ -383,6 +415,8 @@ export function buildOpenOrderPreview({
       projectedMargin: projection.projectedMargin,
       targetMargin,
       finalMargin,
+      displayNotional,
+      displayLeverageX18,
       extraMargin,
       maintenanceMargin,
       riskNotional,
@@ -456,7 +490,7 @@ export function findBaseSizeForNotional(params, targetNotionalX18) {
   }
 
   const maxPreview = buildOpenOrderPreview({ ...params, sizeX18: maxSizeX18, limitPriceX18: 0n });
-  const maxNotionalX18 = maxPreview.ok ? maxPreview.notional : 0n;
+  const maxNotionalX18 = maxPreview.ok ? maxPreview.displayNotional : 0n;
   if (maxNotionalX18 <= 0n) {
     return {
       sizeX18: 0n,
@@ -496,15 +530,15 @@ export function findBaseSizeForNotional(params, targetNotionalX18) {
       continue;
     }
 
-    const diff = abs(preview.notional - targetNotionalX18);
+    const diff = abs(preview.displayNotional - targetNotionalX18);
     if (bestSize === 0n || diff < bestDiff) {
       bestSize = mid;
       bestPreview = preview;
       bestDiff = diff;
     }
 
-    if (preview.notional === targetNotionalX18) break;
-    if (preview.notional < targetNotionalX18) low = mid;
+    if (preview.displayNotional === targetNotionalX18) break;
+    if (preview.displayNotional < targetNotionalX18) low = mid;
     else high = mid;
   }
 
@@ -512,7 +546,7 @@ export function findBaseSizeForNotional(params, targetNotionalX18) {
     if (candidate <= 0n || candidate > maxSizeX18) continue;
     const preview = buildOpenOrderPreview({ ...params, sizeX18: candidate, limitPriceX18: 0n });
     if (!preview.ok) continue;
-    const diff = abs(preview.notional - targetNotionalX18);
+    const diff = abs(preview.displayNotional - targetNotionalX18);
     if (bestSize === 0n || diff < bestDiff) {
       bestSize = candidate;
       bestPreview = preview;
@@ -531,7 +565,7 @@ export function findBaseSizeForNotional(params, targetNotionalX18) {
     };
   }
 
-  if (bestPreview.notional > targetNotionalX18 + tolerance) {
+  if (bestPreview.displayNotional > targetNotionalX18 + tolerance) {
     return {
       sizeX18: bestSize,
       maxSizeX18,

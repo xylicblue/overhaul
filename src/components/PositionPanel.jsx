@@ -32,7 +32,7 @@ const hasOpenPositionData = (data) => {
 // PositionPanel — container with compact table layout
 // ─────────────────────────────────────────────────────────────────────────────
 export function PositionPanel({ selectedMarket = null }) {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const { positions: allPositions, isLoading, error, refetch: refetchPositions } = useAllPositions();
   const { closingPositionId: closingPosition, closeSize, setClosingPosition, setCloseSize } = useTradingStore();
 
@@ -140,7 +140,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
   const entryPrice = metrics.entryPrice;
   const margin = metrics.margin;
   const currentPrice = metrics.markPrice;
-  const openNotional = metrics.riskNotional;
+  const openNotional = metrics.markNotional;
   const leverage = metrics.leverage;
   const currentPnL = metrics.unrealizedPnl;
   const fundingEarned = metrics.pendingFunding;
@@ -163,7 +163,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
   const { address } = useAccount();
   const { position: livePosition, refetch: refetchLivePosition } = usePosition(position.marketId, address);
   const { accountValue, refetch: refetchAccountValue }           = useAccountValue(address);
-  const { usdcBalance, refetch: refetchVaultBalance }            = useVaultBalance(address);
+  const { refetch: refetchVaultBalance }                        = useVaultBalance(address);
 
   const handledTxHashRef            = useRef(null);
   const handledFailureHashRef       = useRef(null);
@@ -183,13 +183,12 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
   const isClosing     = closingPosition === position.marketId;
   const isCloseBusy   = isCloseSubmitting || isPending || isConfirming;
-  const isAddMarginBusy = isAddMarginSubmitting;
 
   const { addMargin, isPending: isAddMarginPending, isConfirming: isAddMarginConfirming, isSuccess: isAddMarginSuccess, isReverted: isAddMarginReverted, error: addMarginError, receiptError: addMarginReceiptError, hash: addMarginHash, receipt: addMarginReceipt, reset: resetAddMargin } = useAddMargin(position.marketId);
+  const isAddMarginBusy = isAddMarginSubmitting || isAddMarginPending;
 
   const addMarginAmountNum           = parseFloat(addMarginAmount) || 0;
   const availableQuoteCollateral     = Math.max(parseFloat(accountValue) || 0, 0);
-  const depositedQuoteCollateral     = Math.max(parseFloat(usdcBalance) || 0, 0);
   const isAddMarginOverAvailable     = addMarginAmountNum > 0 && addMarginAmountNum > availableQuoteCollateral;
   const projectedMargin              = margin + addMarginAmountNum;
   const projectedLeverage            = projectedMargin > 0 ? openNotional / projectedMargin : leverage;
@@ -327,7 +326,9 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
           });
           localStorage.setItem("bs_pending_closes", JSON.stringify(stored));
           window.dispatchEvent(new Event("bs_pending_closes_updated"));
-        } catch {}
+        } catch {
+          // Local close-history cache is non-critical.
+        }
       }
 
       const save = async () => {
@@ -478,7 +479,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         {/* Size — dollar value on top (bright), GPU hours opened below (dim) */}
         <td className="px-3 py-2.5 text-right">
           <div className="num text-[12px] text-ink leading-tight">
-            {metrics.hasRiskData ? `$${openNotional.toFixed(2)}` : "—"}
+            {metrics.hasMarkPrice ? `$${openNotional.toFixed(2)}` : "—"}
           </div>
           <div className="num text-[10px] text-ink-muted leading-tight mt-0.5">{displayedSize}</div>
         </td>
@@ -490,7 +491,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
         {/* Leverage */}
         <td className="px-3 py-2.5 text-right num text-[11px] text-ink">
-          {metrics.hasRiskData && leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}
+          {metrics.hasMarkPrice && leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}
         </td>
 
         {/* Margin */}
