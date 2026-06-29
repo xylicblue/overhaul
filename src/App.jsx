@@ -33,6 +33,7 @@ const DocsPage            = lazy(() => import("./DocsPage"));
 const PrivacyPolicy       = lazy(() => import("./PrivacyPolicy"));
 const SecurityPage        = lazy(() => import("./SecurityPage"));
 const AdminNotifications  = lazy(() => import("./AdminNotifications"));
+const AdminDashboard      = lazy(() => import("./AdminDashboard"));
 const DebugMarkets        = lazy(() => import("./debug-markets").then(m => ({ default: m.DebugMarkets })));
 const SharedLayout        = lazy(() => import("./sharedlayout"));
 
@@ -219,6 +220,7 @@ function App() {
                       <Route path="/guide"     element={<GuidePage />} />
                       <Route path="/docs"      element={<DocsPage />} />
                       <Route path="/settings"  element={<SettingsPage />} />
+                      <Route path="/admin"     element={<AdminDashboard />} />
                     </Route>
                   </Routes>
                 </Suspense>
