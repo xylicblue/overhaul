@@ -8,7 +8,7 @@ import {
 
 const x18 = (value) => parseUnits(value, 18);
 
-test("risk notional and leverage use index when index is higher", () => {
+test("risk notional uses index while displayed leverage uses mark when index is higher", () => {
   const result = calculatePositionMetrics({
     sizeRaw: x18("2"),
     marginRaw: x18("2"),
@@ -20,7 +20,9 @@ test("risk notional and leverage use index when index is higher", () => {
 
   assert.equal(result.markNotionalRaw, x18("10"));
   assert.equal(result.riskNotionalRaw, x18("14"));
-  assert.equal(result.leverageX18, x18("7"));
+  assert.equal(result.markLeverageX18, x18("5"));
+  assert.equal(result.riskLeverageX18, x18("7"));
+  assert.equal(result.leverageX18, x18("5"));
   assert.equal(result.unrealizedPnlRaw, x18("2"));
   assert.equal(result.positionPnlRaw, x18("2"));
 });
@@ -38,6 +40,7 @@ test("risk notional and leverage use mark when mark is higher", () => {
   assert.equal(result.riskPriceRaw, x18("6"));
   assert.equal(result.riskNotionalRaw, x18("12"));
   assert.equal(result.leverageX18, x18("6"));
+  assert.equal(result.riskLeverageX18, x18("6"));
 });
 
 test("position PnL contains mark PnL and pending funding without estimated fees", () => {

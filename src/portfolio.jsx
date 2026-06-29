@@ -76,7 +76,7 @@ const PositionRow = ({ pos }) => {
   const absSize      = Math.abs(parseFloat(pos.size));
   const isLong       = pos.isLong;
   const margin       = metrics.margin;
-  const openNotional = metrics.riskNotional;
+  const openNotional = metrics.markNotional;
   const netPnL       = metrics.positionPnl;
   const roe          = metrics.roePercent;
   const leverage     = metrics.leverage;
@@ -90,12 +90,12 @@ const PositionRow = ({ pos }) => {
       <td className="px-4 py-3"><SideBadge isLong={isLong} /></td>
       <td className="px-4 py-3 text-right">
         <div className="num text-xs text-ink leading-tight">
-          {metrics.hasRiskData ? `$${openNotional.toFixed(2)}` : "—"}
+          {metrics.hasMarkPrice ? `$${openNotional.toFixed(2)}` : "—"}
         </div>
         <div className="num text-[10px] text-ink-muted leading-tight mt-0.5">{absSize.toFixed(4)}</div>
       </td>
       <td className="px-4 py-3 text-right num text-xs text-ink-muted">${entryPrice.toFixed(2)}</td>
-      <td className="px-4 py-3 text-right num text-xs text-ink">{metrics.hasRiskData && leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}</td>
+      <td className="px-4 py-3 text-right num text-xs text-ink">{metrics.hasMarkPrice && leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}</td>
       <td className="px-4 py-3 text-right num text-xs text-ink-muted">${margin.toFixed(2)}</td>
       <td className="px-4 py-3 text-right">
         <div className={`text-xs num font-bold ${netPnL >= 0 ? "text-up" : "text-down"}`}>
@@ -258,7 +258,9 @@ const PortfolioPage = () => {
           localStorage.setItem("bs_pending_closes",
             JSON.stringify(stored.filter(p => p.tx_hash !== newRow.tx_hash))
           );
-        } catch {}
+        } catch {
+          // Local close-history cache is non-critical.
+        }
         return next;
       });
     });

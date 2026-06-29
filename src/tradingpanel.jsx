@@ -27,8 +27,10 @@ import {
   ZERO_PREVIEW,
   buildOpenOrderPreview,
   calculateLeverageX18,
+  calculateNormalizedMaxLeverageX18,
   findBaseSizeForNotional,
   findMaxOpenSize,
+  floorLeverageX18ToInteger,
   formatX18Number,
   MARGIN_TOP_UP_DUST_X18,
   toNumberX18,
@@ -88,6 +90,11 @@ const formatX18Input = (value) => {
 };
 
 const formatUsd = (value, digits = 2) => `$${formatX18Number(value, digits)}`;
+const formatLeverage = (value) => {
+  const rounded = Math.round(Number(value || 0) * 100) / 100;
+  if (!Number.isFinite(rounded)) return "—";
+  return Number.isInteger(rounded) ? `${rounded}×` : `${rounded.toFixed(2)}×`;
+};
 
 const valueAt = (result, key, index) => result?.[key] ?? result?.[index];
 
@@ -251,7 +258,6 @@ export const TradingPanel = ({ selectedMarket }) => {
   const [orderInputMode, setOrderInputMode] = useState("base");
   const [unitMenuOpen, setUnitMenuOpen] = useState(false);
   const [targetLeverage, setTargetLeverage] = useState(MIN_TARGET_LEVERAGE);
-  const [lastAchievedLeverage, setLastAchievedLeverage] = useState(null);
 
   // ── First-ever-trade consent gate (Risk Disclosure + Privacy Policy) ───────
   const [showConsentModal, setShowConsentModal] = useState(false);
@@ -300,11 +306,23 @@ export const TradingPanel = ({ selectedMarket }) => {
   const isLong = side === "Buy";
   const submittedOpenOrderRef = useRef(null);
   const lastTargetLeverageMarketRef = useRef(null);
+  const lastMaxSelectableLeverageRef = useRef(null);
   const maxSelectableLeverage = useMemo(() => {
     const imrBps = Number(riskParams?.imrBps || 0);
     if (imrBps <= 0) return MIN_TARGET_LEVERAGE;
-    return clamp(Math.floor(10000 / imrBps), MIN_TARGET_LEVERAGE, MAX_TARGET_LEVERAGE_CAP);
-  }, [riskParams?.imrBps]);
+    const protocolMax = clamp(Math.floor(10000 / imrBps), MIN_TARGET_LEVERAGE, MAX_TARGET_LEVERAGE_CAP);
+    const protocolMaxRaw = BigInt(protocolMax) * WAD;
+    const markPriceRaw = parseX18Input(market?.markPriceRaw || market?.price || "0");
+    const indexPriceRaw = parseX18Input(market?.oraclePriceRaw || "0");
+    const normalizedRaw = calculateNormalizedMaxLeverageX18({
+      protocolMaxLeverageX18: protocolMaxRaw,
+      markPriceX18: markPriceRaw,
+      indexPriceX18: indexPriceRaw,
+    });
+    const normalizedMax = floorLeverageX18ToInteger(normalizedRaw);
+    if (normalizedMax <= 0) return MIN_TARGET_LEVERAGE;
+    return clamp(normalizedMax, MIN_TARGET_LEVERAGE, protocolMax);
+  }, [riskParams?.imrBps, market?.markPriceRaw, market?.price, market?.oraclePriceRaw]);
   const selectedTargetLeverage = leverageEnabled
     ? clamp(targetLeverage, MIN_TARGET_LEVERAGE, maxSelectableLeverage)
     : targetLeverage;
@@ -316,15 +334,22 @@ export const TradingPanel = ({ selectedMarket }) => {
     }
 
     const marketChanged = lastTargetLeverageMarketRef.current !== marketId;
+    const previousMax = lastMaxSelectableLeverageRef.current;
     lastTargetLeverageMarketRef.current = marketId;
+    lastMaxSelectableLeverageRef.current = maxSelectableLeverage;
 
     setTargetLeverage((current) => {
       if (marketChanged) return maxSelectableLeverage;
+      if (
+        previousMax === MIN_TARGET_LEVERAGE &&
+        current === MIN_TARGET_LEVERAGE &&
+        maxSelectableLeverage > MIN_TARGET_LEVERAGE
+      ) {
+        return maxSelectableLeverage;
+      }
       return clamp(current || maxSelectableLeverage, MIN_TARGET_LEVERAGE, maxSelectableLeverage);
     });
   }, [leverageEnabled, marketId, maxSelectableLeverage]);
-
-  useEffect(() => setLastAchievedLeverage(null), [marketId, address]);
 
   // ── Calculations (memoised — only rerun when inputs actually change) ───────
   const {
@@ -342,7 +367,7 @@ export const TradingPanel = ({ selectedMarket }) => {
     const marketPrice   = currentPrice || indexPrice || toNumber(market?.price);
     const inputX18 = parseX18Input(size);
     const limitPriceX18 = parseX18Input(priceLimit);
-    const targetLeverageRaw = leverageEnabled ? parseX18Input(selectedTargetLeverage.toString()) : 0n;
+    const targetLeverageRaw = leverageEnabled ? parseX18Input(selectedTargetLeverage.toFixed(2)) : 0n;
     const feeBps        = Number(valueAt(marketConfig, "feeBps", 1) ?? reserves.feeBps ?? selectedMarket?.feeBps ?? market?.feeBps ?? DEFAULT_FEE_BPS);
     const previewParams = {
       isLong,
@@ -381,7 +406,7 @@ export const TradingPanel = ({ selectedMarket }) => {
     const maxPreview = maxSizeRaw > 0n
       ? buildOpenOrderPreview({ ...previewParams, sizeX18: maxSizeRaw, limitPriceX18: 0n })
       : ZERO_PREVIEW;
-    const maxNotionalRaw = maxPreview.ok ? maxPreview.notional : 0n;
+    const maxNotionalRaw = maxPreview.ok ? maxPreview.displayNotional : 0n;
     const inputNum = toNumber(size);
     const sizeNum = toNumberX18(sizeX18);
     const maxSize = toNumberX18(maxSizeRaw);
@@ -543,18 +568,6 @@ export const TradingPanel = ({ selectedMarket }) => {
     }
   }, [tradeError, receiptError, resetTrade, market?.displayName, market?.name]);
 
-  const currentPositionLeverage = useMemo(() => {
-    if (!position?.hasPosition || !position?.marginRaw) return 0;
-    const mark = parseX18Input(market?.markPriceRaw || "0");
-    const index = parseX18Input(market?.oraclePriceRaw || "0");
-    const riskPriceRaw = mark > index ? mark : index;
-    return toNumberX18(calculateLeverageX18({
-      sizeX18: position.sizeRaw,
-      marginX18: position.marginRaw,
-      riskPriceX18: riskPriceRaw,
-    }));
-  }, [position?.hasPosition, position?.sizeRaw, position?.marginRaw, market?.markPriceRaw, market?.oraclePriceRaw]);
-
   // ── Guards ────────────────────────────────────────────────────────────────
   if (!selectedMarket) return <div className="flex items-center justify-center h-full text-ink-faint text-xs">Select a market</div>;
   if (isLoading)        return <div className="flex items-center justify-center h-full text-ink-faint text-xs">Loading…</div>;
@@ -626,7 +639,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         marketPrice: executionPrice || marketPrice,
         markRaw: parseFloat(market.markPriceRaw) || marketPrice,
         twapRaw: parseFloat(market.twapRaw) || parseFloat(market.markPriceRaw) || 0,
-        notional: toNumberX18(preview.notional),
+        notional: toNumberX18(preview.displayNotional || preview.notional),
         txActionText: side,
         deferOpenSuccess: true,
       };
@@ -672,9 +685,9 @@ export const TradingPanel = ({ selectedMarket }) => {
         const achievedLeverage = toNumberX18(calculateLeverageX18({
           sizeX18: snapshot.position.size,
           marginX18: snapshot.position.margin,
-          riskPriceX18: snapshot.riskPrice,
+          riskPriceX18: parseX18Input(market?.markPriceRaw || market?.price || "0") || snapshot.riskPrice,
         }));
-        setLastAchievedLeverage(achievedLeverage || null);
+        void achievedLeverage;
       } catch {
         // Both transactions are confirmed. Background polling remains active if
         // an RPC node has not exposed the updated position state yet.
@@ -736,7 +749,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           <div className="flex items-center justify-between">
             <span className="text-[12px] font-medium text-ink-faint uppercase tracking-wide">Leverage</span>
             <span className={`text-[15px] font-bold num ${isLong ? "text-up" : "text-down"}`}>
-              {leverageEnabled ? `${selectedTargetLeverage}×` : "Unavailable"}
+              {leverageEnabled ? formatLeverage(selectedTargetLeverage) : "Unavailable"}
             </span>
           </div>
           {leverageEnabled && (
@@ -744,28 +757,24 @@ export const TradingPanel = ({ selectedMarket }) => {
               value={selectedTargetLeverage}
               min={MIN_TARGET_LEVERAGE}
               max={maxSelectableLeverage}
-              step={1}
+              step={0.01}
               onChange={(event) => {
-                const next = Number.parseInt(event.target.value, 10);
-                if (Number.isFinite(next)) setTargetLeverage(next);
+                const next = Number.parseFloat(event.target.value);
+                if (Number.isFinite(next)) setTargetLeverage(Math.round(next * 100) / 100);
               }}
               down={!isLong}
             />
           )}
           <div className="text-[10px] text-ink-faint">
-            Margin allocation uses {marginPriceSource} price{riskPrice > 0 ? ` ($${riskPrice.toFixed(2)})` : ""}.
+            Leverage and margin use mark price. Max is capped by {marginPriceSource} risk price{riskPrice > 0 ? ` ($${riskPrice.toFixed(2)})` : ""}.
           </div>
         </div>
 
-        {/* ── Order type tabs (only Market is offered; Limit is upcoming) ── */}
+        {/* ── Order type ── */}
         <div className="flex items-center gap-6 border-b border-line-subtle">
           <span className="relative pb-2.5 text-[14px] font-semibold text-white cursor-default">
             Market
             <span className="absolute left-0 -bottom-px h-[2px] w-full bg-blue-500 rounded-full" />
-          </span>
-          <span className="pb-2.5 text-[14px] font-medium text-ink-ghost cursor-not-allowed flex items-center gap-1.5">
-            Limit
-            <span className="text-[9px] uppercase tracking-wide border border-line-subtle rounded px-1 py-px text-ink-faint">soon</span>
           </span>
         </div>
 
@@ -934,7 +943,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           </div>
         </div>
 
-        {/* ── Limit price (optional slippage bound; we only execute market orders) ── */}
+        {/* ── Limit price (optional on-chain execution bound) ── */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-[12px] text-ink-faint">
@@ -962,6 +971,11 @@ export const TradingPanel = ({ selectedMarket }) => {
               }}
             />
             <span className="text-[12px] text-ink-faint shrink-0">USDC</span>
+          </div>
+          <div className="mt-1.5 text-[10px] leading-4 text-ink-faint">
+            {isLong
+              ? "Order executes only if the vAMM cost is at or below this price."
+              : "Order executes only if the vAMM output is at or above this price."}
           </div>
         </div>
 
@@ -1022,8 +1036,8 @@ export const TradingPanel = ({ selectedMarket }) => {
             </span>
           </div>
           <div className="flex items-center justify-between text-[13px]">
-            <span className="text-ink-faint">{orderInputMode === "notional" ? "Executable Notional:" : "Notional:"}</span>
-            <span className="num text-white">{preview.notional > 0n ? formatUsd(preview.notional) : "—"}</span>
+            <span className="text-ink-faint">{orderInputMode === "notional" ? "Mark Notional:" : "Notional:"}</span>
+            <span className="num text-white">{preview.displayNotional > 0n ? formatUsd(preview.displayNotional) : "—"}</span>
           </div>
           <div className="flex items-center justify-between text-[13px]">
             <span className="text-ink-faint">Est. Price:</span>
