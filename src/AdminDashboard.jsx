@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePublicClient } from "wagmi";
 import { formatUnits } from "ethers";
 import { supabase } from "./creatclient";
@@ -104,6 +104,31 @@ async function readOpenPositions(publicClient, tradersList, activeMarketIds) {
   return rows;
 }
 
+// ── CSV export helpers ──────────────────────────────────────────────────────
+function toCsv(rows, columns) {
+  const esc = (v) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = columns.map((c) => esc(c.label)).join(",");
+  const body = (rows || []).map((r) => columns.map((c) => esc(c.get(r))).join(",")).join("\n");
+  return `${header}\n${body}`;
+}
+
+function downloadCsv(filename, csv) {
+  // Prepend BOM so Excel reads UTF-8 correctly.
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Small building blocks
 // ─────────────────────────────────────────────────────────────────────────────
@@ -137,9 +162,18 @@ const EmptyRow = ({ colSpan, label }) => (
   <tr><td colSpan={colSpan} className="px-4 py-10 text-center text-[12px] text-ink-faint">{label}</td></tr>
 );
 
-const Page = ({ children }) => (
+const ExportButton = ({ onClick, label = "Export CSV" }) => (
+  <button
+    onClick={onClick}
+    className="px-2.5 py-1 rounded-md bg-surface-2 border border-line text-[10px] font-medium text-ink-muted hover:text-ink hover:bg-surface-3 transition-colors"
+  >
+    {label}
+  </button>
+);
+
+const Page = ({ children, contentRef }) => (
   <div className="min-h-screen bg-surface-0 pt-16 pb-12 px-4 md:px-8 lg:px-12">
-    <div className="max-w-7xl mx-auto">{children}</div>
+    <div ref={contentRef} className="max-w-7xl mx-auto">{children}</div>
   </div>
 );
 
@@ -151,6 +185,9 @@ export default function AdminDashboard() {
   const [status, setStatus]       = useState("loading");
   const [errorMsg, setErrorMsg]   = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [pdfBusy, setPdfBusy]       = useState(false);
+  const contentRef = useRef(null);
+  const actionsRef = useRef(null);
   const [kpis, setKpis]           = useState(null);
   const [markets, setMarkets]     = useState([]);
   const [series, setSeries]       = useState([]);
@@ -264,6 +301,96 @@ export default function AdminDashboard() {
     return [...map.values()].sort((a, b) => b.totalNotional - a.totalNotional);
   }, [onchainPositions]);
 
+  // ── CSV exports (raw table data) ────────────────────────────────────────────
+  const exportMarkets = () => downloadCsv("market_breakdown.csv", toCsv(markets, [
+    { label: "Market", get: (r) => r.market_name },
+    { label: "Market ID", get: (r) => r.market_id },
+    { label: "Volume (USD)", get: (r) => n(r.volume) },
+    { label: "Trades", get: (r) => n(r.trade_count) },
+    { label: "Unique Traders", get: (r) => n(r.unique_traders) },
+    { label: "Fees (USD)", get: (r) => n(r.fees) },
+    { label: "Funding (USD)", get: (r) => n(r.funding) },
+    { label: "Net PnL (USD)", get: (r) => n(r.net_pnl) },
+    { label: "Liquidations", get: (r) => n(r.liquidations) },
+  ]));
+
+  const exportTraders = () => downloadCsv("traders.csv", toCsv(traders, [
+    { label: "Wallet", get: (r) => r.user_address },
+    { label: "Username", get: (r) => r.username || "" },
+    { label: "Volume (USD)", get: (r) => n(r.volume) },
+    { label: "Trades", get: (r) => n(r.trade_count) },
+    { label: "Realized PnL (USD)", get: (r) => n(r.realized_pnl) },
+    { label: "Funding (USD)", get: (r) => n(r.funding) },
+    { label: "Fees (USD)", get: (r) => n(r.fees) },
+    { label: "Net PnL (USD)", get: (r) => n(r.net_pnl) },
+  ]));
+
+  const exportEvents = () => downloadCsv("recent_activity.csv", toCsv(events, [
+    { label: "Time", get: (r) => r.block_timestamp },
+    { label: "Wallet", get: (r) => r.user_address },
+    { label: "Username", get: (r) => r.username || "" },
+    { label: "Market", get: (r) => r.market_name },
+    { label: "Type", get: (r) => r.accounting_type },
+    { label: "Side", get: (r) => r.side || "" },
+    { label: "Notional (USD)", get: (r) => (r.notional == null ? "" : n(r.notional)) },
+    { label: "Realized PnL (USD)", get: (r) => n(r.realized_pnl) },
+    { label: "Fee (USD)", get: (r) => n(r.fee) },
+    { label: "Net PnL (USD)", get: (r) => n(r.net_pnl) },
+    { label: "Tx Hash", get: (r) => r.tx_hash },
+  ]));
+
+  const exportPositions = () => downloadCsv("open_positions.csv", toCsv(onchainPositions, [
+    { label: "Wallet", get: (r) => r.trader },
+    { label: "Username", get: (r) => r.username || "" },
+    { label: "Market", get: (r) => r.marketName },
+    { label: "Side", get: (r) => (r.isLong ? "Long" : "Short") },
+    { label: "Size", get: (r) => r.size },
+    { label: "Entry (USD)", get: (r) => r.entryPrice },
+    { label: "Notional (USD)", get: (r) => r.notional },
+    { label: "Margin (USD)", get: (r) => r.margin },
+    { label: "Leverage", get: (r) => (r.margin > 0 ? Number((r.notional / r.margin).toFixed(2)) : "") },
+  ]));
+
+  const exportKpis = () => {
+    if (!kpis) return;
+    downloadCsv("platform_kpis.csv", toCsv([kpis], Object.keys(kpis).map((k) => ({ label: k, get: (r) => r[k] }))));
+  };
+
+  const exportAll = () => {
+    [exportKpis, exportMarkets, exportTraders, exportEvents, exportPositions]
+      .forEach((fn, i) => setTimeout(fn, i * 300));
+  };
+
+  // ── PDF export — captures the dashboard exactly as rendered (dark theme kept) ─
+  const exportPdf = async () => {
+    if (!contentRef.current || pdfBusy) return;
+    setPdfBusy(true);
+    const actions = actionsRef.current;
+    if (actions) actions.style.visibility = "hidden"; // hide buttons in the capture
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas-pro"),
+        import("jspdf"),
+      ]);
+      const canvas = await html2canvas(contentRef.current, {
+        backgroundColor: "#050507", // surface-0, so gaps match the page
+        scale: 2,
+        useCORS: true,
+      });
+      const w = canvas.width / 2;
+      const h = canvas.height / 2;
+      const pdf = new jsPDF({ orientation: w >= h ? "landscape" : "portrait", unit: "px", format: [w, h] });
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+      pdf.save(`admin-dashboard-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
+      console.error("PDF export failed", err);
+      alert(`PDF export failed: ${err?.message || "unknown error"}`);
+    } finally {
+      if (actions) actions.style.visibility = "";
+      setPdfBusy(false);
+    }
+  };
+
   // ── Guard / status screens ─────────────────────────────────────────────────
   if (status === "loading") {
     return (
@@ -310,7 +437,7 @@ export default function AdminDashboard() {
   const isEmpty = kpis && n(kpis.event_count) === 0;
 
   return (
-    <Page>
+    <Page contentRef={contentRef}>
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
@@ -323,13 +450,28 @@ export default function AdminDashboard() {
             {kpis?.latest_event_at && <> · latest event {fmtTime(kpis.latest_event_at)}</>}
           </p>
         </div>
-        <button
-          onClick={refresh}
-          disabled={refreshing}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-md bg-surface-2 border border-line text-[12px] font-medium text-ink-muted hover:text-ink hover:bg-surface-3 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} /> Refresh
-        </button>
+        <div ref={actionsRef} className="shrink-0 flex items-center gap-2">
+          <button
+            onClick={exportPdf}
+            disabled={pdfBusy}
+            className="px-3 py-2 rounded-md bg-surface-2 border border-line text-[12px] font-medium text-ink-muted hover:text-ink hover:bg-surface-3 transition-colors disabled:opacity-50"
+          >
+            {pdfBusy ? "Exporting…" : "Export PDF"}
+          </button>
+          <button
+            onClick={exportAll}
+            className="px-3 py-2 rounded-md bg-surface-2 border border-line text-[12px] font-medium text-ink-muted hover:text-ink hover:bg-surface-3 transition-colors"
+          >
+            Export all CSV
+          </button>
+          <button
+            onClick={refresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-surface-2 border border-line text-[12px] font-medium text-ink-muted hover:text-ink hover:bg-surface-3 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} /> Refresh
+          </button>
+        </div>
       </div>
 
       {isEmpty && (
@@ -360,7 +502,7 @@ export default function AdminDashboard() {
       </Section>
 
       {/* Per-market breakdown */}
-      <Section title="Market Breakdown">
+      <Section title="Market Breakdown" right={<ExportButton onClick={exportMarkets} />}>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead><tr className="border-b border-line-subtle">
@@ -386,7 +528,7 @@ export default function AdminDashboard() {
       </Section>
 
       {/* Top traders */}
-      <Section title="Top Traders (by Net PnL)">
+      <Section title="Top Traders (by Net PnL)" right={<ExportButton onClick={exportTraders} />}>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead><tr className="border-b border-line-subtle">
@@ -414,7 +556,7 @@ export default function AdminDashboard() {
       </Section>
 
       {/* Recent activity */}
-      <Section title="Recent Activity">
+      <Section title="Recent Activity" right={<ExportButton onClick={exportEvents} />}>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead><tr className="border-b border-line-subtle">
@@ -456,9 +598,14 @@ export default function AdminDashboard() {
       {/* Open positions — read live from the ClearingHouse contract (no DB table) */}
       <Section
         title="Open Positions (live on-chain)"
-        right={posError
-          ? <span className="text-[10px] text-down">{posError}</span>
-          : <span className="text-[10px] text-ink-ghost">{onchainPositions.length} open</span>}
+        right={
+          <div className="flex items-center gap-3">
+            {posError
+              ? <span className="text-[10px] text-down">{posError}</span>
+              : <span className="text-[10px] text-ink-ghost">{onchainPositions.length} open</span>}
+            <ExportButton onClick={exportPositions} />
+          </div>
+        }
       >
         <div className="overflow-x-auto">
           <table className="w-full text-left">

@@ -29,6 +29,8 @@
     "dotenv": "^17.2.3",
     "ethers": "^6.15.0",
     "framer-motion": "^12.23.6",
+    "html2canvas-pro": "^2.2.1",
+    "jspdf": "^4.2.1",
     "klinecharts": "^10.0.0-beta1",
     "lucide-react": "^0.544.0",
     "papaparse": "^5.5.3",
