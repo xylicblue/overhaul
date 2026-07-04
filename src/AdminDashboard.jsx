@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { usePublicClient } from "wagmi";
 import { formatUnits } from "ethers";
 import { supabase } from "./creatclient";
+import { agentName } from "./utils/agentLabels";
 import { MARKETS, SEPOLIA_CONTRACTS } from "./contracts/addresses";
 import ClearingHouseABI from "./contracts/abis/ClearingHouse.json";
 import ReactApexChart from "react-apexcharts";
@@ -539,8 +540,8 @@ export default function AdminDashboard() {
               {traders.length === 0 ? <EmptyRow colSpan={7} label="No traders yet." /> : traders.slice(0, 25).map((t) => (
                 <tr key={t.user_address} className="hover:bg-surface-2/50">
                   <td className="px-4 py-2.5">
-                    <div className="text-[12px] font-semibold text-ink">{t.username || shortAddr(t.user_address)}</div>
-                    {t.username && <div className="text-[10px] num text-ink-ghost">{shortAddr(t.user_address)}</div>}
+                    <div className={`text-[12px] font-semibold ${agentName(t.user_address) ? "text-blue-400" : "text-ink"}`}>{agentName(t.user_address) || t.username || shortAddr(t.user_address)}</div>
+                    {(agentName(t.user_address) || t.username) && <div className="text-[10px] num text-ink-ghost">{shortAddr(t.user_address)}</div>}
                   </td>
                   <td className="px-4 py-2.5 text-right num text-[12px] text-ink-muted">{usd(t.volume)}</td>
                   <td className="px-4 py-2.5 text-right num text-[12px] text-ink-muted">{intFmt(t.trade_count)}</td>
@@ -567,7 +568,14 @@ export default function AdminDashboard() {
               {events.length === 0 ? <EmptyRow colSpan={8} label="No events yet." /> : events.map((e, i) => (
                 <tr key={`${e.tx_hash}-${i}`} className="hover:bg-surface-2/50">
                   <td className="px-4 py-2.5 text-[10px] num text-ink-faint whitespace-nowrap">{fmtTime(e.block_timestamp)}</td>
-                  <td className="px-4 py-2.5 text-[11px] text-ink-muted">{e.username || shortAddr(e.user_address)}</td>
+                  <td className="px-4 py-2.5 text-[11px]">
+                    {agentName(e.user_address)
+                      ? <span className="inline-flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-semibold">{agentName(e.user_address)}</span>
+                          <span className="num text-[10px] text-ink-faint">{shortAddr(e.user_address)}</span>
+                        </span>
+                      : <span className="text-ink-muted">{e.username || shortAddr(e.user_address)}</span>}
+                  </td>
                   <td className="px-4 py-2.5 text-[11px] text-ink">{cleanMarket(e.market_name)}</td>
                   <td className="px-4 py-2.5">
                     <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${typeStyle(e.accounting_type)}`}>
@@ -623,8 +631,8 @@ export default function AdminDashboard() {
                       <td colSpan={7} className="px-4 py-2">
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                           <div className="flex items-baseline gap-2">
-                            <span className="text-[12px] font-semibold text-ink">{g.username || shortAddr(g.trader)}</span>
-                            {g.username && <span className="text-[10px] num text-ink-ghost">{shortAddr(g.trader)}</span>}
+                            <span className={`text-[12px] font-semibold ${agentName(g.trader) ? "text-blue-400" : "text-ink"}`}>{agentName(g.trader) || g.username || shortAddr(g.trader)}</span>
+                            {(agentName(g.trader) || g.username) && <span className="text-[10px] num text-ink-ghost">{shortAddr(g.trader)}</span>}
                           </div>
                           <div className="flex items-center gap-4 text-[10px] text-ink-faint">
                             <span>{g.rows.length} position{g.rows.length > 1 ? "s" : ""}</span>
