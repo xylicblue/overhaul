@@ -209,10 +209,44 @@ export const Datafeed = {
     try {
       // Build market names to query
       const marketNames = getMarketNamesForHistory(symbolInfo.name);
+      const resolutionSeconds = resolutionToSeconds(resolution);
 
-      // Fetch the MOST RECENT points (descending + explicit limit), then reverse
-      // to ascending for bar conversion. An ascending/no-limit query hits
-      // Supabase's 1000-row cap and returns the OLDEST rows on high-volume
+      // Preferred path: server-side OHLC candles (get_vamm_candles RPC). Postgres
+      // aggregates to the requested resolution over the full window, so there is
+      // no 1000-row cap. If the function isn't present (migration not run) or it
+      // errors, we fall through to the raw-price path below — nothing breaks.
+      try {
+        const { data: candles, error: rpcErr } = await supabase.rpc("get_vamm_candles", {
+          p_markets: marketNames,
+          p_bucket_seconds: resolutionSeconds,
+          p_from: firstDataRequest ? null : new Date(from * 1000).toISOString(),
+          p_to: firstDataRequest ? null : new Date(to * 1000).toISOString(),
+          p_max_bars: 1500,
+        });
+        if (!rpcErr && Array.isArray(candles) && candles.length > 0) {
+          const bars = candles
+            .map((c) => ({
+              time: new Date(c.bucket_time).getTime(),
+              open: Number(c.open),
+              high: Number(c.high),
+              low: Number(c.low),
+              close: Number(c.close),
+              volume: Number(c.volume),
+            }))
+            .sort((a, b) => a.time - b.time);
+          dataCache.set(cacheKey, { bars, timestamp: Date.now() });
+          if (dataCache.size > 50) dataCache.delete(dataCache.keys().next().value);
+          console.log("[Datafeed] Returning", bars.length, "candle bars (rpc)");
+          onHistoryCallback(bars, { noData: bars.length === 0 });
+          return;
+        }
+      } catch (rpcError) {
+        console.warn("[Datafeed] candle RPC unavailable, using raw fallback:", rpcError?.message);
+      }
+
+      // Fallback: fetch the MOST RECENT raw points (descending + explicit limit),
+      // then reverse to ascending for bar conversion. An ascending/no-limit query
+      // hits Supabase's 1000-row cap and returns the OLDEST rows on high-volume
       // markets (T4/A100 have 15k–20k rows), making the chart flat/stale.
       let query = supabase
         .from("vamm_price_history")
@@ -242,7 +276,6 @@ export const Datafeed = {
         return;
       }
 
-      const resolutionSeconds = resolutionToSeconds(resolution);
       const bars = convertToBars(data, resolutionSeconds);
 
       // Cache the result
