@@ -95,22 +95,26 @@ async function preloadSymbolData(symbolName, config) {
   console.log("[IndexDatafeed] Preloading data for:", symbolName);
   const timestampField = config.timestampField || "created_at";
   
-  // Fetch ALL available data (no time filter - let database return everything)
+  // Fetch the MOST RECENT points (descending + limit), then reverse to ascending.
+  // An ascending/no-limit query hits Supabase's 1000-row cap and returns the
+  // OLDEST rows on high-volume tables, making the chart flat/stale.
   let query = supabase
     .from(config.tableName)
     .select(`${config.priceField}, ${timestampField}`)
-    .order(timestampField, { ascending: true });
-  
+    .order(timestampField, { ascending: false })
+    .limit(1000);
+
   if (config.providerFilter) {
     query = query.eq("provider_name", config.providerFilter);
   }
-  
-  const { data, error } = await query;
-  
+
+  const { data: rows, error } = await query;
+
   if (error) {
     console.error("[IndexDatafeed] Preload error:", error);
     return null;
   }
+  const data = (rows || []).slice().reverse(); // oldest → newest
   
   // Store in preload cache
   preloadCache.set(symbolName, { data, timestamp: Date.now() });

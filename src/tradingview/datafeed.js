@@ -59,8 +59,11 @@ const subscriptions = new Map();
 const dataCache = new Map();
 const CACHE_TTL = 60000; // 1 minute cache TTL
 
-// Maximum bars to fetch per request (optimization - keep low for fast initial load)
-const MAX_BARS_PER_REQUEST = 500;
+// Max points to pull per request. Supabase hard-caps un-limited responses at
+// 1000 rows, so we fetch the most-recent 1000 (descending + limit) rather than
+// an un-limited ascending query — otherwise high-volume markets return only the
+// OLDEST 1000 rows and the chart looks flat/stale.
+const MAX_BARS_PER_REQUEST = 1000;
 
 function getMarketNamesForHistory(symbolName) {
   const names = new Set([symbolName]);
@@ -207,14 +210,16 @@ export const Datafeed = {
       // Build market names to query
       const marketNames = getMarketNamesForHistory(symbolInfo.name);
 
-      // Use Supabase .in() filter to fetch ALL matching market names in one query
-      // For first request, fetch everything (no time filter) so we have the full picture;
-      // for subsequent (scrollback) requests, use the from/to range.
+      // Fetch the MOST RECENT points (descending + explicit limit), then reverse
+      // to ascending for bar conversion. An ascending/no-limit query hits
+      // Supabase's 1000-row cap and returns the OLDEST rows on high-volume
+      // markets (T4/A100 have 15k–20k rows), making the chart flat/stale.
       let query = supabase
         .from("vamm_price_history")
         .select("price, timestamp")
         .in("market", marketNames)
-        .order("timestamp", { ascending: true });
+        .order("timestamp", { ascending: false })
+        .limit(MAX_BARS_PER_REQUEST);
 
       if (!firstDataRequest) {
         query = query
@@ -222,7 +227,8 @@ export const Datafeed = {
           .lte("timestamp", new Date(to * 1000).toISOString());
       }
 
-      const { data, error } = await query;
+      const { data: rows, error } = await query;
+      const data = (rows || []).slice().reverse(); // oldest → newest for convertToBars
 
       if (error) {
         console.error("[Datafeed] Query error:", error);
