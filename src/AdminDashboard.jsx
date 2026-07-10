@@ -39,6 +39,17 @@ const TYPE_STYLE = {
 const typeStyle = (t) => TYPE_STYLE[t] || "text-ink-muted bg-surface-3";
 const cleanMarket = (m) => (m || "—").replace("-PERP", "");
 
+// ── Surveillance-alert formatting ────────────────────────────────────────────
+const SEV_STYLE = {
+  high:   "text-down bg-down/10 border border-down/30",
+  medium: "text-warn bg-warn/10 border border-warn/30",
+  low:    "text-ink-muted bg-surface-3 border border-line",
+};
+const sevStyle = (s) => SEV_STYLE[s] || SEV_STYLE.low;
+const KIND_LABEL = { peg_push: "Peg push", manipulation_round_trip: "Round-trip" };
+const kindLabel = (k) => KIND_LABEL[k] || (k || "—").replace(/_/g, " ");
+const bps = (v) => (v == null ? "—" : `${Math.round(n(v))} bps`);
+
 // Unique tradable markets (exclude aliases) — used to scan on-chain positions.
 const POSITION_MARKETS = (() => {
   const seen = new Set();
@@ -194,25 +205,29 @@ export default function AdminDashboard() {
   const [series, setSeries]       = useState([]);
   const [traders, setTraders]     = useState([]);
   const [events, setEvents]       = useState([]);
+  const [alerts, setAlerts]       = useState([]);
+  const [alertBusyId, setAlertBusyId] = useState(null);
   const [onchainPositions, setOnchainPositions] = useState([]);
   const [posError, setPosError]   = useState("");
   const publicClient = usePublicClient({ chainId: 11155111 });
 
   const fetchData = useCallback(async () => {
-    const [k, m, s, t, e] = await Promise.all([
+    const [k, m, s, t, e, a] = await Promise.all([
       supabase.rpc("admin_platform_kpis"),
       supabase.rpc("admin_market_breakdown"),
       supabase.rpc("admin_pnl_timeseries", { p_days: 30 }),
       supabase.rpc("admin_top_traders", { p_limit: 200 }),
       supabase.rpc("admin_recent_events", { p_limit: 50 }),
+      supabase.rpc("admin_manipulation_alerts", { p_limit: 100 }),
     ]);
-    const firstErr = [k, m, s, t, e].find((r) => r.error)?.error;
+    const firstErr = [k, m, s, t, e, a].find((r) => r.error)?.error;
     if (firstErr) throw firstErr;
     setKpis(k.data || null);
     setMarkets(m.data || []);
     setSeries(s.data || []);
     setTraders(t.data || []);
     setEvents(e.data || []);
+    setAlerts(a.data || []);
 
     // Open positions are read live from the ClearingHouse contract for every
     // known trader (no positions table is maintained — they live on-chain),
@@ -253,6 +268,30 @@ export default function AdminDashboard() {
     try { await fetchData(); } catch (err) { setErrorMsg(err?.message || "Refresh failed."); }
     finally { setRefreshing(false); }
   };
+
+  // Surveillance alerts refresh on their own light cadence (the manipulation_alerts
+  // table has RLS fully locked, so a realtime channel can't deliver — we poll the
+  // admin RPC instead). Only while the dashboard is live.
+  useEffect(() => {
+    if (status !== "ready") return undefined;
+    const id = setInterval(async () => {
+      const { data, error } = await supabase.rpc("admin_manipulation_alerts", { p_limit: 100 });
+      if (!error) setAlerts(data || []);
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [status]);
+
+  // Acknowledge / dismiss an alert (optimistic; reverts on RPC error).
+  const setAlertStatus = async (id, nextStatus) => {
+    setAlertBusyId(id);
+    const prev = alerts;
+    setAlerts((rows) => rows.map((r) => (r.id === id ? { ...r, status: nextStatus } : r)));
+    const { error } = await supabase.rpc("admin_set_alert_status", { p_id: id, p_status: nextStatus });
+    if (error) { setAlerts(prev); alert(`Could not update alert: ${error.message}`); }
+    setAlertBusyId(null);
+  };
+
+  const openAlerts = useMemo(() => alerts.filter((a) => a.status === "open"), [alerts]);
 
   // ── Chart series: daily volume (bars) + cumulative net PnL (line) ──────────
   const chart = useMemo(() => {
@@ -352,13 +391,29 @@ export default function AdminDashboard() {
     { label: "Leverage", get: (r) => (r.margin > 0 ? Number((r.notional / r.margin).toFixed(2)) : "") },
   ]));
 
+  const exportAlerts = () => downloadCsv("manipulation_alerts.csv", toCsv(alerts, [
+    { label: "Detected", get: (r) => r.detected_at },
+    { label: "Severity", get: (r) => r.severity },
+    { label: "Type", get: (r) => r.kind },
+    { label: "Agent", get: (r) => r.agent_label || "" },
+    { label: "Wallet", get: (r) => r.wallet },
+    { label: "Market", get: (r) => r.market },
+    { label: "Impact (bps)", get: (r) => n(r.impact_bps) },
+    { label: "Widened (bps)", get: (r) => n(r.widened_bps) },
+    { label: "Gap (bps)", get: (r) => n(r.dev_bps) },
+    { label: "Notional (USD)", get: (r) => n(r.notional_usd) },
+    { label: "Status", get: (r) => r.status },
+    { label: "Detail", get: (r) => r.detail },
+    { label: "Tx Hashes", get: (r) => (r.tx_hashes || []).join(" ") },
+  ]));
+
   const exportKpis = () => {
     if (!kpis) return;
     downloadCsv("platform_kpis.csv", toCsv([kpis], Object.keys(kpis).map((k) => ({ label: k, get: (r) => r[k] }))));
   };
 
   const exportAll = () => {
-    [exportKpis, exportMarkets, exportTraders, exportEvents, exportPositions]
+    [exportKpis, exportMarkets, exportTraders, exportEvents, exportPositions, exportAlerts]
       .forEach((fn, i) => setTimeout(fn, i * 300));
   };
 
@@ -492,6 +547,85 @@ export default function AdminDashboard() {
         <StatCard label="Unique Traders" value={intFmt(kpis?.unique_traders)}  sub={`${intFmt(kpis?.event_count)} events`} />
         <StatCard label="Open Positions" value={intFmt(onchainPositions.length)} sub="live on-chain" />
       </div>
+
+      {/* Surveillance — market-manipulation alerts from the behavioral monitor */}
+      <Section
+        title="Surveillance — Manipulation Alerts"
+        right={
+          <div className="flex items-center gap-3">
+            {openAlerts.length > 0
+              ? <span className="px-2 py-0.5 rounded-full bg-down/10 text-down text-[10px] font-bold border border-down/30">{openAlerts.length} open</span>
+              : <span className="text-[10px] text-up">All clear</span>}
+            <ExportButton onClick={exportAlerts} />
+          </div>
+        }
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead><tr className="border-b border-line-subtle">
+              <Th>Detected</Th><Th>Severity</Th><Th>Type</Th><Th>Wallet</Th><Th>Market</Th>
+              <Th right>Impact</Th><Th right>Widened</Th><Th right>Gap</Th><Th right>Notional</Th>
+              <Th right>Tx</Th><Th right>Status</Th>
+            </tr></thead>
+            <tbody className="divide-y divide-line-subtle">
+              {alerts.length === 0 ? <EmptyRow colSpan={11} label="No manipulation alerts detected." /> : alerts.map((a) => (
+                <tr
+                  key={a.id}
+                  title={a.detail || ""}
+                  className={`hover:bg-surface-2/50 ${a.status === "open" && a.severity === "high" ? "bg-down/[0.05]" : ""} ${a.status === "dismissed" ? "opacity-45" : ""}`}
+                >
+                  <td className="px-4 py-2.5 text-[10px] num text-ink-faint whitespace-nowrap">{fmtTime(a.detected_at)}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${sevStyle(a.severity)}`}>{a.severity}</span>
+                  </td>
+                  <td className="px-4 py-2.5 text-[11px] text-ink whitespace-nowrap">{kindLabel(a.kind)}</td>
+                  <td className="px-4 py-2.5 text-[11px]">
+                    {a.agent_label
+                      ? <span className="inline-flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-semibold">{a.agent_label}</span>
+                          <span className="num text-[10px] text-ink-faint">{shortAddr(a.wallet)}</span>
+                        </span>
+                      : <span className="num text-[10px] text-ink-muted">{shortAddr(a.wallet)}</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-[11px] text-ink">{cleanMarket(a.market)}</td>
+                  <td className="px-4 py-2.5 text-right num text-[11px] text-ink">{bps(a.impact_bps)}</td>
+                  <td className="px-4 py-2.5 text-right num text-[11px] text-warn">{bps(a.widened_bps)}</td>
+                  <td className="px-4 py-2.5 text-right num text-[11px] text-ink-muted">{bps(a.dev_bps)}</td>
+                  <td className="px-4 py-2.5 text-right num text-[11px] text-ink-muted">{a.notional_usd != null ? usd(a.notional_usd) : "—"}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="inline-flex items-center gap-1.5 justify-end">
+                      {(a.tx_hashes || []).map((h) => (
+                        <a key={h} href={txUrl(h)} target="_blank" rel="noopener noreferrer" className="inline-flex text-ink-faint hover:text-blue-400"><ExternalLink size={12} /></a>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                    {a.status === "open" ? (
+                      <div className="inline-flex items-center gap-1.5">
+                        <button disabled={alertBusyId === a.id} onClick={() => setAlertStatus(a.id, "ack")}
+                          className="px-2 py-0.5 rounded bg-surface-2 border border-line text-[10px] text-ink-muted hover:text-ink hover:bg-surface-3 disabled:opacity-50">Ack</button>
+                        <button disabled={alertBusyId === a.id} onClick={() => setAlertStatus(a.id, "dismissed")}
+                          className="px-2 py-0.5 rounded bg-surface-2 border border-line text-[10px] text-ink-muted hover:text-ink hover:bg-surface-3 disabled:opacity-50">Dismiss</button>
+                      </div>
+                    ) : a.status === "ack" ? (
+                      <div className="inline-flex items-center gap-1.5">
+                        <span className="text-[10px] text-up font-semibold">Acked</span>
+                        <button disabled={alertBusyId === a.id} onClick={() => setAlertStatus(a.id, "dismissed")}
+                          className="px-2 py-0.5 rounded bg-surface-2 border border-line text-[10px] text-ink-muted hover:text-ink hover:bg-surface-3 disabled:opacity-50">Dismiss</button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-ink-ghost">Dismissed</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-2 border-t border-line-subtle text-[10px] text-ink-ghost">
+          Behavioral monitor flags trades that push the vAMM mark away from the index oracle (peg pushes) and manipulative push-then-unwind round-trips. Hover a row for detail.
+        </div>
+      </Section>
 
       {/* Chart */}
       <Section title="Daily Volume & Cumulative Net PnL (30d)">
