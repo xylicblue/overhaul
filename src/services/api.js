@@ -210,6 +210,19 @@ export async function getSumsubToken() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function getMarketStats24h() {
+  // Primary source: derive 24h stats live from canonical_pnl_events, which the
+  // deployed indexer keeps current (same source the admin dashboard aggregates).
+  // The legacy market_stats_24h table is no longer being written — it reads back
+  // all zeros, which is why 24h volume/change showed $0.00 / +0.00% everywhere.
+  try {
+    const { data, error } = await supabase.rpc("get_market_stats_24h");
+    if (error) throw error;
+    if (Array.isArray(data) && data.length > 0) return data;
+  } catch (rpcError) {
+    console.warn("get_market_stats_24h RPC unavailable, falling back:", rpcError?.message);
+  }
+
+  // ── Fallbacks (kept so nothing breaks if the migration isn't applied yet) ──
   if (MARKET_STATS_API_BASE) {
     try {
       const res = await fetch(`${MARKET_STATS_API_BASE.replace(/\/$/, "")}/api/markets/stats`, {

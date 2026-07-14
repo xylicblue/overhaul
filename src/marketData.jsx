@@ -108,6 +108,7 @@ function emptyMarket(market, markPrice = 0, oraclePrice = 0, stats = null, direc
     volume24h: stats?.volume_24h_usd
       ? `$${Number(stats.volume_24h_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : "$0.00",
+    volume24hValue: stats?.volume_24h_usd != null ? Number(stats.volume_24h_usd) : 0,
     openInterest: formatUsd(openInterestUsd),
   };
 }

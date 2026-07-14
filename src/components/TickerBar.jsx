@@ -50,6 +50,14 @@ function getCategory(name) {
   return "GPU Index";
 }
 
+/** Compact USD for the narrow volume column: $1.2K, $14K, $1.5M; "—" when none. */
+function formatCompactUsd(value) {
+  const n = Number(value) || 0;
+  if (n <= 0) return "—";
+  if (n < 1000) return `$${n.toFixed(0)}`;
+  return `$${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n)}`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // useFavorites — Supabase-backed favorites with optimistic updates
 // ─────────────────────────────────────────────────────────────────────────────
@@ -219,6 +227,13 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
     });
   }, [markets, searchTerm, activeTab, favorites]);
 
+  // Combined 24h volume across the markets currently listed (respects the
+  // active tab / search filter, so it always matches what's on screen).
+  const totalVolume24h = useMemo(
+    () => filteredMarkets.reduce((sum, m) => sum + (Number(m.volume24hValue) || 0), 0),
+    [filteredMarkets]
+  );
+
   // ── Keyboard navigation state ─────────────────────────────────────────────
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -339,7 +354,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
           )}
           {!favLoading && filteredMarkets.map((market, index) => {
             const price      = Number(market.markPrice || market.oraclePrice) || 0;
-            const change24h  = Number(market.change24h) || 0;
+            const change24h  = Number(market.change24hValue) || 0;
             const isPositive = change24h >= 0;
             const isActive   = market.name === currentMarket;
             const isFav      = favorites.has(market.name);
@@ -397,6 +412,8 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
         {/* Footer */}
         <div className="px-4 py-3 bg-surface-2 border-t border-zinc-800/60 shrink-0">
           <p className="text-[10px] text-zinc-600 text-center">
+            24h Vol <span className="font-mono text-zinc-300">{formatCompactUsd(totalVolume24h)}</span>
+            <span className="mx-1.5 text-zinc-700">·</span>
             {filteredMarkets.length} market{filteredMarkets.length !== 1 ? "s" : ""}
             {!isLoggedIn && <span className="ml-2 text-yellow-600">· Log in to save favorites</span>}
           </p>
@@ -504,7 +521,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
           {/* Rows */}
           {!favLoading && filteredMarkets.map((market, index) => {
             const price      = Number(market.markPrice || market.oraclePrice) || 0;
-            const change24h  = Number(market.change24h) || 0;
+            const change24h  = Number(market.change24hValue) || 0;
             const isPositive = change24h >= 0;
             const isActive   = market.name === currentMarket;
             const isSelected = index === selectedIndex;
@@ -597,9 +614,9 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
                   {isPositive ? "+" : ""}{change24h.toFixed(2)}%
                 </div>
 
-                {/* ── Volume col ──────────────────────────────────────── */}
-                <div className="col-span-1 text-right font-mono text-[11px] text-zinc-600 tabular-nums">
-                  —
+                {/* ── Volume col — 24h volume, same source as the ticker bar ── */}
+                <div className="col-span-1 text-right font-mono text-[11px] text-zinc-500 tabular-nums">
+                  {formatCompactUsd(market.volume24hValue)}
                 </div>
               </button>
             );
@@ -623,10 +640,17 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
               Close
             </span>
           </div>
-          <div className="text-[10px] text-zinc-600 tabular-nums">
-            {filteredMarkets.length} market{filteredMarkets.length !== 1 ? "s" : ""}
+          <div className="flex items-center gap-2.5 text-[10px] text-zinc-600 tabular-nums">
+            <span>
+              24h Vol{" "}
+              <span className="font-mono text-zinc-300">{formatCompactUsd(totalVolume24h)}</span>
+            </span>
+            <span className="text-zinc-700">·</span>
+            <span>
+              {filteredMarkets.length} market{filteredMarkets.length !== 1 ? "s" : ""}
+            </span>
             {!isLoggedIn && (
-              <span className="ml-2 text-zinc-700">· <span className="text-yellow-500/80">Log in</span> to save favorites</span>
+              <span className="text-zinc-700">· <span className="text-yellow-500/80">Log in</span> to save favorites</span>
             )}
           </div>
         </div>
