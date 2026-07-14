@@ -27,7 +27,7 @@ function getVisibleRangeForResolution(resolution) {
   return map[resolution] || 30 * 24 * 3600;
 }
 
-const TradingViewChart = ({ market = "H100-PERP", priceType = "mark" }) => {
+const TradingViewChart = ({ market = "H100-GPU-PERP", priceType = "mark" }) => {
   const containerRef = useRef(null);
   const widgetRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);

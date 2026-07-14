@@ -36,7 +36,6 @@ const publicClient = createPublicClient({
 
 // Market configurations
 const MARKETS = getActiveMarkets()
-  .filter((market) => !market.isAlias)
   .map((market) => ({
     id: market.id,
     name: market.name,
@@ -777,13 +776,8 @@ export async function startIndexer(options = {}) {
 
   const unwatchFns = [];
 
-  // Process each market
+  // Process each configured current market.
   for (const market of MARKETS) {
-    if (market.name === 'ETH-PERP') {
-      console.log(`⏭️ Skipping deprecated market: ${market.name}`);
-      continue;
-    }
-
     // Index historical events (from last indexed block)
     if (indexHistorical) {
       await indexHistoricalEvents(market);
@@ -808,9 +802,7 @@ export async function startIndexer(options = {}) {
   const snapshotTimer = setInterval(async () => {
     console.log('📸 Taking periodic price snapshots...');
     for (const market of MARKETS) {
-      if (market.name !== 'ETH-PERP') {
-        await snapshotPrice(market);
-      }
+      await snapshotPrice(market);
     }
   }, snapshotInterval);
 
@@ -818,9 +810,7 @@ export async function startIndexer(options = {}) {
   const statsTimer = setInterval(async () => {
     console.log('📊 Updating market stats...');
     for (const market of MARKETS) {
-      if (market.name !== 'ETH-PERP') {
-        await updateMarketStats(market);
-      }
+      await updateMarketStats(market);
     }
   }, statsInterval);
 

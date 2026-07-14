@@ -220,7 +220,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   const { address }               = useAccount();
   const publicClient              = usePublicClient({ chainId: 11155111 });
 
-  const marketId                 = selectedMarket?.marketId || selectedMarket?.id || MARKET_IDS[selectedMarket?.name] || MARKET_IDS["H100-PERP"];
+  const marketId                 = selectedMarket?.marketId || selectedMarket?.id || MARKET_IDS[selectedMarket?.name] || MARKET_IDS["H100-GPU-PERP"];
   const { riskParams }           = useMarketRiskParams(marketId);
   const leverageEnabled          = Number(riskParams?.imrBps || 0) > 0;
   const { data: marketConfig }   = useReadContract({

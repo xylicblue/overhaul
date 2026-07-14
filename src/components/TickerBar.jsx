@@ -38,7 +38,7 @@ function getProviderMeta(name) {
 /** Derive a "NEW" or "HOT" badge for a market */
 function getMarketBadge(name) {
   if (name.startsWith("B200"))       return { label: "NEW",  color: "text-emerald-300/90 border-emerald-400/15" };
-  if (name === "H100-PERP")          return { label: "HOT",  color: "text-yellow-300/90  border-yellow-400/15"  };
+  if (name === "H100-GPU-PERP")          return { label: "HOT",  color: "text-yellow-300/90  border-yellow-400/15"  };
   if (name.startsWith("T4"))         return { label: "BETA", color: "text-zinc-400       border-white/[0.08]"   };
   return null;
 }
@@ -646,7 +646,7 @@ const TickerBar = () => {
   const marketName =
     typeof selectedMarket === "string"
       ? selectedMarket
-      : selectedMarket?.name || "H100-PERP";
+      : selectedMarket?.name || "H100-GPU-PERP";
 
   const { data: marketData } = useMarketRealTimeData(marketName);
 
@@ -654,7 +654,7 @@ const TickerBar = () => {
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const buttonRef                               = useRef(null);
 
-  const marketId = MARKET_IDS[marketName] || MARKET_IDS["H100-PERP"];
+  const marketId = MARKET_IDS[marketName] || MARKET_IDS["H100-GPU-PERP"];
   const { data: marketConfig } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
     abi: MarketRegistryABI.abi,
