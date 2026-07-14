@@ -50,6 +50,14 @@ function getCategory(name) {
   return "GPU Index";
 }
 
+/** Compact USD for the narrow volume column: $1.2K, $14K, $1.5M; "—" when none. */
+function formatCompactUsd(value) {
+  const n = Number(value) || 0;
+  if (n <= 0) return "—";
+  if (n < 1000) return `$${n.toFixed(0)}`;
+  return `$${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n)}`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // useFavorites — Supabase-backed favorites with optimistic updates
 // ─────────────────────────────────────────────────────────────────────────────
@@ -339,7 +347,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
           )}
           {!favLoading && filteredMarkets.map((market, index) => {
             const price      = Number(market.markPrice || market.oraclePrice) || 0;
-            const change24h  = Number(market.change24h) || 0;
+            const change24h  = Number(market.change24hValue) || 0;
             const isPositive = change24h >= 0;
             const isActive   = market.name === currentMarket;
             const isFav      = favorites.has(market.name);
@@ -504,7 +512,7 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
           {/* Rows */}
           {!favLoading && filteredMarkets.map((market, index) => {
             const price      = Number(market.markPrice || market.oraclePrice) || 0;
-            const change24h  = Number(market.change24h) || 0;
+            const change24h  = Number(market.change24hValue) || 0;
             const isPositive = change24h >= 0;
             const isActive   = market.name === currentMarket;
             const isSelected = index === selectedIndex;
@@ -597,9 +605,9 @@ const MarketSelectorModal = ({ isOpen, onClose, onSelect, currentMarket, positio
                   {isPositive ? "+" : ""}{change24h.toFixed(2)}%
                 </div>
 
-                {/* ── Volume col ──────────────────────────────────────── */}
-                <div className="col-span-1 text-right font-mono text-[11px] text-zinc-600 tabular-nums">
-                  —
+                {/* ── Volume col — 24h volume from the same stats source as the ticker ── */}
+                <div className="col-span-1 text-right font-mono text-[11px] text-zinc-500 tabular-nums">
+                  {formatCompactUsd(market.volume24hValue)}
                 </div>
               </button>
             );
