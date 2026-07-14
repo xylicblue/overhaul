@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Chart from "react-apexcharts";
 import { supabase } from "../creatclient";
 
-const VAMMChart = ({ market = "H100-PERP" }) => {
+const VAMMChart = ({ market = "H100-GPU-PERP" }) => {
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(null);
@@ -25,8 +25,8 @@ const VAMMChart = ({ market = "H100-PERP" }) => {
 
         // For H100 markets, try both old and new naming schemes
         // For other markets (B200, H200), just use the direct market name
-        const marketNames = market === "H100-PERP" || market === "H100-GPU-PERP" 
-          ? [market, "H100-GPU-PERP", "H100-PERP"] 
+        const marketNames = market === "H100-GPU-PERP" || market === "H100-GPU-PERP" 
+          ? [market, "H100-GPU-PERP", "H100-GPU-PERP"] 
           : [market];
         let data = null;
         let error = null;
@@ -110,7 +110,7 @@ const VAMMChart = ({ market = "H100-PERP" }) => {
           filter: `market=eq.H100-GPU-PERP`, // Legacy compatibility
         },
         (payload) => {
-          if (market === "H100-PERP") {
+          if (market === "H100-GPU-PERP") {
             setCurrentPrice(parseFloat(payload.new.price));
           }
         }

@@ -33,7 +33,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 
-const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
+const AdvancedChart = ({ market = "H100-GPU-PERP", initialPrice = null }) => {
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(initialPrice);
@@ -189,8 +189,8 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
         // All markets (including B200) use vamm_price_history
         let marketNames = [market];
         
-        // Only allow fallback for the default H100-PERP market which has historical data under "H100-GPU-PERP"
-        if (market === "H100-PERP") {
+        // Only allow fallback for the canonical H100 market historical data.
+        if (market === "H100-GPU-PERP") {
           marketNames.push("H100-GPU-PERP");
         }
 
@@ -277,7 +277,7 @@ const AdvancedChart = ({ market = "H100-PERP", initialPrice = null }) => {
           filter: `market=eq.H100-GPU-PERP`,
         },
         (payload) => {
-          if (market === "H100-PERP") {
+          if (market === "H100-GPU-PERP") {
             setCurrentPrice(parseFloat(payload.new.price));
           }
         }

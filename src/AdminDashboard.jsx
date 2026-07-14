@@ -50,11 +50,11 @@ const KIND_LABEL = { peg_push: "Peg push", manipulation_round_trip: "Round-trip"
 const kindLabel = (k) => KIND_LABEL[k] || (k || "—").replace(/_/g, " ");
 const bps = (v) => (v == null ? "—" : `${Math.round(n(v))} bps`);
 
-// Unique tradable markets (exclude aliases) — used to scan on-chain positions.
+// Unique tradable markets — used to scan on-chain positions.
 const POSITION_MARKETS = (() => {
   const seen = new Set();
   return Object.values(MARKETS).filter((m) => {
-    if (m.isAlias || !m.id || seen.has(m.id)) return false;
+    if (!m.id || seen.has(m.id)) return false;
     seen.add(m.id);
     return true;
   });

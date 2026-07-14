@@ -9,7 +9,7 @@ const ChartToggle = ({ selectedMarket }) => {
   const marketName = useMemo(() => {
     return typeof selectedMarket === "string"
       ? selectedMarket
-      : selectedMarket?.name || "H100-PERP";
+      : selectedMarket?.name || "H100-GPU-PERP";
   }, [selectedMarket]);
 
   const priceType = useMemo(() => {

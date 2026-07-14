@@ -144,7 +144,7 @@ const GPU_INDEX_MARKETS = [
     badgeColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
   },
   // {
-  //   id: "H200-PERP",
+  //   id: "H200-PERP-V2",
   //   name: "H200",
   //   full: "NVIDIA H200 SXM",
   //   badge: null,
@@ -164,9 +164,9 @@ const HERO_TICKER_MARKETS = [
   { id: "H100-GPU-PERP",      name: "H100", sub: "Index"     },
   { id: "B200-PERP-V2",       name: "B200", sub: "Index"     },
   { id: "T4-PERP",            name: "T4",   sub: "Index"     },
-  { id: "ORACLE-H200-PERP",   name: "H200", sub: "Oracle"    },
-  { id: "COREWEAVE-H200-PERP",name: "H200", sub: "CoreWeave" },
-  // { id: "H100-non-HyperScalers-PERP", name: "H100", sub: "Neocloud" },
+  { id: "ORACLE-H200-PERPETUAL",   name: "H200", sub: "Oracle"    },
+  { id: "COREWEAVE-H200-PERPETUAL",name: "H200", sub: "CoreWeave" },
+  // { id: "H100-non-HyperScalers-PERP-V2", name: "H100", sub: "Neocloud" },
 ];
 
 const LandingPage = () => {
@@ -397,10 +397,10 @@ const LandingPage = () => {
     "GCP-B200-PERP": "Google Cloud B200",
     "T4-PERP": "NVIDIA T4",
     "H100-non-HyperScalers-PERP-V2": "Neocloud H100",
-    "ORACLE-H200-PERP": "Oracle Cloud H200",
-    "AWS-H200-PERP": "AWS H200",
-    "COREWEAVE-H200-PERP": "CoreWeave H200",
-    "GCP-H200-PERP": "Google Cloud H200",
+    "ORACLE-H200-PERPETUAL": "Oracle Cloud H200",
+    "AWS-H200-PERPETUAL": "AWS H200",
+    "COREWEAVE-H200-PERPETUAL": "CoreWeave H200",
+    "GCP-H200-PERPETUAL": "Google Cloud H200",
   };
 
   return (
@@ -442,6 +442,13 @@ const LandingPage = () => {
               className="text-[13px] text-zinc-300 hover:text-white transition-colors duration-150"
             >
               Security
+            </Routerlink>
+
+            <Routerlink
+              to="/guide"
+              className="text-[13px] text-zinc-300 hover:text-white transition-colors duration-150"
+            >
+              Guide
             </Routerlink>
 
             {/* ── Docs Dropdown ───────────────────────────────────── */}
@@ -627,6 +634,7 @@ const LandingPage = () => {
                 <div className="h-px bg-white/[0.06] my-2"></div>
                 <Routerlink to="/trade" className="text-white font-medium" onClick={() => setIsMenuOpen(false)}>Trade</Routerlink>
                 <Routerlink to="/security" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>Security</Routerlink>
+                <Routerlink to="/guide" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>Guide</Routerlink>
                 <Routerlink to="/docs" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>Docs</Routerlink>
                 <div className="text-zinc-600 text-xs uppercase tracking-wider mt-2">Documentation</div>
                 <Routerlink to="/methodology/h100" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>H100 Methodology</Routerlink>
@@ -1042,10 +1050,10 @@ const LandingPage = () => {
                             { name: "H100-non-HyperScalers-PERP-V2", label: "Neocloud Index" },
                           ] : selectedModel === "H200" ? [
                             { name: "H200-PERP-V2", label: "Global Average" },
-                            { name: "ORACLE-H200-PERP", label: "Oracle Cloud" },
-                            { name: "AWS-H200-PERP", label: "AWS" },
-                            { name: "COREWEAVE-H200-PERP", label: "CoreWeave" },
-                            { name: "GCP-H200-PERP", label: "Google Cloud" },
+                            { name: "ORACLE-H200-PERPETUAL", label: "Oracle Cloud" },
+                            { name: "AWS-H200-PERPETUAL", label: "AWS" },
+                            { name: "COREWEAVE-H200-PERPETUAL", label: "CoreWeave" },
+                            { name: "GCP-H200-PERPETUAL", label: "Google Cloud" },
                           ] : [
                             { name: "B200-PERP-V2", label: "Global Average" },
                             { name: "AWS-B200-PERP", label: "AWS" },

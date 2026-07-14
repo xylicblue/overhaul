@@ -67,9 +67,6 @@ const MAX_BARS_PER_REQUEST = 1000;
 
 function getMarketNamesForHistory(symbolName) {
   const names = new Set([symbolName]);
-  const market = MARKETS[symbolName];
-  if (market?.aliasFor) names.add(market.aliasFor);
-  if (symbolName === "H100-PERP") names.add("H100-GPU-PERP");
   return Array.from(names);
 }
 

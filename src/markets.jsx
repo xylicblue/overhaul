@@ -14,7 +14,7 @@ import { useAccount } from "wagmi";
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
-const ACTIVE_MARKETS = getActiveMarkets().filter((market) => !market.isAlias);
+const ACTIVE_MARKETS = getActiveMarkets();
 const MARKETS_CONFIG = ACTIVE_MARKETS.map((market) => ({
     id: market.name,
     name: market.displayName,
@@ -26,9 +26,7 @@ const MARKETS_CONFIG = ACTIVE_MARKETS.map((market) => ({
 
 const BADGE_META = {
   "H100-GPU-PERP": { label: "HOT",  color: "text-yellow-400  bg-yellow-500/10  border-yellow-500/30"  },
-  "H100-PERP": { label: "HOT",  color: "text-yellow-400  bg-yellow-500/10  border-yellow-500/30"  },
   "B200-PERP-V2": { label: "NEW",  color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-  "B200-PERP": { label: "NEW",  color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
   "T4-PERP":   { label: "BETA", color: "text-zinc-400    bg-zinc-500/10    border-zinc-500/30"    },
 };
 

@@ -3,7 +3,7 @@ import Chart from "react-apexcharts";
 import { supabase } from "./creatclient";
 import { toDatafeedConfig } from "./config/marketsConfig";
 
-const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = false }) => {
+const PriceIndexChart = ({ market = "H100-GPU-PERP", initialPrice = null, compact = false }) => {
   const [loading, setLoading] = useState(true);
   const [currentPrice, setCurrentPrice] = useState(initialPrice);
   const [priceChange, setPriceChange] = useState(null);
@@ -33,21 +33,21 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
 
   // Market configuration: display names and database tables
   const marketConfig = {
-    "H100-PERP": {
+    "H100-GPU-PERP": {
       displayName: "H100 GPU",
       tableName: "price_data",  // Existing H100 table
       fallbackTable: null,
       priceField: "price", // Field name for price in the table
       timestampField: "timestamp",
     },
-    "H100-non-HyperScalers-PERP": {
+    "H100-non-HyperScalers-PERP-V2": {
       displayName: "Neocloud",
       tableName: "h100_non_hyperscalers_perp_prices",
       fallbackTable: null,
       priceField: "price",
       timestampField: "timestamp",
     },
-    "B200-PERP": {
+    "B200-PERP-V2": {
       displayName: "B200 GPU",
       tableName: "b200_index_prices",
       fallbackTable: null,
@@ -82,42 +82,42 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
       priceField: "effective_price",
       providerFilter: "Google Cloud",
     },
-    "H200-PERP": {
+    "H200-PERP-V2": {
       displayName: "H200 GPU",
       tableName: "h200_index_prices",
       fallbackTable: null,
       priceField: "index_price", // H200 uses index_price field (from push_to_supabase.py)
     },
     // Provider-specific H200 markets - query h200_provider_prices with provider filter
-    "ORACLE-H200-PERP": {
+    "ORACLE-H200-PERPETUAL": {
       displayName: "Oracle H200",
       tableName: "h200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
       providerFilter: "Oracle", // Filter by provider_name
     },
-    "AWS-H200-PERP": {
+    "AWS-H200-PERPETUAL": {
       displayName: "AWS H200",
       tableName: "h200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
       providerFilter: "AWS", // Filter by provider_name
     },
-    "COREWEAVE-H200-PERP": {
+    "COREWEAVE-H200-PERPETUAL": {
       displayName: "CoreWeave H200",
       tableName: "h200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
       providerFilter: "CoreWeave", // Filter by provider_name
     },
-    "GCP-H200-PERP": {
+    "GCP-H200-PERPETUAL": {
       displayName: "GCP H200",
       tableName: "h200_provider_prices",
       fallbackTable: null,
       priceField: "effective_price",
       providerFilter: "Google Cloud", // Filter by provider_name (stored as "Google Cloud" in DB)
     },
-    "AZURE-H200-PERP": {
+    "AZURE-H200-PERPETUAL": {
       displayName: "Azure H200",
       tableName: "h200_provider_prices",
       fallbackTable: null,
@@ -163,15 +163,10 @@ const PriceIndexChart = ({ market = "H100-PERP", initialPrice = null, compact = 
     },
   };
 
-  marketConfig["H100-GPU-PERP"] = marketConfig["H100-PERP"];
   marketConfig["H100-HyperScalers-PERP"] = {
     ...toDatafeedConfig("H100-HyperScalers-PERP", "H100 HyperScalers"),
     fallbackTable: null,
   };
-  marketConfig["B200-PERP-V2"] = marketConfig["B200-PERP"];
-  marketConfig["H200-PERP-V2"] = marketConfig["H200-PERP"];
-  marketConfig["H100-non-HyperScalers-PERP-V2"] = marketConfig["H100-non-HyperScalers-PERP"];
-  marketConfig["AZURE-H200-PERPETUAL"] = marketConfig["AZURE-H200-PERP"];
   
   const config = marketConfig[market] || {
     displayName: market,
