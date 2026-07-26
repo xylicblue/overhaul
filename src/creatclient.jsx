@@ -54,8 +54,19 @@ function createDisabledSupabaseClient() {
       resetPasswordForEmail: async () => ({ data: null, error: new Error("Supabase is not configured.") }),
       updateUser: async () => ({ data: null, error: new Error("Supabase is not configured.") }),
       setSession: async () => ({ data: null, error: new Error("Supabase is not configured.") }),
+      // MFA stubs so the enforcement gate degrades gracefully (fail-open) when
+      // Supabase is not configured, rather than throwing.
+      mfa: {
+        enroll: async () => ({ data: null, error: new Error("Supabase is not configured.") }),
+        challenge: async () => ({ data: null, error: new Error("Supabase is not configured.") }),
+        verify: async () => ({ data: null, error: new Error("Supabase is not configured.") }),
+        unenroll: async () => ({ data: null, error: new Error("Supabase is not configured.") }),
+        listFactors: async () => ({ data: { totp: [] }, error: null }),
+        getAuthenticatorAssuranceLevel: async () => ({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null }),
+      },
     },
     from: (table) => createDisabledQuery(table),
+    rpc: async () => ({ data: null, error: new Error("Supabase is not configured.") }),
     channel: () => ({
       on() {
         return this;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import MfaSettings from "./components/MfaSettings";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./creatclient";
 import { useNavigate } from "react-router-dom";
@@ -439,42 +440,17 @@ const SettingsPage = () => {
               Security Settings
             </h3>
 
-            <div className="bg-surface-1 backdrop-blur-md border border-line-subtle rounded-2xl p-6 space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-xl bg-surface-0 border border-line-subtle">
-                <div className="flex items-center gap-4">
-                  <div className="p-2.5 rounded-xl bg-green-500/10 text-green-400">
-                    <Shield size={20} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-ink text-sm">
-                      Two-Factor Authentication
-                    </h4>
-                    <p className="text-xs text-ink-faint mt-0.5">
-                      Add an extra layer of security
-                    </p>
-                  </div>
-                </div>
-                <div
-                  className="cursor-pointer text-ink-faint hover:text-ink-muted transition-colors"
-                  onClick={() => handleToggle("twoFactor")}
-                >
-                  {settings.twoFactor ? (
-                    <ToggleRight size={32} className="text-green-500" />
-                  ) : (
-                    <ToggleLeft size={32} />
-                  )}
-                </div>
-              </div>
+            {/* Two-factor authentication (live) */}
+            <MfaSettings />
 
-              <div className="pt-2 border-t border-line-subtle">
-                <button
-                  onClick={() => setShowPasswordModal(true)}
-                  className="w-full py-3.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink font-semibold transition-colors border border-line hover:border-line-strong flex items-center justify-center gap-2 text-sm"
-                >
-                  <Lock size={16} />
-                  Change Password
-                </button>
-              </div>
+            <div className="bg-surface-1 backdrop-blur-md border border-line-subtle rounded-2xl p-6">
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="w-full py-3.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink font-semibold transition-colors border border-line hover:border-line-strong flex items-center justify-center gap-2 text-sm"
+              >
+                <Lock size={16} />
+                Change Password
+              </button>
             </div>
 
             <div className="bg-red-500/5 rounded-2xl border border-red-500/10 p-6">

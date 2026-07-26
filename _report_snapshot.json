@@ -1,0 +1,554 @@
+{
+  "cutoff": "2026-07-20T16:44:19.805Z",
+  "config": {
+    "markets": 19,
+    "marketNames": [
+      "A100-PERP",
+      "AWS-H100-PERP",
+      "AZURE-H100-PERP",
+      "GCP-H100-PERP",
+      "T4-PERP",
+      "H100-GPU-PERP",
+      "H100-HyperScalers-PERP",
+      "H100-non-HyperScalers-PERP-V2",
+      "ORACLE-H200-PERPETUAL",
+      "AWS-H200-PERPETUAL",
+      "COREWEAVE-H200-PERPETUAL",
+      "GCP-H200-PERPETUAL",
+      "AZURE-H200-PERPETUAL",
+      "H200-PERP-V2",
+      "B200-PERP-V2",
+      "AWS-B200-PERP",
+      "ORACLE-B200-PERP",
+      "COREWEAVE-B200-PERP",
+      "GCP-B200-PERP"
+    ]
+  },
+  "window": {
+    "first": "2026-05-05T21:41:00+00:00",
+    "last": "2026-07-20T16:24:12+00:00"
+  },
+  "totals": {
+    "events": 42009,
+    "trades": 28220,
+    "agentTrades": 27918,
+    "nonAgentTrades": 302,
+    "agentVolume": 390462.50427489064,
+    "nonAgentVolume": 2934904.6895065955,
+    "distinctAgentWallets": 16
+  },
+  "windows": {
+    "24h": {
+      "trades": 6064,
+      "volume": 73034.39442806198
+    },
+    "7d": {
+      "trades": 24999,
+      "volume": 339520.3948384338
+    },
+    "30d": {
+      "trades": 27918,
+      "volume": 390462.50427489064
+    }
+  },
+  "eventMix": {
+    "margin_added": 75,
+    "open": 14022,
+    "funding_settlement": 13692,
+    "close": 13970,
+    "flip": 2,
+    "increase": 226,
+    "liquidation": 22
+  },
+  "perMarket": {
+    "H100-GPU-PERP": {
+      "trades": 175,
+      "volume": 8745.877672768562,
+      "wallets": 10,
+      "priceLow": 3.9491833355387946,
+      "priceHigh": 4.151356739857745
+    },
+    "T4-PERP": {
+      "trades": 3048,
+      "volume": 38930.03605932494,
+      "wallets": 3,
+      "priceLow": 0.4556230231162408,
+      "priceHigh": 0.5787250384330583
+    },
+    "A100-PERP": {
+      "trades": 213,
+      "volume": 39107.60363182654,
+      "wallets": 3,
+      "priceLow": 1.4999187372243212,
+      "priceHigh": 1.7510284692015818
+    },
+    "H200-PERP-V2": {
+      "trades": 7106,
+      "volume": 93279.45041984135,
+      "wallets": 3,
+      "priceLow": 4.200794703429574,
+      "priceHigh": 7.170966845271691
+    },
+    "B200-PERP-V2": {
+      "trades": 11,
+      "volume": 622.0395772191835,
+      "wallets": 2,
+      "priceLow": 5.772794229597969,
+      "priceHigh": 5.80314634389505
+    },
+    "H100-non-HyperScalers-PERP-V2": {
+      "trades": 6526,
+      "volume": 78343.57152712888,
+      "wallets": 1,
+      "priceLow": 3.0091343508195596,
+      "priceHigh": 3.023079788268972
+    },
+    "H100-HyperScalers-PERP": {
+      "trades": 8,
+      "volume": 80.0991350206707,
+      "wallets": 1,
+      "priceLow": 4.205291253157519,
+      "priceHigh": 4.219328976913106
+    },
+    "AWS-H100-PERP": {
+      "trades": 1,
+      "volume": 122.82069567326349,
+      "wallets": 1,
+      "priceLow": 3.9080929440724317,
+      "priceHigh": 3.9080929440724317
+    },
+    "GCP-H100-PERP": {
+      "trades": 6286,
+      "volume": 75455.1402657291,
+      "wallets": 1,
+      "priceLow": 3.956311645671654,
+      "priceHigh": 3.97186213713874
+    },
+    "ORACLE-H200-PERPETUAL": {
+      "trades": 1,
+      "volume": 501.279703507026,
+      "wallets": 1,
+      "priceLow": 3.2248507647396094,
+      "priceHigh": 3.2248507647396094
+    },
+    "ORACLE-B200-PERP": {
+      "trades": 9,
+      "volume": 89.90331383746121,
+      "wallets": 1,
+      "priceLow": 12.861631159017264,
+      "priceHigh": 12.876951800190426
+    },
+    "COREWEAVE-B200-PERP": {
+      "trades": 4532,
+      "volume": 54380.276839391205,
+      "wallets": 1,
+      "priceLow": 16.68466667747103,
+      "priceHigh": 16.723317777820263
+    },
+    "GCP-B200-PERP": {
+      "trades": 1,
+      "volume": 503.9250703251935,
+      "wallets": 1,
+      "priceLow": 7.490153360895581,
+      "priceHigh": 7.490153360895581
+    },
+    "GCP-H200-PERPETUAL": {
+      "trades": 1,
+      "volume": 300.48036329778415,
+      "wallets": 1,
+      "priceLow": 5.01427000489872,
+      "priceHigh": 5.01427000489872
+    }
+  },
+  "untradedMarkets": [
+    "AZURE-H100-PERP",
+    "AWS-H200-PERPETUAL",
+    "COREWEAVE-H200-PERPETUAL",
+    "AZURE-H200-PERPETUAL",
+    "AWS-B200-PERP"
+  ],
+  "perAgent": {
+    "treasury": {
+      "archetype": "-",
+      "rate": 0,
+      "clip": 0,
+      "leverage": 0,
+      "trades": 2,
+      "volume": 7.923346765814511,
+      "opens": 1,
+      "closes": 1,
+      "markets": [
+        "H100-GPU-PERP"
+      ]
+    },
+    "mm-01": {
+      "archetype": "market-maker",
+      "rate": 240,
+      "clip": 20,
+      "leverage": 2,
+      "trades": 33,
+      "volume": 594.6181919202271,
+      "opens": 30,
+      "closes": 3,
+      "markets": [
+        "H100-GPU-PERP",
+        "A100-PERP"
+      ]
+    },
+    "basis-01": {
+      "archetype": "basis-arb",
+      "rate": 6,
+      "clip": 100,
+      "leverage": 3,
+      "trades": 6,
+      "volume": 1562.4731958913485,
+      "opens": 5,
+      "closes": 1,
+      "markets": [
+        "H100-GPU-PERP",
+        "B200-PERP-V2",
+        "AWS-H100-PERP"
+      ]
+    },
+    "hft-01": {
+      "archetype": "hft-taker",
+      "rate": 480,
+      "clip": 12,
+      "leverage": 2,
+      "trades": 9382,
+      "volume": 112586.58130609347,
+      "opens": 4693,
+      "closes": 4689,
+      "markets": [
+        "H100-GPU-PERP",
+        "T4-PERP",
+        "GCP-H100-PERP"
+      ]
+    },
+    "hs-01": {
+      "archetype": "hedger-short",
+      "rate": 0.5,
+      "clip": 150,
+      "leverage": 2.5,
+      "trades": 66,
+      "volume": 11521.601620402851,
+      "opens": 48,
+      "closes": 18,
+      "markets": [
+        "H100-GPU-PERP",
+        "A100-PERP",
+        "T4-PERP"
+      ]
+    },
+    "hft-02": {
+      "archetype": "hft-taker",
+      "rate": 480,
+      "clip": 12,
+      "leverage": 2,
+      "trades": 8976,
+      "volume": 107747.02732642331,
+      "opens": 4488,
+      "closes": 4488,
+      "markets": [
+        "H100-GPU-PERP",
+        "H200-PERP-V2",
+        "H100-non-HyperScalers-PERP-V2"
+      ]
+    },
+    "mm-02": {
+      "archetype": "market-maker",
+      "rate": 240,
+      "clip": 20,
+      "leverage": 2,
+      "trades": 26,
+      "volume": 259.8447955961945,
+      "opens": 26,
+      "closes": 0,
+      "markets": [
+        "H100-GPU-PERP",
+        "B200-PERP-V2",
+        "H100-HyperScalers-PERP"
+      ]
+    },
+    "hl-01": {
+      "archetype": "hedger-long",
+      "rate": 0.5,
+      "clip": 150,
+      "leverage": 2.5,
+      "trades": 46,
+      "volume": 5247.539590301082,
+      "opens": 22,
+      "closes": 24,
+      "markets": [
+        "H100-GPU-PERP"
+      ]
+    },
+    "degen-01": {
+      "archetype": "degen",
+      "rate": 4,
+      "clip": 40,
+      "leverage": 9,
+      "trades": 5,
+      "volume": 2681.389476764268,
+      "opens": 5,
+      "closes": 0,
+      "markets": [
+        "H100-GPU-PERP",
+        "T4-PERP",
+        "ORACLE-H200-PERPETUAL"
+      ]
+    },
+    "mom-01": {
+      "archetype": "momentum",
+      "rate": 30,
+      "clip": 40,
+      "leverage": 3,
+      "trades": 166,
+      "volume": 10260.152304733994,
+      "opens": 129,
+      "closes": 37,
+      "markets": [
+        "H100-GPU-PERP",
+        "H200-PERP-V2"
+      ]
+    },
+    "manip-01": {
+      "archetype": "mark-manipulator",
+      "rate": 12,
+      "clip": 200,
+      "leverage": 3,
+      "trades": 149,
+      "volume": 28489.116456155465,
+      "opens": 78,
+      "closes": 71,
+      "markets": [
+        "A100-PERP"
+      ]
+    },
+    "mm-04": {
+      "archetype": "market-maker",
+      "rate": 240,
+      "clip": 20,
+      "leverage": 2,
+      "trades": 9,
+      "volume": 89.90331383746121,
+      "opens": 9,
+      "closes": 0,
+      "markets": [
+        "ORACLE-B200-PERP"
+      ]
+    },
+    "hft-04": {
+      "archetype": "hft-taker",
+      "rate": 480,
+      "clip": 12,
+      "leverage": 2,
+      "trades": 4532,
+      "volume": 54380.276839391205,
+      "opens": 2266,
+      "closes": 2266,
+      "markets": [
+        "COREWEAVE-B200-PERP"
+      ]
+    },
+    "hft-03": {
+      "archetype": "hft-taker",
+      "rate": 480,
+      "clip": 12,
+      "leverage": 2,
+      "trades": 4518,
+      "volume": 54229.65107699215,
+      "opens": 2260,
+      "closes": 2258,
+      "markets": [
+        "H200-PERP-V2"
+      ]
+    },
+    "degen-02": {
+      "archetype": "degen",
+      "rate": 4,
+      "clip": 40,
+      "leverage": 9,
+      "trades": 1,
+      "volume": 503.9250703251935,
+      "opens": 1,
+      "closes": 0,
+      "markets": [
+        "GCP-B200-PERP"
+      ]
+    },
+    "basis-02": {
+      "archetype": "basis-arb",
+      "rate": 6,
+      "clip": 100,
+      "leverage": 3,
+      "trades": 1,
+      "volume": 300.48036329778415,
+      "opens": 1,
+      "closes": 0,
+      "markets": [
+        "GCP-H200-PERPETUAL"
+      ]
+    }
+  },
+  "perArchetype": {
+    "-": {
+      "agents": 1,
+      "trades": 2,
+      "volume": 7.923346765814511
+    },
+    "market-maker": {
+      "agents": 3,
+      "trades": 68,
+      "volume": 944.3663013538829
+    },
+    "basis-arb": {
+      "agents": 2,
+      "trades": 7,
+      "volume": 1862.9535591891326
+    },
+    "hft-taker": {
+      "agents": 4,
+      "trades": 27408,
+      "volume": 328943.5365488982
+    },
+    "hedger-short": {
+      "agents": 1,
+      "trades": 66,
+      "volume": 11521.601620402851
+    },
+    "hedger-long": {
+      "agents": 1,
+      "trades": 46,
+      "volume": 5247.539590301082
+    },
+    "degen": {
+      "agents": 2,
+      "trades": 6,
+      "volume": 3185.3145470894615
+    },
+    "momentum": {
+      "agents": 1,
+      "trades": 166,
+      "volume": 10260.152304733994
+    },
+    "mark-manipulator": {
+      "agents": 1,
+      "trades": 149,
+      "volume": 28489.116456155465
+    }
+  },
+  "roundTrips": {
+    "treasury": {
+      "n": 1,
+      "medHoldSec": 744,
+      "medRatio": 0.9980012051678435
+    },
+    "mm-01": {
+      "n": 3,
+      "medHoldSec": 360,
+      "medRatio": 2.011725133399324
+    },
+    "basis-01": {
+      "n": 1,
+      "medHoldSec": 360,
+      "medRatio": 0.9974976682139375
+    },
+    "hft-01": {
+      "n": 4689,
+      "medHoldSec": 36,
+      "medRatio": 0.9980016111032518
+    },
+    "hft-02": {
+      "n": 4487,
+      "medHoldSec": 36,
+      "medRatio": 0.9980018030301273
+    },
+    "hl-01": {
+      "n": 12,
+      "medHoldSec": 29328,
+      "medRatio": 0.9970899643752359
+    },
+    "mom-01": {
+      "n": 37,
+      "medHoldSec": 1296,
+      "medRatio": 3.0299662747725806
+    },
+    "hs-01": {
+      "n": 11,
+      "medHoldSec": 39588,
+      "medRatio": 1.734950247654146
+    },
+    "manip-01": {
+      "n": 71,
+      "medHoldSec": 192,
+      "medRatio": 0.9980240562119032
+    },
+    "hft-04": {
+      "n": 2266,
+      "medHoldSec": 72,
+      "medRatio": 1.002003004005006
+    },
+    "hft-03": {
+      "n": 2258,
+      "medHoldSec": 60,
+      "medRatio": 0.9980010592474275
+    }
+  },
+  "economics": {
+    "fees": 390.4625042748907,
+    "funding": 1270.560157494654,
+    "realizedPnl": -231.18642990674908,
+    "netPnl": 546.2476952573646,
+    "feeRateImplied": 0.0010000000000000002,
+    "fundingSettlements": 13692
+  },
+  "liquidations": {
+    "total": 22,
+    "agents": 10,
+    "byAgent": [
+      "hs-01",
+      "degen-01",
+      "mom-01",
+      "mm-01",
+      "basis-01",
+      "mm-02"
+    ],
+    "markets": [
+      "H100-GPU-PERP",
+      "A100-PERP",
+      "T4-PERP",
+      "AZURE-H200-PERPETUAL",
+      "GCP-H200-PERPETUAL",
+      "H200-PERP-V2",
+      "COREWEAVE-B200-PERP",
+      "B200-PERP-V2",
+      "ORACLE-B200-PERP",
+      "GCP-H100-PERP",
+      "AWS-B200-PERP",
+      "GCP-B200-PERP",
+      "H100-HyperScalers-PERP"
+    ]
+  },
+  "uptime": {
+    "2026-07-11": 7,
+    "2026-07-12": 6,
+    "2026-07-13": 6,
+    "2026-07-14": 8,
+    "2026-07-15": 14,
+    "2026-07-16": 10,
+    "2026-07-17": 11,
+    "2026-07-18": 24,
+    "2026-07-19": 24,
+    "2026-07-20": 17
+  },
+  "throughput": {
+    "peakTradesPerHour": 383,
+    "medianActiveHour": 246,
+    "activeHours": 145
+  },
+  "surveillance": {
+    "alerts": 0,
+    "rows": []
+  }
+}
