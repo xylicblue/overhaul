@@ -16,9 +16,13 @@ const AboutPage = () => {
   return (
     <>
       <title>About Us | Byte Strike</title>
+      {/* Keep out of search: viewable on-site, but must not make the site rank
+          for an individual's name (targeting risk). No personal names in the
+          title/description/alt below. X-Robots-Tag header is the second layer. */}
+      <meta name="robots" content="noindex, nofollow" />
       <meta
         name="description"
-        content="Learn about the mission and team behind Byte Strike, founded by Gabe Jaffe."
+        content="Learn about the mission and team behind Byte Strike."
       />
       <div className="about-page">
         {/* A simplified header for this page */}
@@ -76,7 +80,7 @@ const AboutPage = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
-              <img src={ceoPortrait} alt="Gabe Jaffe, Founder & CEO" />
+              <img src={ceoPortrait} alt="Founder & CEO" />
             </motion.div>
             <div className="team-bio">
               <h2>Meet Our Founder</h2>

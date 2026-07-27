@@ -64,7 +64,9 @@ function Avatar({ member, size }) {
       className={`${dim} rounded-full ring-2 ring-blue-500/50 ring-offset-2 ring-offset-[#0a0a0f] bg-gradient-to-br from-white/[0.08] to-white/[0.015] flex items-center justify-center overflow-hidden shrink-0`}
     >
       {member.img ? (
-        <img src={member.img} alt={member.name} className="w-full h-full object-cover" loading="lazy" />
+        // Empty alt on purpose: the name is adjacent visible text, and names must
+        // not appear in indexable alt attributes.
+        <img src={member.img} alt="" className="w-full h-full object-cover" loading="lazy" />
       ) : (
         <span className={`${text} font-semibold text-zinc-300 tracking-wide`}>{initials(member.name)}</span>
       )}
@@ -126,6 +128,12 @@ export default function AboutUsPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-zinc-100 font-sans">
+      {/* Keep this page out of search. Names/bios are viewable on-site but must
+          not make the site rank for an individual's name (targeting risk). The
+          X-Robots-Tag header in public/_headers is the robust second layer. */}
+      <title>About — ByteStrike</title>
+      <meta name="robots" content="noindex, nofollow" />
+
       {/* Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${

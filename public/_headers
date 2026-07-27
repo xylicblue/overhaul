@@ -9,3 +9,13 @@
 /*
   X-Frame-Options: SAMEORIGIN
   Content-Security-Policy: frame-ancestors 'self'
+
+# Team / profile pages: keep OUT of search engines. Viewable and linked on-site,
+# but we do not want the site to rank for any individual's name (targeting risk:
+# phishing, SIM-swapping). This is the robust layer; each page also renders a
+# noindex meta tag. Do NOT disallow these in robots.txt — a crawler must be able
+# to fetch the page to see the noindex. Default new profile routes to noindex too.
+/about
+  X-Robots-Tag: noindex, nofollow
+/about-us
+  X-Robots-Tag: noindex, nofollow
