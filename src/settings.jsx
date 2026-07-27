@@ -14,8 +14,6 @@ import {
   Sun,
   LogOut,
   ChevronRight,
-  ToggleLeft,
-  ToggleRight,
   X,
   Eye,
   EyeOff,
@@ -26,6 +24,26 @@ import BokehBackground from "./components/BokehBackground";
 import { HiOutlineHome } from "react-icons/hi2";
 import { Link } from "react-router-dom";
 import logo from "./assets/ByteStrikeLogoFinal.png";
+
+// ── Switch ────────────────────────────────────────────────────────────────────
+// Standard track + sliding-knob toggle. Presentational: the parent row owns the
+// click, so this reflects state and stays in sync with the existing handlers.
+const Switch = ({ checked, disabled = false }) => (
+  <span
+    role="switch"
+    aria-checked={checked}
+    aria-disabled={disabled || undefined}
+    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full px-0.5 transition-colors duration-200 ${
+      checked ? "bg-blue-600" : "bg-surface-3"
+    } ${disabled ? "opacity-60" : ""}`}
+  >
+    <span
+      className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+        checked ? "translate-x-5" : "translate-x-0"
+      }`}
+    />
+  </span>
+);
 
 // ── Notification type meta ────────────────────────────────────────────────────
 const NOTIF_TYPES = [
@@ -119,9 +137,7 @@ const NotificationSettings = ({ session }) => {
             </div>
           </div>
           <div className="shrink-0">
-            {prefs.enabled
-              ? <ToggleRight size={32} className="text-blue-500" />
-              : <ToggleLeft  size={32} className="text-ink-faint" />}
+            <Switch checked={prefs.enabled} />
           </div>
         </div>
       </div>
@@ -153,9 +169,7 @@ const NotificationSettings = ({ session }) => {
                   </div>
                 </div>
                 <div className="shrink-0">
-                  {active
-                    ? <ToggleRight size={32} className="text-blue-500" />
-                    : <ToggleLeft  size={32} className="text-ink-faint" />}
+                  <Switch checked={active} disabled={disabled} />
                 </div>
               </div>
             );
@@ -374,8 +388,8 @@ const SettingsPage = () => {
                     </p>
                   </div>
                 </div>
-                <div className="opacity-50 cursor-not-allowed">
-                  <ToggleRight size={32} className="text-blue-600" />
+                <div className="shrink-0 cursor-not-allowed">
+                  <Switch checked disabled />
                 </div>
               </div>
 
@@ -396,12 +410,8 @@ const SettingsPage = () => {
                     </p>
                   </div>
                 </div>
-                <div className="text-ink-faint group-hover:text-ink-muted transition-colors">
-                  {settings.reduceMotion ? (
-                    <ToggleRight size={32} className="text-blue-600" />
-                  ) : (
-                    <ToggleLeft size={32} />
-                  )}
+                <div className="shrink-0">
+                  <Switch checked={settings.reduceMotion} />
                 </div>
               </div>
 
@@ -422,12 +432,8 @@ const SettingsPage = () => {
                     </p>
                   </div>
                 </div>
-                <div className="text-ink-faint group-hover:text-ink-muted transition-colors">
-                  {settings.highContrast ? (
-                    <ToggleRight size={32} className="text-blue-600" />
-                  ) : (
-                    <ToggleLeft size={32} />
-                  )}
+                <div className="shrink-0">
+                  <Switch checked={settings.highContrast} />
                 </div>
               </div>
             </div>
