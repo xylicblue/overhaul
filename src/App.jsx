@@ -33,6 +33,7 @@ const DocsPage            = lazy(() => import("./DocsPage"));
 const PrivacyPolicy       = lazy(() => import("./PrivacyPolicy"));
 const SecurityPage        = lazy(() => import("./SecurityPage"));
 const TermsPage           = lazy(() => import("./TermsPage"));
+const AboutUsPage         = lazy(() => import("./AboutUsPage"));
 const AdminNotifications  = lazy(() => import("./AdminNotifications"));
 const AdminDashboard      = lazy(() => import("./AdminDashboard"));
 const DebugMarkets        = lazy(() => import("./debug-markets").then(m => ({ default: m.DebugMarkets })));
@@ -213,6 +214,7 @@ function App() {
                     <Route path="/privacy"            element={<PrivacyPolicy />} />
                     <Route path="/security"           element={<SecurityPage />} />
                     <Route path="/terms"              element={<TermsPage />} />
+                    <Route path="/about-us"           element={<AboutUsPage />} />
                     <Route path="/admin/notifications" element={<AdminNotifications />} />
 
                     <Route element={<SharedLayout />}>

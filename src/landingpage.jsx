@@ -427,8 +427,8 @@ const LandingPage = () => {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-7">
-            {["What We're Exploring", "Why This Matters", "Your Input", "About Us"].map((item, i) => {
-              const to = ["what-we-do", "why-it-matters", "contact", "about"][i];
+            {["What We're Exploring", "Why This Matters", "Your Input"].map((item, i) => {
+              const to = ["what-we-do", "why-it-matters", "contact"][i];
               return (
                 <Link key={to} to={to} smooth={true} duration={500} offset={-80}
                   className="text-[13px] text-zinc-300 hover:text-white transition-colors duration-150 cursor-pointer">
@@ -436,6 +436,13 @@ const LandingPage = () => {
                 </Link>
               );
             })}
+
+            <Routerlink
+              to="/about-us"
+              className="text-[13px] text-zinc-300 hover:text-white transition-colors duration-150"
+            >
+              About Us
+            </Routerlink>
 
             <Routerlink
               to="/security"
@@ -628,11 +635,12 @@ const LandingPage = () => {
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3 }} className="md:hidden bg-[#0a0a0f]/95 backdrop-blur-xl border-b border-white/[0.06] overflow-hidden">
               <div className="flex flex-col p-6 gap-4">
-                {["What We're Exploring", "Why This Matters", "Your Input", "About Us"].map((item, i) => (
-                  <Link key={i} to={["what-we-do", "why-it-matters", "contact", "about"][i]} smooth={true} offset={-80} onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-white">{item}</Link>
+                {["What We're Exploring", "Why This Matters", "Your Input"].map((item, i) => (
+                  <Link key={i} to={["what-we-do", "why-it-matters", "contact"][i]} smooth={true} offset={-80} onClick={() => setIsMenuOpen(false)} className="text-zinc-400 hover:text-white">{item}</Link>
                 ))}
                 <div className="h-px bg-white/[0.06] my-2"></div>
                 <Routerlink to="/trade" className="text-white font-medium" onClick={() => setIsMenuOpen(false)}>Trade</Routerlink>
+                <Routerlink to="/about-us" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>About Us</Routerlink>
                 <Routerlink to="/security" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>Security</Routerlink>
                 <Routerlink to="/guide" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>Guide</Routerlink>
                 <Routerlink to="/docs" className="text-zinc-400 hover:text-white" onClick={() => setIsMenuOpen(false)}>Docs</Routerlink>
