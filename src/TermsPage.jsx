@@ -153,10 +153,10 @@ export default function TermsPage() {
             <p className="text-sm text-zinc-400 leading-relaxed">
               Placeholder. For questions about these terms, contact{" "}
               <a
-                href="mailto:gabejaffe@byte-strike.com"
+                href="mailto:support@byte-strike.com"
                 className="text-zinc-200 hover:text-white underline underline-offset-2 decoration-zinc-600 hover:decoration-zinc-400 transition-colors"
               >
-                gabejaffe@byte-strike.com
+                support@byte-strike.com
               </a>
               .
             </p>

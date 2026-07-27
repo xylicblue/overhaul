@@ -210,13 +210,13 @@ export default function PrivacyPolicy() {
                     {/* Contact CTA */}
                     {s.contact && (
                       <a
-                        href="mailto:privacy@byte-strike.com"
+                        href="mailto:support@byte-strike.com"
                         className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-300 text-sm font-medium hover:bg-blue-600/20 hover:border-blue-500/40 transition-all"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
-                        gabejaffe@byte-strike.com
+                        support@byte-strike.com
                       </a>
                     )}
                   </motion.section>
@@ -228,8 +228,8 @@ export default function PrivacyPolicy() {
                 By using ByteStrike, you acknowledge that you have read and understood this Privacy Policy.
                 <br />
                 Questions? Reach us at{" "}
-                <a href="mailto:privacy@byte-strike.com" className="text-zinc-400 hover:text-white transition-colors underline underline-offset-2">
-                  gabejaffe@byte-strike.com
+                <a href="mailto:support@byte-strike.com" className="text-zinc-400 hover:text-white transition-colors underline underline-offset-2">
+                  support@byte-strike.com
                 </a>
               </p>
             </div>

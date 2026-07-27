@@ -181,10 +181,10 @@ export default function SecurityPage() {
               extend test coverage, and monitor critical pathways as the system scales. For security-related
               inquiries, contact{" "}
               <a
-                href="mailto:gabejaffe@byte-strike.com"
+                href="mailto:support@byte-strike.com"
                 className="text-zinc-200 hover:text-white underline underline-offset-2 decoration-zinc-600 hover:decoration-zinc-400 transition-colors"
               >
-                gabejaffe@byte-strike.com
+                support@byte-strike.com
               </a>
               .
             </p>
