@@ -12,11 +12,12 @@ import { supabase } from "../creatclient";
 // Grace policy, documented here so the thresholds are explicit.
 //  - Accounts created on/after MFA_ENFORCE_NEW_AFTER (the launch date) must enrol
 //    immediately: no grace. This satisfies "enforced for all new logins".
-//  - Accounts created before launch get grace until MFA_GRACE_UNTIL, after which
-//    enrolment is hard-required for everyone.
+//  - Accounts created before launch get a 7-day window (set 2026-07-28) to enrol.
+//    After MFA_GRACE_UNTIL enrolment is hard-required for everyone — the gate then
+//    blocks the app (and therefore opening/closing positions) until they enrol.
 // Adjust with the compliance team.
 export const MFA_ENFORCE_NEW_AFTER = new Date("2026-07-26T00:00:00Z");
-export const MFA_GRACE_UNTIL = new Date("2026-09-01T00:00:00Z");
+export const MFA_GRACE_UNTIL = new Date("2026-08-04T00:00:00Z"); // 7 days for existing accounts
 
 /** Whether a no-factor account must enrol now, versus still within its grace window. */
 export function enrolmentRequired(accountCreatedAt, now = new Date()) {

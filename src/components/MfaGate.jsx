@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { ShieldAlert, X } from "lucide-react";
+import { ShieldAlert, X, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { getMfaStatus, enrolmentRequired } from "../services/mfa";
 import MfaChallenge from "./MfaChallenge";
 import MfaEnroll from "./MfaEnroll";
@@ -67,14 +68,25 @@ export default function MfaGate({ session, children }) {
   return (
     <>
       {state.phase === "nudge" && !dismissed && (
-        <div className="bg-warn/10 border-b border-warn/25 px-4 py-2 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-[12px] text-warn">
+        <div className="bg-warn/10 border-b border-warn/25 px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[12px] text-warn min-w-0">
             <ShieldAlert size={15} className="shrink-0" />
-            Two-factor authentication will soon be required. Enable it in Settings to secure your account.
+            <span className="truncate">
+              Two-factor authentication will soon be required to open or close positions. Enable it now to keep trading.
+            </span>
           </div>
-          <button onClick={() => setDismissed(true)} className="text-warn/80 hover:text-warn shrink-0" aria-label="Dismiss">
-            <X size={15} />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Link
+              to="/settings?tab=security"
+              className="inline-flex items-center gap-1 pl-3 pr-2 py-1.5 rounded-lg bg-warn/20 hover:bg-warn/30 text-warn text-[12px] font-semibold transition-colors"
+            >
+              Enable 2FA
+              <ChevronRight size={13} />
+            </Link>
+            <button onClick={() => setDismissed(true)} className="text-warn/70 hover:text-warn p-1" aria-label="Dismiss">
+              <X size={15} />
+            </button>
+          </div>
         </div>
       )}
       {children}

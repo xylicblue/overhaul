@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import MfaSettings from "./components/MfaSettings";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./creatclient";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   User,
@@ -20,6 +20,7 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Trash2,
 } from "lucide-react";
 import BokehBackground from "./components/BokehBackground";
 import { HiOutlineHome } from "react-icons/hi2";
@@ -175,7 +176,11 @@ const NotificationSettings = ({ session }) => {
 const SettingsPage = () => {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [activeTab, setActiveTab] = useState("profile");
+  // Deep-linkable tabs, e.g. /settings?tab=security (used by the 2FA nudge banner).
+  const [searchParams] = useSearchParams();
+  const VALID_TABS = ["profile", "preferences", "security", "notifications"];
+  const requestedTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(VALID_TABS.includes(requestedTab) ? requestedTab : "profile");
   const navigate = useNavigate();
 
   // Change Password Modal State
@@ -453,15 +458,20 @@ const SettingsPage = () => {
               </button>
             </div>
 
-            <div className="bg-red-500/5 rounded-2xl border border-red-500/10 p-6">
-              <h4 className="font-bold text-red-400 mb-2 text-sm uppercase tracking-wide">Danger Zone</h4>
-              <p className="text-xs text-ink-muted mb-4 leading-relaxed">
-                Once you delete your account, there is no going back. Please be
-                certain.
-              </p>
-              <button className="px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-bold border border-red-500/20 transition-colors">
-                Delete Account
-              </button>
+            <div className="bg-surface-1 backdrop-blur-md border border-line-subtle rounded-2xl p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="sm:max-w-md">
+                  <h4 className="text-sm font-semibold text-ink mb-1.5">Delete Account</h4>
+                  <p className="text-xs text-ink-muted leading-relaxed">
+                    Permanently delete your account and all associated data. This action is
+                    irreversible and cannot be undone.
+                  </p>
+                </div>
+                <button className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 text-sm font-medium transition-colors">
+                  <Trash2 size={15} />
+                  Delete Account
+                </button>
+              </div>
             </div>
           </motion.div>
         );
