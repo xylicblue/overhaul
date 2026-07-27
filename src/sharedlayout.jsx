@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import MfaGate from "./components/MfaGate";
+import AccountGate from "./components/AccountGate";
 import { AnimatePresence, motion } from "framer-motion";
 import { useDisconnect, useAccount } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
@@ -672,9 +673,11 @@ const SharedLayout = () => {
       {/* Main Content Area - Padded top for fixed header. MfaGate enforces
           two-factor on any authenticated session before the app is usable. */}
       <div className="flex-1 pt-14 flex flex-col">
-        <MfaGate session={session}>
-          <Outlet />
-        </MfaGate>
+        <AccountGate session={session}>
+          <MfaGate session={session}>
+            <Outlet />
+          </MfaGate>
+        </AccountGate>
       </div>
 
       {/* Footer - Only show on non-trading pages if needed, but for now keep it */}

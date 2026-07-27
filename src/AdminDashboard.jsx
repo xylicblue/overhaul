@@ -5,6 +5,7 @@ import { supabase } from "./creatclient";
 import { agentName } from "./utils/agentLabels";
 import { MARKETS, SEPOLIA_CONTRACTS } from "./contracts/addresses";
 import ClearingHouseABI from "./contracts/abis/ClearingHouse.json";
+import AdminAccountFreeze from "./components/AdminAccountFreeze";
 import ReactApexChart from "react-apexcharts";
 import {
   RefreshCw, TrendingUp, TrendingDown, ExternalLink, Lock,
@@ -547,6 +548,9 @@ export default function AdminDashboard() {
         <StatCard label="Unique Traders" value={intFmt(kpis?.unique_traders)}  sub={`${intFmt(kpis?.event_count)} events`} />
         <StatCard label="Open Positions" value={intFmt(onchainPositions.length)} sub="live on-chain" />
       </div>
+
+      {/* Account controls — freeze / unfreeze a single account */}
+      <AdminAccountFreeze />
 
       {/* Surveillance — market-manipulation alerts from the behavioral monitor */}
       <Section
