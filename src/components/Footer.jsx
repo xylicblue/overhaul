@@ -108,7 +108,7 @@ const Footer = () => {
                 TradingView
               </a>
             </span>
-            <a href="#" className="hover:text-white transition-colors duration-150">Terms</a>
+            <Routerlink to="/terms"    className="hover:text-white transition-colors duration-150">Terms</Routerlink>
             <Routerlink to="/privacy"  className="hover:text-white transition-colors duration-150">Privacy</Routerlink>
             <Routerlink to="/security" className="hover:text-white transition-colors duration-150">Security</Routerlink>
           </div>
