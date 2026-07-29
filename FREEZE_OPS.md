@@ -1,4 +1,4 @@
-# Freeze a Single Account: Operations and Evidence
+n# Freeze a Single Account: Operations and Evidence
 
 Covers control 3 (freeze a single account). An admin can suspend one account for
 fraud, abuse, or compliance; the suspension blocks new sessions and platform
