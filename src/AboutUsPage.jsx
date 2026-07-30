@@ -32,14 +32,14 @@ const TEAM = [
   {
     name: "Malcolm Butterfield",
     role: "Senior Representative & INED",
-    country: "ON-ISLAND",
+    country: "Bermuda",
     img: "/about-us-images/malcolm.jpeg",
     bio: "Malcolm serves as Senior Representative and Independent Non-Executive Director, bringing independent oversight to the board. ",
   },
   {
     name: "Alison Morrison",
     role: "Money Laundering Reporting Officer",
-    country: "ON-ISLAND",
+    country: "Bermuda",
     img: "/about-us-images/alison.jpeg",
     bio: "Alison is the Money Laundering Reporting Officer, responsible for AML/CFT reporting and the integrity of the exchange's financial-crime controls.",
   },
