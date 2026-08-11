@@ -8,6 +8,7 @@
 // factor elevates the session to aal2, which is stamped into the JWT `aal` claim
 // and is what the app gate and the RLS policies key off.
 import { supabase } from "../creatclient";
+import { callEdgeFunction } from "./api";
 
 // Grace policy, documented here so the thresholds are explicit.
 //  - Accounts created on/after MFA_ENFORCE_NEW_AFTER (the launch date) must enrol
@@ -151,4 +152,30 @@ export async function backupCodesRemaining() {
   const { data, error } = await supabase.rpc("mfa_backup_codes_remaining");
   if (error) return null;
   return Number(data ?? 0);
+}
+
+/**
+ * Recover an account when the authenticator is lost, using a backup code.
+ *
+ * A backup code cannot elevate the session to aal2, because only verifying a real
+ * factor can do that. Recovery instead REMOVES the TOTP factor, after which the
+ * gate sees a no-factor account and requires immediate re-enrolment. The removal
+ * needs the service role (a user cannot unenrol their own verified factor from the
+ * aal1 session they are stuck in), so it runs in the mfa-recover edge function,
+ * which also throttles attempts and writes an audit record.
+ *
+ * The code is only consumed if the factor is actually removed, so a failed attempt
+ * does not waste it. Returns { removed, message }.
+ */
+export async function recoverWithBackupCode(code) {
+  const data = await callEdgeFunction("mfa-recover", { code });
+  // The factor is gone, but this session's JWT still carries the stale aal claim.
+  // Refresh so the gate re-evaluates against current state rather than the claim
+  // it was issued with.
+  try {
+    await supabase.auth.refreshSession();
+  } catch (e) {
+    console.warn("[mfa] session refresh after recovery failed:", e?.message);
+  }
+  return { removed: Number(data?.removed ?? 0), message: data?.message ?? "" };
 }

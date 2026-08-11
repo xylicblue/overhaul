@@ -30,7 +30,7 @@ async function getAuthToken() {
 }
 
 // ── Helper: call edge function through gateway ───────────────────────────
-async function callEdgeFunction(functionName, payload, options = {}) {
+export async function callEdgeFunction(functionName, payload, options = {}) {
   const url = `${API_BASE}/functions/v1/${functionName}`;
   const headers = {
     "Content-Type": "application/json",
