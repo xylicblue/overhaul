@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { BrowserProvider } from "ethers";
 import { supabase } from "./creatclient";
-import { updateWallet } from "./services/api";
+import { updateWallet, getWalletLinkNonce } from "./services/api";
 import toast from "react-hot-toast";
 
 const ConnectWalletButton = ({ session, initialAddress }) => {
@@ -32,7 +32,12 @@ const ConnectWalletButton = ({ session, initialAddress }) => {
       const signer = await provider.getSigner();
       const address = signer.address;
 
-      await updateWallet(address);
+      // F-11: prove control of `address` before linking. Ask the server for a
+      // one-time challenge bound to (user, wallet, chain), sign it with the
+      // wallet, then submit signature + address.
+      const { message } = await getWalletLinkNonce(address, "ethereum");
+      const signature = await signer.signMessage(message);
+      await updateWallet(address, { signature, chain: "ethereum" });
 
       setWalletAddress(address);
       // 2. Add the success toast

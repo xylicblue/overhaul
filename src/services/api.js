@@ -157,11 +157,32 @@ export async function setUsername(username) {
 }
 
 /**
- * Update wallet address on the profile.
- * Pass null to disconnect.
+ * F-11: request a server-issued signing challenge for linking a wallet.
+ * Returns { nonce, message, expires_at } — the caller signs `message` with
+ * the wallet and passes both `message`'s signature and the address to
+ * updateWallet().
  */
-export async function updateWallet(walletAddress) {
-  return callEdgeFunction("api-profile", { action: "update-wallet", wallet_address: walletAddress });
+export async function getWalletLinkNonce(walletAddress, chain = "ethereum") {
+  return callEdgeFunction("api-profile", {
+    action: "get-wallet-link-nonce",
+    wallet_address: walletAddress,
+    chain,
+  });
+}
+
+/**
+ * Update the wallet address on the profile.
+ * - To LINK: pass ({ walletAddress, signature, chain }). The signature must
+ *   be produced by signing the message returned from getWalletLinkNonce().
+ * - To DISCONNECT: pass ({ walletAddress: null }); signature not required.
+ */
+export async function updateWallet(walletAddress, opts = {}) {
+  const payload = { action: "update-wallet", wallet_address: walletAddress };
+  if (walletAddress !== null) {
+    payload.signature = opts.signature;
+    payload.chain = opts.chain || "ethereum";
+  }
+  return callEdgeFunction("api-profile", payload);
 }
 
 /**
