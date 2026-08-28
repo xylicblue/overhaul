@@ -6,6 +6,24 @@ import AuthLayout from "./components/AuthLayout";
 import toast from "react-hot-toast";
 import { HiOutlineUser } from "react-icons/hi2";
 
+// F-12 remediation: `next` was passed straight to navigate(), which meant an
+// attacker link like /welcome?next=https://evil.com would land users on an
+// external site after a trusted onboarding step. Accept only same-origin
+// paths and fall back to /trade for anything else, including protocol-relative
+// (`//evil.com`), backslash tricks, javascript: and control chars.
+function safeInternalPath(raw) {
+  const fallback = "/trade";
+  if (typeof raw !== "string" || raw.length === 0) return fallback;
+  if (/[\\\x00-\x1f]/.test(raw)) return fallback;
+  try {
+    const u = new URL(raw, window.location.origin);
+    if (u.origin !== window.location.origin) return fallback;
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return fallback;
+  }
+}
+
 const CreateUsernamePage = () => {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
@@ -13,7 +31,7 @@ const CreateUsernamePage = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  const nextPath = new URLSearchParams(location.search).get("next") || "/trade";
+  const nextPath = safeInternalPath(new URLSearchParams(location.search).get("next"));
 
   useEffect(() => {
     const checkProfile = async () => {
