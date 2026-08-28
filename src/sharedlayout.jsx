@@ -660,7 +660,6 @@ const SharedLayout = () => {
 
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-200 flex flex-col font-sans">
-      {session && <Web3AuthHandler />}
       <AppHeader
         session={session}
         profile={profile}
@@ -675,6 +674,10 @@ const SharedLayout = () => {
       <div className="flex-1 pt-14 flex flex-col">
         <AccountGate session={session}>
           <MfaGate session={session}>
+            {/* Wallet/profile synchronisation performs an authenticated profile
+                mutation. Mount it only after MFA has reached aal2 so the
+                server-side enforcement cannot race the login challenge. */}
+            {session && <Web3AuthHandler />}
             <Outlet />
           </MfaGate>
         </AccountGate>
