@@ -6,9 +6,20 @@
 # SAME-ORIGIN iframe (/charting_library/). DENY / 'none' would also block our
 # own page from embedding it and break the chart. 'self' still blocks all
 # cross-origin framing, so clickjacking is fully prevented.
+#
+# L-04 hardening: X-Content-Type-Options blocks MIME sniffing, Referrer-Policy
+# strips path and query from outbound referrers on cross-origin navigation
+# (protects wallet/session URLs from leaking to third parties), and
+# Permissions-Policy denies browser features the app does not use. HSTS
+# already comes from the host, but we set it here too so it is version
+# controlled with the site.
 /*
   X-Frame-Options: SAMEORIGIN
   Content-Security-Policy: frame-ancestors 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(self), screen-wake-lock=(), sync-xhr=(), usb=(), xr-spatial-tracking=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 # Team / profile pages: keep OUT of search engines. Viewable and linked on-site,
 # but we do not want the site to rank for any individual's name (targeting risk:

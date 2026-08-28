@@ -119,8 +119,16 @@ async function handleRequest(request, env, ctx, requestId) {
   const method = request.method;
   const kv     = env.CACHE || null;
 
-  const allowedOrigins  = (env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim());
-  const isAllowedOrigin = allowedOrigins.includes(origin) || origin.includes("localhost");
+  // L-01 remediation: exact allow-list match only. The old fallback
+  // `origin.includes("localhost")` was a substring test that accepted
+  // hostile origins such as https://localhost.evil.com. Local development
+  // is now supported by listing explicit http://localhost:PORT entries in
+  // the ALLOWED_ORIGINS environment variable.
+  const allowedOrigins  = (env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+  const isAllowedOrigin = allowedOrigins.includes(origin);
 
   const corsHeaders = {
     "Access-Control-Allow-Origin":   isAllowedOrigin ? origin : allowedOrigins[0] || "",
@@ -143,15 +151,20 @@ async function handleRequest(request, env, ctx, requestId) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  // Block disallowed origins
-  if (!isAllowedOrigin && !url.hostname.includes("localhost")) {
+  // Block disallowed origins. Same tightening as above: no substring match on
+  // the request hostname; only the exact allow-list is trusted.
+  if (!isAllowedOrigin) {
     return new Response(JSON.stringify({ error: "Forbidden origin" }), {
       status: 403,
       headers: { ...corsHeaders, ...SECURITY_HEADERS, "Content-Type": "application/json" },
     });
   }
 
-  // Faucet proxy
+  // Faucet proxy.
+  // L-02 remediation: a per-IP rate limit is applied at the gateway on this
+  // route in its own bucket, and the upstream URL is no longer echoed in
+  // error responses. The upstream address is sourced from environment so it
+  // does not appear as a literal in the worker bundle.
   if (url.pathname.startsWith("/faucet")) {
     if (method !== "POST") {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -159,19 +172,39 @@ async function handleRequest(request, env, ctx, requestId) {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    try {
-      const body = await request.text();
-      const railwayRes = await fetch(
-        "https://bytestrike-faucet-bot-production-1fc7.up.railway.app/request",
-        { method: "POST", headers: { "Content-Type": "application/json" }, body }
-      );
-      const data = await railwayRes.text();
-      return new Response(data, {
-        status: railwayRes.status,
+    const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
+    const faucetLimit = await checkRateLimit(`faucet:${clientIp}`, "auth", kv);
+    if (!faucetLimit.allowed) {
+      return new Response(JSON.stringify({ error: "Too many faucet requests" }), {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": String(faucetLimit.retryAfter),
+        },
+      });
+    }
+    const upstream = env.FAUCET_UPSTREAM_URL;
+    if (!upstream) {
+      return new Response(JSON.stringify({ error: "Faucet not configured" }), {
+        status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    } catch (err) {
-      return new Response(JSON.stringify({ error: "Faucet unavailable", detail: String(err) }), {
+    }
+    try {
+      const body = await request.text();
+      const upstreamRes = await fetch(upstream, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      const data = await upstreamRes.text();
+      return new Response(data, {
+        status: upstreamRes.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (_err) {
+      return new Response(JSON.stringify({ error: "Faucet unavailable" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
