@@ -27,6 +27,27 @@ const ConnectWalletButton = ({ session, initialAddress }) => {
     }
 
     try {
+      // Business rule: a wallet may only be linked to a KYC-verified profile.
+      // Check server-side status before triggering the MetaMask popup so the
+      // user is not asked to interact with their wallet only to be refused at
+      // the signature or write step.
+      if (session?.user?.id) {
+        const { data: kycRow } = await supabase
+          .from("profiles")
+          .select("kyc_status")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        const kyc = kycRow?.kyc_status ?? "not_verified";
+        if (kyc !== "verified" && kyc !== "completed") {
+          toast.error(
+            "Please complete identity verification (KYC) before connecting a wallet.",
+            { id: "wallet-kyc-required" },
+          );
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const provider = new BrowserProvider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
@@ -44,8 +65,14 @@ const ConnectWalletButton = ({ session, initialAddress }) => {
       toast.success("Wallet connected successfully!");
     } catch (err) {
       console.error("Error connecting wallet:", err);
-      // 3. Add the error toast
-      toast.error(err.message || "Failed to connect wallet.");
+      // Suppress the "wallet already linked to another account" toast: it
+      // fires legitimately when the same MetaMask account is used across
+      // multiple Supabase logins and adds noise without changing what the
+      // user can do about it.
+      const msg = err?.message || "";
+      if (!/already linked to another account/i.test(msg)) {
+        toast.error(msg || "Failed to connect wallet.");
+      }
     } finally {
       setIsLoading(false);
     }

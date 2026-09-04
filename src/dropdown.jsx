@@ -20,6 +20,7 @@ import {
   Check,
   CircleDot,
   Power,
+  X,
 } from "lucide-react";
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
@@ -255,13 +256,26 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
                     </div>
                   </div>
                 </div>
-              ) : (
+              ) : isVerified ? (
                 <button
                   onClick={openConnectModal}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 hover:border-blue-500/40 text-blue-400 hover:text-blue-300 text-xs font-bold transition-all duration-200"
                 >
                   <Wallet size={13} />
                   Connect Wallet
+                </button>
+              ) : (
+                // Business rule: wallet linking is gated on KYC. Nudge the
+                // user through the verification flow first instead of
+                // opening the wallet modal to a request the server would
+                // reject.
+                <button
+                  onClick={launchSumsubSDK}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 hover:border-amber-500/40 text-amber-400 hover:text-amber-300 text-xs font-bold transition-all duration-200"
+                  title="Complete identity verification (KYC) before linking a wallet"
+                >
+                  <ShieldAlert size={13} />
+                  Verify Identity to Connect Wallet
                 </button>
               )}
             </div>
@@ -289,6 +303,14 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
             id="sumsub-websdk-container"
             className="sdk-active fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center"
           ></div>
+          <button
+            type="button"
+            onClick={() => setIsSdkActive(false)}
+            aria-label="Close identity verification"
+            className="fixed top-4 right-4 z-[10001] flex items-center justify-center w-10 h-10 rounded-full bg-zinc-900/85 hover:bg-zinc-800/90 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white shadow-lg backdrop-blur-md transition-colors"
+          >
+            <X size={18} />
+          </button>
         </Portal>
       )}
     </div>

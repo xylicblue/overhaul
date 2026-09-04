@@ -14,11 +14,12 @@ import { useAllPositions } from "./hooks/useClearingHouse";
 import { motion } from "framer-motion";
 import { supabase } from "./creatclient";
 import { useAuthModalStore } from "./stores/useAuthModalStore";
+import toast from "react-hot-toast";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OrderPanelGate — handles all three states of the right-side order panel
 // ─────────────────────────────────────────────────────────────────────────────
-const OrderPanelGate = ({ session, sessionLoading, isConnected, selectedMarket }) => {
+const OrderPanelGate = ({ session, sessionLoading, isConnected, isKycVerified, selectedMarket }) => {
   const { openLogin } = useAuthModalStore();
 
   // Not signed in → blurred panel preview + sign-in overlay
@@ -59,26 +60,51 @@ const OrderPanelGate = ({ session, sessionLoading, isConnected, selectedMarket }
     );
   }
 
-  // Signed in but wallet not connected → connect strip + dimmed panel
+  // Signed in but wallet not connected → connect strip + dimmed panel.
+  // The connect button itself is gated on KYC: users who have not
+  // completed identity verification are shown a "Verify identity first"
+  // link that opens the profile dropdown's Sumsub flow rather than the
+  // wallet modal, which the server would refuse anyway.
   if (!isConnected) {
     return (
       <>
         <div className="px-3 py-2 border-b border-line bg-surface-2/40 flex items-center justify-between gap-2 shrink-0">
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Read only</span>
-            <span className="text-[11px] text-ink-muted leading-tight">Connect wallet to trade</span>
+            <span className="text-[11px] text-ink-muted leading-tight">
+              {isKycVerified ? "Connect wallet to trade" : "Verify identity to trade"}
+            </span>
           </div>
-          <ConnectButton.Custom>
-            {({ openConnectModal, mounted }) => (
-              <button
-                onClick={openConnectModal}
-                disabled={!mounted}
-                className="shrink-0 px-3 py-1.5 rounded-md bg-white text-zinc-900 hover:bg-zinc-200 text-[11px] font-medium transition-colors duration-150"
-              >
-                Connect
-              </button>
-            )}
-          </ConnectButton.Custom>
+          {isKycVerified ? (
+            <ConnectButton.Custom>
+              {({ openConnectModal, mounted }) => (
+                <button
+                  onClick={openConnectModal}
+                  disabled={!mounted}
+                  className="shrink-0 px-3 py-1.5 rounded-md bg-white text-zinc-900 hover:bg-zinc-200 text-[11px] font-medium transition-colors duration-150"
+                >
+                  Connect
+                </button>
+              )}
+            </ConnectButton.Custom>
+          ) : (
+            <button
+              onClick={() => {
+                // The Sumsub SDK is embedded inside the profile dropdown;
+                // guide the user there rather than duplicating the SDK boot
+                // here. A prominent dropdown chip labelled "Verify" opens
+                // the same flow.
+                toast(
+                  "Complete identity verification (KYC) from your profile menu first.",
+                  { icon: "🛡️", id: "kyc-first" },
+                );
+              }}
+              className="shrink-0 px-3 py-1.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-amber-200 text-[11px] font-semibold transition-colors duration-150"
+              title="Complete identity verification (KYC) before linking a wallet"
+            >
+              Verify Identity
+            </button>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 opacity-50 pointer-events-none select-none">
           <TradingPanel selectedMarket={selectedMarket} />
@@ -107,6 +133,11 @@ export const TradingDashboard = ({ onHelpClick }) => {
   const { positions: allPositions } = useAllPositions();
   const [session, setSession] = useState(null);
   const [sessionLoading, setSessionLoading] = useState(true);
+  // Business rule: wallet linking (and therefore trading) requires the
+  // caller's Sumsub KYC to be approved. Fetched on session change so the
+  // "Connect wallet" strip can be swapped for a "Verify identity first"
+  // prompt when the user has not completed KYC.
+  const [isKycVerified, setIsKycVerified] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -116,6 +147,22 @@ export const TradingDashboard = ({ onHelpClick }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!session?.user?.id) { setIsKycVerified(false); return; }
+    supabase
+      .from("profiles")
+      .select("kyc_status")
+      .eq("id", session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const k = data?.kyc_status ?? "not_verified";
+        setIsKycVerified(k === "verified" || k === "completed");
+      });
+    return () => { cancelled = true; };
+  }, [session]);
 
   // ── Resizable panel state (desktop only) ──────────────────────────────────
   const [orderPanelWidth, setOrderPanelWidth] = useState(340);
@@ -317,6 +364,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
             session={session}
             sessionLoading={sessionLoading}
             isConnected={isConnected}
+            isKycVerified={isKycVerified}
             selectedMarket={selectedMarket}
           />
         </div>
@@ -336,6 +384,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
                 session={session}
                 sessionLoading={sessionLoading}
                 isConnected={isConnected}
+                isKycVerified={isKycVerified}
                 selectedMarket={selectedMarket}
               />
             </div>

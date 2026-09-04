@@ -36,7 +36,7 @@ export function MintUSDC() {
   useEffect(() => {
     if (hash && isConfirming) toast.loading("Minting USDC...", { id: "mint" });
     if (isSuccess)
-      toast.success("✅ Successfully minted 10,000 USDC!", { id: "mint" });
+      toast.success("Successfully minted 10,000 USDC!", { id: "mint" });
   }, [hash, isConfirming, isSuccess]);
 
   useEffect(() => {
