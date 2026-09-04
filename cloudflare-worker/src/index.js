@@ -161,14 +161,26 @@ async function handleRequest(request, env, ctx, requestId) {
   }
 
   // Faucet proxy.
-  // L-02 remediation: a per-IP rate limit is applied at the gateway on this
+  // L-02 remediation: per-IP rate limit is applied at the gateway on this
   // route in its own bucket, and the upstream URL is no longer echoed in
-  // error responses. The upstream address is sourced from environment so it
-  // does not appear as a literal in the worker bundle.
+  // error responses. The upstream base is sourced from environment.
+  // FCT-03 remediation (gateway side): forward the two allow-listed
+  // sub-paths only ("/challenge" and "/request"). The gateway must not
+  // expose the faucet's admin endpoints ("/status/admin", "/requests",
+  // "/requests/:address") to the internet.
   if (url.pathname.startsWith("/faucet")) {
     if (method !== "POST") {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
         status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Extract and validate the sub-path.
+    const suffix = url.pathname.slice("/faucet".length) || "/request";
+    const allowedSuffixes = new Set(["/challenge", "/request"]);
+    if (!allowedSuffixes.has(suffix)) {
+      return new Response(JSON.stringify({ error: "Not found" }), {
+        status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -184,16 +196,24 @@ async function handleRequest(request, env, ctx, requestId) {
         },
       });
     }
-    const upstream = env.FAUCET_UPSTREAM_URL;
-    if (!upstream) {
+    const upstreamBase = env.FAUCET_UPSTREAM_URL;
+    if (!upstreamBase) {
       return new Response(JSON.stringify({ error: "Faucet not configured" }), {
         status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // Strip trailing slash on the base so `/challenge` and `/request`
+    // concatenate cleanly. If the operator has configured
+    // FAUCET_UPSTREAM_URL as a full URL to /request (the older shape),
+    // fall back to POSTing the body to it for /request only.
+    const base = upstreamBase.replace(/\/$/, "");
+    const upstreamUrl = /\/(request|challenge)$/.test(base)
+      ? (suffix === "/request" ? base : base.replace(/\/request$/, "/challenge"))
+      : `${base}${suffix}`;
     try {
       const body = await request.text();
-      const upstreamRes = await fetch(upstream, {
+      const upstreamRes = await fetch(upstreamUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,

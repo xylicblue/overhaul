@@ -4,6 +4,7 @@ import {
   useAccount,
   useWriteContract,
   useWaitForTransactionReceipt,
+  useSignMessage,
 } from "wagmi";
 import { parseUnits } from "ethers";
 import toast from "react-hot-toast";
@@ -26,6 +27,7 @@ const USDC_ABI = [
 
 export function MintUSDC() {
   const { address, isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
@@ -84,17 +86,41 @@ export function MintUSDC() {
           onClick={async () => {
             if (!isConnected) return toast.error("Please connect wallet");
             try {
-              toast.loading("Requesting ETH...", { id: "faucet" });
+              // FCT-03: prove control of the wallet before requesting funds.
+              // Step 1 asks the faucet for a fresh, single-use challenge;
+              // step 2 signs the returned message with the connected wallet;
+              // step 3 submits the signature along with the request.
+              toast.loading("Requesting challenge...", { id: "faucet" });
+              const gateway =
+                "https://bytestrike-api-gateway.bytestrike.workers.dev";
 
-              // Call via Cloudflare Worker proxy (avoids CORS — worker calls Railway server-to-server)
-              const response = await fetch(
-                "https://bytestrike-api-gateway.bytestrike.workers.dev/faucet/request",
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ walletAddress: address }),
-                }
-              );
+              const challengeRes = await fetch(`${gateway}/faucet/challenge`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ walletAddress: address }),
+              });
+              const challenge = await challengeRes.json();
+              if (!challengeRes.ok || !challenge.message) {
+                toast.error(
+                  challenge.error || "Failed to obtain faucet challenge",
+                  { id: "faucet" }
+                );
+                return;
+              }
+
+              toast.loading("Sign the message in your wallet...", {
+                id: "faucet",
+              });
+              const signature = await signMessageAsync({
+                message: challenge.message,
+              });
+
+              toast.loading("Requesting ETH...", { id: "faucet" });
+              const response = await fetch(`${gateway}/faucet/request`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ walletAddress: address, signature }),
+              });
 
               const data = await response.json();
 

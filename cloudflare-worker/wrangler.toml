@@ -1,6 +1,9 @@
 name = "bytestrike-api-gateway"
 main = "src/index.js"
 compatibility_date = "2024-01-01"
+# Preserve variables and secrets managed in the Cloudflare dashboard when this
+# Worker is redeployed from Wrangler or the connected repository.
+keep_vars = true
 
 # Custom domain (configure after first deploy)
 # routes = [
