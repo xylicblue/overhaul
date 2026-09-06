@@ -35,10 +35,22 @@ export const useNotificationStore = create(
     // ── Actions ──────────────────────────────────────────────────────────────
     markRead: async (notificationId, userId) => {
       if (!userId || hasRead(get().readIds, notificationId)) return;
+      // Optimistic local update.
       set((s) => ({ readIds: { ...s.readIds, [notificationId]: true } }));
-      await supabase
+      const { error } = await supabase
         .from("notification_reads")
         .upsert({ user_id: userId, notification_id: notificationId });
+      if (error) {
+        // The DB refused the write. Roll back the local state so the badge
+        // stays truthful across reloads. Common reasons: session missing
+        // aal2 for the RLS write policy, account is frozen, network drop.
+        console.warn("[notifications] markRead failed, rolling back:", error);
+        set((s) => {
+          const next = { ...s.readIds };
+          delete next[notificationId];
+          return { readIds: next };
+        });
+      }
     },
 
     markAllRead: async (userId) => {
@@ -49,10 +61,19 @@ export const useNotificationStore = create(
       if (!unread.length) return;
       const patch = {};
       unread.forEach((n) => { patch[n.id] = true; });
+      // Optimistic local update.
       set((s) => ({ readIds: { ...s.readIds, ...patch } }));
-      await supabase
+      const { error } = await supabase
         .from("notification_reads")
         .upsert(unread.map((n) => ({ user_id: userId, notification_id: n.id })));
+      if (error) {
+        console.warn("[notifications] markAllRead failed, rolling back:", error);
+        set((s) => {
+          const next = { ...s.readIds };
+          for (const n of unread) delete next[n.id];
+          return { readIds: next };
+        });
+      }
     },
 
     // ── Initialise: fetch data + open ONE shared realtime subscription ────────
