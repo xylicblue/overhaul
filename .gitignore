@@ -56,5 +56,12 @@ aboutus.md
 PNL_ACCOUNTING_CORRECTIONS.md
 canonical-pnl-frontend-integration-guide.md
 open-position-error-diagnosis-plan.md
+.mcp.json
 
-
+# Keep the entity-onboarding schema change versioned while the legacy Supabase
+# directory remains ignored by default.
+!supabase/
+supabase/*
+!supabase/migrations/
+supabase/migrations/*
+!supabase/migrations/add_entity_onboarding.sql

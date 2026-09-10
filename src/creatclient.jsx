@@ -88,6 +88,17 @@ function createDisabledSupabaseClient() {
 const customFetch = gatewayUrl
   ? (input, init) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      // Keep binary Storage traffic direct. The gateway intentionally limits
+      // ordinary request bodies to 1 MB and parses them as text, while private
+      // onboarding uploads can be as large as 15 MB. Supabase Storage RLS still
+      // enforces the authenticated user's private folder on these requests.
+      const parsedUrl = new URL(url);
+      if (
+        parsedUrl.origin === new URL(supabaseUrl).origin &&
+        parsedUrl.pathname.startsWith("/storage/v1/")
+      ) {
+        return fetch(input, init);
+      }
       const routed = url.replace(supabaseUrl, gatewayUrl);
       return fetch(routed, init);
     }

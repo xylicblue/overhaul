@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { ShieldAlert, X, ChevronRight } from "lucide-react";
+import { ShieldAlert, ShieldCheck, LockKeyhole, X, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getMfaStatus, enrolmentRequired } from "../services/mfa";
 import MfaChallenge from "./MfaChallenge";
 import MfaEnroll from "./MfaEnroll";
+import logo from "../assets/ByteStrikeLogoFinal.png";
 
 // Central MFA enforcement. Wrap the authenticated app surface with this.
 //
@@ -56,12 +57,40 @@ export default function MfaGate({ session, children }) {
 
   if (state.phase === "enroll") {
     return (
-      <div className="min-h-screen bg-surface-0 flex flex-col items-center justify-center px-4 gap-4">
-        <p className="text-[13px] text-ink-muted text-center max-w-md">
-          Two-factor authentication is required to continue. Set it up now to protect your account.
-        </p>
-        <MfaEnroll onComplete={evaluate} />
-      </div>
+      <main className="min-h-screen bg-[radial-gradient(circle_at_50%_-20%,rgba(71,102,255,0.15),transparent_34rem)] bg-[#070708] text-ink">
+        <header className="flex h-16 items-center justify-between border-b border-white/[0.07] bg-[#070708]/80 px-[30px] backdrop-blur-xl max-sm:px-[17px]">
+          <Link to="/" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#6377ed]/50" aria-label="Return to ByteStrike home">
+            <img src={logo} alt="ByteStrike" className="h-[31px] w-auto" />
+          </Link>
+          <div className="flex items-center gap-2 text-xs font-semibold text-ink-muted">
+            <ShieldCheck size={15} />
+            <span className="max-sm:hidden">Secure account setup</span>
+          </div>
+        </header>
+
+        <div className="mx-auto grid w-[min(1060px,calc(100%-40px))] grid-cols-[270px_minmax(0,1fr)] items-start gap-16 py-14 max-md:w-[min(680px,calc(100%-28px))] max-md:grid-cols-1 max-md:gap-7 max-md:py-8">
+          <aside className="pt-5 max-md:pt-0">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#7c91ff]">Account security</p>
+            <h1 className="mb-3 text-2xl font-semibold tracking-[-0.035em] text-[#f5f5f7]">Protect your account</h1>
+            <p className="text-[13px] leading-6 text-[#8d8d96]">
+              Set up two-factor authentication before continuing to your entity application.
+            </p>
+
+            <div className="mt-8 rounded-xl border border-white/[0.07] bg-white/[0.025] p-3.5">
+              <div className="flex items-start gap-2.5">
+                <LockKeyhole size={16} className="mt-0.5 shrink-0 text-[#70d7a9]" />
+                <p className="text-[11px] leading-[1.55] text-[#777780]">
+                  Your authenticator adds a second layer of protection to sensitive account actions.
+                </p>
+              </div>
+            </div>
+          </aside>
+
+          <section className="rounded-[22px] border border-white/[0.085] bg-[#131316]/90 p-9 shadow-[0_24px_80px_rgba(0,0,0,0.28)] max-sm:rounded-[17px] max-sm:p-[22px]">
+            <MfaEnroll onComplete={evaluate} />
+          </section>
+        </div>
+      </main>
     );
   }
 

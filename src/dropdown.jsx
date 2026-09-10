@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import sumsubWebSdk from "@sumsub/websdk";
-import { supabase } from "./creatclient";
+import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { getSumsubToken } from "./services/api";
+import { getEntityAccessState } from "./services/entityOnboarding";
 import "./dropdown.css";
 import Portal from "./Portal";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import { useConnectModal, useAccountModal } from "@rainbow-me/rainbowkit";
 import {
   Wallet,
@@ -19,6 +21,7 @@ import {
   Copy,
   Check,
   CircleDot,
+  ClipboardCheck,
   Power,
   X,
 } from "lucide-react";
@@ -37,7 +40,7 @@ const Avatar = ({ username, size = "sm" }) => {
 };
 
 // ─── Dropdown Menu Item ──────────────────────────────────────────────────────
-const MenuItem = ({ icon: Icon, label, onClick, href, variant = "default" }) => {
+const MenuItem = ({ icon: MenuIcon, label, onClick, href, variant = "default" }) => {
   const base =
     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 cursor-pointer";
   const variants = {
@@ -47,7 +50,10 @@ const MenuItem = ({ icon: Icon, label, onClick, href, variant = "default" }) => 
 
   const content = (
     <>
-      <Icon size={15} className="shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
+      {React.createElement(MenuIcon, {
+        size: 15,
+        className: "shrink-0 opacity-50 group-hover:opacity-100 transition-opacity",
+      })}
       {label}
     </>
   );
@@ -68,9 +74,12 @@ const MenuItem = ({ icon: Icon, label, onClick, href, variant = "default" }) => 
 
 // ─────────────────────────────────────────────────────────────────────────────
 const ProfileDropdown = ({ session, profile, onLogout }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [isSdkActive, setIsSdkActive] = useState(false);
+  const [entityAccess, setEntityAccess] = useState(null);
   const { isConnected, address } = useAccount();
   const { openConnectModal } = useConnectModal();
   const { openAccountModal } = useAccountModal();
@@ -88,12 +97,52 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    setEntityAccess(null);
+    getEntityAccessState(session.user.id)
+      .then((access) => {
+        if (active) setEntityAccess(access);
+      })
+      .catch((error) => {
+        console.warn("[ProfileDropdown] entity status check failed:", error.message);
+        if (active) setEntityAccess({ isAdmin: false, onboardingComplete: false, collectionComplete: false });
+      });
+    return () => { active = false; };
+  }, [session.user.id]);
+
+  const entityOnboardingComplete = entityAccess?.isAdmin === true || entityAccess?.onboardingComplete === true;
+  const entityApplicationStatus = entityAccess?.application?.status;
+  const entityReviewPending = entityAccess?.isAdmin !== true &&
+    ["submitted", "under_review"].includes(entityApplicationStatus);
+  const goToEntityOnboarding = () => {
+    setIsOpen(false);
+    const next = `${location.pathname}${location.search}`;
+    navigate(`/onboarding?next=${encodeURIComponent(next)}`);
+  };
+
   // Sumsub SDK Logic
   const launchSumsubSDK = async () => {
     setIsOpen(false);
-    setIsSdkActive(true);
 
     try {
+      const access = await getEntityAccessState(session.user.id);
+      if (!access.isAdmin && !access.collectionComplete) {
+        setEntityAccess(access);
+        toast("Complete entity onboarding before starting identity verification.", {
+          icon: "",
+        });
+        goToEntityOnboarding();
+        return;
+      }
+      if (!access.isAdmin && ["submitted", "under_review"].includes(access.application?.status)) {
+        setEntityAccess(access);
+        goToEntityOnboarding();
+        return;
+      }
+      setEntityAccess(access);
+
+      setIsSdkActive(true);
       const getNewToken = async () => {
         const data = await getSumsubToken();
         return data.token;
@@ -113,6 +162,15 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
 
       sumsubSdk.launch("#sumsub-websdk-container");
     } catch (error) {
+      if (error?.code === "ENTITY_ONBOARDING_REQUIRED") {
+        const next = `${location.pathname}${location.search}`;
+        toast("Complete entity onboarding before starting identity verification.", {
+          icon: "",
+        });
+        navigate(`/onboarding?next=${encodeURIComponent(next)}`);
+        setIsSdkActive(false);
+        return;
+      }
       console.error("Verification error:", error);
       setIsSdkActive(false);
       alert("Could not start verification. Please try again later.");
@@ -162,7 +220,7 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
       {/* ── Dropdown ───────────────────────────────────────────────────── */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 6, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.97 }}
@@ -185,19 +243,23 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
                 {/* KYC Chip */}
                 <div
                   className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                    isVerified
+                    entityReviewPending
+                      ? "text-amber-300/80 border-amber-400/15 bg-amber-400/[0.06]"
+                      : entityOnboardingComplete && isVerified
                       ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/[0.08]"
                       : "text-zinc-500 border-zinc-700/50 bg-zinc-800/30 cursor-pointer hover:text-amber-400 hover:border-amber-500/20 hover:bg-amber-500/[0.06] transition-colors"
                   }`}
-                  onClick={!isVerified ? launchSumsubSDK : undefined}
-                  title={isVerified ? "Identity verified" : "Click to verify identity"}
+                  onClick={entityReviewPending ? goToEntityOnboarding : !entityOnboardingComplete ? goToEntityOnboarding : !isVerified ? launchSumsubSDK : undefined}
+                  title={entityReviewPending ? "View entity verification status" : !entityOnboardingComplete ? "Complete entity onboarding" : isVerified ? "Identity verified" : "Click to verify identity"}
                 >
-                  {isVerified ? (
+                  {entityReviewPending ? (
+                    <CircleDot size={11} />
+                  ) : entityOnboardingComplete && isVerified ? (
                     <ShieldCheck size={11} />
                   ) : (
                     <ShieldAlert size={11} />
                   )}
-                  {isVerified ? "KYC" : "Verify"}
+                  {entityReviewPending ? "Pending" : !entityOnboardingComplete ? "Onboard" : isVerified ? "KYC" : "Verify"}
                 </div>
               </div>
             </div>
@@ -206,7 +268,23 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
 
             {/* ── Wallet Section ──────────────────────────────────────── */}
             <div className="p-3">
-              {isConnected ? (
+              {entityReviewPending ? (
+                <button
+                  onClick={goToEntityOnboarding}
+                  className="w-full rounded-lg border border-amber-300/[0.12] bg-amber-300/[0.035] px-4 py-2.5 text-center text-xs font-medium text-amber-100/80 transition-colors duration-150 hover:border-amber-300/[0.2] hover:bg-amber-300/[0.065]"
+                  title="View entity verification status"
+                >
+                  Verification pending
+                </button>
+              ) : !entityOnboardingComplete ? (
+                <button
+                  onClick={goToEntityOnboarding}
+                  className="w-full rounded-lg border border-white/[0.1] bg-white/[0.035] px-4 py-2.5 text-center text-xs font-medium text-zinc-200 transition-colors duration-150 hover:border-white/[0.18] hover:bg-white/[0.07] hover:text-white"
+                  title="Complete entity onboarding before connecting a wallet"
+                >
+                  Complete onboarding
+                </button>
+              ) : isConnected ? (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                   <div className="flex items-center justify-between mb-2.5">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
@@ -284,6 +362,12 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
 
             {/* ── Navigation ──────────────────────────────────────────── */}
             <div className="p-1.5">
+              {entityAccess?.isAdmin && (
+                <>
+                  <MenuItem icon={ClipboardCheck} label="Compliance portal" href="/admin/compliance" />
+                  <MenuItem icon={ShieldCheck} label="Admin dashboard" href="/admin" />
+                </>
+              )}
               <MenuItem icon={Settings} label="Settings" href="/settings" />
               <MenuItem
                 icon={LogOut}
@@ -292,7 +376,7 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
                 variant="danger"
               />
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
 

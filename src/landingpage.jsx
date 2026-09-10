@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-scroll";
 import Web3AuthHandler from "./web3auth";
 import toast from "react-hot-toast";
-import { Link as Routerlink, useNavigate } from "react-router-dom";
+import { Link as Routerlink, useLocation, useNavigate } from "react-router-dom";
 import PriceIndexChart from "./chart";
 import { supabase } from "./creatclient";
 import { submitInterest } from "./services/api"; // still used by landingpage2 / swap
@@ -29,6 +29,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNotificationStore } from "./stores/useNotificationStore";
 import { useTradingStore } from "./stores/useTradingStore";
 import { getPriceSource, SPARKLINE_CONFIG } from "./config/marketsConfig";
+import { getEntityAccessState } from "./services/entityOnboarding";
 
 /* ─── Animation Variants (trigger-once) ─── */
 const staggerContainer = {
@@ -169,7 +170,83 @@ const HERO_TICKER_MARKETS = [
   // { id: "H100-non-HyperScalers-PERP-V2", name: "H100", sub: "Neocloud" },
 ];
 
-const LandingPage = () => {
+function safeWelcomeNext(raw) {
+  if (!raw || typeof raw !== "string" || raw.startsWith("//") || raw.includes("\\")) return "/trade";
+  try {
+    const value = new URL(raw, window.location.origin);
+    return value.origin === window.location.origin ? `${value.pathname}${value.search}${value.hash}` : "/trade";
+  } catch {
+    return "/trade";
+  }
+}
+
+const OnboardingWelcomeNotice = ({ onStart, onDismiss }) => (
+  <motion.div
+    className="fixed inset-0 z-[200] grid place-items-center bg-black/70 px-4 backdrop-blur-sm"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="entity-welcome-title"
+  >
+    <motion.div
+      initial={{ opacity: 0, y: 14, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 8, scale: 0.99 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      className="w-full max-w-[520px] overflow-hidden rounded-2xl border border-white/15 bg-[#090909] text-white shadow-[0_28px_90px_rgba(0,0,0,0.65)]"
+    >
+      <div className="border-b border-white/10 px-7 py-6 sm:px-8">
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Entity accounts only</p>
+        <h2 id="entity-welcome-title" className="text-2xl font-semibold tracking-[-0.03em] text-white">
+          Before you begin trading
+        </h2>
+        <p className="mt-3 max-w-md text-sm leading-6 text-zinc-400">
+          ByteStrike onboards legal entities before identity verification and wallet connection. You can save your progress and return at any time.
+        </p>
+      </div>
+
+      <div className="px-7 py-6 sm:px-8">
+        <ol className="grid gap-4">
+          {[
+            ["01", "Entity information", "Provide legal, registration and business details."],
+            ["02", "Supporting records", "Upload the required corporate and source-of-funds documents."],
+            ["03", "Connected persons", "Identify beneficial owners, directors, officers and signatories."],
+            ["04", "Identity verification", "Continue to verification after the entity application is submitted."],
+          ].map(([number, title, detail]) => (
+            <li key={number} className="grid grid-cols-[30px_1fr] gap-3">
+              <span className="pt-0.5 font-mono text-[11px] text-zinc-600">{number}</span>
+              <div>
+                <strong className="block text-[13px] font-medium text-zinc-100">{title}</strong>
+                <span className="mt-1 block text-xs leading-5 text-zinc-500">{detail}</span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="flex flex-col-reverse gap-2 border-t border-white/10 bg-white/[0.02] px-7 py-5 sm:flex-row sm:justify-end sm:px-8">
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded-lg px-4 py-2.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.05] hover:text-white"
+        >
+          Explore the platform first
+        </button>
+        <button
+          type="button"
+          onClick={onStart}
+          className="rounded-lg bg-white px-5 py-2.5 text-xs font-semibold text-black transition-colors hover:bg-zinc-200"
+        >
+          Start entity onboarding
+        </button>
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
+const LandingPage = ({ onboardingWelcome = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
   const [methodologyOpen, setMethodologyOpen] = useState(false);
@@ -178,6 +255,8 @@ const LandingPage = () => {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showOnboardingWelcome, setShowOnboardingWelcome] = useState(false);
   const { openLogin, openSignup } = useAuthModal();
   const { disconnect } = useDisconnect();
   const queryClient = useQueryClient();
@@ -300,6 +379,35 @@ const LandingPage = () => {
     getProfile();
   }, [session]);
 
+  useEffect(() => {
+    let active = true;
+    if (!onboardingWelcome || !session?.user?.id) {
+      setShowOnboardingWelcome(false);
+      return () => { active = false; };
+    }
+
+    getEntityAccessState(session.user.id)
+      .then((access) => {
+        if (active) setShowOnboardingWelcome(!access.isAdmin && !access.collectionComplete);
+      })
+      .catch((error) => {
+        console.warn("[LandingPage] onboarding introduction check failed:", error.message);
+        if (active) setShowOnboardingWelcome(true);
+      });
+
+    return () => { active = false; };
+  }, [onboardingWelcome, session?.user?.id]);
+
+  const welcomeNext = safeWelcomeNext(new URLSearchParams(location.search).get("next"));
+  const startEntityOnboarding = () => {
+    setShowOnboardingWelcome(false);
+    navigate(`/onboarding?next=${encodeURIComponent(welcomeNext)}`);
+  };
+  const dismissOnboardingWelcome = () => {
+    setShowOnboardingWelcome(false);
+    navigate("/", { replace: true });
+  };
+
   const handleLogout = async () => {
     disconnect();
     queryClient.clear();
@@ -405,6 +513,12 @@ const LandingPage = () => {
 
   return (
     <div ref={pageRef} className="min-h-screen bg-[#0a0a0f] text-zinc-100 font-sans selection:bg-blue-600/30 relative" style={{ overflowX: "clip" }}>
+
+      <AnimatePresence>
+        {showOnboardingWelcome && (
+          <OnboardingWelcomeNotice onStart={startEntityOnboarding} onDismiss={dismissOnboardingWelcome} />
+        )}
+      </AnimatePresence>
 
       {session && <Web3AuthHandler />}
 

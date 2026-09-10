@@ -294,7 +294,7 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
     if (!agreed) { setError("Please accept the Terms of Service and Privacy Policy to continue"); return; }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -304,6 +304,11 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
         },
       });
       if (error) throw error;
+      if (data.session) {
+        onClose();
+        navigate(`/welcome?next=${encodeURIComponent(location.pathname)}`);
+        return;
+      }
       setSuccess(true);
     } catch (error) {
       setError(error.message);

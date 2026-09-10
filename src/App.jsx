@@ -13,6 +13,7 @@ import { drainPendingTrades } from "./services/tradeQueue";
 import { createConfig, WagmiProvider, http } from "wagmi";
 import { mainnet, sepolia } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import EntityTradingGate from "./components/EntityTradingGate";
 
 // ── Lazy page imports ────────────────────────────────────────────────────────
 // Each route gets its own chunk — only downloaded when the user navigates there
@@ -20,7 +21,8 @@ const LandingPage         = lazy(() => import("./landingpage"));
 const LoginPage           = lazy(() => import("./login"));
 const SignupPage          = lazy(() => import("./signup"));
 const AboutPage           = lazy(() => import("./about"));
-const CreateUsernamePage  = lazy(() => import("./welcome"));
+const EntityOnboardingPage = lazy(() => import("./EntityOnboardingPage"));
+const ConnectedPersonVerificationPage = lazy(() => import("./ConnectedPersonVerificationPage"));
 const ForgotPasswordPage  = lazy(() => import("./ForgotPassword"));
 const ResetPasswordPage   = lazy(() => import("./ResetPassword"));
 const TradingPage         = lazy(() => import("./tradingpage"));
@@ -36,6 +38,7 @@ const TermsPage           = lazy(() => import("./TermsPage"));
 const AboutUsPage         = lazy(() => import("./AboutUsPage"));
 const AdminNotifications  = lazy(() => import("./AdminNotifications"));
 const AdminDashboard      = lazy(() => import("./AdminDashboard"));
+const CompliancePortal    = lazy(() => import("./CompliancePortal"));
 const DebugMarkets        = lazy(() => import("./debug-markets").then(m => ({ default: m.DebugMarkets })));
 const SharedLayout        = lazy(() => import("./sharedlayout"));
 
@@ -208,7 +211,12 @@ function App() {
                     <Route path="/signup"             element={<SignupPage />} />
                     <Route path="/forgot-password"    element={<ForgotPasswordPage />} />
                     <Route path="/reset-password"     element={<ResetPasswordPage />} />
-                    <Route path="/welcome"            element={<CreateUsernamePage />} />
+                    {/* Authentication callbacks land on the public homepage.
+                        Incomplete non-admin accounts receive the onboarding
+                        introduction there before choosing when to begin. */}
+                    <Route path="/welcome"            element={<LandingPage onboardingWelcome />} />
+                    <Route path="/onboarding"         element={<EntityOnboardingPage />} />
+                    <Route path="/verify-connected-person" element={<ConnectedPersonVerificationPage />} />
                     <Route path="/debug-markets"      element={<DebugMarkets />} />
                     <Route path="/methodology/:gpu"   element={<MethodologyPage />} />
                     <Route path="/privacy"            element={<PrivacyPolicy />} />
@@ -220,11 +228,12 @@ function App() {
                     <Route element={<SharedLayout />}>
                       <Route path="/trade"     element={<TradingPage />} />
                       <Route path="/markets"   element={<MarketsPage />} />
-                      <Route path="/portfolio" element={<PortfolioPage />} />
+                      <Route path="/portfolio" element={<EntityTradingGate><PortfolioPage /></EntityTradingGate>} />
                       <Route path="/guide"     element={<GuidePage />} />
                       <Route path="/docs"      element={<DocsPage />} />
                       <Route path="/settings"  element={<SettingsPage />} />
                       <Route path="/admin"     element={<AdminDashboard />} />
+                      <Route path="/admin/compliance" element={<CompliancePortal />} />
                     </Route>
                   </Routes>
                 </Suspense>

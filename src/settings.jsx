@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import MfaSettings from "./components/MfaSettings";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./creatclient";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -9,21 +9,15 @@ import {
   Settings as SettingsIcon,
   Shield,
   Bell,
-  BellOff,
-  Moon,
-  Sun,
   LogOut,
-  ChevronRight,
   X,
   Eye,
   EyeOff,
   Lock,
   Trash2,
 } from "lucide-react";
-import BokehBackground from "./components/BokehBackground";
 import { HiOutlineHome } from "react-icons/hi2";
 import { Link } from "react-router-dom";
-import logo from "./assets/ByteStrikeLogoFinal.png";
 
 // ── Switch ────────────────────────────────────────────────────────────────────
 // Standard track + sliding-knob toggle. Presentational: the parent row owns the
@@ -33,13 +27,13 @@ const Switch = ({ checked, disabled = false }) => (
     role="switch"
     aria-checked={checked}
     aria-disabled={disabled || undefined}
-    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full px-0.5 transition-colors duration-200 ${
-      checked ? "bg-blue-600" : "bg-surface-3"
+    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200 ${
+      checked ? "bg-[#0a84ff]" : "bg-[#3a3a3c]"
     } ${disabled ? "opacity-60" : ""}`}
   >
     <span
-      className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-        checked ? "translate-x-5" : "translate-x-0"
+      className={`h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.4)] transition-transform duration-200 ${
+        checked ? "translate-x-4" : "translate-x-0"
       }`}
     />
   </span>
@@ -47,9 +41,9 @@ const Switch = ({ checked, disabled = false }) => (
 
 // ── Notification type meta ────────────────────────────────────────────────────
 const NOTIF_TYPES = [
-  { key: "info",         label: "Info",         desc: "General platform updates and announcements.",       color: "text-blue-400",   bg: "bg-blue-500/10",   hover: "group-hover:bg-blue-500/20"   },
-  { key: "announcement", label: "Announcement", desc: "Major product launches and important milestones.",  color: "text-purple-400", bg: "bg-purple-500/10", hover: "group-hover:bg-purple-500/20" },
-  { key: "warning",      label: "Warning",      desc: "Maintenance windows, incidents, and risk notices.", color: "text-amber-400",  bg: "bg-amber-500/10",  hover: "group-hover:bg-amber-500/20"  },
+  { key: "info", label: "Info", desc: "General platform updates and announcements." },
+  { key: "announcement", label: "Announcements", desc: "Major product launches and important milestones." },
+  { key: "warning", label: "Warnings", desc: "Maintenance windows, incidents and risk notices." },
 ];
 
 // ── NotificationSettings (sub-component for the notifications tab) ────────────
@@ -103,51 +97,45 @@ const NotificationSettings = ({ session }) => {
   };
 
   if (!loaded) return (
-    <div className="flex items-center justify-center py-20">
-      <div className="w-5 h-5 rounded-full border-2 border-line border-t-blue-500 animate-spin" />
+    <div className="flex items-center justify-center py-24">
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-white/70" />
     </div>
   );
 
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6"
+      transition={{ duration: 0.2 }}
+      className="space-y-9"
     >
-      <h3 className="text-xl font-bold mb-6 text-ink">Notification Preferences</h3>
-
-      {/* Master switch */}
-      <div className="bg-surface-1 backdrop-blur-md border border-line-subtle rounded-2xl overflow-hidden">
-        <div
-          className="p-5 flex items-center justify-between hover:bg-surface-2/50 transition-colors cursor-pointer group"
-          onClick={toggleEnabled}
-        >
-          <div className="flex items-center gap-4">
-            <div className={`p-2.5 rounded-xl transition-colors ${
-              prefs.enabled ? "bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20" : "bg-surface-3 text-ink-faint"
-            }`}>
-              {prefs.enabled ? <Bell size={20} /> : <BellOff size={20} />}
-            </div>
-            <div>
-              <h4 className="font-bold text-ink text-sm">Platform Notifications</h4>
-              <p className="text-xs text-ink-faint mt-0.5">
-                {prefs.enabled ? "You will receive in-app notifications from the admin team." : "All notifications are muted. The bell icon will be dimmed."}
-              </p>
-            </div>
-          </div>
-          <div className="shrink-0">
-            <Switch checked={prefs.enabled} />
-          </div>
-        </div>
+      <div>
+        <h2 className="text-[30px] font-semibold tracking-[-0.025em] text-ink">Notifications</h2>
+        <p className="mt-2 text-[15px] text-ink-faint">Choose which platform updates appear in your account.</p>
       </div>
 
+      {/* Master switch */}
+      <section className="overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#121216]">
+        <div
+          className="flex cursor-pointer items-center justify-between gap-8 px-6 py-5 transition-colors hover:bg-white/[0.025] sm:px-7"
+          onClick={toggleEnabled}
+        >
+          <div>
+            <h3 className="text-base font-medium text-ink">Platform notifications</h3>
+            <p className="mt-1 text-sm leading-5 text-ink-faint">
+              {prefs.enabled ? "Receive in-app updates from the ByteStrike team." : "All platform notifications are currently muted."}
+            </p>
+          </div>
+          <Switch checked={prefs.enabled} />
+        </div>
+      </section>
+
       {/* Per-type toggles */}
-      <div>
-        <p className="text-xs font-semibold text-ink-faint uppercase tracking-wider mb-3 px-1">
-          Notification Types
+      <section>
+        <p className="mb-2.5 px-1 text-xs font-medium text-ink-faint">
+          Notification types
         </p>
-        <div className="bg-surface-1 backdrop-blur-md border border-line-subtle rounded-2xl overflow-hidden divide-y divide-line-subtle">
+        <div className="divide-y divide-white/[0.07] overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#121216]">
           {NOTIF_TYPES.map((t) => {
             const active = prefs.types.includes(t.key);
             const disabled = !prefs.enabled;
@@ -155,35 +143,28 @@ const NotificationSettings = ({ session }) => {
               <div
                 key={t.key}
                 onClick={() => !disabled && toggleType(t.key)}
-                className={`p-5 flex items-center justify-between transition-colors group ${
-                  disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-2/50 cursor-pointer"
+                className={`flex items-center justify-between gap-8 px-6 py-5 transition-colors sm:px-7 ${
+                  disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-white/[0.025]"
                 }`}
               >
-                <div className="flex items-center gap-4">
-                  <div className={`p-2.5 rounded-xl transition-colors ${t.bg} ${t.color} ${!disabled ? t.hover : ""}`}>
-                    <Bell size={20} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-ink text-sm">{t.label}</h4>
-                    <p className="text-xs text-ink-faint mt-0.5">{t.desc}</p>
-                  </div>
+                <div>
+                  <h3 className="text-base font-medium text-ink">{t.label}</h3>
+                  <p className="mt-1 text-sm leading-5 text-ink-faint">{t.desc}</p>
                 </div>
-                <div className="shrink-0">
-                  <Switch checked={active} disabled={disabled} />
-                </div>
+                <Switch checked={active} disabled={disabled} />
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
       {saving && (
-        <p className="text-xs text-ink-faint flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-full border border-line border-t-blue-500 animate-spin" />
+        <p className="flex items-center gap-2 px-1 text-xs text-ink-faint">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border border-white/15 border-t-white/70" />
           Saving...
         </p>
       )}
-    </motion.div>
+    </Motion.div>
   );
 };
 
@@ -199,7 +180,6 @@ const SettingsPage = () => {
 
   // Change Password Modal State
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -278,7 +258,6 @@ const SettingsPage = () => {
 
       toast.success("Password changed successfully!");
       setShowPasswordModal(false);
-      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error) {
@@ -299,187 +278,177 @@ const SettingsPage = () => {
     switch (activeTab) {
       case "profile":
         return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
+          <Motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-8"
           >
-            <div className="flex items-center gap-6 mb-8">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-3xl font-bold text-ink shadow-[0_0_20px_rgba(59,130,246,0.3)]">
-                {profile?.username?.charAt(0).toUpperCase() || "U"}
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-ink mb-1">
-                  {profile?.username || "User"}
-                </h2>
-                <p className="text-ink-muted text-sm mb-3">{session?.user?.email}</p>
-                <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wide">
-                  {profile?.kyc_status?.replace("_", " ").toUpperCase() ||
-                    "NOT VERIFIED"}
-                </div>
-              </div>
+            <div>
+              <h2 className="text-[28px] font-semibold tracking-[-0.025em] text-ink">Profile</h2>
+              <p className="mt-1.5 text-sm text-ink-faint">Your ByteStrike account information.</p>
             </div>
 
-            <div className="bg-surface-1 backdrop-blur-md border border-line-subtle rounded-2xl p-6">
-              <h3 className="text-lg font-bold mb-6 text-ink flex items-center gap-2">
-                <User size={20} className="text-blue-500" />
-                Personal Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-ink-faint uppercase tracking-wider">
+            <section className="overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#121216]">
+              <div className="flex items-center gap-4 px-5 py-5 sm:px-6">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#2c2c2e] text-xl font-semibold text-white">
+                {profile?.username?.charAt(0).toUpperCase() || "U"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-[17px] font-semibold text-ink">
+                    {profile?.username || "User"}
+                  </h3>
+                  <p className="mt-0.5 truncate text-[13px] text-ink-faint">{session?.user?.email}</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-white/[0.07] px-3 py-1.5 text-[11px] font-medium text-ink-muted">
+                  {profile?.kyc_status?.replaceAll("_", " ") || "Not verified"}
+                </span>
+              </div>
+            </section>
+
+            <section>
+              <p className="mb-2.5 px-1 text-xs font-medium text-ink-faint">Personal information</p>
+              <div className="grid grid-cols-1 gap-px overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.07] sm:grid-cols-2">
+                <div className="bg-[#121216] px-5 py-4">
+                  <label className="mb-2 block text-xs text-ink-faint">
                     Username
                   </label>
                   <input
                     type="text"
                     value={profile?.username || ""}
                     disabled
-                    className="w-full bg-surface-0 border border-line rounded-xl px-4 py-3 text-ink-muted focus:outline-none cursor-not-allowed opacity-70 font-medium"
+                    className="w-full cursor-not-allowed bg-transparent text-[15px] font-medium text-ink outline-none"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-ink-faint uppercase tracking-wider">
+                <div className="bg-[#121216] px-5 py-4">
+                  <label className="mb-2 block text-xs text-ink-faint">
                     Email
                   </label>
                   <input
                     type="email"
                     value={session?.user?.email || ""}
                     disabled
-                    className="w-full bg-surface-0 border border-line rounded-xl px-4 py-3 text-ink-muted focus:outline-none cursor-not-allowed opacity-70 font-medium"
+                    className="w-full cursor-not-allowed bg-transparent text-[15px] font-medium text-ink outline-none"
                   />
                 </div>
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-bold text-ink-faint uppercase tracking-wider">
+                <div className="bg-[#121216] px-5 py-4 sm:col-span-2">
+                  <label className="mb-2 block text-xs text-ink-faint">
                     Wallet Address
                   </label>
                   <input
                     type="text"
                     value={profile?.wallet_address || "Not Connected"}
                     disabled
-                    className="w-full bg-surface-0 border border-line rounded-xl px-4 py-3 text-ink-muted focus:outline-none cursor-not-allowed opacity-70 num text-sm"
+                    className="num w-full cursor-not-allowed bg-transparent text-[13px] text-ink-muted outline-none"
                   />
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </section>
+          </Motion.div>
         );
       case "preferences":
         return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
+          <Motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-8"
           >
-            <h3 className="text-xl font-bold mb-6 text-ink">
-              App Preferences
-            </h3>
-            <div className="bg-surface-1 backdrop-blur-md border border-line-subtle rounded-2xl overflow-hidden divide-y divide-line-subtle">
-              <div className="p-5 flex items-center justify-between hover:bg-surface-2/50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
-                    <Moon size={20} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-ink text-sm">Dark Mode</h4>
-                    <p className="text-xs text-ink-faint mt-0.5">
-                      Always on for ByteStrike
-                    </p>
-                  </div>
+            <div>
+              <h2 className="text-[28px] font-semibold tracking-[-0.025em] text-ink">Preferences</h2>
+              <p className="mt-1.5 text-sm text-ink-faint">Adjust how ByteStrike looks and feels.</p>
+            </div>
+            <section>
+              <p className="mb-2.5 px-1 text-xs font-medium text-ink-faint">Appearance</p>
+              <div className="divide-y divide-white/[0.07] overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#121216]">
+              <div className="flex items-center justify-between gap-6 px-5 py-[18px]">
+                <div>
+                  <h3 className="text-[15px] font-medium text-ink">Dark mode</h3>
+                  <p className="mt-1 text-[13px] text-ink-faint">Always on for ByteStrike.</p>
                 </div>
-                <div className="shrink-0 cursor-not-allowed">
+                <div className="shrink-0 cursor-not-allowed" title="Dark mode is always enabled">
                   <Switch checked disabled />
                 </div>
               </div>
 
               <div
-                className="p-5 flex items-center justify-between hover:bg-surface-2/50 transition-colors cursor-pointer group"
+                className="flex cursor-pointer items-center justify-between gap-6 px-5 py-[18px] transition-colors hover:bg-white/[0.025]"
                 onClick={() => handleToggle("reduceMotion")}
               >
-                <div className="flex items-center gap-4">
-                  <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 transition-colors">
-                    <SettingsIcon size={20} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-ink text-sm">
-                      Reduce Motion
-                    </h4>
-                    <p className="text-xs text-ink-faint mt-0.5">
-                      Minimize animations for performance
-                    </p>
-                  </div>
+                <div>
+                  <h3 className="text-[15px] font-medium text-ink">Reduce motion</h3>
+                  <p className="mt-1 text-[13px] text-ink-faint">Minimize interface animations.</p>
                 </div>
-                <div className="shrink-0">
-                  <Switch checked={settings.reduceMotion} />
-                </div>
+                <Switch checked={settings.reduceMotion} />
               </div>
 
               <div
-                className="p-5 flex items-center justify-between hover:bg-surface-2/50 transition-colors cursor-pointer group"
+                className="flex cursor-pointer items-center justify-between gap-6 px-5 py-[18px] transition-colors hover:bg-white/[0.025]"
                 onClick={() => handleToggle("highContrast")}
               >
-                <div className="flex items-center gap-4">
-                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20 transition-colors">
-                    <Sun size={20} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-ink text-sm">
-                      High Contrast
-                    </h4>
-                    <p className="text-xs text-ink-faint mt-0.5">
-                      Increase visibility of interface elements
-                    </p>
-                  </div>
+                <div>
+                  <h3 className="text-[15px] font-medium text-ink">High contrast</h3>
+                  <p className="mt-1 text-[13px] text-ink-faint">Increase the visibility of interface elements.</p>
                 </div>
-                <div className="shrink-0">
-                  <Switch checked={settings.highContrast} />
-                </div>
+                <Switch checked={settings.highContrast} />
               </div>
             </div>
-          </motion.div>
+            </section>
+          </Motion.div>
         );
       case "security":
         return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
+          <Motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-8"
           >
-            <h3 className="text-xl font-bold mb-6 text-ink">
-              Security Settings
-            </h3>
-
-            {/* Two-factor authentication (live) */}
-            <MfaSettings />
-
-            <div className="bg-surface-1 backdrop-blur-md border border-line-subtle rounded-2xl p-6">
-              <button
-                onClick={() => setShowPasswordModal(true)}
-                className="w-full py-3.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink font-semibold transition-colors border border-line hover:border-line-strong flex items-center justify-center gap-2 text-sm"
-              >
-                <Lock size={16} />
-                Change Password
-              </button>
+            <div>
+              <h2 className="text-[28px] font-semibold tracking-[-0.025em] text-ink">Security</h2>
+              <p className="mt-1.5 text-sm text-ink-faint">Manage sign-in protection and account access.</p>
             </div>
 
-            <div className="bg-surface-1 backdrop-blur-md border border-line-subtle rounded-2xl p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="sm:max-w-md">
-                  <h4 className="text-sm font-semibold text-ink mb-1.5">Delete Account</h4>
-                  <p className="text-xs text-ink-muted leading-relaxed">
-                    Permanently delete your account and all associated data. This action is
-                    irreversible and cannot be undone.
+            {/* Two-factor authentication (live) */}
+            <section>
+              <p className="mb-2.5 px-1 text-xs font-medium text-ink-faint">Authentication</p>
+              <MfaSettings />
+            </section>
+
+            <section className="overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#121216]">
+              <div className="flex flex-col gap-4 px-5 py-[18px] sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-[15px] font-medium text-ink">Password</h3>
+                  <p className="mt-1 text-[13px] leading-5 text-ink-faint">Choose a strong, unique password for your account.</p>
+                </div>
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-white/[0.08] px-3.5 py-2 text-[13px] font-medium text-ink transition-colors hover:bg-white/[0.12]"
+              >
+                <Lock size={14} />
+                Change Password
+              </button>
+              </div>
+            </section>
+
+            <section>
+              <p className="mb-2.5 px-1 text-xs font-medium text-ink-faint">Account</p>
+              <div className="overflow-hidden rounded-[18px] border border-red-500/15 bg-[#121216]">
+                <div className="flex flex-col gap-4 px-5 py-[18px] sm:flex-row sm:items-center sm:justify-between">
+                  <div className="sm:max-w-md">
+                    <h3 className="text-[15px] font-medium text-ink">Delete account</h3>
+                    <p className="mt-1 text-[13px] leading-5 text-ink-faint">
+                      Permanently delete your account and all associated data. This cannot be undone.
                   </p>
                 </div>
-                <button className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 text-sm font-medium transition-colors">
-                  <Trash2 size={15} />
+                  <button className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-medium text-red-400 transition-colors hover:bg-red-500/10">
+                  <Trash2 size={14} />
                   Delete Account
                 </button>
               </div>
-            </div>
-          </motion.div>
+              </div>
+            </section>
+          </Motion.div>
         );
       case "notifications":
         return (
@@ -491,136 +460,122 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface-0 text-ink p-6 md:p-12 relative overflow-hidden">
-      {/* Background Visual */}
-      <BokehBackground className="absolute inset-0 z-0 opacity-40 fixed" />
-      <div className="absolute inset-0 bg-gradient-to-b from-surface-0 via-transparent to-surface-0 pointer-events-none z-0" />
-
-      <div className="max-w-6xl mx-auto relative z-10">
-        
-        {/* Header with Home Button */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-            <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-ink mb-2 tracking-tight">
-                Settings
-                </h1>
-                <p className="text-ink-muted font-medium">
-                Manage your account settings and preferences.
-                </p>
-            </div>
-            
-             <Link 
-                to="/" 
-                className="self-start md:self-auto flex items-center gap-2 px-4 py-2 rounded-full bg-surface-1 border border-line text-ink-muted hover:text-ink hover:border-line-strong transition-colors text-sm font-semibold"
-              >
-                <HiOutlineHome className="w-4 h-4" />
-                <span>Back to Home</span>
-            </Link>
+    <div className="min-h-screen bg-[#08080a] text-ink">
+      <header className="border-b border-white/[0.07]">
+        <div className="mx-auto flex h-16 max-w-[1040px] items-center justify-between px-5 sm:px-8">
+          <h1 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">Settings</h1>
+          <Link
+            to="/"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-medium text-ink-faint transition-colors hover:bg-white/[0.06] hover:text-ink"
+          >
+            <HiOutlineHome className="h-4 w-4" />
+            <span>Home</span>
+          </Link>
         </div>
+      </header>
 
-        <div className="flex flex-col md:flex-row gap-8">
+      <main className="mx-auto max-w-[1040px] px-5 py-8 sm:px-8 sm:py-12">
+        <div className="flex flex-col gap-10 md:flex-row md:gap-16">
           {/* Sidebar */}
-          <div className="w-full md:w-72 flex-shrink-0">
-            <div className="bg-surface-1 backdrop-blur-xl border border-line-subtle rounded-2xl p-4 space-y-2 sticky top-24 shadow-2xl">
+          <aside className="w-full shrink-0 md:w-52">
+            <nav className="flex gap-1 overflow-x-auto pb-1 md:sticky md:top-8 md:flex-col md:overflow-visible">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors duration-150 relative group ${
+                  className={`flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors md:w-full ${
                     activeTab === tab.id
-                      ? "bg-surface-3 text-ink"
-                      : "text-ink-faint hover:text-ink hover:bg-surface-2"
+                      ? "bg-white/[0.09] text-ink"
+                      : "text-ink-faint hover:bg-white/[0.045] hover:text-ink-muted"
                   }`}
+                  aria-current={activeTab === tab.id ? "page" : undefined}
                 >
-                  <tab.icon size={18} className={activeTab === tab.id ? "text-blue-400" : "text-ink-faint group-hover:text-ink-muted transition-colors"} />
+                  <tab.icon size={16} strokeWidth={1.8} />
                   {tab.label}
-                  {activeTab === tab.id && (
-                    <ChevronRight size={16} className="ml-auto text-blue-400" />
-                  )}
                 </button>
               ))}
 
-              <div className="h-px bg-line my-4 mx-2"></div>
+              <div className="mx-2 my-2 hidden h-px bg-white/[0.07] md:block" />
 
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"
+                className="flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-medium text-ink-faint transition-colors hover:bg-white/[0.045] hover:text-red-400 md:w-full"
               >
-                <LogOut size={18} />
-                Logout
+                <LogOut size={16} strokeWidth={1.8} />
+                Sign out
               </button>
-            </div>
-          </div>
+            </nav>
+          </aside>
 
           {/* Content Area */}
-          <div className="flex-1">
-            <div className="min-h-[500px]">
+          <div className="min-w-0 flex-1">
+            <div className="min-h-[520px]">
               <AnimatePresence mode="wait">
-                <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
+                <Motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                 >
-                    {renderContent()}
-                </motion.div>
+                  {renderContent()}
+                </Motion.div>
               </AnimatePresence>
             </div>
           </div>
         </div>
-      </div>
+      </main>
 
       {/* Change Password Modal */}
       <AnimatePresence>
         {showPasswordModal && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
             onClick={() => setShowPasswordModal(false)}
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            <Motion.div
+              initial={{ opacity: 0, scale: 0.98, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              exit={{ opacity: 0, scale: 0.98, y: 8 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-surface-1 border border-line rounded-3xl p-8 w-full max-w-md shadow-2xl relative overflow-hidden"
+              className="relative w-full max-w-[420px] overflow-hidden rounded-[20px] border border-white/[0.1] bg-[#1c1c1e] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)] sm:p-7"
             >
-             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 to-purple-600" />
-              
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-2xl font-bold text-ink tracking-tight">
+              <div className="mb-7 flex items-center justify-between">
+                <h3 className="text-xl font-semibold tracking-[-0.02em] text-ink">
                   Change Password
                 </h3>
                 <button
                   onClick={() => setShowPasswordModal(false)}
-                  className="p-2 rounded-full hover:bg-surface-3 text-ink-muted hover:text-ink transition-colors"
+                  className="rounded-full bg-white/[0.07] p-1.5 text-ink-faint transition-colors hover:bg-white/[0.12] hover:text-ink"
+                  aria-label="Close"
                 >
-                  <X size={20} />
+                  <X size={17} />
                 </button>
               </div>
 
-              <form onSubmit={handleChangePassword} className="space-y-5">
+              <form onSubmit={handleChangePassword} className="space-y-4">
                 {/* New Password */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-ink-muted uppercase tracking-wider">
+                <div>
+                  <label className="mb-2 block text-[13px] font-medium text-ink-muted">
                     New Password
                   </label>
-                  <div className="relative group">
+                  <div className="relative">
                     <input
                       type={showNewPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Enter new password"
-                      className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3.5 pr-12 text-ink placeholder-ink-ghost focus:outline-none focus:border-blue-500/60 transition-colors duration-150"
+                      className="w-full rounded-xl border border-white/[0.1] bg-black/20 px-3.5 py-3 pr-11 text-[14px] text-ink outline-none transition-colors placeholder:text-ink-ghost focus:border-[#0a84ff] focus:ring-2 focus:ring-[#0a84ff]/20"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint transition-colors hover:text-ink-muted"
+                      aria-label={showNewPassword ? "Hide password" : "Show password"}
                     >
                       {showNewPassword ? (
                         <EyeOff size={18} />
@@ -632,17 +587,17 @@ const SettingsPage = () => {
                 </div>
 
                 {/* Confirm Password */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-ink-muted uppercase tracking-wider">
+                <div>
+                  <label className="mb-2 block text-[13px] font-medium text-ink-muted">
                     Confirm New Password
                   </label>
-                  <div className="relative group">
+                  <div className="relative">
                     <input
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Confirm new password"
-                      className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3.5 pr-12 text-ink placeholder-ink-ghost focus:outline-none focus:border-blue-500/60 transition-colors duration-150"
+                      className="w-full rounded-xl border border-white/[0.1] bg-black/20 px-3.5 py-3 pr-11 text-[14px] text-ink outline-none transition-colors placeholder:text-ink-ghost focus:border-[#0a84ff] focus:ring-2 focus:ring-[#0a84ff]/20"
                       required
                     />
                     <button
@@ -650,7 +605,8 @@ const SettingsPage = () => {
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint transition-colors hover:text-ink-muted"
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                     >
                       {showConfirmPassword ? (
                         <EyeOff size={18} />
@@ -663,14 +619,14 @@ const SettingsPage = () => {
 
                 {/* Password mismatch warning */}
                 {confirmPassword && newPassword !== confirmPassword && (
-                  <p className="text-red-400 text-xs font-medium bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20">Passwords don't match</p>
+                  <p className="text-xs text-red-400">Passwords don't match.</p>
                 )}
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-3 pt-3">
                   <button
                     type="button"
                     onClick={() => setShowPasswordModal(false)}
-                    className="flex-1 py-3.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink-muted font-semibold transition-colors border border-line"
+                    className="flex-1 rounded-xl bg-white/[0.08] py-3 text-[14px] font-medium text-ink transition-colors hover:bg-white/[0.12]"
                   >
                     Cancel
                   </button>
@@ -682,14 +638,14 @@ const SettingsPage = () => {
                       !confirmPassword ||
                       newPassword !== confirmPassword
                     }
-                    className="flex-1 py-3.5 rounded-xl bg-ink hover:brightness-95 text-surface-0 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 rounded-xl bg-[#0a84ff] py-3 text-[14px] font-medium text-white transition-colors hover:bg-[#3096ff] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {isChangingPassword ? "Changing..." : "Change Password"}
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </motion.div>
+            </Motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>

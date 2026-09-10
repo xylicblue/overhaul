@@ -66,6 +66,7 @@ const SignupPage = () => {
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/welcome`,
           data: {
             username,
           },
@@ -73,6 +74,12 @@ const SignupPage = () => {
       });
 
       if (error) throw error;
+
+      if (data.session) {
+        toast.success("Account created successfully.");
+        navigate("/welcome");
+        return;
+      }
 
       toast.success(
         "Signup successful! Please check your email to confirm your account."

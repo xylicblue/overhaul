@@ -54,10 +54,10 @@ export default function MfaEnroll({ onComplete, onCancel }) {
   const qrIsSvg = typeof qr === "string" && qr.includes("<svg");
 
   return (
-    <div className="bg-surface-1 border border-line-subtle rounded-xl p-5 max-w-md w-full">
-      <div className="flex items-center gap-2 mb-4">
-        <ShieldCheck size={18} className="text-blue-400" />
-        <h2 className="text-[15px] font-semibold text-ink">Set up two-factor authentication</h2>
+    <div className="w-full">
+      <div className="mb-5 flex items-center gap-2.5">
+        <ShieldCheck size={17} className="text-[#0a84ff]" />
+        <h2 className="text-[15px] font-medium text-ink">Set up two-factor authentication</h2>
       </div>
 
       {phase === "loading" && <p className="text-[13px] text-ink-faint">Preparing enrolment…</p>}
@@ -66,39 +66,39 @@ export default function MfaEnroll({ onComplete, onCancel }) {
         <div className="text-[13px] text-down">
           {err}
           <div className="mt-3">
-            <button onClick={onCancel} className="px-3 py-1.5 rounded-md bg-surface-2 border border-line text-ink-muted text-[12px]">Close</button>
+            <button onClick={onCancel} className="rounded-lg bg-white/[0.08] px-3 py-2 text-[12px] font-medium text-ink-muted">Close</button>
           </div>
         </div>
       )}
 
       {phase === "scan" && enroll && (
         <form onSubmit={verify}>
-          <p className="text-[12px] text-ink-muted mb-3">
+          <p className="mb-4 text-[13px] leading-5 text-ink-muted">
             Scan this with an authenticator app (Google Authenticator, Authy, 1Password), then enter the 6-digit code it shows.
           </p>
-          <div className="flex justify-center mb-3">
-            <div className="bg-white p-2 rounded-lg">
+          <div className="mb-4 flex justify-center">
+            <div className="rounded-xl bg-white p-2">
               {qrIsImg ? <img src={qr} alt="TOTP QR code" width={168} height={168} />
                 : qrIsSvg ? <div style={{ width: 168, height: 168 }} dangerouslySetInnerHTML={{ __html: qr }} />
                 : <div className="text-[11px] text-black p-4">Scan not available; use the key below.</div>}
             </div>
           </div>
-          <div className="mb-3">
-            <div className="text-[10px] uppercase tracking-widest text-ink-faint mb-1">Or enter this key manually</div>
-            <code className="block text-[12px] text-ink bg-surface-2 border border-line rounded-md px-2 py-1.5 break-all">{enroll.secret}</code>
+          <div className="mb-4">
+            <div className="mb-1.5 text-[12px] text-ink-faint">Or enter this key manually</div>
+            <code className="block break-all rounded-lg bg-black/20 px-3 py-2 text-[12px] text-ink">{enroll.secret}</code>
           </div>
           <input
             inputMode="numeric" autoComplete="one-time-code" maxLength={6}
             value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             placeholder="123456"
-            className="w-full bg-surface-2 border border-line rounded-md px-3 py-2 text-[15px] tracking-[0.3em] text-center text-ink focus:outline-none focus:border-blue-500/50 mb-2"
+            className="mb-2 w-full rounded-xl border border-white/[0.1] bg-black/20 px-3 py-2.5 text-center text-[15px] tracking-[0.3em] text-ink outline-none focus:border-[#0a84ff] focus:ring-2 focus:ring-[#0a84ff]/20"
           />
           {err && <p className="text-[12px] text-down mb-2">{err}</p>}
           <div className="flex items-center gap-2">
-            <button type="submit" disabled={busy || code.length < 6} className="flex-1 px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-medium disabled:opacity-50">
+            <button type="submit" disabled={busy || code.length < 6} className="flex-1 rounded-lg bg-[#0a84ff] px-3 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-[#3096ff] disabled:opacity-50">
               {busy ? "Verifying…" : "Verify & enable"}
             </button>
-            {onCancel && <button type="button" onClick={onCancel} className="px-3 py-2 rounded-md bg-surface-2 border border-line text-ink-muted text-[13px]">Cancel</button>}
+            {onCancel && <button type="button" onClick={onCancel} className="rounded-lg bg-white/[0.08] px-3 py-2.5 text-[13px] font-medium text-ink-muted transition-colors hover:bg-white/[0.12]">Cancel</button>}
           </div>
         </form>
       )}
@@ -123,10 +123,10 @@ export default function MfaEnroll({ onComplete, onCancel }) {
                 <AlertTriangle size={15} className="shrink-0 mt-0.5" />
                 <span>Save these backup codes now. Each works once if you lose your authenticator. They will not be shown again.</span>
               </div>
-              <div className="grid grid-cols-2 gap-1.5 mb-3 bg-surface-2 border border-line rounded-md p-3">
+              <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl bg-black/20 p-3">
                 {backupCodes.map((c) => <code key={c} className="text-[13px] text-ink num text-center">{c}</code>)}
               </div>
-              <button onClick={copyCodes} className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-2 border border-line text-ink-muted text-[12px] mb-3 hover:text-ink">
+              <button onClick={copyCodes} className="mb-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-white/[0.08] px-3 py-2 text-[12px] font-medium text-ink-muted transition-colors hover:bg-white/[0.12] hover:text-ink">
                 {copied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy all</>}
               </button>
               <label className="flex items-center gap-2 text-[12px] text-ink-muted mb-3 cursor-pointer">
@@ -136,7 +136,7 @@ export default function MfaEnroll({ onComplete, onCancel }) {
             </>
           )}
 
-          <button onClick={() => onComplete?.()} disabled={!backupError && !savedAck} className="w-full px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-medium disabled:opacity-50">
+          <button onClick={() => onComplete?.()} disabled={!backupError && !savedAck} className="w-full rounded-lg bg-[#0a84ff] px-3 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-[#3096ff] disabled:opacity-50">
             Done
           </button>
         </div>

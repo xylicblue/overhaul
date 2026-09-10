@@ -4,8 +4,11 @@ import { BrowserProvider } from "ethers";
 import { supabase } from "./creatclient";
 import { updateWallet, getWalletLinkNonce } from "./services/api";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import { getEntityAccessState } from "./services/entityOnboarding";
 
 const ConnectWalletButton = ({ session, initialAddress }) => {
+  const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(initialAddress || null);
   const [isLoading, setIsLoading] = useState(false);
   // We no longer need the errorMessage state
@@ -27,6 +30,18 @@ const ConnectWalletButton = ({ session, initialAddress }) => {
     }
 
     try {
+      if (session?.user?.id) {
+        const access = await getEntityAccessState(session.user.id);
+        if (!access.isAdmin && !access.onboardingComplete) {
+          toast("Complete entity onboarding before connecting a wallet.", {
+            id: "wallet-onboarding-required",
+          });
+          navigate(`/onboarding?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Business rule: a wallet may only be linked to a KYC-verified profile.
       // Check server-side status before triggering the MetaMask popup so the
       // user is not asked to interact with their wallet only to be refused at

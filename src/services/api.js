@@ -9,6 +9,7 @@
  */
 
 import { supabase } from "../creatclient";
+import { getEntityAccessState } from "./entityOnboarding";
 
 // Base URL: use proxy in production, direct Supabase in dev
 function normalizeSupabaseUrl(value) {
@@ -223,7 +224,47 @@ export async function checkLocation() {
  * Get a Sumsub verification token for the current user.
  */
 export async function getSumsubToken() {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Please sign in before starting identity verification.");
+
+  // Enforce the workflow at the token-request boundary as well as in the UI.
+  // This applies to old and new accounts alike. Only an authenticated admin or
+  // an applicant that has submitted entity onboarding may request KYC access.
+  const access = await getEntityAccessState(user.id);
+  if (!access.isAdmin && !access.collectionComplete) {
+    const error = new Error("Complete entity onboarding before starting identity verification.");
+    error.code = "ENTITY_ONBOARDING_REQUIRED";
+    throw error;
+  }
+
   return callEdgeFunction("get-sumsub-token", {});
+}
+
+export async function initializeEntityKyc() {
+  return callEdgeFunction("entity-kyc", { action: "initialize" });
+}
+
+export async function getEntityKycStatus() {
+  return callEdgeFunction("entity-kyc", { action: "status" });
+}
+
+export async function getPrimaryEntityKycToken() {
+  return callEdgeFunction("entity-kyc", { action: "primary-token" });
+}
+
+export async function resendConnectedPersonKyc(connectedPersonId) {
+  return callEdgeFunction("entity-kyc", {
+    action: "resend",
+    connected_person_id: connectedPersonId,
+  });
+}
+
+export async function reopenEntityApplication() {
+  return callEdgeFunction("entity-kyc", { action: "reopen" });
+}
+
+export async function openConnectedPersonKycInvite(invite) {
+  return callEdgeFunction("connected-person-kyc", { invite }, { auth: false });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
