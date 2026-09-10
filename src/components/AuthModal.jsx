@@ -24,11 +24,11 @@ const inputCls =
 const labelCls = "block text-[11px] font-medium text-zinc-500 mb-1";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TermsCheckbox — explicit Terms of Service / Privacy Policy acceptance.
+// PrivacyCheckbox — explicit Privacy Policy acknowledgement.
 // Required before any account-creation path (email signup, Google OAuth, wallet).
 // Controlled component; links open in a new tab so the user keeps their place.
 // ─────────────────────────────────────────────────────────────────────────────
-const TermsCheckbox = ({ checked, onChange, id = "terms" }) => (
+const PrivacyCheckbox = ({ checked, onChange, id = "privacy" }) => (
   <label htmlFor={id} className="flex items-start gap-2.5 cursor-pointer select-none">
     <input
       id={id}
@@ -45,17 +45,7 @@ const TermsCheckbox = ({ checked, onChange, id = "terms" }) => (
       {checked && <HiCheck className="w-3 h-3 text-zinc-900" />}
     </span>
     <span className="text-[11px] leading-relaxed text-zinc-400">
-      I agree to ByteStrike's{" "}
-      <a
-        href="/terms"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        className="text-zinc-200 hover:text-white underline underline-offset-2 transition-colors duration-150"
-      >
-        Terms of Service
-      </a>{" "}
-      and{" "}
+      I have read and acknowledge ByteStrike Group's{" "}
       <a
         href="/privacy"
         target="_blank"
@@ -84,7 +74,7 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
   const location = useLocation();
 
   const signInWithGoogle = async () => {
-    if (!agreed) return; // OAuth can onboard new users — require terms first
+    if (!agreed) return; // OAuth can onboard new users — require privacy acknowledgement first
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -221,8 +211,8 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
         </div>
       </div>
 
-      {/* Terms acceptance — required for Google / wallet (these can create a new account) */}
-      <TermsCheckbox checked={agreed} onChange={setAgreed} id="login-terms" />
+      {/* Privacy acknowledgement — required for Google / wallet (these can create a new account) */}
+      <PrivacyCheckbox checked={agreed} onChange={setAgreed} id="login-privacy" />
 
       {/* Google */}
       <button
@@ -240,7 +230,7 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
         Continue with Google
       </button>
 
-      {/* Wallet — also gated behind terms acceptance */}
+      {/* Wallet — also gated behind privacy acknowledgement */}
       <WalletAuthButtons
         variant="compact"
         disabled={!agreed}
@@ -248,7 +238,7 @@ const LoginForm = ({ onSwitchMode, onClose }) => {
         onNewUser={() => { onClose(); navigate(`/welcome?next=${encodeURIComponent(location.pathname)}`); }}
       />
       {!agreed && (
-        <p className="text-center text-zinc-600 text-[10px] -mt-1">Accept the terms to continue with Google or wallet</p>
+        <p className="text-center text-zinc-600 text-[10px] -mt-1">Acknowledge the Privacy Policy to continue with Google or wallet</p>
       )}
 
       {/* Switch mode */}
@@ -291,7 +281,7 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
     setError("");
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
     if (!allRequirementsMet) { setError("Please meet all password requirements"); return; }
-    if (!agreed) { setError("Please accept the Terms of Service and Privacy Policy to continue"); return; }
+    if (!agreed) { setError("Please acknowledge the Privacy Policy to continue"); return; }
     setLoading(true);
     try {
       const { error } = await supabase.auth.signUp({
@@ -299,8 +289,8 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/welcome`,
-          // Record affirmative consent (audit trail) in the user's metadata
-          data: { terms_accepted_at: new Date().toISOString() },
+          // Record the affirmative privacy acknowledgement in the user's metadata.
+          data: { privacy_acknowledged_at: new Date().toISOString() },
         },
       });
       if (error) throw error;
@@ -419,8 +409,8 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
         </div>
       )}
 
-      {/* Terms acceptance — required to create an account */}
-      <TermsCheckbox checked={agreed} onChange={setAgreed} id="signup-terms" />
+      {/* Privacy acknowledgement — required to create an account */}
+      <PrivacyCheckbox checked={agreed} onChange={setAgreed} id="signup-privacy" />
 
       {/* Submit */}
       <button
@@ -441,7 +431,7 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
         </div>
       </div>
 
-      {/* Wallet — also gated behind terms acceptance */}
+      {/* Wallet — also gated behind privacy acknowledgement */}
       <WalletAuthButtons
         variant="compact"
         disabled={!agreed}
@@ -449,7 +439,7 @@ const SignupForm = ({ onSwitchMode, onClose }) => {
         onNewUser={() => { onClose(); navigate(`/welcome?next=${encodeURIComponent(location.pathname)}`); }}
       />
       {!agreed && (
-        <p className="text-center text-zinc-600 text-[10px] -mt-1">Accept the terms above to continue</p>
+        <p className="text-center text-zinc-600 text-[10px] -mt-1">Acknowledge the Privacy Policy above to continue</p>
       )}
 
       {/* Switch mode */}

@@ -41,7 +41,7 @@ const AuthLayout = ({ children, title, subtitle }) => {
 
         {/* Footer */}
         <div className="mt-8 text-center text-xs text-zinc-600">
-          © {new Date().getFullYear()} ByteStrike. All rights reserved.
+          © {new Date().getFullYear()} ByteStrike Group. All rights reserved.
         </div>
       </div>
     </div>

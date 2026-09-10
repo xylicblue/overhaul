@@ -16,7 +16,7 @@ const fadeUp = {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function PrivacyPolicy() {
-  const [activeSection, setActiveSection] = useState("commitment");
+  const [activeSection, setActiveSection] = useState("scope");
   const [isScrolled, setIsScrolled] = useState(false);
   const sectionRefs = useRef({});
 
@@ -104,7 +104,7 @@ export default function PrivacyPolicy() {
               Last updated: <span className="text-zinc-300">{PRIVACY_LAST_UPDATED}</span>
             </p>
             <p className="mt-5 text-zinc-400 text-base leading-relaxed max-w-2xl">
-              This Privacy Policy describes how ByteStrike ("we," "us," or "our") collects, uses,
+              This Privacy Policy describes how ByteStrike Group ("ByteStrike," "we," "us," or "our") collects, uses,
               and shares your information when you visit{" "}
               <span className="text-blue-400 font-mono text-sm">byte-strike.com</span> or use our
               platform and associated services.

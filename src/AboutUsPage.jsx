@@ -24,7 +24,7 @@ const TEAM = [
   },
   {
     name: "Amit Vijay",
-    role: "Co-Founder, Compliance Officer & Risk Officer",
+    role: "Co-Founder, CRO and CCO",
     country: "Canada",
     img: "/about-us-images/amir%20vijay.jpeg",
     bio: "Amit oversees compliance and risk, aligning the exchange's controls and risk framework with the standards expected of a regulated venue.",
@@ -45,7 +45,7 @@ const TEAM = [
   },
   {
     name: "Sebastian Zapata Veira",
-    role: "Chief Regulatory Strategist",
+    role: "Non-Executive Regulatory Advisor",
     country: "Mexico",
     img: "/about-us-images/sebastian.jpeg",
     bio: "Sebastian shapes ByteStrike's regulatory strategy across jurisdictions, guiding engagement with regulators as the platform scales.",

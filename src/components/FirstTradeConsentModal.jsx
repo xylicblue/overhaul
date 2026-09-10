@@ -91,7 +91,7 @@ const STEPS = [
     intro: null,
     sections: PRIVACY_SECTIONS,
     checkbox:
-      "I have read and agree to ByteStrike's Privacy Policy, and I consent to the collection and processing of my trading and wallet data as described above.",
+      "I have read and acknowledge ByteStrike Group's Privacy Policy and understand how my trading and wallet data is handled as described above.",
     confirm: "Accept & Continue",
   },
 ];

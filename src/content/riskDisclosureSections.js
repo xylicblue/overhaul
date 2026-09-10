@@ -7,7 +7,7 @@ export const RISK_VERSION = "1.0";
 export const RISK_DATE = "16 June 2026";
 
 export const RISK_INTRO =
-  "This document summarizes key market rules and risks for ByteStrike perpetual futures markets referencing GPU compute pricing. It is a user acknowledgement and risk disclosure, not a substitute for the deployed smart contracts, protocol parameters, full Terms of Use, market notices, or legal/regulatory disclosures.";
+  "This document summarizes key market rules and risks for ByteStrike perpetual futures markets referencing GPU compute pricing. It is a user acknowledgement and risk disclosure and should be read together with the deployed smart contracts, protocol parameters, market notices, and applicable legal or regulatory disclosures.";
 
 export const RISK_ACK_CHECKBOX =
   "I have read and understand the ByteStrike Market Rules, Risk Disclosure and User Acknowledgement, and I accept these risks before placing my first trade.";
