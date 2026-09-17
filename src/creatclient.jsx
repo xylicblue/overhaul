@@ -13,6 +13,17 @@ const gatewayUrl   = normalizeUrl(import.meta.env.VITE_API_GATEWAY_URL);
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_PUBLIC_KEY;
 const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
+if (import.meta.env.PROD) {
+  for (const [name, value] of [["VITE_SUPABASE_URL", supabaseUrl], ["VITE_API_GATEWAY_URL", gatewayUrl]]) {
+    if (value && new URL(value).protocol !== "https:") {
+      throw new Error(`${name} must use HTTPS in production.`);
+    }
+  }
+  if (!isSupabaseConfigured) {
+    throw new Error("Production Supabase configuration is missing.");
+  }
+}
+
 function createDisabledQuery(table) {
   const result = {
     data: [],
@@ -88,6 +99,17 @@ function createDisabledSupabaseClient() {
 const customFetch = gatewayUrl
   ? (input, init) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      // Keep binary Storage traffic direct. The gateway intentionally limits
+      // ordinary request bodies to 1 MB and parses them as text, while private
+      // onboarding uploads can be as large as 15 MB. Supabase Storage RLS still
+      // enforces the authenticated user's private folder on these requests.
+      const parsedUrl = new URL(url);
+      if (
+        parsedUrl.origin === new URL(supabaseUrl).origin &&
+        parsedUrl.pathname.startsWith("/storage/v1/")
+      ) {
+        return fetch(input, init);
+      }
       const routed = url.replace(supabaseUrl, gatewayUrl);
       return fetch(routed, init);
     }

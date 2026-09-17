@@ -655,7 +655,12 @@ const SharedLayout = () => {
     // 5. Clear local state
     setProfile(null);
     // 6. Sign out of Supabase (fires onAuthStateChange → setSession(null))
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+
+    // Replace the protected route so Back cannot reveal the stale admin page.
+    setSession(null);
+    navigate("/", { replace: true });
   };
 
   return (

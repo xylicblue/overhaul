@@ -4,6 +4,7 @@ import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { supabase } from "./creatclient";
 import { updateWallet, getWalletLinkNonce } from "./services/api";
 import toast from "react-hot-toast";
+import { getEntityAccessState } from "./services/entityOnboarding";
 
 // Business rule: a wallet may only be linked to a profile whose Sumsub KYC
 // has been approved. Enforced server-side by api-profile (kyc_required
@@ -34,6 +35,7 @@ const Web3AuthHandler = () => {
   // Once we successfully linked `address`, remember it so a re-mount of this
   // handler with the same wagmi state doesn't fire another wallet-sign popup.
   const linkedAddressRef = useRef(null);
+  const onboardingBlockedAddressRef = useRef(null);
   // KYC guard: remember the last address we refused so we don't repeatedly
   // toast the same error while wagmi keeps re-firing the connect event.
   const kycBlockedAddressRef = useRef(null);
@@ -55,6 +57,28 @@ const Web3AuthHandler = () => {
       if (!userIdRef.current) return;
 
       if (isConnected && address && linkedAddressRef.current !== address) {
+        // Entity collection precedes KYC and wallet linking. Check it even for
+        // provider-restored sessions, not only explicit Connect button clicks.
+        try {
+          const access = await getEntityAccessState(userIdRef.current);
+          if (!access.isAdmin && !access.onboardingComplete) {
+            if (onboardingBlockedAddressRef.current !== address) {
+              onboardingBlockedAddressRef.current = address;
+              toast.error(
+                "Complete entity onboarding before connecting a wallet.",
+                { id: "wallet-onboarding-required" },
+              );
+            }
+            try { disconnect(); } catch { /* ignore */ }
+            return;
+          }
+          onboardingBlockedAddressRef.current = null;
+        } catch (error) {
+          console.warn("Could not verify entity onboarding before wallet link:", error);
+          try { disconnect(); } catch { /* ignore */ }
+          return;
+        }
+
         // Refuse the link before prompting for a signature the server will
         // reject anyway. Also tear down the wagmi connection so the browser
         // does not report a "connected" wallet that the profile does not
@@ -100,6 +124,7 @@ const Web3AuthHandler = () => {
         try {
           await updateWallet(null);
           linkedAddressRef.current = null;
+          onboardingBlockedAddressRef.current = null;
           kycBlockedAddressRef.current = null;
         } catch (e) { console.warn("Failed to clear wallet:", e); }
       }

@@ -132,7 +132,10 @@ async function handleRequest(request, env, ctx, requestId) {
 
   const corsHeaders = {
     "Access-Control-Allow-Origin":   isAllowedOrigin ? origin : allowedOrigins[0] || "",
-    "Access-Control-Allow-Methods":  "GET, POST, PATCH, DELETE, OPTIONS",
+    // Supabase Auth uses PUT /auth/v1/user for password and user-metadata
+    // changes. Keep it explicitly allow-listed so browser preflights can reach
+    // the existing authenticated Auth endpoint through the gateway.
+    "Access-Control-Allow-Methods":  "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers":  "authorization, x-client-info, apikey, content-type, content-profile, prefer, x-request-id, x-supabase-api-version, accept-profile, accept-language",
     "Access-Control-Max-Age":        "86400",
     "Access-Control-Expose-Headers": "x-ratelimit-remaining, x-ratelimit-reset, x-cache, x-request-id",

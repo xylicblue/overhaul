@@ -1,0 +1,43 @@
+.person-verification-page { min-height: 100vh; display: flex; flex-direction: column; color: #f5f5f7; background: radial-gradient(circle at 50% -15%, rgba(95,110,205,.13), transparent 30rem), #070708; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.person-verification-topbar { height: 64px; padding: 0 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.07); background: rgba(7,7,8,.78); backdrop-filter: blur(20px); }
+.person-verification-topbar a { display: inline-flex; }
+.person-verification-topbar img { width: auto; height: 31px; }
+.person-verification-topbar span { display: flex; align-items: center; gap: 7px; color: #898991; font-size: 11px; font-weight: 600; }
+.person-verification-panel { width: min(620px, calc(100% - 32px)); margin: 70px auto 40px; border: 1px solid rgba(255,255,255,.085); border-radius: 22px; background: rgba(19,19,22,.88); box-shadow: 0 28px 90px rgba(0,0,0,.34); overflow: hidden; }
+.person-verification-panel.is-sdk { width: min(760px, calc(100% - 32px)); margin-top: 38px; }
+.person-verification-intro { padding: 48px 46px 42px; text-align: center; }
+.person-verification-icon { width: 50px; height: 50px; margin: 0 auto 20px; display: grid; place-items: center; color: #aeb8f5; border: 1px solid rgba(99,119,237,.22); border-radius: 15px; background: rgba(82,104,230,.09); }
+.person-verification-intro > p, .person-verification-state > p { margin: 0 0 8px; color: #8999f2; font-size: 9px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
+.person-verification-intro h1, .person-verification-state h1 { margin: 0 0 13px; color: #f0f0f2; font-size: 27px; font-weight: 650; letter-spacing: -.04em; }
+.person-verification-intro > span, .person-verification-state > span { display: block; max-width: 480px; margin: 0 auto; color: #8a8a93; font-size: 12px; line-height: 1.75; }
+.person-verification-points { margin: 30px 0 28px; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #29292e; border-radius: 13px; background: #0d0d0f; text-align: left; }
+.person-verification-points div { min-width: 0; padding: 14px; display: grid; gap: 5px; }
+.person-verification-points div + div { border-left: 1px solid #29292e; }
+.person-verification-points strong { color: #cfcfd4; font-size: 10px; font-weight: 650; }
+.person-verification-points span { color: #6f6f78; font-size: 9px; line-height: 1.55; }
+.person-verification-intro button { margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 18px; color: #111113; background: #f3f3f4; border: 0; border-radius: 10px; font-size: 11px; font-weight: 680; cursor: pointer; transition: transform .15s ease, background .15s ease; }
+.person-verification-intro button:hover { background: #fff; transform: translateY(-1px); }
+.person-verification-intro > small { display: block; margin-top: 14px; color: #62626a; font-size: 9px; }
+.person-verification-state { min-height: 390px; padding: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.person-verification-state > svg { margin-bottom: 18px; color: #94a2f3; }
+.person-verification-state.is-complete .person-verification-icon { color: #79d9ac; border-color: rgba(56,185,125,.22); background: rgba(56,185,125,.08); }
+.person-verification-state.is-complete > p { color: #79d9ac; }
+.person-verification-state.is-error .person-verification-icon { color: #d79494; border-color: rgba(220,95,95,.2); background: rgba(220,95,95,.07); }
+.person-verification-state.is-error > p { color: #d79494; }
+.person-verification-sdk-heading { min-height: 68px; padding: 17px 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.person-verification-sdk-heading p { margin: 0 0 3px; color: #7f92ff; font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.person-verification-sdk-heading h1 { margin: 0; color: #e9e9ec; font-size: 15px; font-weight: 630; }
+.person-verification-sdk-heading > span { color: #66666e; font-size: 9px; }
+.person-verification-sdk { min-height: 650px; background: #fff; }
+.person-verification-footer { margin: auto auto 28px; padding: 0 18px; color: #65656d; font-size: 10px; text-align: center; }
+.person-verification-footer a { color: #9299bf; text-decoration: none; }
+
+@media (max-width: 620px) {
+  .person-verification-topbar { padding: 0 17px; }
+  .person-verification-intro { padding: 37px 22px 31px; }
+  .person-verification-intro h1, .person-verification-state h1 { font-size: 23px; }
+  .person-verification-points { grid-template-columns: 1fr; }
+  .person-verification-points div + div { border-left: 0; border-top: 1px solid #29292e; }
+  .person-verification-state { min-height: 340px; padding: 35px 22px; }
+  .person-verification-sdk-heading { align-items: flex-start; flex-direction: column; }
+}

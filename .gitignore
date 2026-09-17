@@ -57,3 +57,45 @@ PNL_ACCOUNTING_CORRECTIONS.md
 canonical-pnl-frontend-integration-guide.md
 open-position-error-diagnosis-plan.md
 .mcp.json
+
+# Keep the entity-onboarding schema change versioned while the legacy Supabase
+# directory remains ignored by default.
+!supabase/
+supabase/*
+!supabase/migrations/
+supabase/migrations/*
+!supabase/migrations/add_entity_onboarding.sql
+!supabase/migrations/add_entity_kyc.sql
+!supabase/migrations/fix_entity_kyc_provider_trigger.sql
+!supabase/migrations/add_entity_risk_scoring.sql
+!supabase/migrations/add_entity_risk_input_derivation.sql
+!supabase/migrations/complete_entity_risk_automation.sql
+!supabase/migrations/fix_entity_risk_submission_validation_rls.sql
+!supabase/migrations/allow_admin_entity_document_review.sql
+!supabase/migrations/add_entity_isic_class_names.sql
+!supabase/migrations/fix_entity_gate_screening_sync.sql
+!supabase/migrations/add_entity_scorechain_screening.sql
+
+# Version the entity KYC provider boundary and webhook while leaving unrelated
+# legacy edge functions ignored.
+!supabase/functions/
+supabase/functions/*
+!supabase/functions/_shared/
+supabase/functions/_shared/*
+!supabase/functions/_shared/entity-kyc.ts
+!supabase/functions/_shared/scorechain.ts
+!supabase/functions/entity-kyc/
+supabase/functions/entity-kyc/*
+!supabase/functions/entity-kyc/index.ts
+!supabase/functions/connected-person-kyc/
+supabase/functions/connected-person-kyc/*
+!supabase/functions/connected-person-kyc/index.ts
+!supabase/functions/sumsub-webhook/
+supabase/functions/sumsub-webhook/*
+!supabase/functions/sumsub-webhook/index.ts
+!supabase/functions/entity-wallet-screening/
+supabase/functions/entity-wallet-screening/*
+!supabase/functions/entity-wallet-screening/index.ts
+reports/
+supabase/
+ENTITY_KYC_OPS.md

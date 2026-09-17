@@ -15,12 +15,23 @@ import { motion } from "framer-motion";
 import { supabase } from "./creatclient";
 import { useAuthModalStore } from "./stores/useAuthModalStore";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import { getEntityAccessState } from "./services/entityOnboarding";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OrderPanelGate — handles all three states of the right-side order panel
 // ─────────────────────────────────────────────────────────────────────────────
-const OrderPanelGate = ({ session, sessionLoading, isConnected, isKycVerified, selectedMarket }) => {
+const OrderPanelGate = ({
+  session,
+  sessionLoading,
+  isConnected,
+  isKycVerified,
+  entityAccessLoading,
+  entityOnboardingComplete,
+  selectedMarket,
+}) => {
   const { openLogin } = useAuthModalStore();
+  const navigate = useNavigate();
 
   // Not signed in → blurred panel preview + sign-in overlay
   if (!sessionLoading && !session) {
@@ -65,6 +76,36 @@ const OrderPanelGate = ({ session, sessionLoading, isConnected, isKycVerified, s
   // completed identity verification are shown a "Verify identity first"
   // link that opens the profile dropdown's Sumsub flow rather than the
   // wallet modal, which the server would refuse anyway.
+  // The market and chart remain visible before onboarding, but order entry and
+  // wallet connection stay unavailable. This also covers a wallet restored by
+  // the browser from a previous session rather than connected through a button.
+  if (session && (entityAccessLoading || !entityOnboardingComplete)) {
+    return (
+      <>
+        <div className="px-3 py-2 border-b border-line bg-surface-2/40 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Read only</span>
+            <span className="text-[11px] text-ink-muted leading-tight">
+              {entityAccessLoading ? "Checking entity status" : "Complete entity onboarding to connect a wallet"}
+            </span>
+          </div>
+          {!entityAccessLoading && (
+            <button
+              type="button"
+              onClick={() => navigate(`/onboarding?next=${encodeURIComponent("/trade")}`)}
+              className="shrink-0 rounded-md bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
+            >
+              Complete Onboarding
+            </button>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 opacity-50 pointer-events-none select-none">
+          <TradingPanel selectedMarket={selectedMarket} />
+        </div>
+      </>
+    );
+  }
+
   if (!isConnected) {
     return (
       <>
@@ -138,6 +179,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
   // "Connect wallet" strip can be swapped for a "Verify identity first"
   // prompt when the user has not completed KYC.
   const [isKycVerified, setIsKycVerified] = useState(false);
+  const [entityAccess, setEntityAccess] = useState({ loading: true, allowed: false });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -163,6 +205,31 @@ export const TradingDashboard = ({ onHelpClick }) => {
       });
     return () => { cancelled = true; };
   }, [session]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!session?.user?.id) {
+      setEntityAccess({ loading: false, allowed: false });
+      return () => { cancelled = true; };
+    }
+
+    setEntityAccess({ loading: true, allowed: false });
+    getEntityAccessState(session.user.id)
+      .then((access) => {
+        if (!cancelled) {
+          setEntityAccess({
+            loading: false,
+            allowed: access.isAdmin || access.onboardingComplete,
+          });
+        }
+      })
+      .catch((error) => {
+        console.warn("[TradingDashboard] entity status check failed:", error.message);
+        if (!cancelled) setEntityAccess({ loading: false, allowed: false });
+      });
+
+    return () => { cancelled = true; };
+  }, [session?.user?.id]);
 
   // ── Resizable panel state (desktop only) ──────────────────────────────────
   const [orderPanelWidth, setOrderPanelWidth] = useState(340);
@@ -365,6 +432,8 @@ export const TradingDashboard = ({ onHelpClick }) => {
             sessionLoading={sessionLoading}
             isConnected={isConnected}
             isKycVerified={isKycVerified}
+            entityAccessLoading={entityAccess.loading}
+            entityOnboardingComplete={entityAccess.allowed}
             selectedMarket={selectedMarket}
           />
         </div>
@@ -385,6 +454,8 @@ export const TradingDashboard = ({ onHelpClick }) => {
                 sessionLoading={sessionLoading}
                 isConnected={isConnected}
                 isKycVerified={isKycVerified}
+                entityAccessLoading={entityAccess.loading}
+                entityOnboardingComplete={entityAccess.allowed}
                 selectedMarket={selectedMarket}
               />
             </div>

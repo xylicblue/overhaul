@@ -10,12 +10,35 @@
   <link rel="manifest" href="/site.webmanifest">
   <!-- <link rel="icon" type="image/png" href="/logoimage.png" /> -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>ByteStrike</title>
+  <script>
+    // Connected-person invitations are bearer credentials. Move the token out
+    // of the address bar before analytics or any third-party script can observe
+    // the page URL. The verification page reads it from this tab's session
+    // storage, which also lets an accidental refresh continue safely.
+    (() => {
+      const sensitiveRoute = window.location.pathname.replace(/\/$/, "") === "/verify-connected-person";
+      window.__bytestrikeSensitiveRoute = sensitiveRoute;
+      if (!sensitiveRoute) return;
+      const params = new URLSearchParams(window.location.search);
+      const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const invite = params.get("invite") || fragment.get("invite");
+      if (!invite) return;
+      try {
+        window.sessionStorage.setItem("bytestrike:entity-kyc-invite", invite);
+      } catch {
+        // The current in-memory React route can still use the query value when
+        // storage is unavailable; do not remove its only copy in that case.
+        return;
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    })();
+  </script>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet">
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZZCB5NK1M4"></script>
+  <!-- Google tag (gtag.js). Sensitive invitation routes are never measured. -->
   <!-- <meta property="og:title" content="Byte Strike: Building the first Compute Futures Exchange" />
   <meta property="og:description" content="Byte Strike is building the world's first futures market for compute." />
   <meta property="og:url" content="https://byte-strike.com" />
@@ -35,11 +58,16 @@
     }
   </script>
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
-
-    gtag('config', 'G-ZZCB5NK1M4');
+    if (!window.__bytestrikeSensitiveRoute) {
+      const analytics = document.createElement('script');
+      analytics.async = true;
+      analytics.src = 'https://www.googletagmanager.com/gtag/js?id=G-ZZCB5NK1M4';
+      document.head.appendChild(analytics);
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag('js', new Date());
+      window.gtag('config', 'G-ZZCB5NK1M4');
+    }
   </script>
 
   <!-- TradingView Charting Library -->
