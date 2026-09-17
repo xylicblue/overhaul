@@ -13,6 +13,17 @@ const gatewayUrl   = normalizeUrl(import.meta.env.VITE_API_GATEWAY_URL);
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_PUBLIC_KEY;
 const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
+if (import.meta.env.PROD) {
+  for (const [name, value] of [["VITE_SUPABASE_URL", supabaseUrl], ["VITE_API_GATEWAY_URL", gatewayUrl]]) {
+    if (value && new URL(value).protocol !== "https:") {
+      throw new Error(`${name} must use HTTPS in production.`);
+    }
+  }
+  if (!isSupabaseConfigured) {
+    throw new Error("Production Supabase configuration is missing.");
+  }
+}
+
 function createDisabledQuery(table) {
   const result = {
     data: [],

@@ -14,6 +14,7 @@ import { createConfig, WagmiProvider, http } from "wagmi";
 import { mainnet, sepolia } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import EntityTradingGate from "./components/EntityTradingGate";
+import AdminRoute from "./components/AdminRoute";
 
 // ── Lazy page imports ────────────────────────────────────────────────────────
 // Each route gets its own chunk — only downloaded when the user navigates there
@@ -223,7 +224,7 @@ function App() {
                     <Route path="/security"           element={<SecurityPage />} />
                     <Route path="/terms"              element={<TermsPage />} />
                     <Route path="/about-us"           element={<AboutUsPage />} />
-                    <Route path="/admin/notifications" element={<AdminNotifications />} />
+                    <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
 
                     <Route element={<SharedLayout />}>
                       <Route path="/trade"     element={<TradingPage />} />
@@ -232,8 +233,8 @@ function App() {
                       <Route path="/guide"     element={<GuidePage />} />
                       <Route path="/docs"      element={<DocsPage />} />
                       <Route path="/settings"  element={<SettingsPage />} />
-                      <Route path="/admin"     element={<AdminDashboard />} />
-                      <Route path="/admin/compliance" element={<CompliancePortal />} />
+                      <Route path="/admin"     element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                      <Route path="/admin/compliance" element={<AdminRoute><CompliancePortal /></AdminRoute>} />
                     </Route>
                   </Routes>
                 </Suspense>

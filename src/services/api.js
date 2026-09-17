@@ -263,6 +263,13 @@ export async function reopenEntityApplication() {
   return callEdgeFunction("entity-kyc", { action: "reopen" });
 }
 
+export async function screenEntityWallets(applicationId, { force = false } = {}) {
+  return callEdgeFunction("entity-wallet-screening", {
+    application_id: applicationId,
+    force,
+  });
+}
+
 export async function openConnectedPersonKycInvite(invite) {
   return callEdgeFunction("connected-person-kyc", { invite }, { auth: false });
 }

@@ -322,13 +322,17 @@ export function validateApplicationForSubmission(application, people, documents)
     application.corporate_identification_number,
     application.entity_type,
     application.entity_phone,
-    application.isic_division,
+    application.isic_class_code || String(application.isic_division || "").match(/\b\d{4}\b/)?.[0],
     application.source_of_funds_category,
     application.ownership_structure_category,
     application.source_of_funds,
   ];
   if (requiredValues.some((value) => !String(value || "").trim())) {
     throw new Error("Complete all required entity fields before submitting.");
+  }
+  const isicClassCode = application.isic_class_code || String(application.isic_division || "").match(/\b\d{4}\b/)?.[0];
+  if (!/^\d{4}$/.test(String(isicClassCode || ""))) {
+    throw new Error("Enter a valid four-digit ISIC class code before submitting.");
   }
   if (application.entity_type === "other" && !application.entity_type_other?.trim()) {
     throw new Error("Specify the entity type selected as Other.");
@@ -338,6 +342,12 @@ export function validateApplicationForSubmission(application, people, documents)
   }
   if (!application.crypto_wallet_addresses?.length || !application.directors_and_officers?.length) {
     throw new Error("Add at least one intended wallet and one director or officer.");
+  }
+  const invalidWallet = application.crypto_wallet_addresses.find(
+    (address) => !/^0x[0-9a-fA-F]{40}$/.test(String(address || "").trim())
+  );
+  if (invalidWallet) {
+    throw new Error(`Enter a valid Ethereum-compatible 0x address instead of ${invalidWallet}.`);
   }
   const neededDocuments = [...REQUIRED_ENTITY_DOCUMENTS];
   if (application.is_financial_institution) neededDocuments.push("regulatory_licence");
@@ -363,7 +373,15 @@ export function validateApplicationForSubmission(application, people, documents)
 
 export async function submitEntityApplication(application, people, documents) {
   validateApplicationForSubmission(application, people, documents);
+  const isicClassCode = String(
+    application.isic_class_code || String(application.isic_division || "").match(/\b\d{4}\b/)?.[0] || ""
+  ).trim();
+
   return updateEntityApplication(application.id, {
+    // Re-send the reviewed value at the submission boundary so an edited form
+    // cannot submit an older ISIC value that is still stored on the row.
+    isic_class_code: isicClassCode,
+    isic_division: isicClassCode,
     status: "submitted",
     onboarding_step: 3,
     submitted_at: new Date().toISOString(),

@@ -26,6 +26,7 @@ import {
   initializeEntityKyc,
   reopenEntityApplication,
   resendConnectedPersonKyc,
+  screenEntityWallets,
   setUsername,
 } from "./services/api";
 import AccountGate from "./components/AccountGate";
@@ -615,6 +616,11 @@ function EntityOnboardingFlow({ user }) {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget));
     const isFinancial = FINANCIAL_ENTITY_TYPES.has(values.entity_type);
+    const isicClassCode = String(values.isic_class_code || "").trim();
+    if (!/^\d{4}$/.test(isicClassCode)) {
+      toast.error("Enter a valid four-digit ISIC class code.");
+      return;
+    }
     setSaving(true);
     try {
       const saved = await updateEntityApplication(application.id, {
@@ -633,7 +639,10 @@ function EntityOnboardingFlow({ user }) {
         entity_type_other: values.entity_type === "other" ? values.entity_type_other.trim() : null,
         entity_phone: values.entity_phone.trim(),
         crypto_wallet_addresses: values.crypto_wallet_addresses.split("\n").map((v) => v.trim()).filter(Boolean),
-        isic_division: values.isic_division.trim(),
+        // Keep the legacy field synchronized while deployed clients and older
+        // records transition to the correctly named class-code column.
+        isic_class_code: isicClassCode,
+        isic_division: isicClassCode,
         ownership_structure_category: values.ownership_structure_category,
         directors_and_officers: values.directors_and_officers.split("\n").map((v) => v.trim()).filter(Boolean),
         source_of_funds_category: values.source_of_funds_category,
@@ -748,6 +757,13 @@ function EntityOnboardingFlow({ user }) {
       setApplication(saved);
       setStep(4);
       toast.success("Information submitted. Continue with identity verification.");
+      try {
+        const screening = await screenEntityWallets(saved.id);
+        toast.success(`Wallet screening completed: ${String(screening.wallet_key || "complete").replace(/_/g, " ")}`);
+      } catch (screeningError) {
+        console.error("Automatic entity wallet screening failed", screeningError);
+        toast("The application was submitted, but wallet screening is pending a Compliance retry.");
+      }
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -888,7 +904,18 @@ function EntityOnboardingFlow({ user }) {
             {selectedEntityType === "other" && (
               <Input label="Specify the entity type" name="entity_type_other" required defaultValue={application.entity_type_other || ""} />
             )}
-            <Input label="ISIC division" name="isic_division" required defaultValue={application.isic_division || ""} hint="Enter the applicable ISIC division code and description." />
+            <Input
+              label="ISIC class code"
+              name="isic_class_code"
+              required
+              inputMode="numeric"
+              pattern="[0-9]{4}"
+              minLength={4}
+              maxLength={4}
+              autoComplete="off"
+              defaultValue={application.isic_class_code || String(application.isic_division || "").match(/\b\d{4}\b/)?.[0] || ""}
+              hint="Enter the exact four-digit ISIC Rev. 4 class code. Two-digit divisions, such as 10, cannot be risk-scored."
+            />
             <label className="entity-field">
               <span>Ownership structure <em>Required</em></span>
               <select name="ownership_structure_category" required defaultValue={application.ownership_structure_category || ""}>
@@ -913,12 +940,12 @@ function EntityOnboardingFlow({ user }) {
               <Input label="Stock exchange" name="stock_exchange_name" required defaultValue={application.stock_exchange_name || ""} />
             )}
             <Textarea
-              label="Crypto wallet addresses intended for use"
+              label="Ethereum-compatible wallet addresses intended for use"
               name="crypto_wallet_addresses"
               required
               defaultValue={(application.crypto_wallet_addresses || []).join("\n")}
               rows={4}
-              hint="Enter one wallet address per line. Wallet screening and allowlisting will occur later."
+              hint="Enter one 0x address per line. Scorechain screens each address after submission; the API key remains server-side."
             />
             <Textarea
               label="Legal names of directors and officers"

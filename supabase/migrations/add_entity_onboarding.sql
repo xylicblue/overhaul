@@ -383,6 +383,15 @@ create policy "Entity applicants read own document objects"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+drop policy if exists "Admins read entity document objects" on storage.objects;
+create policy "Admins read entity document objects"
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'entity-onboarding-documents'
+    and public.is_admin()
+    and public.is_aal2()
+  );
+
 drop policy if exists "Entity applicants upload own document objects" on storage.objects;
 create policy "Entity applicants upload own document objects"
   on storage.objects for insert to authenticated

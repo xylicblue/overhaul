@@ -6,9 +6,31 @@ import { openConnectedPersonKycInvite } from "./services/api";
 import logo from "./assets/ByteStrikeLogoFinal.png";
 import "./connected-person-verification.css";
 
+const INVITE_STORAGE_KEY = "bytestrike:entity-kyc-invite";
+
+function getInviteToken(search, hash) {
+  const queryToken = new URLSearchParams(search).get("invite")?.trim();
+  const fragmentToken = new URLSearchParams(hash.replace(/^#/, "")).get("invite")?.trim();
+  const suppliedToken = queryToken || fragmentToken;
+  if (suppliedToken) {
+    try {
+      window.sessionStorage.setItem(INVITE_STORAGE_KEY, suppliedToken);
+    } catch {
+      // Storage can be unavailable in hardened browser modes. The query token
+      // remains usable for the lifetime of this page in that case.
+    }
+    return suppliedToken;
+  }
+  try {
+    return window.sessionStorage.getItem(INVITE_STORAGE_KEY)?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
 export default function ConnectedPersonVerificationPage() {
   const location = useLocation();
-  const invite = useMemo(() => new URLSearchParams(location.search).get("invite") || "", [location.search]);
+  const invite = useMemo(() => getInviteToken(location.search, location.hash), [location.search, location.hash]);
   const [phase, setPhase] = useState("intro");
   const [context, setContext] = useState(null);
   const [message, setMessage] = useState("");
@@ -25,7 +47,12 @@ export default function ConnectedPersonVerificationPage() {
     }
     const previousRobots = robots.getAttribute("content");
     robots.setAttribute("content", "noindex, nofollow, noarchive");
-    if (invite) window.history.replaceState({}, "", "/verify-connected-person");
+    if (
+      new URLSearchParams(window.location.search).has("invite") ||
+      new URLSearchParams(window.location.hash.replace(/^#/, "")).has("invite")
+    ) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
     return () => {
       document.title = previousTitle;
       if (created) robots.remove();
@@ -52,9 +79,15 @@ export default function ConnectedPersonVerificationPage() {
         sumsubWebSdk
           .init(token, getToken)
           .withConf({ lang: "en" })
-          .on("idCheck.onDone", () => setPhase("submitted"))
+          .on("idCheck.onDone", () => {
+            try { window.sessionStorage.removeItem(INVITE_STORAGE_KEY); } catch { /* no-op */ }
+            setPhase("submitted");
+          })
           .on("idCheck.applicantStatusUpdated", (payload) => {
-            if (["pending", "completed"].includes(payload?.reviewStatus)) setPhase("submitted");
+            if (["pending", "completed"].includes(payload?.reviewStatus)) {
+              try { window.sessionStorage.removeItem(INVITE_STORAGE_KEY); } catch { /* no-op */ }
+              setPhase("submitted");
+            }
           })
           .build()
           .launch("#connected-person-sumsub");
