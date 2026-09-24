@@ -37,6 +37,7 @@ export const ENTITY_ONBOARDING_COMPLETE_STATUSES = new Set([
 export const ENTITY_COLLECTION_COMPLETE_STATUSES = new Set([
   "submitted",
   "under_review",
+  "information_requested",
   "approved",
 ]);
 
@@ -48,36 +49,9 @@ export function isEntityOnboardingSchemaMissing(error) {
 export async function getEntityAccessState(userId) {
   if (!userId) throw new Error("Please sign in to continue.");
 
-  const [profileResult, applicationResult] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", userId)
-      .maybeSingle(),
-    supabase
-      .from("entity_applications")
-      .select("id, status")
-      .eq("primary_contact_user_id", userId)
-      .maybeSingle(),
-  ]);
-
-  throwIf(profileResult.error, "Could not verify account permissions.");
-  const isAdmin = profileResult.data?.is_admin === true;
-
-  // Admin status is authoritative and does not depend on the onboarding table.
-  // This also keeps internal testing available during a staged schema rollout.
-  if (isAdmin) {
-    return {
-      isAdmin: true,
-      onboardingComplete: true,
-      collectionComplete: true,
-      application: applicationResult.data || null,
-      schemaAvailable: !applicationResult.error,
-    };
-  }
-
-  if (applicationResult.error) {
-    if (isEntityOnboardingSchemaMissing(applicationResult.error)) {
+  const { data, error } = await supabase.rpc("current_entity_access_state");
+  if (error) {
+    if (isEntityOnboardingSchemaMissing(error) || /current_entity_access_state/i.test(error.message || "")) {
       return {
         isAdmin: false,
         onboardingComplete: false,
@@ -86,15 +60,19 @@ export async function getEntityAccessState(userId) {
         schemaAvailable: false,
       };
     }
-    throw new Error(applicationResult.error.message || "Could not verify entity onboarding status.");
+    throw new Error(error.message || "Could not verify entity onboarding status.");
   }
 
   return {
-    isAdmin: false,
-    onboardingComplete: ENTITY_ONBOARDING_COMPLETE_STATUSES.has(applicationResult.data?.status),
-    collectionComplete: ENTITY_COLLECTION_COMPLETE_STATUSES.has(applicationResult.data?.status),
-    application: applicationResult.data || null,
-    schemaAvailable: true,
+    isAdmin: data?.is_admin === true,
+    onboardingComplete: data?.onboarding_complete === true,
+    collectionComplete: data?.collection_complete === true,
+    application: data?.application || null,
+    schemaAvailable: data?.schema_available !== false,
+    membershipFound: data?.membership_found === true,
+    mfaComplete: data?.mfa_complete === true,
+    memberType: data?.member_type || null,
+    entityRoles: data?.entity_roles || [],
   };
 }
 

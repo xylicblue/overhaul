@@ -1,7 +1,8 @@
-import React, { lazy, Suspense, useState, useEffect } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { Toaster, ToastBar, toast } from "react-hot-toast";
+import { Toaster, resolveValue, toast } from "react-hot-toast";
+import { AlertCircle, Check, Info, LoaderCircle, X } from "lucide-react";
 import { AuthModalProvider } from "./context/AuthModalContext";
 import AuthModal from "./components/AuthModal";
 import "@rainbow-me/rainbowkit/styles.css";
@@ -51,29 +52,44 @@ const PageLoader = () => (
 );
 
 // ── Swipe-on-hover toast wrapper ─────────────────────────────────────────────
-// Hovering the toast slides it to the right and dismisses it.
-const SWIPE_DURATION_MS = 280;
-const SwipeToast = ({ t }) => {
-  const [swiping, setSwiping] = useState(false);
+// One presentation layer keeps every existing toast call visually consistent.
+const TOAST_PRESENTATION = {
+  success: { label: "Completed", icon: Check },
+  error: { label: "Action needed", icon: AlertCircle },
+  loading: { label: "In progress", icon: LoaderCircle },
+  blank: { label: "Notice", icon: Info },
+  custom: { label: "Notice", icon: Info },
+};
 
-  const handleEnter = () => {
-    if (swiping || t.type === "error") return;
-    setSwiping(true);
-    setTimeout(() => toast.dismiss(t.id), SWIPE_DURATION_MS);
-  };
+const AppToast = ({ t }) => {
+  const presentation = TOAST_PRESENTATION[t.type] || TOAST_PRESENTATION.blank;
+  const StatusIcon = presentation.icon;
 
   return (
     <div
-      onMouseEnter={handleEnter}
-      style={{
-        transform: swiping ? "translateX(420px)" : "translateX(0)",
-        opacity:   swiping ? 0 : 1,
-        transition: `transform ${SWIPE_DURATION_MS}ms cubic-bezier(0.32, 0.72, 0, 1), opacity ${SWIPE_DURATION_MS - 40}ms ease-out`,
-        cursor: t.type === "error" ? "default" : "pointer",
-      }}
-      title={t.type === "error" ? undefined : "Hover to dismiss"}
+      className={`app-toast app-toast--${t.type}`}
+      role={t.type === "error" ? "alert" : "status"}
+      aria-live={t.type === "error" ? "assertive" : "polite"}
     >
-      <ToastBar toast={t} />
+      <span className="app-toast__icon" aria-hidden="true">
+        <StatusIcon
+          size={16}
+          strokeWidth={2.15}
+          className={t.type === "loading" ? "app-toast__spinner" : ""}
+        />
+      </span>
+      <span className="app-toast__content">
+        <span className="app-toast__label">{presentation.label}</span>
+        <span className="app-toast__message">{resolveValue(t.message, t)}</span>
+      </span>
+      <button
+        type="button"
+        className="app-toast__close"
+        onClick={() => toast.dismiss(t.id)}
+        aria-label="Dismiss notification"
+      >
+        <X size={14} strokeWidth={2} />
+      </button>
     </div>
   );
 };
@@ -158,48 +174,21 @@ function App() {
               <div className="App">
                 <Toaster
                   position="top-right"
-                  gutter={12}
-                  containerStyle={{ top: 20, right: 20 }}
+                  gutter={10}
+                  containerStyle={{ top: 18, right: 18 }}
                   toastOptions={{
-                    // Matches the trading design tokens: surface-2 base, ink text,
-                    // up/down accents for success/error.
                     style: {
-                      background: "rgba(26, 26, 36, 0.96)",      // surface-2
-                      backdropFilter: "blur(20px)",
-                      color: "#f3f3f6",                          // ink
-                      border: "1px solid rgba(255, 255, 255, 0.10)", // line
-                      borderRadius: "12px",
-                      padding: "14px 18px",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      boxShadow: "0 20px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05)",
-                      maxWidth: "380px",
+                      background: "transparent",
+                      color: "inherit",
+                      boxShadow: "none",
+                      padding: 0,
+                      maxWidth: "400px",
                     },
-                    duration: 4000,
-                    success: {
-                      style: {
-                        background: "linear-gradient(135deg, rgba(26,26,36,0.96) 0%, rgba(41,210,139,0.12) 100%)",
-                        border: "1px solid rgba(41,210,139,0.30)", // up
-                      },
-                      iconTheme: { primary: "#29d28b", secondary: "#0a0a10" }, // up / surface-1
-                    },
-                    error: {
-                      duration: 10000,
-                      style: {
-                        background: "linear-gradient(135deg, rgba(26,26,36,0.96) 0%, rgba(245,72,78,0.12) 100%)",
-                        border: "1px solid rgba(245,72,78,0.30)", // down
-                      },
-                      iconTheme: { primary: "#f5484e", secondary: "#0a0a10" }, // down / surface-1
-                    },
-                    loading: {
-                      style: {
-                        background: "linear-gradient(135deg, rgba(26,26,36,0.96) 0%, rgba(99,102,241,0.12) 100%)",
-                        border: "1px solid rgba(99,102,241,0.30)", // indigo loading accent
-                      },
-                    },
+                    duration: 4600,
+                    error: { duration: 7500 },
                   }}
                 >
-                  {(t) => <SwipeToast t={t} />}
+                  {(t) => <AppToast t={t} />}
                 </Toaster>
 
                 {/* All routes wrapped in a single Suspense boundary */}

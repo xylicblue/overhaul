@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import sumsubWebSdk from "@sumsub/websdk";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -86,6 +86,23 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
   const { disconnect } = useDisconnect();
   const [copied, setCopied] = useState(false);
 
+  const refreshEntityAccess = useCallback(async () => {
+    try {
+      const access = await getEntityAccessState(session.user.id);
+      setEntityAccess(access);
+      return access;
+    } catch (error) {
+      console.warn("[ProfileDropdown] entity status check failed:", error.message);
+      setEntityAccess({
+        isAdmin: false,
+        onboardingComplete: false,
+        collectionComplete: false,
+        schemaAvailable: false,
+      });
+      return null;
+    }
+  }, [session.user.id]);
+
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -106,15 +123,42 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
       })
       .catch((error) => {
         console.warn("[ProfileDropdown] entity status check failed:", error.message);
-        if (active) setEntityAccess({ isAdmin: false, onboardingComplete: false, collectionComplete: false });
+        if (active) setEntityAccess({
+          isAdmin: false,
+          onboardingComplete: false,
+          collectionComplete: false,
+          schemaAvailable: false,
+        });
       });
     return () => { active = false; };
-  }, [session.user.id]);
+  }, [session.user.id, location.key]);
+
+  // Approval can happen while the client keeps an existing browser session
+  // open. Refresh at natural interaction points so the dropdown does not keep
+  // showing the pre-approval state after trading access has been granted.
+  useEffect(() => {
+    const refreshOnFocus = () => { refreshEntityAccess(); };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refreshEntityAccess();
+    };
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshEntityAccess]);
+
+  const toggleDropdown = () => {
+    const opening = !isOpen;
+    setIsOpen(opening);
+    if (opening) refreshEntityAccess();
+  };
 
   const entityOnboardingComplete = entityAccess?.isAdmin === true || entityAccess?.onboardingComplete === true;
   const entityApplicationStatus = entityAccess?.application?.status;
   const entityReviewPending = entityAccess?.isAdmin !== true &&
-    ["submitted", "under_review"].includes(entityApplicationStatus);
+    ["submitted", "under_review", "information_requested"].includes(entityApplicationStatus);
   const goToEntityOnboarding = () => {
     setIsOpen(false);
     const next = `${location.pathname}${location.search}`;
@@ -135,7 +179,7 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
         goToEntityOnboarding();
         return;
       }
-      if (!access.isAdmin && ["submitted", "under_review"].includes(access.application?.status)) {
+      if (!access.isAdmin && ["submitted", "under_review", "information_requested"].includes(access.application?.status)) {
         setEntityAccess(access);
         goToEntityOnboarding();
         return;
@@ -198,7 +242,7 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
     <div className="relative z-50" ref={dropdownRef}>
       {/* ── Trigger ────────────────────────────────────────────────────── */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleDropdown}
         className={`
           flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-full border transition-all duration-200 group
           ${isOpen

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Link, Navigate, useLocation } from "react-router-dom";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { supabase } from "../creatclient";
 import { getEntityAccessState } from "../services/entityOnboarding";
 
@@ -30,6 +30,8 @@ export default function EntityTradingGate({ children }) {
         if (!access.schemaAvailable && !access.isAdmin) {
           console.warn("[EntityTradingGate] onboarding schema is not available yet");
           setState({ phase: "guest" });
+        } else if (access.membershipFound && !access.mfaComplete) {
+          setState({ phase: "mfa" });
         } else {
           setState({ phase: access.onboardingComplete ? "allowed" : "onboarding" });
         }
@@ -57,6 +59,24 @@ export default function EntityTradingGate({ children }) {
   if (state.phase === "onboarding") {
     const next = `${location.pathname}${location.search}`;
     return <Navigate to={`/onboarding?next=${encodeURIComponent(next)}`} replace />;
+  }
+  if (state.phase === "mfa") {
+    return (
+      <div className="min-h-[60vh] grid place-items-center px-5">
+        <div className="max-w-md rounded-[20px] border border-white/10 bg-white/[0.035] p-7 text-center shadow-[0_24px_80px_rgba(0,0,0,0.3)]">
+          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-300">
+            <ShieldCheck size={20} />
+          </span>
+          <h1 className="mt-5 text-[16px] font-semibold tracking-[-0.02em] text-white">Secure your approved account</h1>
+          <p className="mt-2 text-[12px] leading-5 text-zinc-500">
+            Your entity membership has been recognized. Enable multi-factor authentication to access trading and portfolio features.
+          </p>
+          <Link to="/settings?tab=security" className="mt-5 inline-flex h-10 items-center rounded-xl bg-white px-4 text-[12px] font-semibold text-black hover:bg-white/90">
+            Set up multi-factor authentication
+          </Link>
+        </div>
+      </div>
+    );
   }
   if (state.phase === "unavailable") {
     return (

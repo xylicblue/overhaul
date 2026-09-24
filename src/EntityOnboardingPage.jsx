@@ -118,7 +118,8 @@ const EMPTY_PERSON = {
 
 function applicationStep(application) {
   if (!application) return 0;
-  if (["under_review", "approved"].includes(application.status)) return 5;
+  if (application.status === "information_requested") return 6;
+  if (["under_review", "approved", "rejected"].includes(application.status)) return 5;
   if (application.status === "submitted") return 4;
   if (application.onboarding_step === 2 && !application.is_financial_institution) return 3;
   return Math.min(application.onboarding_step || 0, 3);
@@ -771,6 +772,21 @@ function EntityOnboardingFlow({ user }) {
     }
   };
 
+  const beginRequestedUpdate = async () => {
+    setSaving(true);
+    try {
+      const saved = await updateEntityApplication(application.id, { status: "in_progress", onboarding_step: 1 });
+      setApplication(saved);
+      setStep(1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      toast.success("Application reopened. Update the requested information and resubmit it when ready.");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return <div className="entity-page-loading"><Loader2 size={22} className="spin" /></div>;
   }
@@ -795,17 +811,22 @@ function EntityOnboardingFlow({ user }) {
   }
 
   if (step === 5) {
+    const approved = application?.status === "approved";
+    const rejected = application?.status === "rejected";
     return (
       <OnboardingShell step={5} isFinancial={application?.is_financial_institution}>
         <div className="entity-complete">
           <div className="entity-complete-icon"><CheckCircle2 size={27} /></div>
-          <p>Verification received</p>
-          <h1>Your application is with Compliance.</h1>
+          <p>{approved ? "Application approved" : rejected ? "Application decision" : "Verification received"}</p>
+          <h1>{approved ? `${application.entity_legal_name} is approved.` : rejected ? "The application was not approved." : "Your application is with Compliance."}</h1>
           <span>
-            The entity information and required identity checks have been received. Our Compliance team will review
-            the application and contact the primary contact if clarification or further due diligence is required.
+            {approved
+              ? application.client_review_message || "Compliance has completed its review. Approved members may now access the platform using their recorded email addresses."
+              : rejected
+                ? application.client_review_message || "Compliance has completed its review and could not approve the entity application."
+                : "The entity information and required identity checks have been received. Our Compliance team will review the application and contact the primary contact if clarification or further due diligence is required."}
           </span>
-          {application?.is_financial_institution && (
+          {!approved && !rejected && application?.is_financial_institution && (
             <div className="entity-edd-note">
               <ShieldCheck size={18} />
               <div>
@@ -815,7 +836,31 @@ function EntityOnboardingFlow({ user }) {
             </div>
           )}
           <button className="entity-primary" type="button" onClick={() => navigate(nextPath, { replace: true })}>
-            Continue <ArrowRight size={16} />
+            {approved ? "Open ByteStrike" : "Return to ByteStrike"} <ArrowRight size={16} />
+          </button>
+        </div>
+      </OnboardingShell>
+    );
+  }
+
+  if (step === 6) {
+    return (
+      <OnboardingShell step={5} isFinancial={application?.is_financial_institution}>
+        <div className="entity-complete">
+          <div className="entity-complete-icon"><FileText size={27} /></div>
+          <p>Additional information required</p>
+          <h1>Compliance needs an update.</h1>
+          <span>Review the requirements below, update the application and resubmit it for a new assessment.</span>
+          <div className="entity-edd-note">
+            <Mail size={18} />
+            <div>
+              <strong>Requested by Compliance</strong>
+              <span style={{ whiteSpace: "pre-line" }}>{application?.client_review_message || "Please check the email sent to the primary contact for the requested information."}</span>
+            </div>
+          </div>
+          <button className="entity-primary" type="button" onClick={beginRequestedUpdate} disabled={saving}>
+            {saving ? <Loader2 size={16} className="spin" /> : null}
+            Update application {!saving && <ArrowRight size={16} />}
           </button>
         </div>
       </OnboardingShell>
@@ -1228,6 +1273,11 @@ function AuthenticatedOnboarding() {
         if (!active) return;
         if (access.isAdmin) {
           const nextPath = safeNext(new URLSearchParams(location.search).get("next"));
+          navigate(nextPath, { replace: true });
+          return;
+        }
+        if (access.membershipFound && access.onboardingComplete) {
+          const nextPath = safeNext(new URLSearchParams(location.search).get("next")) || "/trade";
           navigate(nextPath, { replace: true });
           return;
         }

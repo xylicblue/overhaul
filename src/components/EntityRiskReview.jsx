@@ -3,21 +3,30 @@ import {
   AlertTriangle,
   Building2,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clock3,
   FileText,
   LockKeyhole,
+  Mail,
+  MessageSquareText,
   RefreshCw,
   Search,
+  Send,
   ShieldCheck,
   UserRoundCheck,
   Users,
   WalletCards,
   X,
+  XCircle,
 } from "lucide-react";
 import { supabase } from "../creatclient";
-import { screenEntityWallets } from "../services/api";
+import {
+  decideEntityApplication,
+  retryEntityDecisionEmail,
+  screenEntityWallets,
+} from "../services/api";
 import { createOnboardingDocumentPreview } from "../services/entityOnboarding";
 
 const FACTORS = [
@@ -78,6 +87,25 @@ const formatDate = (value) => {
   }).format(date);
 };
 
+async function fetchEntityReviewContext(applicationId) {
+  const [contextResult, decisionResult] = await Promise.all([
+    supabase.rpc("admin_entity_risk_context", { p_application_id: applicationId }),
+    supabase
+      .from("entity_application_decisions")
+      .select("*, email_deliveries:entity_application_decision_emails(*)")
+      .eq("application_id", applicationId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (contextResult.error) throw contextResult.error;
+  if (decisionResult.error) throw decisionResult.error;
+  return {
+    ...contextResult.data,
+    latest_compliance_decision: decisionResult.data || null,
+  };
+}
+
 function initialForm(context) {
   const latest = context?.assessments?.[0];
   const derived = context?.derived_inputs?.factors || {};
@@ -120,6 +148,11 @@ export default function EntityRiskReview({ standalone = false }) {
   const [documentPreview, setDocumentPreview] = useState(null);
   const [screeningWallet, setScreeningWallet] = useState(false);
   const [walletNotice, setWalletNotice] = useState("");
+  const [decisionMode, setDecisionMode] = useState("");
+  const [decisionMessage, setDecisionMessage] = useState("");
+  const [internalDecisionNote, setInternalDecisionNote] = useState("");
+  const [deciding, setDeciding] = useState(false);
+  const [decisionNotice, setDecisionNotice] = useState(null);
 
   const loadQueue = useCallback(async () => {
     const { data, error: queueError } = await supabase.rpc("admin_entity_risk_queue");
@@ -153,11 +186,14 @@ export default function EntityRiskReview({ standalone = false }) {
     setOpeningDocumentId("");
     setDocumentPreview(null);
     setWalletNotice("");
+    setDecisionMode("");
+    setDecisionMessage("");
+    setInternalDecisionNote("");
+    setDecisionNotice(null);
     setContext(null);
     setForm(null);
-    supabase.rpc("admin_entity_risk_context", { p_application_id: selectedId })
-      .then(({ data, error: contextError }) => {
-        if (contextError) throw contextError;
+    fetchEntityReviewContext(selectedId)
+      .then((data) => {
         if (!active) return;
         setContext(data);
         setForm(initialForm(data));
@@ -226,6 +262,7 @@ export default function EntityRiskReview({ standalone = false }) {
     cleared: gateRows.filter((gate) => !gate.checked && gate.locked),
   }), [gateRows]);
   const latestAssessment = context?.assessments?.[0] || null;
+  const latestComplianceDecision = context?.latest_compliance_decision || null;
   const applicationStatus = context?.application?.status || "";
   const walletCount = context?.application?.crypto_wallet_addresses?.length || 0;
   const applicationDetails = context ? [
@@ -244,6 +281,14 @@ export default function EntityRiskReview({ standalone = false }) {
   ].filter(([, value]) => value && value !== "Not available") : [];
   const canAssess = ["submitted", "under_review", "approved"].includes(context?.application?.status) &&
     context?.application?.identity_verification_status === "completed";
+  const assessmentIsCurrent = Boolean(
+    latestAssessment?.assessed_at &&
+    (!context?.application?.submitted_at || new Date(latestAssessment.assessed_at) >= new Date(context.application.submitted_at)),
+  );
+  const canDecide = ["submitted", "under_review"].includes(applicationStatus) && assessmentIsCurrent;
+  const approvalBlocked = latestAssessment?.decision === "blocked";
+  const failedDecisionEmails = (latestComplianceDecision?.email_deliveries || [])
+    .filter((delivery) => delivery.status === "failed");
   const filteredQueue = useMemo(() => queue.filter((item) => {
     const matchesStatus = statusFilter === "all" || item.application_status === statusFilter;
     const matchesQuery = !query.trim() || String(item.entity_legal_name || "")
@@ -282,11 +327,7 @@ export default function EntityRiskReview({ standalone = false }) {
       const screening = await screenEntityWallets(selectedId, {
         force: Boolean(providerInputs.wallet?.ready),
       });
-      const { data: nextContext, error: refreshError } = await supabase.rpc(
-        "admin_entity_risk_context",
-        { p_application_id: selectedId },
-      );
-      if (refreshError) throw refreshError;
+      const nextContext = await fetchEntityReviewContext(selectedId);
       setContext(nextContext);
       setForm(initialForm(nextContext));
       await loadQueue();
@@ -349,17 +390,88 @@ export default function EntityRiskReview({ standalone = false }) {
       if (saveError) throw saveError;
       setResult(data);
       await loadQueue();
-      const { data: nextContext, error: refreshError } = await supabase.rpc(
-        "admin_entity_risk_context",
-        { p_application_id: selectedId },
-      );
-      if (refreshError) throw refreshError;
+      const nextContext = await fetchEntityReviewContext(selectedId);
       setContext(nextContext);
       setForm(initialForm(nextContext));
     } catch (saveError) {
       setError(saveError.message || "Could not create the risk assessment.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const chooseDecision = (action) => {
+    setDecisionMode(action);
+    setDecisionNotice(null);
+    setDecisionMessage(action === "approve"
+      ? "Your entity application has been approved."
+      : "");
+    setInternalDecisionNote("");
+  };
+
+  const submitDecision = async () => {
+    if (!canDecide || !decisionMode) return;
+    if (["reject", "request_information"].includes(decisionMode) && !decisionMessage.trim()) {
+      setError(decisionMode === "request_information"
+        ? "List the additional information the client must provide."
+        : "Add the client-facing rejection message before continuing.");
+      return;
+    }
+    if (decisionMode === "approve" && approvalBlocked) {
+      setError("This assessment contains a blocking gate and cannot be approved.");
+      return;
+    }
+
+    setDeciding(true);
+    setError("");
+    setDecisionNotice(null);
+    try {
+      const response = await decideEntityApplication({
+        applicationId: selectedId,
+        action: decisionMode,
+        clientMessage: decisionMessage.trim(),
+        internalNote: internalDecisionNote.trim(),
+      });
+      await loadQueue();
+      const nextContext = await fetchEntityReviewContext(selectedId);
+      setContext(nextContext);
+      setForm(initialForm(nextContext));
+      setDecisionMode("");
+      const failed = Number(response.email?.failed || 0);
+      const sent = Number(response.email?.sent || 0);
+      setDecisionNotice({
+        tone: failed ? "warning" : "success",
+        decisionId: response.decision?.decision_id,
+        message: failed
+          ? `Decision saved. ${sent} email${sent === 1 ? "" : "s"} sent; ${failed} require a retry.`
+          : `Decision saved and ${sent} email${sent === 1 ? "" : "s"} sent.`,
+      });
+    } catch (decisionError) {
+      setError(decisionError.message || "Could not complete the Compliance decision.");
+    } finally {
+      setDeciding(false);
+    }
+  };
+
+  const retryDecisionEmail = async () => {
+    const decisionId = latestComplianceDecision?.id || decisionNotice?.decisionId;
+    if (!decisionId) return;
+    setDeciding(true);
+    setError("");
+    try {
+      const response = await retryEntityDecisionEmail(decisionId);
+      const nextContext = await fetchEntityReviewContext(selectedId);
+      setContext(nextContext);
+      const failed = Number(response.email?.failed || 0);
+      setDecisionNotice({
+        tone: failed ? "warning" : "success",
+        decisionId,
+        message: failed ? `${failed} email${failed === 1 ? "" : "s"} still require attention.` : "All decision emails have been sent.",
+      });
+    } catch (retryError) {
+      setError(retryError.message || "Could not retry the decision email.");
+    } finally {
+      setDeciding(false);
     }
   };
 
@@ -446,7 +558,7 @@ export default function EntityRiskReview({ standalone = false }) {
                 className="h-10 w-full appearance-none rounded-xl border border-line bg-surface-1 px-3 pr-9 text-[12px] text-ink-muted outline-none focus:border-blue-500/50"
               >
                 <option value="all">All application states</option>
-                {["draft", "in_progress", "submitted", "under_review", "approved", "rejected"].map((status) => (
+                {["draft", "in_progress", "submitted", "under_review", "information_requested", "approved", "rejected"].map((status) => (
                   <option key={status} value={status}>{titleCase(status)}</option>
                 ))}
               </select>
@@ -928,6 +1040,176 @@ export default function EntityRiskReview({ standalone = false }) {
                   <LockKeyhole className="h-3 w-3" />
                   Saved as an immutable audit revision
                 </p>
+
+                <div className="mt-6 border-t border-line-subtle pt-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[12px] font-semibold text-ink">Final decision</p>
+                      <p className="mt-1 text-[10px] leading-4 text-ink-faint">
+                        Recorded decisions are permanent and the client is notified by email.
+                      </p>
+                    </div>
+                    <Mail className="mt-0.5 h-4 w-4 shrink-0 text-ink-ghost" />
+                  </div>
+
+                  {latestComplianceDecision ? (
+                    <div className={`mt-4 rounded-2xl border p-4 ${
+                      latestComplianceDecision.action === "approve"
+                        ? "border-up/20 bg-up/[0.055]"
+                        : latestComplianceDecision.action === "reject"
+                          ? "border-down/20 bg-down/[0.055]"
+                          : "border-warn/20 bg-warn/[0.055]"
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {latestComplianceDecision.action === "approve" ? (
+                          <CheckCircle2 className="h-4 w-4 text-up" />
+                        ) : latestComplianceDecision.action === "reject" ? (
+                          <XCircle className="h-4 w-4 text-down" />
+                        ) : (
+                          <MessageSquareText className="h-4 w-4 text-warn" />
+                        )}
+                        <p className="text-[12px] font-semibold text-ink">
+                          {latestComplianceDecision.action === "approve"
+                            ? "Application approved"
+                            : latestComplianceDecision.action === "reject"
+                              ? "Application rejected"
+                              : "Additional information requested"}
+                        </p>
+                      </div>
+                      <p className="mt-3 whitespace-pre-line text-[11px] leading-5 text-ink-muted">
+                        {latestComplianceDecision.client_message}
+                      </p>
+                      <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3 text-[10px] text-ink-faint">
+                        <span>{formatDate(latestComplianceDecision.created_at)}</span>
+                        <span>
+                          {(latestComplianceDecision.email_deliveries || []).filter((item) => item.status === "sent").length}
+                          /{(latestComplianceDecision.email_deliveries || []).length} emails sent
+                        </span>
+                      </div>
+                      {failedDecisionEmails.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={retryDecisionEmail}
+                          disabled={deciding}
+                          className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-warn/25 bg-warn/[0.08] text-[11px] font-semibold text-warn hover:bg-warn/[0.13] disabled:opacity-50"
+                        >
+                          <RefreshCw className={`h-3.5 w-3.5 ${deciding ? "animate-spin" : ""}`} />
+                          Retry {failedDecisionEmails.length} failed email{failedDecisionEmails.length === 1 ? "" : "s"}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {!latestAssessment ? (
+                        <div className="mt-4 rounded-xl border border-line-subtle bg-surface-0/40 px-3.5 py-3 text-[11px] leading-5 text-ink-faint">
+                          Calculate and save the risk assessment before selecting an outcome.
+                        </div>
+                      ) : !canDecide ? (
+                        <div className="mt-4 rounded-xl border border-line-subtle bg-surface-0/40 px-3.5 py-3 text-[11px] leading-5 text-ink-faint">
+                          {applicationStatus === "information_requested"
+                            ? "Waiting for the client to update and resubmit the application."
+                            : "A current assessment and an application awaiting review are required."}
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => chooseDecision("request_information")}
+                            className={`rounded-xl border px-2 py-3 text-center transition-colors ${decisionMode === "request_information" ? "border-warn/40 bg-warn/[0.11] text-warn" : "border-line bg-surface-0/45 text-ink-muted hover:bg-surface-2"}`}
+                          >
+                            <MessageSquareText className="mx-auto h-4 w-4" />
+                            <span className="mt-1.5 block text-[9px] font-semibold leading-3">Request info</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => chooseDecision("reject")}
+                            className={`rounded-xl border px-2 py-3 text-center transition-colors ${decisionMode === "reject" ? "border-down/40 bg-down/[0.11] text-down" : "border-line bg-surface-0/45 text-ink-muted hover:bg-surface-2"}`}
+                          >
+                            <XCircle className="mx-auto h-4 w-4" />
+                            <span className="mt-1.5 block text-[9px] font-semibold leading-3">Reject</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => chooseDecision("approve")}
+                            disabled={approvalBlocked}
+                            title={approvalBlocked ? "Resolve the blocking risk gates before approval." : undefined}
+                            className={`rounded-xl border px-2 py-3 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${decisionMode === "approve" ? "border-up/40 bg-up/[0.11] text-up" : "border-line bg-surface-0/45 text-ink-muted hover:bg-surface-2"}`}
+                          >
+                            <CheckCircle2 className="mx-auto h-4 w-4" />
+                            <span className="mt-1.5 block text-[9px] font-semibold leading-3">Approve</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {decisionMode && canDecide && (
+                        <div className="mt-3 rounded-2xl border border-line-subtle bg-surface-0/45 p-3.5">
+                          <label className="block">
+                            <span className="text-[10px] font-semibold text-ink-muted">
+                              {decisionMode === "request_information"
+                                ? "Information required from the client"
+                                : decisionMode === "reject"
+                                  ? "Client-facing decision message"
+                                  : "Approval message"}
+                            </span>
+                            <textarea
+                              value={decisionMessage}
+                              onChange={(event) => setDecisionMessage(event.target.value)}
+                              rows={decisionMode === "approve" ? 3 : 5}
+                              maxLength={5000}
+                              placeholder={decisionMode === "request_information"
+                                ? "List each required document or clarification on a separate line."
+                                : decisionMode === "reject"
+                                  ? "Provide the clear message that will be sent to the primary contact."
+                                  : "Optional message included in the approval email."}
+                              className="mt-2 w-full resize-y rounded-xl border border-line bg-surface-1 px-3 py-2.5 text-[11px] leading-5 text-ink outline-none placeholder:text-ink-ghost focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10"
+                            />
+                          </label>
+                          <details className="mt-2.5">
+                            <summary className="cursor-pointer text-[10px] font-medium text-ink-faint">Add internal note</summary>
+                            <textarea
+                              value={internalDecisionNote}
+                              onChange={(event) => setInternalDecisionNote(event.target.value)}
+                              rows={3}
+                              maxLength={5000}
+                              placeholder="Internal rationale. This is not sent to the client."
+                              className="mt-2 w-full resize-y rounded-xl border border-line bg-surface-1 px-3 py-2.5 text-[11px] leading-5 text-ink outline-none placeholder:text-ink-ghost focus:border-blue-500/60"
+                            />
+                          </details>
+                          {decisionMode === "approve" && (
+                            <p className="mt-2.5 text-[9px] leading-4 text-ink-faint">
+                              Approval activates email-bound entity memberships for the representative and every connected person.
+                            </p>
+                          )}
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setDecisionMode("")}
+                              disabled={deciding}
+                              className="h-10 flex-1 rounded-xl border border-line text-[11px] font-semibold text-ink-muted hover:bg-surface-2 disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={submitDecision}
+                              disabled={deciding}
+                              className={`flex h-10 flex-[1.6] items-center justify-center gap-2 rounded-xl text-[11px] font-semibold disabled:opacity-50 ${decisionMode === "approve" ? "bg-up text-black" : decisionMode === "reject" ? "bg-down text-white" : "bg-warn text-black"}`}
+                            >
+                              {deciding ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                              {decisionMode === "approve" ? "Approve and notify" : decisionMode === "reject" ? "Reject and notify" : "Send request"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {decisionNotice && (
+                    <div className={`mt-3 rounded-xl border px-3 py-2.5 text-[10px] leading-4 ${decisionNotice.tone === "success" ? "border-up/20 bg-up/[0.055] text-up" : "border-warn/20 bg-warn/[0.055] text-warn"}`}>
+                      {decisionNotice.message}
+                    </div>
+                  )}
+                </div>
                 </section>
               </aside>
             </div>

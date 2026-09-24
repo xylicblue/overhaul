@@ -112,6 +112,14 @@ const Web3AuthHandler = () => {
           // used across multiple Supabase logins, and the message is more
           // alarming than helpful. Still logged to the console for debugging.
           const msg = e?.message || "";
+          // The wallet provider can report a connection before the server has
+          // accepted the wallet for this account. If Compliance has not
+          // approved and screened this exact entity wallet, tear down that
+          // browser connection so it cannot be mistaken for a tradable one.
+          if (/not an approved and screened wallet/i.test(msg)) {
+            linkedAddressRef.current = null;
+            try { disconnect(); } catch { /* ignore */ }
+          }
           if (!/already linked to another account/i.test(msg)) {
             toast.error(msg || "Failed to link wallet.");
           }

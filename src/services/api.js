@@ -270,6 +270,28 @@ export async function screenEntityWallets(applicationId, { force = false } = {})
   });
 }
 
+export async function decideEntityApplication({
+  applicationId,
+  action,
+  clientMessage = "",
+  internalNote = "",
+}) {
+  return callEdgeFunction("entity-application-decision", {
+    operation: "decide",
+    application_id: applicationId,
+    action,
+    client_message: clientMessage,
+    internal_note: internalNote,
+  });
+}
+
+export async function retryEntityDecisionEmail(decisionId) {
+  return callEdgeFunction("entity-application-decision", {
+    operation: "retry_email",
+    decision_id: decisionId,
+  });
+}
+
 export async function openConnectedPersonKycInvite(invite) {
   return callEdgeFunction("connected-person-kyc", { invite }, { auth: false });
 }

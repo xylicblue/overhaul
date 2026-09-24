@@ -43,3 +43,135 @@
   color: #888;
 }
 
+/* Global quick notifications. The neutral frosted surface keeps status colour
+   subordinate to the message, matching the restrained hierarchy used by
+   macOS notification banners. */
+.app-toast {
+  --toast-accent: #8e8e93;
+  --toast-accent-soft: rgba(142, 142, 147, 0.13);
+  box-sizing: border-box;
+  width: min(382px, calc(100vw - 24px));
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 10px 11px 12px;
+  color: #f5f5f7;
+  background: rgba(28, 28, 31, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 17px;
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.38),
+    0 3px 12px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+}
+
+.app-toast--success {
+  --toast-accent: #32d583;
+  --toast-accent-soft: rgba(50, 213, 131, 0.12);
+}
+
+.app-toast--error {
+  --toast-accent: #ff6961;
+  --toast-accent-soft: rgba(255, 105, 97, 0.12);
+}
+
+.app-toast--loading {
+  --toast-accent: #64a8ff;
+  --toast-accent-soft: rgba(100, 168, 255, 0.12);
+}
+
+.app-toast__icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--toast-accent) 25%, transparent);
+  border-radius: 11px;
+  color: var(--toast-accent);
+  background: var(--toast-accent-soft);
+}
+
+.app-toast__content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.app-toast__label {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+
+.app-toast__message {
+  color: rgba(235, 235, 245, 0.66);
+  font-size: 12.5px;
+  font-weight: 450;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.app-toast__close {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  border: 0;
+  border-radius: 50%;
+  color: rgba(235, 235, 245, 0.42);
+  background: transparent;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, transform 150ms ease;
+}
+
+.app-toast__close:hover {
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-toast__close:active {
+  transform: scale(0.92);
+}
+
+.app-toast__close:focus-visible {
+  outline: 2px solid rgba(100, 168, 255, 0.7);
+  outline-offset: 1px;
+}
+
+.app-toast__spinner {
+  animation: app-toast-spin 900ms linear infinite;
+}
+
+@keyframes app-toast-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .app-toast {
+    width: calc(100vw - 24px);
+    min-height: 64px;
+    border-radius: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-toast__close {
+    transition: none;
+  }
+
+  .app-toast__spinner {
+    animation-duration: 1800ms;
+  }
+}
+
