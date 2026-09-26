@@ -9,6 +9,8 @@ import {
   Settings as SettingsIcon,
   Shield,
   Bell,
+  Mail,
+  Smartphone,
   LogOut,
   X,
   Eye,
@@ -45,6 +47,216 @@ const NOTIF_TYPES = [
   { key: "announcement", label: "Announcements", desc: "Major product launches and important milestones." },
   { key: "warning", label: "Warnings", desc: "Maintenance windows, incidents and risk notices." },
 ];
+
+const urlBase64ToUint8Array = (base64String) => {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((character) => character.charCodeAt(0)));
+};
+
+const RiskAlertSettings = ({ session }) => {
+  const [wallet, setWallet] = useState("");
+  const [emailAddress, setEmailAddress] = useState(session?.user?.email || "");
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const pushSupported = typeof window !== "undefined"
+    && "serviceWorker" in navigator
+    && "PushManager" in window
+    && "Notification" in window;
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!session?.user?.id) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("wallet_address")
+        .eq("id", session.user.id)
+        .single();
+      const normalizedWallet = profile?.wallet_address?.toLowerCase() || "";
+      if (!active) return;
+      setWallet(normalizedWallet);
+      if (normalizedWallet) {
+        const { data } = await supabase
+          .from("notification_preferences")
+          .select("email_enabled,email_address,push_enabled")
+          .eq("user_id", normalizedWallet)
+          .maybeSingle();
+        if (active && data) {
+          setEmailEnabled(Boolean(data.email_enabled));
+          setEmailAddress(data.email_address || session.user.email || "");
+          setPushEnabled(Boolean(data.push_enabled));
+        }
+      }
+      if (active) setLoading(false);
+    };
+    void load();
+    return () => { active = false; };
+  }, [session]);
+
+  const savePreferences = async (patch) => {
+    if (!wallet) {
+      toast.error("Connect the approved entity wallet before enabling margin alerts.");
+      return false;
+    }
+    const { error } = await supabase.from("notification_preferences").upsert({
+      user_id: wallet,
+      cat_margin_enabled: true,
+      cat_liquidation_enabled: true,
+      ...patch,
+    }, { onConflict: "user_id" });
+    if (error) {
+      toast.error("Could not save margin alert preferences.");
+      return false;
+    }
+    return true;
+  };
+
+  const saveEmail = async (nextEnabled = emailEnabled) => {
+    if (nextEnabled && !/^\S+@\S+\.\S+$/.test(emailAddress.trim())) {
+      toast.error("Enter a valid email address.");
+      return;
+    }
+    setSaving(true);
+    const saved = await savePreferences({
+      email_enabled: nextEnabled,
+      email_address: emailAddress.trim() || null,
+    });
+    setSaving(false);
+    if (saved) {
+      setEmailEnabled(nextEnabled);
+      toast.success(nextEnabled ? "Email margin alerts enabled" : "Email margin alerts disabled");
+    }
+  };
+
+  const togglePush = async () => {
+    if (!pushSupported) {
+      toast.error("Browser push is not supported on this device.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!pushEnabled) {
+        if (!publicKey) throw new Error("Browser push is not configured for this deployment.");
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") throw new Error("Notification permission was not granted.");
+      }
+      const registration = await navigator.serviceWorker.register("/push-notification-sw.js");
+      const existing = await registration.pushManager.getSubscription();
+      if (pushEnabled) {
+        const saved = await savePreferences({ push_enabled: false, push_subscription: null });
+        if (saved) {
+          if (existing) await existing.unsubscribe();
+          setPushEnabled(false);
+          toast.success("Browser margin alerts disabled");
+        }
+        return;
+      }
+
+      const subscription = existing || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+      const saved = await savePreferences({
+        push_enabled: true,
+        push_subscription: subscription.toJSON(),
+      });
+      if (saved) {
+        setPushEnabled(true);
+        toast.success("Browser margin alerts enabled");
+      }
+    } catch (error) {
+      toast.error(error.message || "Could not enable browser margin alerts.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-8">
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-white/70" />
+    </div>
+  );
+
+  return (
+    <section>
+      <div className="mb-3 px-1">
+        <p className="text-xs font-medium text-ink-faint">Margin and liquidation alerts</p>
+        <p className="mt-1 text-xs leading-5 text-zinc-600">
+          Critical in-app notices are always retained. Add optional channels for faster delivery.
+        </p>
+      </div>
+      <div className="divide-y divide-white/[0.07] overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#121216]">
+        <div className="flex items-center justify-between gap-6 px-6 py-5 sm:px-7">
+          <div className="flex items-start gap-3">
+            <Bell size={17} className="mt-0.5 text-[#0a84ff]" />
+            <div>
+              <h3 className="text-base font-medium text-ink">In-app risk alerts</h3>
+              <p className="mt-1 text-sm leading-5 text-ink-faint">Warnings, recoveries and confirmed liquidation notices.</p>
+            </div>
+          </div>
+          <Switch checked disabled />
+        </div>
+
+        <div className="px-6 py-5 sm:px-7">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-start gap-3">
+              <Mail size={17} className="mt-0.5 text-zinc-400" />
+              <div>
+                <h3 className="text-base font-medium text-ink">Email alerts</h3>
+                <p className="mt-1 text-sm leading-5 text-ink-faint">Send risk notices to a monitored address.</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => void saveEmail(!emailEnabled)} disabled={saving}>
+              <Switch checked={emailEnabled} disabled={saving} />
+            </button>
+          </div>
+          <div className="mt-4 flex gap-2 pl-8">
+            <input
+              type="email"
+              value={emailAddress}
+              onChange={(event) => setEmailAddress(event.target.value)}
+              placeholder="risk@example.com"
+              className="min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-black/20 px-3.5 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-zinc-700 focus:border-[#0a84ff]/60"
+            />
+            {emailEnabled && (
+              <button
+                type="button"
+                onClick={() => void saveEmail(true)}
+                disabled={saving}
+                className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black transition-opacity disabled:opacity-50"
+              >
+                Save
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-6 px-6 py-5 sm:px-7">
+          <div className="flex items-start gap-3">
+            <Smartphone size={17} className="mt-0.5 text-zinc-400" />
+            <div>
+              <h3 className="text-base font-medium text-ink">Browser push</h3>
+              <p className="mt-1 text-sm leading-5 text-ink-faint">
+                {pushSupported ? "Receive urgent alerts even when ByteStrike is not open." : "Not supported by this browser."}
+              </p>
+            </div>
+          </div>
+          <button type="button" onClick={() => void togglePush()} disabled={saving || !pushSupported}>
+            <Switch checked={pushEnabled} disabled={saving || !pushSupported} />
+          </button>
+        </div>
+      </div>
+      {!wallet && (
+        <p className="mt-3 px-1 text-xs text-amber-400/80">Connect the approved entity wallet to configure delivery channels.</p>
+      )}
+    </section>
+  );
+};
 
 // ── NotificationSettings (sub-component for the notifications tab) ────────────
 const NotificationSettings = ({ session }) => {
@@ -157,6 +369,8 @@ const NotificationSettings = ({ session }) => {
           })}
         </div>
       </section>
+
+      <RiskAlertSettings session={session} />
 
       {saving && (
         <p className="flex items-center gap-2 px-1 text-xs text-ink-faint">

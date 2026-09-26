@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, memo } from "react";
 import { Bell, BellOff, CheckCheck, Settings } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useNotificationStore } from "../stores/useNotificationStore";
 
 const TYPE_CONFIG = {
@@ -26,6 +26,8 @@ function NotificationBell({ userId }) {
   const notifications  = getNotifications();
   const unreadCount    = getUnreadCount();
   const notifEnabled   = prefs.enabled !== false;
+  const hasRiskNotifications = notifications.some((notification) => notification.source === "trader");
+  const bellActive = notifEnabled || hasRiskNotifications;
 
   // Close on outside click
   useEffect(() => {
@@ -51,23 +53,23 @@ function NotificationBell({ userId }) {
             : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
           }`}
       >
-        {notifEnabled ? <Bell size={15} /> : <BellOff size={15} />}
+        {bellActive ? <Bell size={15} /> : <BellOff size={15} />}
 
-        {notifEnabled && unreadCount > 0 && (
-          <motion.span
+        {bellActive && unreadCount > 0 && (
+          <Motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-0.5 rounded-full bg-blue-500 text-[9px] font-bold text-white leading-none ring-2 ring-[#050505]"
           >
             {unreadCount > 9 ? "9+" : unreadCount}
-          </motion.span>
+          </Motion.span>
         )}
       </button>
 
       {/* ── Panel ── */}
       <AnimatePresence>
         {open && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: -4, scale: 0.97 }}
             animate={{ opacity: 1, y: 0,  scale: 1 }}
             exit={{ opacity: 0,   y: -4,  scale: 0.97 }}
@@ -103,7 +105,7 @@ function NotificationBell({ userId }) {
 
             {/* Body */}
             <div className="max-h-[380px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-              {!notifEnabled ? (
+              {!notifEnabled && !hasRiskNotifications ? (
                 <div className="py-12 text-center px-4">
                   <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center mx-auto mb-3">
                     <BellOff size={18} className="text-zinc-600" />
@@ -164,6 +166,15 @@ function NotificationBell({ userId }) {
                           <p className="text-[12px] text-zinc-500 leading-relaxed">
                             {n.message}
                           </p>
+                          {n.source === "trader" && n.actions?.[0]?.href && (
+                            <a
+                              href={n.actions[0].href}
+                              onClick={(event) => event.stopPropagation()}
+                              className="mt-2 inline-flex rounded-lg border border-white/[0.08] bg-white/[0.05] px-2.5 py-1.5 text-[11px] font-semibold text-zinc-200 transition-colors hover:bg-white/[0.09] hover:text-white"
+                            >
+                              {n.actions[0].label || "Review position"}
+                            </a>
+                          )}
                         </div>
                       </div>
                     );
@@ -186,7 +197,7 @@ function NotificationBell({ userId }) {
                 Manage preferences
               </a>
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>

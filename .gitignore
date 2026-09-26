@@ -61,3 +61,4 @@ open-position-error-diagnosis-plan.md
 reports/
 email-templates/
 ENTITY_KYC_OPS.md
+.env.production.example
