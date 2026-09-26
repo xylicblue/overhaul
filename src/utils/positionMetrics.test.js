@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parseUnits } from "ethers";
 import {
+  calculateFundingRate8hPercent,
   calculatePendingFundingRaw,
   calculatePositionMetrics,
 } from "./positionMetrics.js";
@@ -71,6 +72,22 @@ test("pending funding supports separate pay and receive accumulators", () => {
     lastPayRaw: x18("0.1"),
     lastReceiveRaw: x18("0.2"),
   }), x18("0.4"));
+});
+
+test("display funding rate follows the contract sensitivity and eight-hour cap", () => {
+  assert.equal(calculateFundingRate8hPercent({
+    markPrice: 110,
+    indexPrice: 100,
+    kFunding: 0.3,
+    frMaxBpsPerHour: 5,
+  }), 0.4);
+
+  assert.equal(calculateFundingRate8hPercent({
+    markPrice: 90,
+    indexPrice: 100,
+    kFunding: 0.3,
+    frMaxBpsPerHour: 5,
+  }), -0.4);
 });
 
 test("long liquidation estimate uses effective margin, index PnL, and market MMR", () => {

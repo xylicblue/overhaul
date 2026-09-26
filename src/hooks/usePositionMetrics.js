@@ -3,7 +3,7 @@ import { formatUnits } from "ethers";
 import { useAccount } from "wagmi";
 import { useLiquidationStatus } from "./useClearingHouse";
 import { useFundingRate, useMarkPrice } from "./useVAMM";
-import { calculatePositionMetrics } from "../utils/positionMetrics";
+import { calculateFundingRate8hPercent, calculatePositionMetrics } from "../utils/positionMetrics";
 
 const toNumberX18 = (value) => Number(formatUnits(value ?? 0n, 18));
 
@@ -51,11 +51,44 @@ export function usePositionMetrics(position) {
   const hasRiskData = hasMarkPrice && hasIndexPrice;
   const hasPnlData = hasMarkPrice && fundingReady;
   const hasLiquidationData = hasIndexPrice && !liquidation.isLoading && !liquidation.error;
+  const markPrice = toNumberX18(mark.priceRaw);
+  const indexPrice = toNumberX18(liquidation.riskPriceRaw);
+  const kFunding = Number.parseFloat(funding.kFundingX18 || "0");
+  const fundingRate8hPercent = calculateFundingRate8hPercent({
+    markPrice,
+    indexPrice,
+    kFunding,
+    frMaxBpsPerHour: funding.frMaxBpsPerHour,
+  });
+  const fundingPayer = fundingRate8hPercent > 0
+    ? "Longs pay shorts"
+    : fundingRate8hPercent < 0
+      ? "Shorts pay longs"
+      : "No funding transfer";
+  const marginRatioPercent = liquidation.marginRatio == null
+    ? null
+    : Number.parseFloat(liquidation.marginRatio) * 100;
+  const maintenanceMarginPercent = Number(liquidation.mmrBps || 0) / 100;
+  const marginRatioDistancePercent = marginRatioPercent == null
+    ? null
+    : marginRatioPercent - maintenanceMarginPercent;
+  const metricTimestamps = [
+    mark.lastUpdatedAt,
+    funding.lastUpdatedAt,
+    liquidation.lastUpdatedAt,
+  ].filter((timestamp) => timestamp > 0);
+  const lastUpdatedAt = metricTimestamps.length ? Math.min(...metricTimestamps) : 0;
+
+  const refetch = () => Promise.allSettled([
+    mark.refetch?.(),
+    funding.refetch?.(),
+    liquidation.refetch?.(),
+  ]);
 
   return {
     ...metrics,
-    markPrice: toNumberX18(mark.priceRaw),
-    indexPrice: toNumberX18(liquidation.riskPriceRaw),
+    markPrice,
+    indexPrice,
     riskPrice: toNumberX18(metrics.riskPriceRaw),
     markNotional: toNumberX18(metrics.markNotionalRaw),
     entryPrice: toNumberX18(position?.entryPriceRaw ?? position?.entryPriceX18Raw),
@@ -67,9 +100,18 @@ export function usePositionMetrics(position) {
     unrealizedPnl: toNumberX18(metrics.unrealizedPnlRaw),
     pendingFunding: toNumberX18(metrics.pendingFundingRaw),
     positionPnl: toNumberX18(metrics.positionPnlRaw),
+    effectiveMargin: toNumberX18(metrics.effectiveMarginRaw),
+    maintenanceMargin: toNumberX18(metrics.maintenanceMarginRaw),
     roePercent: toNumberX18(metrics.roeX18) * 100,
     liquidationPrice: toNumberX18(metrics.liquidationPriceRaw),
     liquidationBuffer: toNumberX18(metrics.liquidationBufferRaw),
+    marginRatioPercent,
+    maintenanceMarginPercent,
+    marginRatioDistancePercent,
+    fundingRate8hPercent,
+    fundingPayer,
+    lastUpdatedAt,
+    refetch,
     hasMarkPrice,
     hasIndexPrice,
     hasRiskData,

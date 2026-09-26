@@ -37,6 +37,24 @@ export function calculatePendingFundingRaw({
   return ((receiveDelta - payDelta) * absoluteSize) / WAD;
 }
 
+export function calculateFundingRate8hPercent({
+  markPrice = 0,
+  indexPrice = 0,
+  kFunding = 0,
+  frMaxBpsPerHour = 0,
+}) {
+  const mark = Number(markPrice);
+  const index = Number(indexPrice);
+  const sensitivity = Number(kFunding);
+  const hourlyCapBps = Number(frMaxBpsPerHour);
+  if (![mark, index, sensitivity, hourlyCapBps].every(Number.isFinite) || index <= 0) return 0;
+
+  const premium = (mark - index) / index;
+  const uncappedRate = sensitivity * premium * (8 / 24);
+  const cap = Math.max(hourlyCapBps, 0) * 8 / 10000;
+  return Math.max(-cap, Math.min(cap, uncappedRate)) * 100;
+}
+
 export function calculatePositionMetrics({
   sizeRaw = 0n,
   marginRaw = 0n,
