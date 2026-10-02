@@ -37,6 +37,70 @@ export function calculatePendingFundingRaw({
   return ((receiveDelta - payDelta) * absoluteSize) / WAD;
 }
 
+export function calculateFundingRate8hPercent({
+  markPrice = 0,
+  indexPrice = 0,
+  kFunding = 0,
+  frMaxBpsPerHour = 0,
+}) {
+  const mark = Number(markPrice);
+  const index = Number(indexPrice);
+  const sensitivity = Number(kFunding);
+  const hourlyCapBps = Number(frMaxBpsPerHour);
+  if (![mark, index, sensitivity, hourlyCapBps].every(Number.isFinite) || index <= 0) return 0;
+
+  const premium = (mark - index) / index;
+  const uncappedRate = sensitivity * premium * (8 / 24);
+  const cap = Math.max(hourlyCapBps, 0) * 8 / 10000;
+  return Math.max(-cap, Math.min(cap, uncappedRate)) * 100;
+}
+
+export function calculateCloseSettlementPreview({
+  positionSize = 0,
+  closeSize = 0,
+  unrealizedPnl = 0,
+  pendingFunding = 0,
+  estimatedFee = 0,
+}) {
+  const absolutePositionSize = Math.abs(Number(positionSize) || 0);
+  const requestedCloseSize = Math.max(Number(closeSize) || 0, 0);
+  const closedFraction = absolutePositionSize > 0
+    ? Math.min(requestedCloseSize / absolutePositionSize, 1)
+    : 0;
+  const closedPnl = (Number(unrealizedPnl) || 0) * closedFraction;
+  const fullFundingSettlement = Number(pendingFunding) || 0;
+  const pnlAndFunding = closedPnl + fullFundingSettlement;
+  const fee = Math.max(Number(estimatedFee) || 0, 0);
+
+  return {
+    closedFraction,
+    closedPnl,
+    fullFundingSettlement,
+    pnlAndFunding,
+    estimatedNetEffect: pnlAndFunding - fee,
+  };
+}
+
+export function calculatePostFundingMargin({
+  currentMargin = 0,
+  pendingFunding = 0,
+  additionalMargin = 0,
+}) {
+  const marginBeforeFunding = Math.max(Number(currentMargin) || 0, 0);
+  const fundingSettlement = Number(pendingFunding) || 0;
+  const marginBeforeFloor = marginBeforeFunding + fundingSettlement;
+  const fundingShortfall = Math.max(-marginBeforeFloor, 0);
+  const settledPositionMargin = Math.max(marginBeforeFloor, 0);
+
+  return {
+    marginBeforeFunding,
+    fundingSettlement,
+    fundingShortfall,
+    settledPositionMargin,
+    positionMarginAfter: settledPositionMargin + Math.max(Number(additionalMargin) || 0, 0),
+  };
+}
+
 export function calculatePositionMetrics({
   sizeRaw = 0n,
   marginRaw = 0n,

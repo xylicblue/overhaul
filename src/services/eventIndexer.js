@@ -282,10 +282,27 @@ async function writeCanonicalTrade(event) {
   const userAddress = args.user.toLowerCase();
   const key = tradeAccountingKey(transactionHash, userAddress, marketId);
   const timestamp = await getBlockTimestamp(blockNumber);
-  const fundingEarned = pendingFundingByTrade.get(key) ?? 0;
   const size = Math.abs(parseFloat(formatUnits(args.baseDelta, 18)));
   const notional = Math.abs(parseFloat(formatUnits(args.quoteDelta, 18)));
 
+  const { data: existing, error: selectError } = await supabase
+    .from('trade_history')
+    .select('id, funding_earned')
+    .eq('tx_hash', transactionHash)
+    .eq('user_address', userAddress)
+    .eq('market', market.name)
+    .limit(20);
+
+  if (selectError) {
+    console.error('Error checking canonical trade row:', selectError);
+    return false;
+  }
+
+  // A FundingSettled watcher can run before TradeExecuted for the same
+  // transaction. Preserve the amount from either the in-memory hand-off or a
+  // standalone funding row that was written first.
+  const storedFunding = (existing || []).find((row) => Number(row.funding_earned || 0) !== 0)?.funding_earned;
+  const fundingEarned = pendingFundingByTrade.get(key) ?? Number(storedFunding || 0);
   const payload = {
     user_address: userAddress,
     market: market.name,
@@ -299,18 +316,6 @@ async function writeCanonicalTrade(event) {
     funding_earned: fundingEarned,
     fees_paid: parseFloat(formatUnits(args.fee, 18)),
   };
-
-  const { data: existing, error: selectError } = await supabase
-    .from('trade_history')
-    .select('id')
-    .eq('tx_hash', transactionHash)
-    .eq('user_address', userAddress)
-    .limit(20);
-
-  if (selectError) {
-    console.error('Error checking canonical trade row:', selectError);
-    return false;
-  }
 
   const existingIds = (existing || []).map((row) => row.id);
   const query = existingIds.length > 0
@@ -334,8 +339,13 @@ async function applyFundingSettlement(event) {
     return false;
   }
 
-  const { args, transactionHash } = event;
+  const { args, blockNumber, transactionHash } = event;
   const marketId = args.marketId.toLowerCase();
+  const market = MARKET_BY_ID[marketId];
+  if (!market) {
+    console.warn(`Skipping FundingSettled for unknown market ${marketId}`);
+    return false;
+  }
   const userAddress = args.account.toLowerCase();
   const key = tradeAccountingKey(transactionHash, userAddress, marketId);
   const payment = parseFloat(formatUnits(args.fundingPayment, 18));
@@ -347,6 +357,7 @@ async function applyFundingSettlement(event) {
     .select('id')
     .eq('tx_hash', transactionHash)
     .eq('user_address', userAddress)
+    .eq('market', market.name)
     .limit(20);
 
   if (selectError) {
@@ -354,18 +365,35 @@ async function applyFundingSettlement(event) {
     return false;
   }
 
-  if (!rows?.length) return true;
-
-  const { error } = await supabase
-    .from('trade_history')
-    .update({ funding_earned: nextFunding })
-    .in('id', rows.map((row) => row.id));
+  let error;
+  if (rows?.length) {
+    ({ error } = await supabase
+      .from('trade_history')
+      .update({ funding_earned: nextFunding })
+      .in('id', rows.map((row) => row.id)));
+  } else {
+    const timestamp = await getBlockTimestamp(blockNumber);
+    ({ error } = await supabase.from('trade_history').insert({
+      user_address: userAddress,
+      market: market.name,
+      side: 'Funding',
+      size: 0,
+      price: 0,
+      notional: 0,
+      tx_hash: transactionHash,
+      created_at: timestamp,
+      pnl: 0,
+      funding_earned: nextFunding,
+      fees_paid: 0,
+    }));
+  }
 
   if (error) {
     console.error('Error applying canonical funding:', error);
     return false;
   }
 
+  pendingFundingByTrade.delete(key);
   return true;
 }
 

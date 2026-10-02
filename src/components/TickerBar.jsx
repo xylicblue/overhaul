@@ -765,8 +765,8 @@ const TickerBar = () => {
       <Stat
         value={marketData?.fundingRate || "0.0000%"}
         valueClass={(() => { const r = parseFloat(marketData?.fundingRate); if (!r || r === 0) return "text-ink-muted"; return r > 0 ? "text-up" : "text-down"; })()}
-        label="Funding / 8h"
-        tooltip={<InfoTooltip title="Funding Rate" description="Periodic payment between longs and shorts every 8 hours. Keeps the perpetual price anchored to real GPU rental rates." />}
+        label="Projected / 8h"
+        tooltip={<InfoTooltip title="Projected 8-hour funding rate" description="An indicative 8-hour rate. Actual funding accrues continuously through the contract's cumulative indices and settles during relevant account actions. Accrual stops when either side has no open interest, and unequal long and short open interest can change the receiving side's per-unit rate." />}
       />
       <Stat
         value={marketFee}

@@ -1,5 +1,6 @@
 // useWalletAuth.js — Custom hook for wallet-based authentication (Ethereum + Solana)
-// Uses the wallet-auth Supabase Edge Function for signature verification and JWT generation.
+// Uses the wallet-auth Supabase Edge Function for signature verification and
+// creation of a native, refreshable Supabase Auth session.
 
 import { useState, useCallback } from "react";
 import { supabase } from "../creatclient";
@@ -34,6 +35,59 @@ async function callWalletAuth(payload) {
     throw new Error(data.error || "Wallet authentication failed");
   }
   return data;
+}
+
+function hasNativeSupabaseSession(accessToken) {
+  try {
+    const encodedPayload = accessToken.split(".")[1];
+    if (!encodedPayload) return false;
+    const base64 = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(padded));
+    return typeof payload?.session_id === "string" && payload.session_id.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Install and verify the native Supabase session returned by wallet-auth. */
+async function installWalletSession(walletSession) {
+  if (!walletSession?.access_token || !walletSession?.refresh_token) {
+    throw new Error("Wallet authentication did not return a valid session.");
+  }
+  if (!hasNativeSupabaseSession(walletSession.access_token)) {
+    throw new Error(
+      "Wallet authentication returned an outdated session. Please redeploy wallet authentication and try again."
+    );
+  }
+
+  const { data, error } = await supabase.auth.setSession({
+    access_token: walletSession.access_token,
+    refresh_token: walletSession.refresh_token,
+  });
+
+  if (error) throw error;
+  if (!data?.session?.user) {
+    throw new Error("Wallet authentication could not establish a user session.");
+  }
+
+  // setSession can reconstruct user data from the access token. Confirm the
+  // token with Supabase Auth as well, so an older hand-built wallet token can
+  // never be mistaken for a native session and fail later during onboarding or
+  // MFA enrolment.
+  const { data: verified, error: verificationError } = await supabase.auth.getUser(
+    data.session.access_token
+  );
+  if (verificationError || !verified?.user || verified.user.id !== data.session.user.id) {
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // Best-effort local cleanup; the verified-session check still fails closed.
+    }
+    throw new Error("Wallet sign-in could not establish a verified session. Please try again.");
+  }
+
+  return { ...data.session, user: verified.user };
 }
 
 /**
@@ -113,12 +167,7 @@ export async function silentRefresh(address, chain) {
   const session = await callWalletAuth({ action: "verify", address, signature, chain });
 
   // 4. Install the new session into the Supabase client
-  const { error } = await supabase.auth.setSession({
-    access_token:  session.access_token,
-    refresh_token: session.refresh_token,
-  });
-
-  if (error) throw error;
+  await installWalletSession(session);
 }
 
 /**
@@ -159,7 +208,7 @@ export function useWalletAuth() {
       }
 
       // Step 2: Request nonce from edge function
-      const { nonce, message } = await callWalletAuth({
+      const { message } = await callWalletAuth({
         action: "get-nonce",
         address,
         chain,
@@ -183,21 +232,18 @@ export function useWalletAuth() {
         chain,
       });
 
-      // Step 5: Set the Supabase session with the returned JWT
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
-
-      if (sessionError) {
-        throw sessionError;
-      }
+      // Step 5: Install and verify the native Supabase session.
+      const installedSession = await installWalletSession(session);
 
       toast.success(
         `Signed in with ${chain === "ethereum" ? "Ethereum" : "Solana"} wallet!`
       );
 
-      return { ...session, is_new_user: session.is_new_user || false };
+      return {
+        ...session,
+        user: installedSession.user,
+        is_new_user: session.is_new_user || false,
+      };
     } catch (err) {
       const message =
         err?.message || "Wallet authentication failed. Please try again.";

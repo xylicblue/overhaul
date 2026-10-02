@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   useAccount,
   useReadContract,
@@ -9,7 +9,9 @@ import { parseUnits, formatUnits } from "ethers";
 import { toast } from "react-hot-toast";
 import { SEPOLIA_CONTRACTS, COLLATERAL_TOKENS } from "../contracts/addresses";
 import CollateralVaultABI from "../contracts/abis/CollateralVault.json";
-import { useDeposit, useWithdraw } from "../hooks/useClearingHouse";
+import { useAllPositions, useDeposit, useWithdraw } from "../hooks/useClearingHouse";
+import { usePositionMetrics } from "../hooks/usePositionMetrics";
+import ConfirmationModal from "./ConfirmationModal";
 import { CheckCircle2, AlertCircle, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 const ERC20_ABI = [
@@ -30,16 +32,56 @@ const ERC20_ABI = [
   },
 ];
 
+const formatSignedMoney = (value) => {
+  const amount = Number(value || 0);
+  return `${amount >= 0 ? "+" : "-"}$${Math.abs(amount).toFixed(3)}`;
+};
+
+const formatUpdatedTime = (timestamp) => timestamp
+  ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  : "Waiting for live data";
+
+function PositionFundingCollector({ position, onUpdate, onRegisterRefetch }) {
+  const metrics = usePositionMetrics(position);
+
+  useEffect(() => {
+    onUpdate(position.marketId, {
+      pendingFunding: metrics.pendingFunding,
+      effectiveMargin: metrics.effectiveMargin,
+      marginRatioPercent: metrics.marginRatioPercent,
+      lastUpdatedAt: metrics.lastUpdatedAt,
+      ready: metrics.hasPnlData && metrics.hasLiquidationData,
+    });
+  }, [
+    onUpdate,
+    position.marketId,
+    metrics.pendingFunding,
+    metrics.effectiveMargin,
+    metrics.marginRatioPercent,
+    metrics.lastUpdatedAt,
+    metrics.hasPnlData,
+    metrics.hasLiquidationData,
+  ]);
+
+  useEffect(() => onRegisterRefetch(position.marketId, metrics.refetch), [onRegisterRefetch, position.marketId, metrics.refetch]);
+  return null;
+}
+
 export function CollateralManager() {
   const { address, isConnected } = useAccount();
   const [amount, setAmount]       = useState("");
   const [isDepositing, setIsDepositing] = useState(true);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+  const [isRefreshingPreview, setIsRefreshingPreview] = useState(false);
+  const [fundingSnapshots, setFundingSnapshots] = useState({});
+  const fundingRefetchers = useRef(new Map());
   const selectedToken = COLLATERAL_TOKENS[0];
 
-  const { writeContract: approveToken, data: approveHash, isPending: isApproving, reset: resetApprove } = useWriteContract();
+  const { writeContract: approveToken, data: approveHash, isPending: isApproving } = useWriteContract();
   const { isLoading: isApprovingTx, isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({ hash: approveHash });
-  const { deposit, isPending: isDepositPending, isSuccess: isDepositSuccess, reset: resetDeposit } = useDeposit();
-  const { withdraw, isPending: isWithdrawPending, isSuccess: isWithdrawSuccess, reset: resetWithdraw } = useWithdraw();
+  const { deposit, isPending: isDepositPending, isSuccess: isDepositSuccess } = useDeposit();
+  const { withdraw, isPending: isWithdrawPending, isSuccess: isWithdrawSuccess } = useWithdraw();
+  const { positions, refetch: refetchPositions } = useAllPositions();
 
   const { data: tokenBalance } = useReadContract({
     address: selectedToken.address, abi: ERC20_ABI, functionName: "balanceOf",
@@ -62,7 +104,49 @@ export function CollateralManager() {
   const allowanceNum         = parseFloat(formattedAllowance);
 
   const needsApproval = isDepositing && parseFloat(amount) > 0 && allowanceNum < parseFloat(amount);
-  const isApproved    = isDepositing && allowanceNum >= parseFloat(amount || "0") && allowanceNum > 0;
+
+  const recordFundingSnapshot = useCallback((marketId, snapshot) => {
+    setFundingSnapshots((current) => {
+      const previous = current[marketId];
+      if (
+        previous &&
+        previous.pendingFunding === snapshot.pendingFunding &&
+        previous.effectiveMargin === snapshot.effectiveMargin &&
+        previous.marginRatioPercent === snapshot.marginRatioPercent &&
+        previous.lastUpdatedAt === snapshot.lastUpdatedAt &&
+        previous.ready === snapshot.ready
+      ) return current;
+      return { ...current, [marketId]: snapshot };
+    });
+  }, []);
+
+  const registerFundingRefetch = useCallback((marketId, refetch) => {
+    fundingRefetchers.current.set(marketId, refetch);
+    return () => fundingRefetchers.current.delete(marketId);
+  }, []);
+
+  useEffect(() => {
+    const activeIds = new Set((positions || []).map((position) => position.marketId));
+    setFundingSnapshots((current) => {
+      const next = Object.fromEntries(Object.entries(current).filter(([marketId]) => activeIds.has(marketId)));
+      return Object.keys(next).length === Object.keys(current).length ? current : next;
+    });
+  }, [positions]);
+
+  const fundingSummary = useMemo(() => Object.values(fundingSnapshots)
+    .filter((snapshot) => snapshot.ready)
+    .reduce((summary, snapshot) => {
+      const funding = Number(snapshot.pendingFunding || 0);
+      if (funding < 0) summary.payable += Math.abs(funding);
+      if (funding > 0) summary.receivable += funding;
+      summary.net += funding;
+      if (snapshot.lastUpdatedAt > 0) {
+        summary.lastUpdatedAt = summary.lastUpdatedAt === 0
+          ? snapshot.lastUpdatedAt
+          : Math.min(summary.lastUpdatedAt, snapshot.lastUpdatedAt);
+      }
+      return summary;
+    }, { payable: 0, receivable: 0, net: 0, lastUpdatedAt: 0 }), [fundingSnapshots]);
 
   const handleApprove = async () => {
     const amountToApprove = amount && parseFloat(amount) > 0 ? amount : "1000000";
@@ -76,6 +160,15 @@ export function CollateralManager() {
     } catch { toast.error("Failed to approve"); }
   };
 
+  const confirmWithdrawal = async () => {
+    try {
+      withdraw(selectedToken.address, amount);
+      toast.loading("Withdrawing…", { id: "withdraw" });
+    } catch {
+      toast.error("Withdrawal failed");
+    }
+  };
+
   const handleAction = async () => {
     if (!amount || parseFloat(amount) <= 0) return toast.error("Enter valid amount");
     try {
@@ -84,22 +177,35 @@ export function CollateralManager() {
         deposit(selectedToken.address, amount);
         toast.loading("Depositing…", { id: "deposit" });
       } else {
-        withdraw(selectedToken.address, amount);
-        toast.loading("Withdrawing…", { id: "withdraw" });
+        if (parseFloat(amount) > vaultBalanceNum) return toast.error("Amount exceeds deposited collateral");
+        setIsRefreshingPreview(true);
+        await refetchPositions?.();
+        await Promise.allSettled([...fundingRefetchers.current.values()].map((refetch) => refetch?.()));
+        setShowWithdrawConfirm(true);
       }
     } catch { toast.error("Action failed"); }
+    finally { setIsRefreshingPreview(false); }
   };
 
-  useEffect(() => { if (isApproveSuccess) { toast.success("Approved", { id: "approve" }); refetchAllowance(); } }, [isApproveSuccess]);
-  useEffect(() => { if (isDepositSuccess) { toast.success("Deposited", { id: "deposit" }); setAmount(""); refetchVaultBalance(); } }, [isDepositSuccess]);
-  useEffect(() => { if (isWithdrawSuccess) { toast.success("Withdrawn", { id: "withdraw" }); setAmount(""); refetchVaultBalance(); } }, [isWithdrawSuccess]);
+  useEffect(() => { if (isApproveSuccess) { toast.success("Approved", { id: "approve" }); refetchAllowance(); } }, [isApproveSuccess, refetchAllowance]);
+  useEffect(() => { if (isDepositSuccess) { toast.success("Deposited", { id: "deposit" }); setAmount(""); refetchVaultBalance(); } }, [isDepositSuccess, refetchVaultBalance]);
+  useEffect(() => { if (isWithdrawSuccess) { toast.success("Withdrawn", { id: "withdraw" }); setAmount(""); setShowWithdrawConfirm(false); refetchVaultBalance(); } }, [isWithdrawSuccess, refetchVaultBalance]);
 
   if (!isConnected) return null;
 
-  const isProcessing = isDepositPending || isWithdrawPending || isApproving || isApprovingTx;
+  const isProcessing = isDepositPending || isWithdrawPending || isApproving || isApprovingTx || isRefreshingPreview;
 
   return (
-    <div className="rounded-xl border border-zinc-800/60 bg-[#0a0a10] overflow-hidden">
+    <>
+      {(!isDepositing || showWithdrawConfirm) && (positions || []).map((position) => (
+        <PositionFundingCollector
+          key={position.marketId}
+          position={position}
+          onUpdate={recordFundingSnapshot}
+          onRegisterRefetch={registerFundingRefetch}
+        />
+      ))}
+      <div className="rounded-xl border border-zinc-800/60 bg-[#0a0a10] overflow-hidden">
 
       {/* ── Balance row ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 divide-x divide-zinc-800/60 border-b border-zinc-800/60">
@@ -208,11 +314,42 @@ export function CollateralManager() {
                 : "bg-zinc-800 text-zinc-500 border border-zinc-700/60"
             }`}
           >
-            {isProcessing ? "Processing…" : isDepositing ? "Deposit" : "Withdraw"}
+            {isRefreshingPreview ? "Refreshing funding…" : isProcessing ? "Processing…" : isDepositing ? "Deposit" : "Review withdrawal"}
           </button>
         </div>
       </div>
-    </div>
+      </div>
+
+      <ConfirmationModal
+        isOpen={showWithdrawConfirm}
+        onClose={() => { if (!isWithdrawPending) setShowWithdrawConfirm(false); }}
+        onConfirm={confirmWithdrawal}
+        title="Confirm Collateral Withdrawal"
+        message="Withdrawing collateral settles funding across all open positions first. The contract will reject the withdrawal if the remaining collateral is unsafe."
+        confirmText="Withdraw Collateral"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isWithdrawPending}
+        details={
+          <div className="space-y-2.5">
+            {[
+              { label: "Withdrawal", value: `${Number(amount || 0).toFixed(2)} USDC`, cls: "text-ink" },
+              { label: "Funding to pay", value: fundingSummary.payable > 0 ? `-$${fundingSummary.payable.toFixed(3)}` : "$0.000", cls: fundingSummary.payable > 0 ? "text-down" : "text-ink-muted" },
+              { label: "Funding to receive", value: fundingSummary.receivable > 0 ? `+$${fundingSummary.receivable.toFixed(3)}` : "$0.000", cls: fundingSummary.receivable > 0 ? "text-up" : "text-ink-muted" },
+              { label: "Net funding settlement", value: formatSignedMoney(fundingSummary.net), cls: fundingSummary.net < 0 ? "text-down" : fundingSummary.net > 0 ? "text-up" : "text-ink" },
+            ].map(({ label, value, cls }) => (
+              <div key={label} className="flex items-center justify-between gap-4">
+                <span className="text-[11px] text-ink-faint uppercase tracking-[0.1em]">{label}</span>
+                <span className={`text-[12px] font-medium font-mono text-right ${cls}`}>{value}</span>
+              </div>
+            ))}
+            <div className="pt-1 text-[9px] text-ink-ghost text-right">
+              Live values refreshed {formatUpdatedTime(fundingSummary.lastUpdatedAt)}
+            </div>
+          </div>
+        }
+      />
+    </>
   );
 }
 

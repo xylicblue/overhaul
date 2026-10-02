@@ -77,7 +77,7 @@ export function usePosition(marketId, userAddress = null) {
   const { address: connectedAddress } = useAccount();
   const addressToUse = userAddress || connectedAddress;
 
-  const { data, isLoading, error, refetch } = useReadContract({
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useReadContract({
     address: SEPOLIA_CONTRACTS.clearingHouse,
     abi: ClearingHouseABI.abi,
     functionName: "getPosition",
@@ -100,6 +100,7 @@ export function usePosition(marketId, userAddress = null) {
       isLoading,
       error,
       refetch,
+      lastUpdatedAt: dataUpdatedAt || 0,
     };
   }
 
@@ -140,6 +141,7 @@ export function usePosition(marketId, userAddress = null) {
     isLoading,
     error,
     refetch,
+    lastUpdatedAt: dataUpdatedAt || 0,
   };
 }
 
@@ -498,7 +500,7 @@ export function useWithdraw() {
  * @param {string} marketId - Market ID (keccak256 of market name)
  */
 export function useMarketRiskParams(marketId) {
-  const { data, isLoading, error, refetch } = useReadContract({
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useReadContract({
     address: SEPOLIA_CONTRACTS.clearingHouse,
     abi: ClearingHouseABI.abi,
     functionName: "marketRiskParams",
@@ -516,6 +518,7 @@ export function useMarketRiskParams(marketId) {
       isLoading,
       error,
       refetch,
+      lastUpdatedAt: dataUpdatedAt || 0,
     };
   }
 
@@ -548,6 +551,7 @@ export function useMarketRiskParams(marketId) {
     isLoading,
     error,
     refetch,
+    lastUpdatedAt: dataUpdatedAt || 0,
   };
 }
 
@@ -621,15 +625,19 @@ export function useLiquidationStatus(marketId, userAddress = null) {
     position,
     isLoading: isPositionLoading,
     error: positionError,
+    refetch: refetchPosition,
+    lastUpdatedAt: positionUpdatedAt,
   } = usePosition(marketId, addressToUse);
 
   const {
     riskParams,
     isLoading: isRiskParamsLoading,
     error: riskParamsError,
+    refetch: refetchRiskParams,
+    lastUpdatedAt: riskParamsUpdatedAt,
   } = useMarketRiskParams(marketId);
 
-  const { data: marketData, isLoading: isMarketLoading, error: marketError } = useReadContract({
+  const { data: marketData, isLoading: isMarketLoading, error: marketError, refetch: refetchMarket, dataUpdatedAt: marketUpdatedAt } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
     abi: MarketRegistryABI.abi,
     functionName: "getMarket",
@@ -644,7 +652,7 @@ export function useLiquidationStatus(marketId, userAddress = null) {
   const oracleAddress = marketData?.oracle ?? marketData?.[3];
   const hasOpenPosition = Boolean(position?.hasPosition);
 
-  const { data: oraclePrice, isLoading: isOracleLoading, error: oracleError } = useReadContract({
+  const { data: oraclePrice, isLoading: isOracleLoading, error: oracleError, refetch: refetchOracle, dataUpdatedAt: oracleUpdatedAt } = useReadContract({
     address: oracleAddress,
     abi: ORACLE_PRICE_ABI,
     functionName: "getPrice",
@@ -655,7 +663,7 @@ export function useLiquidationStatus(marketId, userAddress = null) {
     },
   });
 
-  const { data: liquidationData, isLoading: isChecking, error: liquidationError } = useReadContract({
+  const { data: liquidationData, isLoading: isChecking, error: liquidationError, refetch: refetchLiquidation, dataUpdatedAt: liquidationUpdatedAt } = useReadContract({
     address: SEPOLIA_CONTRACTS.clearingHouse,
     abi: ClearingHouseABI.abi,
     functionName: "isLiquidatable",
@@ -667,7 +675,7 @@ export function useLiquidationStatus(marketId, userAddress = null) {
     },
   });
 
-  const { data: notionalData, isLoading: isNotionalLoading, error: notionalError } = useReadContract({
+  const { data: notionalData, isLoading: isNotionalLoading, error: notionalError, refetch: refetchNotional, dataUpdatedAt: notionalUpdatedAt } = useReadContract({
     address: SEPOLIA_CONTRACTS.clearingHouse,
     abi: ClearingHouseABI.abi,
     functionName: "getNotional",
@@ -679,7 +687,7 @@ export function useLiquidationStatus(marketId, userAddress = null) {
     },
   });
 
-  const { data: marginRatioData, isLoading: isMarginRatioLoading, error: marginRatioError } = useReadContract({
+  const { data: marginRatioData, isLoading: isMarginRatioLoading, error: marginRatioError, refetch: refetchMarginRatio, dataUpdatedAt: marginRatioUpdatedAt } = useReadContract({
     address: SEPOLIA_CONTRACTS.clearingHouse,
     abi: ClearingHouseABI.abi,
     functionName: "getMarginRatio",
@@ -706,6 +714,27 @@ export function useLiquidationStatus(marketId, userAddress = null) {
       ? (marginRatioRaw * notionalRaw) / WAD
       : (hasOpenPosition ? position.marginRaw ?? 0n : 0n);
   const liquidationBufferRaw = effectiveMarginRaw - maintenanceMarginRaw;
+  const hasFiniteMarginRatio = marginRatioData !== undefined && marginRatioRaw !== UINT256_MAX;
+  const riskTimestamps = [
+    positionUpdatedAt,
+    riskParamsUpdatedAt,
+    marketUpdatedAt,
+    oracleUpdatedAt,
+    liquidationUpdatedAt,
+    notionalUpdatedAt,
+    marginRatioUpdatedAt,
+  ].filter((timestamp) => timestamp > 0);
+  const lastUpdatedAt = riskTimestamps.length ? Math.min(...riskTimestamps) : 0;
+
+  const refetch = () => Promise.allSettled([
+    refetchPosition?.(),
+    refetchRiskParams?.(),
+    refetchMarket(),
+    refetchOracle(),
+    refetchLiquidation(),
+    refetchNotional(),
+    refetchMarginRatio(),
+  ]);
 
   return {
     isLiquidatable: liquidationData === true,
@@ -715,6 +744,8 @@ export function useLiquidationStatus(marketId, userAddress = null) {
     liquidationBufferRaw,
     effectiveMargin: formatUnits(effectiveMarginRaw, 18),
     effectiveMarginRaw,
+    marginRatio: hasFiniteMarginRatio ? formatUnits(marginRatioRaw, 18) : null,
+    marginRatioRaw: hasFiniteMarginRatio ? marginRatioRaw : null,
     notional: formatUnits(notionalRaw, 18),
     notionalRaw,
     riskNotional: formatUnits(riskNotional, 18),
@@ -722,6 +753,8 @@ export function useLiquidationStatus(marketId, userAddress = null) {
     riskPrice: oraclePrice ? formatUnits(oraclePrice, 18) : "0",
     riskPriceRaw: oraclePrice,
     mmrBps: Number(riskParams?.mmrBps ?? 0),
+    lastUpdatedAt,
+    refetch,
     isLoading:
       isPositionLoading ||
       isRiskParamsLoading ||

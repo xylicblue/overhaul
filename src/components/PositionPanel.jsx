@@ -21,12 +21,22 @@ import { supabase } from "../creatclient";
 import { recordTradeWithRetry } from "../services/tradeQueue";
 import { formatTransactionError, getSepoliaTxUrl } from "../utils/transactionErrors";
 import { absolutePositionSize, closePresetSize, formatPositionSize } from "../utils/positionSize";
+import { calculateCloseSettlementPreview, calculatePostFundingMargin } from "../utils/positionMetrics";
 
 const hasOpenPositionData = (data) => {
   if (!data) return false;
   const size = data.size ?? data[0] ?? 0n;
   return size !== 0n;
 };
+
+const formatFundingAmount = (value) => {
+  const amount = Number(value || 0);
+  return `${amount >= 0 ? "+" : "-"}$${Math.abs(amount).toFixed(3)}`;
+};
+
+const formatUpdatedTime = (timestamp) => timestamp
+  ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  : "Waiting for live data";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PositionPanel — container with compact table layout
@@ -99,6 +109,8 @@ export function PositionPanel({ selectedMarket = null }) {
                   { label: "Leverage",  right: true  },
                   { label: "Margin",    right: true  },
                   { label: "Liq.",      right: true  },
+                  { label: "Funding",   right: true  },
+                  { label: "Risk",      right: true  },
                   { label: "P&L / ROE", right: true  },
                 ].map(({ label, right }) => (
                   <th key={label} className={`px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-ink-faint whitespace-nowrap ${right ? "text-right" : ""}`}>
@@ -148,6 +160,8 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
   const roe = metrics.roePercent;
   const isProfitable = netPnL >= 0;
   const liqPrice = metrics.liquidationPrice;
+  const fundingIsPayable = fundingEarned < 0;
+  const fundingLabel = fundingIsPayable ? "Est. to pay" : fundingEarned > 0 ? "Est. to receive" : "No accrued funding";
 
   const { data: marketConfig } = useReadContract({
     address: SEPOLIA_CONTRACTS.marketRegistry,
@@ -180,6 +194,9 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
   const [addMarginAmount, setAddMarginAmount]       = useState("");
   const [isAddMarginSubmitting, setIsAddMarginSubmitting] = useState(false);
   const [addMarginInlineError, setAddMarginInlineError]   = useState("");
+  const [showAddMarginConfirm, setShowAddMarginConfirm] = useState(false);
+  const [pendingAddMarginAmount, setPendingAddMarginAmount] = useState(null);
+  const [isRefreshingPreview, setIsRefreshingPreview] = useState(false);
 
   const isClosing     = closingPosition === position.marketId;
   const isCloseBusy   = isCloseSubmitting || isPending || isConfirming;
@@ -189,11 +206,43 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
   const addMarginAmountNum           = parseFloat(addMarginAmount) || 0;
   const availableQuoteCollateral     = Math.max(parseFloat(accountValue) || 0, 0);
-  const isAddMarginOverAvailable     = addMarginAmountNum > 0 && addMarginAmountNum > availableQuoteCollateral;
-  const projectedMargin              = margin + addMarginAmountNum;
+  const addMarginPreview             = calculatePostFundingMargin({
+    currentMargin: margin,
+    pendingFunding: fundingEarned,
+    additionalMargin: addMarginAmountNum,
+  });
+  const availableQuoteCollateralAfterFunding = Math.max(
+    availableQuoteCollateral - addMarginPreview.fundingShortfall,
+    0,
+  );
+  const isAddMarginOverAvailable     = addMarginAmountNum > 0 && addMarginAmountNum > availableQuoteCollateralAfterFunding;
+  const projectedMargin              = addMarginPreview.positionMarginAfter;
   const projectedLeverage            = projectedMargin > 0 ? openNotional / projectedMargin : leverage;
 
-  const initiateClose = (closeAmount) => {
+  const getClosePreview = (amount) => {
+    const numericAmount = Math.max(parseFloat(amount) || 0, 0);
+    const closeNotional = numericAmount * (currentPrice || entryPrice);
+    return {
+      ...calculateCloseSettlementPreview({
+        positionSize: absSize,
+        closeSize: numericAmount,
+        unrealizedPnl: currentPnL,
+        pendingFunding: fundingEarned,
+        estimatedFee: (closeNotional * feeBps) / 10000,
+      }),
+      estimatedFee: (closeNotional * feeBps) / 10000,
+    };
+  };
+
+  const inlineClosePreview = getClosePreview(closeSize);
+  const confirmationClosePreview = getClosePreview(pendingCloseAmount);
+  const confirmationAddMarginPreview = calculatePostFundingMargin({
+    currentMargin: margin,
+    pendingFunding: fundingEarned,
+    additionalMargin: Number(pendingAddMarginAmount || 0),
+  });
+
+  const initiateClose = async (closeAmount) => {
     if (isCloseBusy) return;
     let closeAmountRaw;
     try {
@@ -205,8 +254,16 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
     if (closeAmountRaw <= 0n) { toast.error("Enter a valid size to close"); return; }
     if (closeAmountRaw > absSizeRaw) { toast.error(`Max size: ${formatUnits(absSizeRaw, 18)}`); return; }
     setCloseInlineError("");
-    setPendingCloseAmount(closeAmount);
-    setShowConfirmModal(true);
+    setIsRefreshingPreview(true);
+    try {
+      await metrics.refetch?.();
+      setPendingCloseAmount(closeAmount);
+      setShowConfirmModal(true);
+    } catch {
+      toast.error("Could not refresh the funding preview. Please try again.");
+    } finally {
+      setIsRefreshingPreview(false);
+    }
   };
 
   const handleClose = async (closeAmount) => {
@@ -231,7 +288,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         closePrice,
         closeNotional,
         pnl:          currentPnL * closedFraction,
-        fundingEarned: fundingEarned * closedFraction,
+        fundingEarned,
         feesPaid:      (closeNotional * feeBps) / 10000,
       };
       toast.loading("Review close transaction in wallet...", { id: "close" });
@@ -245,15 +302,32 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
     }
   };
 
-  const handleAddMargin = async () => {
+  const initiateAddMargin = async () => {
     if (isAddMarginBusy) return;
     if (!addMarginAmount || parseFloat(addMarginAmount) <= 0) { toast.error("Enter a valid margin amount"); return; }
     if (isAddMarginOverAvailable) {
-      const msg = `Not enough available deposited USDC. Available: ${availableQuoteCollateral.toFixed(2)} USDC.`;
+      const msg = `Not enough available deposited USDC after funding settlement. Available: ${availableQuoteCollateralAfterFunding.toFixed(2)} USDC.`;
       setAddMarginInlineError(msg);
       toast.error(msg, { id: "add-margin" });
       return;
     }
+    setIsRefreshingPreview(true);
+    setAddMarginInlineError("");
+    try {
+      await Promise.allSettled([refetchLivePosition?.(), metrics.refetch?.()]);
+      setPendingAddMarginAmount(addMarginAmount);
+      setShowAddMarginConfirm(true);
+    } catch {
+      toast.error("Could not refresh the margin preview. Please try again.");
+    } finally {
+      setIsRefreshingPreview(false);
+    }
+  };
+
+  const handleAddMargin = async (confirmedAmount = pendingAddMarginAmount) => {
+    if (isAddMarginBusy) return;
+    const amountToAdd = confirmedAmount?.toString() || "";
+    if (!amountToAdd || parseFloat(amountToAdd) <= 0) { toast.error("Enter a valid margin amount"); return; }
     setIsAddMarginSubmitting(true);
     setAddMarginInlineError("");
     try {
@@ -267,9 +341,9 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         toast.error(msg, { id: "add-margin" });
         return;
       }
-      submittedAddMarginRef.current = { amount: parseFloat(addMarginAmount), marginBefore: margin };
+      submittedAddMarginRef.current = { amount: parseFloat(amountToAdd), marginBefore: margin };
       toast.loading("Review add-margin transaction in wallet...", { id: "add-margin" });
-      await addMargin(addMarginAmount);
+      await addMargin(amountToAdd);
     } catch (err) {
       const message = formatTransactionError(err, { action: "add margin" });
       setAddMarginInlineError(message);
@@ -412,6 +486,8 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       );
       setIsAddingMargin(false);
       setAddMarginAmount("");
+      setPendingAddMarginAmount(null);
+      setShowAddMarginConfirm(false);
       setAddMarginInlineError("");
       refetchLivePosition?.();
       refetchPositions?.();
@@ -504,6 +580,38 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
           {metrics.hasLiquidationData && liqPrice > 0 ? `$${liqPrice.toFixed(2)}` : "—"}
         </td>
 
+        {/* Accrued but unsettled funding */}
+        <td className="px-3 py-2.5 text-right min-w-[150px]">
+          <div className={`text-[11px] num font-semibold ${fundingIsPayable ? "text-down" : "text-up"}`}>
+            {metrics.hasPnlData ? formatFundingAmount(fundingEarned) : "—"}
+          </div>
+          <div className="text-[8px] text-ink-faint mt-0.5">{fundingLabel}</div>
+          <div
+            className="text-[8px] text-ink-muted mt-0.5 whitespace-nowrap"
+            title="Projected rate only. Actual funding accrues continuously, pauses if either side has no open interest, and the receiving rate can vary with unequal long and short open interest."
+          >
+            Projected 8h: {metrics.fundingRate8hPercent > 0 ? "+" : ""}{metrics.fundingRate8hPercent.toFixed(4)}%
+            <span className="text-ink-ghost"> · {metrics.fundingPayer}</span>
+          </div>
+          <div className="text-[8px] text-ink-ghost mt-0.5">Updated {formatUpdatedTime(metrics.lastUpdatedAt)}</div>
+        </td>
+
+        {/* Margin safety after P&L and pending funding */}
+        <td className="px-3 py-2.5 text-right min-w-[135px]">
+          <div className="text-[11px] num font-semibold text-ink">
+            {metrics.hasLiquidationData ? `$${metrics.effectiveMargin.toFixed(2)}` : "—"}
+          </div>
+          <div className="text-[8px] text-ink-faint mt-0.5">Effective margin</div>
+          <div className={`text-[8px] num mt-0.5 ${metrics.marginRatioDistancePercent != null && metrics.marginRatioDistancePercent <= 0 ? "text-down" : "text-ink-muted"}`}>
+            {metrics.marginRatioPercent == null
+              ? "MR —"
+              : `MR ${metrics.marginRatioPercent.toFixed(2)}% · ${metrics.marginRatioDistancePercent >= 0 ? "+" : ""}${metrics.marginRatioDistancePercent.toFixed(2)} pts vs MMR`}
+          </div>
+          <div className={`text-[8px] num mt-0.5 ${metrics.liquidationBuffer <= 0 ? "text-down" : "text-ink-ghost"}`}>
+            {metrics.hasLiquidationData ? `${metrics.liquidationBuffer >= 0 ? "+" : "-"}$${Math.abs(metrics.liquidationBuffer).toFixed(2)} buffer` : ""}
+          </div>
+        </td>
+
         {/* P&L + ROE */}
         <td className="px-3 py-2.5 text-right">
           <div className={`text-[12px] num font-semibold leading-none ${isProfitable ? "text-up" : "text-down"}`}>
@@ -554,7 +662,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       {/* ── Close controls row ─────────────────────────────────────────── */}
       {isClosing && (
         <tr className="border-b border-line-subtle bg-surface-2">
-          <td colSpan={9} className="px-4 py-3">
+          <td colSpan={11} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[9px] text-ink-faint uppercase tracking-widest font-bold shrink-0">Close size</span>
 
@@ -596,18 +704,18 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               {/* Confirm button */}
               <button
                 onClick={() => initiateClose(closeSize)}
-                disabled={isCloseBusy || !closeSize}
+                disabled={isCloseBusy || isRefreshingPreview || !closeSize}
                 className="px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-down text-[10px] font-bold rounded border border-red-500/25 hover:border-red-500/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isCloseBusy ? "…" : "Confirm Close"}
+                {isRefreshingPreview ? "Refreshing…" : isCloseBusy ? "…" : "Confirm Close"}
               </button>
 
               {/* Est P&L */}
               {closeSize && parseFloat(closeSize) > 0 && (
                 <span className="text-[9px] text-ink-faint ml-1">
-                  Est. P&L:{" "}
-                  <span className={`num font-semibold ${currentPnL >= 0 ? "text-up" : "text-down"}`}>
-                    {currentPnL >= 0 ? "+" : ""}${((currentPnL / absSize) * parseFloat(closeSize)).toFixed(3)}
+                  Est. P&amp;L + full funding:{" "}
+                  <span className={`num font-semibold ${inlineClosePreview.pnlAndFunding >= 0 ? "text-up" : "text-down"}`}>
+                    {formatFundingAmount(inlineClosePreview.pnlAndFunding)}
                   </span>
                 </span>
               )}
@@ -625,7 +733,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
       {/* ── Add-margin controls row ────────────────────────────────────── */}
       {isAddingMargin && (
         <tr className="border-b border-line-subtle bg-surface-2">
-          <td colSpan={9} className="px-4 py-3">
+          <td colSpan={11} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[9px] text-ink-faint uppercase tracking-widest font-bold shrink-0">Add margin</span>
               <span className="text-[9px] text-ink-faint">
@@ -658,11 +766,11 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
               {/* Add button */}
               <button
-                onClick={handleAddMargin}
-                disabled={isAddMarginBusy || !addMarginAmount || isAddMarginOverAvailable}
+                onClick={initiateAddMargin}
+                disabled={isAddMarginBusy || isRefreshingPreview || !addMarginAmount || isAddMarginOverAvailable}
                 className="px-3 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 text-[10px] font-bold rounded border border-blue-500/25 hover:border-blue-500/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isAddMarginBusy ? "…" : "Add Margin"}
+                {isRefreshingPreview ? "Refreshing…" : isAddMarginBusy ? "…" : "Review Add Margin"}
               </button>
 
               {/* Preview */}
@@ -672,13 +780,15 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                   <span className="num text-blue-300">{metrics.hasRiskData ? `${projectedLeverage.toFixed(1)}×` : "—"}</span>
                   {" "}· New margin:{" "}
                   <span className="num text-ink-muted">{projectedMargin.toFixed(2)} USDC</span>
+                  {" "}· Funding settles:{" "}
+                  <span className={`num ${fundingIsPayable ? "text-down" : "text-up"}`}>{formatFundingAmount(fundingEarned)}</span>
                 </span>
               )}
             </div>
 
             {isAddMarginOverAvailable && (
               <div className="mt-2 text-[10px] text-yellow-300 bg-yellow-500/10 border border-yellow-500/20 rounded px-2.5 py-1.5">
-                Amount exceeds available deposited USDC.
+                Amount exceeds available deposited USDC after the pending funding settlement.
               </div>
             )}
             {addMarginInlineError && (
@@ -707,9 +817,29 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               { label: "Market", value: position.displayName || position.marketKey },
               { label: "Size",   value: `${pendingCloseAmount} GPU-HRS`, mono: true },
               {
-                label: "Est. P&L",
-                value: `${currentPnL >= 0 ? "+" : ""}$${((currentPnL / absSize) * parseFloat(pendingCloseAmount || 0)).toFixed(3)}`,
-                cls:   currentPnL >= 0 ? "text-up" : "text-down",
+                label: "P&L for size closed",
+                value: formatFundingAmount(confirmationClosePreview.closedPnl),
+                cls: confirmationClosePreview.closedPnl >= 0 ? "text-up" : "text-down",
+              },
+              {
+                label: fundingEarned < 0 ? "Full funding to pay" : fundingEarned > 0 ? "Full funding to receive" : "Full funding settlement",
+                value: formatFundingAmount(confirmationClosePreview.fullFundingSettlement),
+                cls: fundingIsPayable ? "text-down" : "text-up",
+              },
+              {
+                label: "P&L + funding",
+                value: formatFundingAmount(confirmationClosePreview.pnlAndFunding),
+                cls: confirmationClosePreview.pnlAndFunding >= 0 ? "text-up" : "text-down",
+              },
+              {
+                label: "Est. close fee",
+                value: `-$${confirmationClosePreview.estimatedFee.toFixed(3)}`,
+                cls: "text-down",
+              },
+              {
+                label: "Est. net effect",
+                value: formatFundingAmount(confirmationClosePreview.estimatedNetEffect),
+                cls: confirmationClosePreview.estimatedNetEffect >= 0 ? "text-up" : "text-down",
               },
             ].map(({ label, value, mono, cls }) => (
               <div key={label} className="flex items-center justify-between">
@@ -720,6 +850,64 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
             {closeInlineError && (
               <div className="mt-1 rounded-lg border border-red-500/20 bg-red-500/[0.07] px-3 py-2 text-[11px] leading-4 text-red-300">
                 {closeInlineError}
+              </div>
+            )}
+            <div className="pt-1 text-[9px] text-ink-ghost text-right">
+              Live values refreshed {formatUpdatedTime(metrics.lastUpdatedAt)}
+            </div>
+          </div>
+        }
+      />
+
+      <ConfirmationModal
+        isOpen={showAddMarginConfirm}
+        onClose={() => {
+          if (isAddMarginBusy) return;
+          setShowAddMarginConfirm(false);
+          setPendingAddMarginAmount(null);
+        }}
+        onConfirm={() => handleAddMargin(pendingAddMarginAmount)}
+        title="Add Position Margin"
+        message="Funding is settled before the position margin is changed. Review the live amount below."
+        confirmText="Add Margin"
+        cancelText="Cancel"
+        variant="info"
+        isLoading={isAddMarginBusy}
+        details={
+          <div className="space-y-2.5">
+            {[
+              { label: "Market", value: position.displayName || position.marketKey },
+              { label: "Amount", value: `${Number(pendingAddMarginAmount || 0).toFixed(2)} USDC`, mono: true },
+              {
+                label: fundingEarned < 0 ? "Funding to pay" : fundingEarned > 0 ? "Funding to receive" : "Funding to settle",
+                value: formatFundingAmount(fundingEarned),
+                cls: fundingIsPayable ? "text-down" : "text-up",
+              },
+              { label: "Effective margin", value: `$${metrics.effectiveMargin.toFixed(2)}`, mono: true },
+              {
+                label: "Current margin ratio",
+                value: metrics.marginRatioPercent == null ? "—" : `${metrics.marginRatioPercent.toFixed(2)}%`,
+                mono: true,
+              },
+              { label: "Margin after funding", value: `$${confirmationAddMarginPreview.settledPositionMargin.toFixed(2)}`, mono: true },
+              { label: "Position margin after", value: `$${confirmationAddMarginPreview.positionMarginAfter.toFixed(2)}`, mono: true },
+            ].map(({ label, value, mono, cls }) => (
+              <div key={label} className="flex items-center justify-between gap-4">
+                <span className="text-[11px] text-ink-faint uppercase tracking-[0.1em]">{label}</span>
+                <span className={`text-[12px] font-medium text-right ${mono ? "num" : ""} ${cls || "text-ink"}`}>{value}</span>
+              </div>
+            ))}
+            <div className="pt-1 text-[9px] text-ink-ghost text-right">
+              Live values refreshed {formatUpdatedTime(metrics.lastUpdatedAt)}
+            </div>
+            {confirmationAddMarginPreview.fundingShortfall > 0 && (
+              <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/[0.07] px-3 py-2 text-[10px] leading-4 text-yellow-200">
+                Pending funding exceeds the current position margin by ${confirmationAddMarginPreview.fundingShortfall.toFixed(2)}. The contract floors position margin at zero and applies shortfall recovery before adding the new margin; the transaction will proceed only if sufficient collateral remains.
+              </div>
+            )}
+            {addMarginInlineError && (
+              <div className="mt-1 rounded-lg border border-red-500/20 bg-red-500/[0.07] px-3 py-2 text-[11px] leading-4 text-red-300">
+                {addMarginInlineError}
               </div>
             )}
           </div>

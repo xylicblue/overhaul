@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parseUnits } from "ethers";
 import {
+  calculateCloseSettlementPreview,
+  calculateFundingRate8hPercent,
   calculatePendingFundingRaw,
+  calculatePostFundingMargin,
   calculatePositionMetrics,
 } from "./positionMetrics.js";
 
@@ -71,6 +74,66 @@ test("pending funding supports separate pay and receive accumulators", () => {
     lastPayRaw: x18("0.1"),
     lastReceiveRaw: x18("0.2"),
   }), x18("0.4"));
+});
+
+test("display funding rate follows the contract sensitivity and eight-hour cap", () => {
+  assert.equal(calculateFundingRate8hPercent({
+    markPrice: 110,
+    indexPrice: 100,
+    kFunding: 0.3,
+    frMaxBpsPerHour: 5,
+  }), 0.4);
+
+  assert.equal(calculateFundingRate8hPercent({
+    markPrice: 90,
+    indexPrice: 100,
+    kFunding: 0.3,
+    frMaxBpsPerHour: 5,
+  }), -0.4);
+});
+
+test("partial close preview settles full-position funding and prorates only PnL", () => {
+  const result = calculateCloseSettlementPreview({
+    positionSize: 4,
+    closeSize: 1,
+    unrealizedPnl: 8,
+    pendingFunding: -3,
+    estimatedFee: 0.25,
+  });
+
+  assert.equal(result.closedFraction, 0.25);
+  assert.equal(result.closedPnl, 2);
+  assert.equal(result.fullFundingSettlement, -3);
+  assert.equal(result.pnlAndFunding, -1);
+  assert.equal(result.estimatedNetEffect, -1.25);
+});
+
+test("post-funding margin applies funding before adding margin", () => {
+  assert.deepEqual(calculatePostFundingMargin({
+    currentMargin: 10,
+    pendingFunding: -3,
+    additionalMargin: 5,
+  }), {
+    marginBeforeFunding: 10,
+    fundingSettlement: -3,
+    fundingShortfall: 0,
+    settledPositionMargin: 7,
+    positionMarginAfter: 12,
+  });
+});
+
+test("post-funding margin floors at zero and reports contract shortfall", () => {
+  assert.deepEqual(calculatePostFundingMargin({
+    currentMargin: 2,
+    pendingFunding: -5,
+    additionalMargin: 4,
+  }), {
+    marginBeforeFunding: 2,
+    fundingSettlement: -5,
+    fundingShortfall: 3,
+    settledPositionMargin: 0,
+    positionMarginAfter: 4,
+  });
 });
 
 test("long liquidation estimate uses effective margin, index PnL, and market MMR", () => {

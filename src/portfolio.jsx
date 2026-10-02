@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "./creatclient";
 import { useAccount } from "wagmi";
 import {
@@ -34,8 +34,12 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 const fmt  = (n, d = 2) => Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmt3 = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-const mono  = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt(Math.abs(n))}`;
-const mono3 = (n, sign = false) => `${sign && n >= 0 ? "+" : ""}$${fmt3(Math.abs(n))}`;
+const mono  = (n, sign = false) => `${n < 0 ? "-" : sign && n > 0 ? "+" : ""}$${fmt(Math.abs(n))}`;
+const mono3 = (n, sign = false) => `${n < 0 ? "-" : sign && n > 0 ? "+" : ""}$${fmt3(Math.abs(n))}`;
+const signedMoney = (n, digits = 2) => `${n > 0 ? "+" : n < 0 ? "-" : ""}$${fmt(Math.abs(n), digits)}`;
+const updatedTime = (timestamp) => timestamp
+  ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  : "Waiting for live data";
 
 const TYPE_STYLES = {
   open:               "text-blue-400    bg-blue-500/10    border-blue-500/20",
@@ -70,7 +74,7 @@ const Th = ({ children, right }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // PositionRow — live unrealized P&L from on-chain reads
 // ─────────────────────────────────────────────────────────────────────────────
-const PositionRow = ({ pos }) => {
+const PositionRow = ({ pos, onMetrics }) => {
   const metrics = usePositionMetrics(pos);
   const entryPrice   = metrics.entryPrice;
   const absSize      = Math.abs(parseFloat(pos.size));
@@ -80,6 +84,33 @@ const PositionRow = ({ pos }) => {
   const netPnL       = metrics.positionPnl;
   const roe          = metrics.roePercent;
   const leverage     = metrics.leverage;
+
+  useEffect(() => {
+    onMetrics?.(pos.marketId, {
+      pendingFunding: metrics.pendingFunding,
+      effectiveMargin: metrics.effectiveMargin,
+      marginRatioPercent: metrics.marginRatioPercent,
+      marginRatioDistancePercent: metrics.marginRatioDistancePercent,
+      liquidationBuffer: metrics.liquidationBuffer,
+      fundingRate8hPercent: metrics.fundingRate8hPercent,
+      fundingPayer: metrics.fundingPayer,
+      lastUpdatedAt: metrics.lastUpdatedAt,
+      ready: metrics.hasPnlData && metrics.hasLiquidationData,
+    });
+  }, [
+    onMetrics,
+    pos.marketId,
+    metrics.pendingFunding,
+    metrics.effectiveMargin,
+    metrics.marginRatioPercent,
+    metrics.marginRatioDistancePercent,
+    metrics.liquidationBuffer,
+    metrics.fundingRate8hPercent,
+    metrics.fundingPayer,
+    metrics.lastUpdatedAt,
+    metrics.hasPnlData,
+    metrics.hasLiquidationData,
+  ]);
 
   return (
     <tr className="hover:bg-surface-2/50 transition-colors group">
@@ -97,6 +128,36 @@ const PositionRow = ({ pos }) => {
       <td className="px-4 py-3 text-right num text-xs text-ink-muted">${entryPrice.toFixed(2)}</td>
       <td className="px-4 py-3 text-right num text-xs text-ink">{metrics.hasMarkPrice && leverage > 0 ? `${leverage.toFixed(2)}×` : "—"}</td>
       <td className="px-4 py-3 text-right num text-xs text-ink-muted">${margin.toFixed(2)}</td>
+      <td className="px-4 py-3 text-right min-w-[160px]">
+        <div className={`text-xs num font-bold ${metrics.pendingFunding < 0 ? "text-down" : "text-up"}`}>
+          {metrics.hasPnlData ? signedMoney(metrics.pendingFunding, 3) : "—"}
+        </div>
+        <div className="text-[9px] text-ink-faint mt-0.5">
+          {metrics.pendingFunding < 0
+            ? "Estimated funding to pay"
+            : metrics.pendingFunding > 0
+              ? "Estimated funding to receive"
+              : "No accrued funding"}
+        </div>
+        <div className="text-[9px] text-ink-muted mt-0.5 whitespace-nowrap">
+          Est. {metrics.fundingRate8hPercent > 0 ? "+" : ""}{metrics.fundingRate8hPercent.toFixed(4)}% / 8h · {metrics.fundingPayer}
+        </div>
+        <div className="text-[8px] text-ink-ghost mt-0.5">Updated {updatedTime(metrics.lastUpdatedAt)}</div>
+      </td>
+      <td className="px-4 py-3 text-right min-w-[145px]">
+        <div className="text-xs num font-bold text-ink">
+          {metrics.hasLiquidationData ? `$${metrics.effectiveMargin.toFixed(2)}` : "—"}
+        </div>
+        <div className="text-[9px] text-ink-faint mt-0.5">Effective margin</div>
+        <div className={`text-[9px] num mt-0.5 ${metrics.marginRatioDistancePercent != null && metrics.marginRatioDistancePercent <= 0 ? "text-down" : "text-ink-muted"}`}>
+          {metrics.marginRatioPercent == null
+            ? "MR —"
+            : `MR ${metrics.marginRatioPercent.toFixed(2)}% · ${metrics.marginRatioDistancePercent >= 0 ? "+" : ""}${metrics.marginRatioDistancePercent.toFixed(2)} pts vs MMR`}
+        </div>
+        <div className={`text-[8px] num mt-0.5 ${metrics.liquidationBuffer <= 0 ? "text-down" : "text-ink-ghost"}`}>
+          {metrics.hasLiquidationData ? `${metrics.liquidationBuffer >= 0 ? "+" : "-"}$${Math.abs(metrics.liquidationBuffer).toFixed(2)} buffer` : ""}
+        </div>
+      </td>
       <td className="px-4 py-3 text-right">
         <div className={`text-xs num font-bold ${netPnL >= 0 ? "text-up" : "text-down"}`}>
           {metrics.hasPnlData ? mono(netPnL, true) : "—"}
@@ -106,6 +167,36 @@ const PositionRow = ({ pos }) => {
         </div>
       </td>
     </tr>
+  );
+};
+
+const FundingSummary = ({ payable, receivable, net, lastUpdatedAt }) => {
+  const items = [
+    { label: "Estimated to pay", value: payable > 0 ? `-$${fmt(payable)}` : "$0.00", valueClass: payable > 0 ? "text-down" : "text-ink-muted" },
+    { label: "Estimated to receive", value: receivable > 0 ? `+$${fmt(receivable)}` : "$0.00", valueClass: receivable > 0 ? "text-up" : "text-ink-muted" },
+    { label: "Net unsettled funding", value: signedMoney(net), valueClass: net < 0 ? "text-down" : net > 0 ? "text-up" : "text-ink" },
+  ];
+
+  return (
+    <div className="mb-6 rounded-xl border border-line-subtle bg-surface-1 overflow-hidden">
+      <div className="px-4 py-3 border-b border-line-subtle flex items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+            <Activity size={12} className="text-blue-400" /> Funding obligations
+          </div>
+          <p className="mt-1 text-[10px] text-ink-faint">Live estimates across all open positions. Funding remains unsettled until a settling action occurs.</p>
+        </div>
+        <span className="text-[9px] text-ink-ghost whitespace-nowrap">Updated {updatedTime(lastUpdatedAt)}</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line-subtle">
+        {items.map((item) => (
+          <div key={item.label} className="px-4 py-3">
+            <div className="text-[9px] font-bold uppercase tracking-widest text-ink-faint">{item.label}</div>
+            <div className={`mt-1.5 text-[17px] num font-bold ${item.valueClass}`}>{item.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 
@@ -194,6 +285,7 @@ const PortfolioPage = () => {
   const [eventsLoading, setEventsLoading]     = useState(false);
   const [timeFilter, setTimeFilter]           = useState("all");
   const [pendingCloses, setPendingCloses]     = useState([]);
+  const [positionMetrics, setPositionMetrics] = useState({});
 
   const { address, isConnected }             = useAccount();
   const { positions, isLoading: posLoading } = useAllPositions();
@@ -271,6 +363,49 @@ const PortfolioPage = () => {
   const totalCollateral = parseFloat(totalCollateralValue) || 0;
   const buyingPower     = availableMargin;
 
+  const recordPositionMetrics = useCallback((marketId, snapshot) => {
+    setPositionMetrics((current) => {
+      const previous = current[marketId];
+      if (
+        previous &&
+        previous.pendingFunding === snapshot.pendingFunding &&
+        previous.effectiveMargin === snapshot.effectiveMargin &&
+        previous.marginRatioPercent === snapshot.marginRatioPercent &&
+        previous.marginRatioDistancePercent === snapshot.marginRatioDistancePercent &&
+        previous.liquidationBuffer === snapshot.liquidationBuffer &&
+        previous.fundingRate8hPercent === snapshot.fundingRate8hPercent &&
+        previous.fundingPayer === snapshot.fundingPayer &&
+        previous.lastUpdatedAt === snapshot.lastUpdatedAt &&
+        previous.ready === snapshot.ready
+      ) return current;
+      return { ...current, [marketId]: snapshot };
+    });
+  }, []);
+
+  useEffect(() => {
+    const activeIds = new Set((positions || []).map((position) => position.marketId));
+    setPositionMetrics((current) => {
+      const next = Object.fromEntries(Object.entries(current).filter(([marketId]) => activeIds.has(marketId)));
+      return Object.keys(next).length === Object.keys(current).length ? current : next;
+    });
+  }, [positions]);
+
+  const fundingSummary = useMemo(() => {
+    const snapshots = Object.values(positionMetrics).filter((snapshot) => snapshot.ready);
+    return snapshots.reduce((summary, snapshot) => {
+      const funding = Number(snapshot.pendingFunding || 0);
+      if (funding < 0) summary.payable += Math.abs(funding);
+      if (funding > 0) summary.receivable += funding;
+      summary.net += funding;
+      if (snapshot.lastUpdatedAt > 0) {
+        summary.lastUpdatedAt = summary.lastUpdatedAt === 0
+          ? snapshot.lastUpdatedAt
+          : Math.min(summary.lastUpdatedAt, snapshot.lastUpdatedAt);
+      }
+      return summary;
+    }, { payable: 0, receivable: 0, net: 0, lastUpdatedAt: 0 });
+  }, [positionMetrics]);
+
   // Realized P&L = sum of net_pnl for PnL-impacting rows only
   const realizedPnL = useMemo(() =>
     canonicalEvents
@@ -320,6 +455,15 @@ const PortfolioPage = () => {
           positionCount={positions?.length ?? 0}
         />
 
+        {!!positions?.length && (
+          <FundingSummary
+            payable={fundingSummary.payable}
+            receivable={fundingSummary.receivable}
+            net={fundingSummary.net}
+            lastUpdatedAt={fundingSummary.lastUpdatedAt}
+          />
+        )}
+
         {canonicalEvents.length > 0 && (
           <div className="mb-6">
             <PnLChart canonicalEvents={canonicalEvents} />
@@ -348,10 +492,14 @@ const PortfolioPage = () => {
                     <Th right>Entry</Th>
                     <Th right>Leverage</Th>
                     <Th right>Margin</Th>
-                    <Th right>Unrealized P&L</Th>
+                    <Th right>Funding</Th>
+                    <Th right>Risk</Th>
+                    <Th right>Net P&L</Th>
                   </TableHead>
                   <tbody className="divide-y divide-line-subtle">
-                    {positions.map((pos) => <PositionRow key={pos.marketId} pos={pos} />)}
+                    {positions.map((pos) => (
+                      <PositionRow key={pos.marketId} pos={pos} onMetrics={recordPositionMetrics} />
+                    ))}
                   </tbody>
                 </table>
               </div>
