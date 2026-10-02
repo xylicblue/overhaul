@@ -21,6 +21,7 @@ import { supabase } from "../creatclient";
 import { recordTradeWithRetry } from "../services/tradeQueue";
 import { formatTransactionError, getSepoliaTxUrl } from "../utils/transactionErrors";
 import { absolutePositionSize, closePresetSize, formatPositionSize } from "../utils/positionSize";
+import { calculateCloseSettlementPreview, calculatePostFundingMargin } from "../utils/positionMetrics";
 
 const hasOpenPositionData = (data) => {
   if (!data) return false;
@@ -205,9 +206,41 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
   const addMarginAmountNum           = parseFloat(addMarginAmount) || 0;
   const availableQuoteCollateral     = Math.max(parseFloat(accountValue) || 0, 0);
-  const isAddMarginOverAvailable     = addMarginAmountNum > 0 && addMarginAmountNum > availableQuoteCollateral;
-  const projectedMargin              = margin + addMarginAmountNum;
+  const addMarginPreview             = calculatePostFundingMargin({
+    currentMargin: margin,
+    pendingFunding: fundingEarned,
+    additionalMargin: addMarginAmountNum,
+  });
+  const availableQuoteCollateralAfterFunding = Math.max(
+    availableQuoteCollateral - addMarginPreview.fundingShortfall,
+    0,
+  );
+  const isAddMarginOverAvailable     = addMarginAmountNum > 0 && addMarginAmountNum > availableQuoteCollateralAfterFunding;
+  const projectedMargin              = addMarginPreview.positionMarginAfter;
   const projectedLeverage            = projectedMargin > 0 ? openNotional / projectedMargin : leverage;
+
+  const getClosePreview = (amount) => {
+    const numericAmount = Math.max(parseFloat(amount) || 0, 0);
+    const closeNotional = numericAmount * (currentPrice || entryPrice);
+    return {
+      ...calculateCloseSettlementPreview({
+        positionSize: absSize,
+        closeSize: numericAmount,
+        unrealizedPnl: currentPnL,
+        pendingFunding: fundingEarned,
+        estimatedFee: (closeNotional * feeBps) / 10000,
+      }),
+      estimatedFee: (closeNotional * feeBps) / 10000,
+    };
+  };
+
+  const inlineClosePreview = getClosePreview(closeSize);
+  const confirmationClosePreview = getClosePreview(pendingCloseAmount);
+  const confirmationAddMarginPreview = calculatePostFundingMargin({
+    currentMargin: margin,
+    pendingFunding: fundingEarned,
+    additionalMargin: Number(pendingAddMarginAmount || 0),
+  });
 
   const initiateClose = async (closeAmount) => {
     if (isCloseBusy) return;
@@ -255,7 +288,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
         closePrice,
         closeNotional,
         pnl:          currentPnL * closedFraction,
-        fundingEarned: fundingEarned * closedFraction,
+        fundingEarned,
         feesPaid:      (closeNotional * feeBps) / 10000,
       };
       toast.loading("Review close transaction in wallet...", { id: "close" });
@@ -273,7 +306,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
     if (isAddMarginBusy) return;
     if (!addMarginAmount || parseFloat(addMarginAmount) <= 0) { toast.error("Enter a valid margin amount"); return; }
     if (isAddMarginOverAvailable) {
-      const msg = `Not enough available deposited USDC. Available: ${availableQuoteCollateral.toFixed(2)} USDC.`;
+      const msg = `Not enough available deposited USDC after funding settlement. Available: ${availableQuoteCollateralAfterFunding.toFixed(2)} USDC.`;
       setAddMarginInlineError(msg);
       toast.error(msg, { id: "add-margin" });
       return;
@@ -553,8 +586,11 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
             {metrics.hasPnlData ? formatFundingAmount(fundingEarned) : "—"}
           </div>
           <div className="text-[8px] text-ink-faint mt-0.5">{fundingLabel}</div>
-          <div className="text-[8px] text-ink-muted mt-0.5 whitespace-nowrap">
-            Est. {metrics.fundingRate8hPercent > 0 ? "+" : ""}{metrics.fundingRate8hPercent.toFixed(4)}% / 8h
+          <div
+            className="text-[8px] text-ink-muted mt-0.5 whitespace-nowrap"
+            title="Projected rate only. Actual funding accrues continuously, pauses if either side has no open interest, and the receiving rate can vary with unequal long and short open interest."
+          >
+            Projected 8h: {metrics.fundingRate8hPercent > 0 ? "+" : ""}{metrics.fundingRate8hPercent.toFixed(4)}%
             <span className="text-ink-ghost"> · {metrics.fundingPayer}</span>
           </div>
           <div className="text-[8px] text-ink-ghost mt-0.5">Updated {formatUpdatedTime(metrics.lastUpdatedAt)}</div>
@@ -677,9 +713,9 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               {/* Est P&L */}
               {closeSize && parseFloat(closeSize) > 0 && (
                 <span className="text-[9px] text-ink-faint ml-1">
-                  Est. net settlement:{" "}
-                  <span className={`num font-semibold ${netPnL >= 0 ? "text-up" : "text-down"}`}>
-                    {formatFundingAmount(absSize > 0 ? (netPnL / absSize) * parseFloat(closeSize) : 0)}
+                  Est. P&amp;L + full funding:{" "}
+                  <span className={`num font-semibold ${inlineClosePreview.pnlAndFunding >= 0 ? "text-up" : "text-down"}`}>
+                    {formatFundingAmount(inlineClosePreview.pnlAndFunding)}
                   </span>
                 </span>
               )}
@@ -752,7 +788,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
 
             {isAddMarginOverAvailable && (
               <div className="mt-2 text-[10px] text-yellow-300 bg-yellow-500/10 border border-yellow-500/20 rounded px-2.5 py-1.5">
-                Amount exceeds available deposited USDC.
+                Amount exceeds available deposited USDC after the pending funding settlement.
               </div>
             )}
             {addMarginInlineError && (
@@ -781,19 +817,29 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
               { label: "Market", value: position.displayName || position.marketKey },
               { label: "Size",   value: `${pendingCloseAmount} GPU-HRS`, mono: true },
               {
-                label: "Unrealized P&L",
-                value: `${currentPnL >= 0 ? "+" : ""}$${(absSize > 0 ? (currentPnL / absSize) * parseFloat(pendingCloseAmount || 0) : 0).toFixed(3)}`,
-                cls:   currentPnL >= 0 ? "text-up" : "text-down",
+                label: "P&L for size closed",
+                value: formatFundingAmount(confirmationClosePreview.closedPnl),
+                cls: confirmationClosePreview.closedPnl >= 0 ? "text-up" : "text-down",
               },
               {
-                label: fundingEarned < 0 ? "Funding to pay" : fundingEarned > 0 ? "Funding to receive" : "Funding to settle",
-                value: formatFundingAmount(absSize > 0 ? (fundingEarned / absSize) * parseFloat(pendingCloseAmount || 0) : 0),
+                label: fundingEarned < 0 ? "Full funding to pay" : fundingEarned > 0 ? "Full funding to receive" : "Full funding settlement",
+                value: formatFundingAmount(confirmationClosePreview.fullFundingSettlement),
                 cls: fundingIsPayable ? "text-down" : "text-up",
               },
               {
-                label: "Est. net settlement",
-                value: formatFundingAmount(absSize > 0 ? (netPnL / absSize) * parseFloat(pendingCloseAmount || 0) : 0),
-                cls: netPnL >= 0 ? "text-up" : "text-down",
+                label: "P&L + funding",
+                value: formatFundingAmount(confirmationClosePreview.pnlAndFunding),
+                cls: confirmationClosePreview.pnlAndFunding >= 0 ? "text-up" : "text-down",
+              },
+              {
+                label: "Est. close fee",
+                value: `-$${confirmationClosePreview.estimatedFee.toFixed(3)}`,
+                cls: "text-down",
+              },
+              {
+                label: "Est. net effect",
+                value: formatFundingAmount(confirmationClosePreview.estimatedNetEffect),
+                cls: confirmationClosePreview.estimatedNetEffect >= 0 ? "text-up" : "text-down",
               },
             ].map(({ label, value, mono, cls }) => (
               <div key={label} className="flex items-center justify-between">
@@ -843,7 +889,8 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
                 value: metrics.marginRatioPercent == null ? "—" : `${metrics.marginRatioPercent.toFixed(2)}%`,
                 mono: true,
               },
-              { label: "Position margin after", value: `$${(margin + Number(pendingAddMarginAmount || 0)).toFixed(2)}`, mono: true },
+              { label: "Margin after funding", value: `$${confirmationAddMarginPreview.settledPositionMargin.toFixed(2)}`, mono: true },
+              { label: "Position margin after", value: `$${confirmationAddMarginPreview.positionMarginAfter.toFixed(2)}`, mono: true },
             ].map(({ label, value, mono, cls }) => (
               <div key={label} className="flex items-center justify-between gap-4">
                 <span className="text-[11px] text-ink-faint uppercase tracking-[0.1em]">{label}</span>
@@ -853,6 +900,11 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
             <div className="pt-1 text-[9px] text-ink-ghost text-right">
               Live values refreshed {formatUpdatedTime(metrics.lastUpdatedAt)}
             </div>
+            {confirmationAddMarginPreview.fundingShortfall > 0 && (
+              <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/[0.07] px-3 py-2 text-[10px] leading-4 text-yellow-200">
+                Pending funding exceeds the current position margin by ${confirmationAddMarginPreview.fundingShortfall.toFixed(2)}. The contract floors position margin at zero and applies shortfall recovery before adding the new margin; the transaction will proceed only if sufficient collateral remains.
+              </div>
+            )}
             {addMarginInlineError && (
               <div className="mt-1 rounded-lg border border-red-500/20 bg-red-500/[0.07] px-3 py-2 text-[11px] leading-4 text-red-300">
                 {addMarginInlineError}

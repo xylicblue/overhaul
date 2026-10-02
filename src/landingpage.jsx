@@ -30,6 +30,7 @@ import { useNotificationStore } from "./stores/useNotificationStore";
 import { useTradingStore } from "./stores/useTradingStore";
 import { getPriceSource, SPARKLINE_CONFIG } from "./config/marketsConfig";
 import { getEntityAccessState } from "./services/entityOnboarding";
+import TradingPlatformShowcase from "./components/TradingPlatformShowcase";
 
 /* ─── Animation Variants (trigger-once) ─── */
 const staggerContainer = {
@@ -169,6 +170,10 @@ const HERO_TICKER_MARKETS = [
   { id: "COREWEAVE-H200-PERPETUAL",name: "H200", sub: "CoreWeave" },
   // { id: "H100-non-HyperScalers-PERP-V2", name: "H100", sub: "Neocloud" },
 ];
+
+// Keep the original static platform preview available as an immediate fallback
+// while the interactive showcase is reviewed.
+const USE_INTERACTIVE_PLATFORM_SHOWCASE = true;
 
 function safeWelcomeNext(raw) {
   if (!raw || typeof raw !== "string" || raw.startsWith("//") || raw.includes("\\")) return "/trade";
@@ -1255,7 +1260,10 @@ const LandingPage = ({ onboardingWelcome = false }) => {
       <div className="section-divider max-w-5xl mx-auto" />
 
 
-      {/* ═══ TRADING INTERFACE PREVIEW ═══ */}
+      {USE_INTERACTIVE_PLATFORM_SHOWCASE ? (
+        <TradingPlatformShowcase indexPrices={indexPrices} />
+      ) : (
+      /* ═══ TRADING INTERFACE PREVIEW ═══ */
       <section className="relative z-10 py-20 md:py-24">
         <div className="container mx-auto px-6 lg:px-12 max-w-6xl 2xl:max-w-[84rem]">
 
@@ -1396,6 +1404,7 @@ const LandingPage = ({ onboardingWelcome = false }) => {
 
         </div>
       </section>
+      )}
 
       <div className="section-divider max-w-5xl mx-auto" />
 

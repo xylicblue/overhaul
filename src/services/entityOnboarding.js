@@ -77,9 +77,15 @@ export async function getEntityAccessState(userId) {
 }
 
 async function currentUser() {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error("Please sign in to continue your application.");
-  return user;
+  // The authenticated onboarding route has already restored the Supabase
+  // session. Reuse that same session identity instead of making a second
+  // /auth/user request for every load, save, and upload. getSession refreshes
+  // an expired access token when a valid refresh token is available.
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session?.user) {
+    throw new Error("Please sign in to continue your application.");
+  }
+  return session.user;
 }
 
 function throwIf(error, fallback) {

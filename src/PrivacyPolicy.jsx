@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import logoImage from "./assets/ByteStrikeLogoFinal.png";
 import Footer from "./components/Footer";
 import { PRIVACY_SECTIONS, PRIVACY_EFFECTIVE_DATE, PRIVACY_LAST_UPDATED } from "./content/privacySections";
@@ -86,7 +86,7 @@ export default function PrivacyPolicy() {
         <div className="container mx-auto px-6 max-w-6xl">
 
           {/* ── Hero / title block ──────────────────────────────────────── */}
-          <motion.div
+          <Motion.div
             initial="hidden"
             animate="visible"
             variants={fadeUp}
@@ -112,7 +112,7 @@ export default function PrivacyPolicy() {
 
             {/* Thin divider */}
             <div className="mt-10 h-px bg-white/[0.06]" />
-          </motion.div>
+          </Motion.div>
 
           {/* ── Two-column: TOC (sticky) + content ─────────────────────── */}
           <div className="flex gap-12 items-start">
@@ -148,9 +148,11 @@ export default function PrivacyPolicy() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-col gap-2">
                 {SECTIONS.map((s, idx) => (
-                  <motion.section
+                  <Motion.section
                     key={s.id}
-                    ref={(el) => (sectionRefs.current[s.id] = el)}
+                    ref={(el) => {
+                      sectionRefs.current[s.id] = el;
+                    }}
                     id={s.id}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -219,7 +221,7 @@ export default function PrivacyPolicy() {
                         support@byte-strike.com
                       </a>
                     )}
-                  </motion.section>
+                  </Motion.section>
                 ))}
               </div>
 

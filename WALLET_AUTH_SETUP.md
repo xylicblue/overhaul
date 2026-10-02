@@ -45,15 +45,14 @@ ALTER TABLE public.profiles
 -- Update RLS policies if needed (your profiles table should already have policies)
 ```
 
-## 3. Get Your Supabase JWT Secret
+## 3. Confirm the standard Supabase function environment
 
-The edge function needs `SUPABASE_JWT_SECRET` to sign JWTs.
+The function uses Supabase Auth to issue the browser session. It does not sign
+its own JWTs and does not require a custom JWT secret.
 
-1. Go to **Supabase Dashboard** → **Settings** → **API**
-2. Under **JWT Settings**, copy the **JWT Secret**
-3. This secret is automatically available as an environment variable in Edge Functions as `SUPABASE_JWT_SECRET`
-
-> **Note**: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are also automatically available in Edge Functions — no manual setup needed.
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are provided
+automatically to deployed Supabase Edge Functions. No additional wallet-auth
+secret needs to be configured.
 
 ## 4. Deploy the Edge Function
 
@@ -118,7 +117,7 @@ Edge Function verifies signature (ethers.js for ETH, tweetnacl for SOL)
 Edge Function creates user if new (synthetic email: address@wallet.bytestrike.io)
         │
         ▼
-Edge Function signs a JWT and returns session tokens
+Edge Function exchanges a single-use server token for a native Supabase Auth session
         │
         ▼
 Frontend calls supabase.auth.setSession() with the tokens
@@ -150,7 +149,7 @@ Users without these wallets will see an appropriate error message prompting them
 
 Wallet users are created with:
 - **Email**: `{wallet_address}@wallet.bytestrike.io` (synthetic, for Supabase compatibility)
-- **Username**: Auto-generated like `eth_a1b2c3` or `sol_a1b2c3`
+- **Username**: Chosen by the user during profile completion
 - **Profile**: `wallet_address` and `wallet_type` fields are populated
 
 ---
