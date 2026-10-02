@@ -16,7 +16,7 @@ const formatX18 = (value) => (value == null ? '0' : formatUnits(value, 18));
 export function useMarkPrice(vammAddress = SEPOLIA_CONTRACTS.vammProxy, refetchInterval = 5000) {
   const chainId = useChainId();
 
-  const { data, isLoading, error, refetch } = useReadContract({
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
     functionName: 'getMarkPrice', // Fixed: was getMarkPriceX18
@@ -44,7 +44,8 @@ export function useMarkPrice(vammAddress = SEPOLIA_CONTRACTS.vammProxy, refetchI
     priceRaw: data,
     isLoading,
     error,
-    refetch
+    refetch,
+    lastUpdatedAt: dataUpdatedAt || 0,
   };
 }
 
@@ -114,7 +115,7 @@ export function useVAMMReserves(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
  * @param {string} vammAddress - vAMM contract address
  */
 export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
-  const { data: longPayRaw } = useReadContract({
+  const { data: longPayRaw, refetch: refetchLongPay, dataUpdatedAt: longPayUpdatedAt } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
     functionName: 'currentCumulativeLongPayPerUnitX18',
@@ -122,7 +123,7 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
     query: { refetchInterval: 30000, enabled: !!vammAddress },
   });
 
-  const { data: longReceiveRaw } = useReadContract({
+  const { data: longReceiveRaw, refetch: refetchLongReceive, dataUpdatedAt: longReceiveUpdatedAt } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
     functionName: 'currentCumulativeLongReceivePerUnitX18',
@@ -130,7 +131,7 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
     query: { refetchInterval: 30000, enabled: !!vammAddress },
   });
 
-  const { data: shortPayRaw } = useReadContract({
+  const { data: shortPayRaw, refetch: refetchShortPay, dataUpdatedAt: shortPayUpdatedAt } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
     functionName: 'currentCumulativeShortPayPerUnitX18',
@@ -138,7 +139,7 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
     query: { refetchInterval: 30000, enabled: !!vammAddress },
   });
 
-  const { data: shortReceiveRaw } = useReadContract({
+  const { data: shortReceiveRaw, refetch: refetchShortReceive, dataUpdatedAt: shortReceiveUpdatedAt } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
     functionName: 'currentCumulativeShortReceivePerUnitX18',
@@ -146,7 +147,7 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
     query: { refetchInterval: 30000, enabled: !!vammAddress },
   });
 
-  const { data: lastFundingTime } = useReadContract({
+  const { data: lastFundingTime, refetch: refetchLastFunding, dataUpdatedAt: lastFundingUpdatedAt } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
     functionName: 'lastFundingTimestamp',
@@ -154,7 +155,7 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
     query: { enabled: !!vammAddress },
   });
 
-  const { data: kFundingRaw } = useReadContract({
+  const { data: kFundingRaw, refetch: refetchKFunding, dataUpdatedAt: kFundingUpdatedAt } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
     functionName: 'kFundingX18',
@@ -162,7 +163,7 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
     query: { refetchInterval: 60000, enabled: !!vammAddress },
   });
 
-  const { data: frMaxBpsPerHourRaw } = useReadContract({
+  const { data: frMaxBpsPerHourRaw, refetch: refetchFundingCap, dataUpdatedAt: fundingCapUpdatedAt } = useReadContract({
     address: vammAddress,
     abi: VAMMABI.abi,
     functionName: 'frMaxBpsPerHour',
@@ -174,6 +175,26 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
   const longReceive = formatX18(longReceiveRaw);
   const shortPay = formatX18(shortPayRaw);
   const shortReceive = formatX18(shortReceiveRaw);
+  const fundingTimestamps = [
+    longPayUpdatedAt,
+    longReceiveUpdatedAt,
+    shortPayUpdatedAt,
+    shortReceiveUpdatedAt,
+    lastFundingUpdatedAt,
+    kFundingUpdatedAt,
+    fundingCapUpdatedAt,
+  ].filter((timestamp) => timestamp > 0);
+  const lastUpdatedAt = fundingTimestamps.length ? Math.min(...fundingTimestamps) : 0;
+
+  const refetch = () => Promise.allSettled([
+    refetchLongPay(),
+    refetchLongReceive(),
+    refetchShortPay(),
+    refetchShortReceive(),
+    refetchLastFunding(),
+    refetchKFunding(),
+    refetchFundingCap(),
+  ]);
 
   return {
     // Existing position consumers still read cumulativeFunding; expose it from
@@ -191,6 +212,8 @@ export function useFundingRate(vammAddress = SEPOLIA_CONTRACTS.vammProxy) {
     longReceiveRaw,
     shortPayRaw,
     shortReceiveRaw,
+    lastUpdatedAt,
+    refetch,
   };
 }
 

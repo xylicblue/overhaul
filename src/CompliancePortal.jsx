@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, ClipboardCheck, Lock } from "lucide-react";
+import { ArrowUpRight, ClipboardCheck, Lock, Scale } from "lucide-react";
 import { supabase } from "./creatclient";
 import EntityRiskReview from "./components/EntityRiskReview";
+import AssetReconciliationReview from "./components/AssetReconciliationReview";
 
 function PortalFrame({ children }) {
   return (
@@ -15,6 +16,7 @@ function PortalFrame({ children }) {
 export default function CompliancePortal() {
   const [access, setAccess] = useState("loading");
   const [error, setError] = useState("");
+  const [workspace, setWorkspace] = useState("applications");
 
   useEffect(() => {
     let active = true;
@@ -70,9 +72,9 @@ export default function CompliancePortal() {
           <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-400">
             <ClipboardCheck size={13} /> Compliance
           </div>
-          <h1 className="text-2xl font-semibold tracking-[-0.035em] text-ink md:text-[28px]">Entity applications</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.035em] text-ink md:text-[28px]">Compliance controls</h1>
           <p className="mt-2 max-w-2xl text-[12px] leading-5 text-ink-ghost">
-            Review identity status, application evidence and server-calculated risk in one controlled workspace.
+            Review entity onboarding, client-asset safeguarding and formal control evidence in one secure workspace.
           </p>
         </div>
         <Link
@@ -83,7 +85,22 @@ export default function CompliancePortal() {
         </Link>
       </header>
 
-      <EntityRiskReview standalone />
+      <div className="mb-6 inline-flex rounded-xl border border-line bg-surface-1 p-1">
+        <button
+          onClick={() => setWorkspace("applications")}
+          className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-[11px] font-medium transition-colors ${workspace === "applications" ? "bg-surface-3 text-ink shadow-sm" : "text-ink-faint hover:text-ink"}`}
+        >
+          <ClipboardCheck size={13} /> Entity applications
+        </button>
+        <button
+          onClick={() => setWorkspace("assets")}
+          className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-[11px] font-medium transition-colors ${workspace === "assets" ? "bg-surface-3 text-ink shadow-sm" : "text-ink-faint hover:text-ink"}`}
+        >
+          <Scale size={13} /> Client assets
+        </button>
+      </div>
+
+      {workspace === "applications" ? <EntityRiskReview standalone /> : <AssetReconciliationReview />}
     </PortalFrame>
   );
 }

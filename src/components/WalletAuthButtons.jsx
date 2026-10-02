@@ -58,15 +58,15 @@ const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full", disabled = 
 
   if (variant === "compact") {
     return (
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2.5">
         <button
           type="button"
           onClick={handleEthSignIn}
           disabled={loading || disabled}
-          className="py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] rounded-md text-[12px] font-medium transition-colors duration-150 flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
+          className="group flex h-11 items-center justify-center gap-2 rounded-[13px] border border-white/[0.10] bg-white/[0.045] px-3 text-[12.5px] font-medium transition-all duration-200 hover:border-white/[0.17] hover:bg-white/[0.075] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-35 disabled:active:scale-100"
         >
           <EthereumIcon />
-          <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors duration-150">
+          <span className="text-zinc-300 transition-colors duration-150 group-hover:text-white">
             {loading ? "..." : "Ethereum"}
           </span>
         </button>
@@ -74,10 +74,10 @@ const WalletAuthButtons = ({ onSuccess, onNewUser, variant = "full", disabled = 
           type="button"
           onClick={handleSolSignIn}
           disabled={loading || disabled}
-          className="py-2 px-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.07] hover:border-white/[0.12] rounded-md text-[12px] font-medium transition-colors duration-150 flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
+          className="group flex h-11 items-center justify-center gap-2 rounded-[13px] border border-white/[0.10] bg-white/[0.045] px-3 text-[12.5px] font-medium transition-all duration-200 hover:border-white/[0.17] hover:bg-white/[0.075] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-35 disabled:active:scale-100"
         >
           <SolanaIcon />
-          <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors duration-150">
+          <span className="text-zinc-300 transition-colors duration-150 group-hover:text-white">
             {loading ? "..." : "Solana"}
           </span>
         </button>
