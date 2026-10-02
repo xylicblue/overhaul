@@ -142,6 +142,400 @@ function downloadCsv(filename, csv) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Build a real paginated report instead of placing one very tall dashboard
+// screenshot on a custom-sized PDF page. Keeping the report vector-based makes
+// text selectable, tables legible, and the result suitable for printing.
+function buildAdminDashboardPdf({ jsPDF, kpis, markets, series, traders, events, alerts, positions, positionError }) {
+  const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4", compress: true });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 42;
+  const contentWidth = pageWidth - (margin * 2);
+  const footerTop = pageHeight - 38;
+  const colors = {
+    ink: [24, 24, 27],
+    muted: [96, 96, 105],
+    faint: [145, 145, 154],
+    line: [226, 228, 232],
+    surface: [247, 248, 250],
+    blue: [42, 107, 230],
+    blueSoft: [235, 242, 255],
+    green: [20, 142, 91],
+    red: [205, 58, 70],
+    amber: [184, 113, 20],
+    white: [255, 255, 255],
+  };
+
+  const safe = (value) => String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const money = (value, digits = 2) => `$${n(value).toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}`;
+  const compactMoney = (value) => {
+    const amount = n(value);
+    const formatted = new Intl.NumberFormat("en-US", {
+      notation: "compact",
+      maximumFractionDigits: 2,
+    }).format(Math.abs(amount));
+    return `${amount < 0 ? "-" : ""}$${formatted}`;
+  };
+  const signedCompactMoney = (value) => `${n(value) >= 0 ? "+" : "-"}${compactMoney(Math.abs(n(value)))}`;
+  const signedMoney = (value) => `${n(value) >= 0 ? "+" : "-"}${money(Math.abs(n(value)))}`;
+  const count = (value) => Math.round(n(value)).toLocaleString("en-US");
+  const generatedAt = new Date();
+  const generatedLabel = generatedAt.toLocaleString("en-GB", {
+    timeZone: "UTC", day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).replace(",", "") + " UTC";
+  const latestEventLabel = kpis?.latest_event_at
+    ? new Date(kpis.latest_event_at).toLocaleString("en-GB", {
+        timeZone: "UTC", day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: false,
+      }).replace(",", "") + " UTC"
+    : "No event recorded";
+
+  let currentSection = "Executive summary";
+
+  const drawBrandHeader = (section) => {
+    pdf.setFillColor(...colors.ink);
+    pdf.roundedRect(margin, 28, 24, 24, 6, 6, "F");
+    pdf.setTextColor(...colors.white);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.text("B", margin + 8.2, 44.5);
+    pdf.setTextColor(...colors.ink);
+    pdf.setFontSize(10.5);
+    pdf.text("ByteStrike", margin + 34, 39);
+    pdf.setTextColor(...colors.faint);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7.5);
+    pdf.text("PLATFORM OPERATIONS", margin + 34, 50);
+    pdf.setTextColor(...colors.muted);
+    pdf.setFontSize(8);
+    pdf.text(safe(section).toUpperCase(), pageWidth - margin, 43, { align: "right" });
+    pdf.setDrawColor(...colors.line);
+    pdf.line(margin, 64, pageWidth - margin, 64);
+  };
+
+  const addReportPage = (section) => {
+    pdf.addPage();
+    currentSection = section;
+    drawBrandHeader(section);
+    return 82;
+  };
+
+  const drawSectionTitle = (title, subtitle, y) => {
+    pdf.setTextColor(...colors.ink);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(17);
+    pdf.text(safe(title), margin, y);
+    let nextY = y + 18;
+    if (subtitle) {
+      pdf.setTextColor(...colors.muted);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8.5);
+      const lines = pdf.splitTextToSize(safe(subtitle), contentWidth);
+      pdf.text(lines, margin, nextY);
+      nextY += (lines.length * 10) + 6;
+    }
+    return nextY;
+  };
+
+  const drawMetricCard = ({ x, y, width, label, value, note, tone = "ink" }) => {
+    pdf.setFillColor(...colors.surface);
+    pdf.setDrawColor(...colors.line);
+    pdf.roundedRect(x, y, width, 67, 8, 8, "FD");
+    pdf.setTextColor(...colors.faint);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7.2);
+    pdf.text(safe(label).toUpperCase(), x + 11, y + 16);
+    pdf.setTextColor(...(colors[tone] || colors.ink));
+    pdf.setFontSize(16);
+    pdf.text(safe(value), x + 11, y + 39, { maxWidth: width - 22 });
+    if (note) {
+      pdf.setTextColor(...colors.muted);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7.5);
+      pdf.text(safe(note), x + 11, y + 55, { maxWidth: width - 22 });
+    }
+  };
+
+  const drawCallout = ({ y, title, body, tone = "blue" }) => {
+    const fill = tone === "amber" ? [255, 247, 232] : tone === "red" ? [255, 239, 241] : colors.blueSoft;
+    const accent = tone === "amber" ? colors.amber : tone === "red" ? colors.red : colors.blue;
+    const lines = pdf.splitTextToSize(safe(body), contentWidth - 30);
+    const height = 35 + (lines.length * 10);
+    pdf.setFillColor(...fill);
+    pdf.roundedRect(margin, y, contentWidth, height, 8, 8, "F");
+    pdf.setFillColor(...accent);
+    pdf.roundedRect(margin, y, 4, height, 2, 2, "F");
+    pdf.setTextColor(...colors.ink);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8.5);
+    pdf.text(safe(title), margin + 15, y + 17);
+    pdf.setTextColor(...colors.muted);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.text(lines, margin + 15, y + 31);
+    return y + height;
+  };
+
+  const drawTable = ({ title, subtitle, columns, rows, y, emptyLabel = "No records available." }) => {
+    const rowHeight = 21;
+    const headerHeight = 22;
+    const fitText = (value, maxWidth) => {
+      const fullText = safe(value);
+      if (pdf.getTextWidth(fullText) <= maxWidth) return fullText;
+
+      const suffix = "...";
+      let shortened = fullText;
+      while (shortened.length > 1 && pdf.getTextWidth(`${shortened}${suffix}`) > maxWidth) {
+        shortened = shortened.slice(0, -1);
+      }
+      return `${shortened}${suffix}`;
+    };
+    const drawHeader = (atY) => {
+      pdf.setFillColor(...colors.ink);
+      pdf.roundedRect(margin, atY, contentWidth, headerHeight, 5, 5, "F");
+      let x = margin;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(6.8);
+      pdf.setTextColor(...colors.white);
+      columns.forEach((column) => {
+        const tx = column.align === "right" ? x + column.width - 7 : x + 7;
+        pdf.text(fitText(safe(column.label).toUpperCase(), column.width - 14), tx, atY + 14, { align: column.align || "left" });
+        x += column.width;
+      });
+      return atY + headerHeight;
+    };
+
+    let cursorY = drawSectionTitle(title, subtitle, y);
+    if (!rows.length) {
+      pdf.setFillColor(...colors.surface);
+      pdf.roundedRect(margin, cursorY, contentWidth, 42, 6, 6, "F");
+      pdf.setTextColor(...colors.muted);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8.5);
+      pdf.text(safe(emptyLabel), margin + 12, cursorY + 25);
+      return cursorY + 52;
+    }
+
+    cursorY = drawHeader(cursorY);
+    rows.forEach((row, rowIndex) => {
+      if (cursorY + rowHeight > footerTop - 8) {
+        cursorY = addReportPage(`${title} - continued`);
+        cursorY = drawHeader(cursorY);
+      }
+      if (rowIndex % 2 === 0) {
+        pdf.setFillColor(...colors.surface);
+        pdf.rect(margin, cursorY, contentWidth, rowHeight, "F");
+      }
+      pdf.setDrawColor(...colors.line);
+      pdf.line(margin, cursorY + rowHeight, pageWidth - margin, cursorY + rowHeight);
+      let x = margin;
+      columns.forEach((column) => {
+        const value = safe(typeof column.get === "function" ? column.get(row) : row[column.key]);
+        const tx = column.align === "right" ? x + column.width - 7 : x + 7;
+        const textColor = typeof column.color === "function" ? column.color(row) : colors.ink;
+        pdf.setTextColor(...(textColor || colors.ink));
+        pdf.setFont("helvetica", column.bold ? "bold" : "normal");
+        pdf.setFontSize(7.2);
+        pdf.text(fitText(value, column.width - 14), tx, cursorY + 13.5, { align: column.align || "left" });
+        x += column.width;
+      });
+      cursorY += rowHeight;
+    });
+    return cursorY + 12;
+  };
+
+  // Page 1: executive summary.
+  currentSection = "Executive summary";
+  drawBrandHeader(currentSection);
+  pdf.setTextColor(...colors.ink);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(26);
+  pdf.text("Platform Operations Report", margin, 105);
+  pdf.setTextColor(...colors.muted);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.text(`Generated ${generatedLabel}`, margin, 124);
+  pdf.text(`Latest indexed event: ${latestEventLabel}`, margin, 138);
+  pdf.setFillColor(...colors.blue);
+  pdf.roundedRect(pageWidth - margin - 88, 91, 88, 34, 17, 17, "F");
+  pdf.setTextColor(...colors.white);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(8);
+  pdf.text("SEPOLIA TESTNET", pageWidth - margin - 44, 112, { align: "center" });
+
+  const gap = 9;
+  const cardWidth = (contentWidth - (gap * 3)) / 4;
+  const cards = [
+    { label: "Total volume", value: compactMoney(kpis?.total_volume), note: `${count(kpis?.trade_count)} trades` },
+    { label: "24h volume", value: compactMoney(kpis?.volume_24h), note: `${count(kpis?.traders_24h)} active traders` },
+    { label: "Total fees", value: compactMoney(kpis?.total_fees), note: "Protocol fees", tone: "green" },
+    { label: "Net funding", value: signedCompactMoney(kpis?.total_funding), note: "Settled funding", tone: n(kpis?.total_funding) < 0 ? "red" : "ink" },
+    { label: "Trader net PnL", value: signedCompactMoney(kpis?.total_net_pnl), note: `Realized ${signedMoney(kpis?.total_realized_pnl)}`, tone: n(kpis?.total_net_pnl) < 0 ? "red" : "green" },
+    { label: "Liquidations", value: count(kpis?.liquidation_count), note: `${compactMoney(kpis?.liquidation_penalty)} penalties`, tone: "amber" },
+    { label: "Unique traders", value: count(kpis?.unique_traders), note: `${count(kpis?.event_count)} indexed events` },
+    { label: "Open positions", value: count(positions.length), note: positionError ? "On-chain read incomplete" : "Live on-chain" },
+  ];
+  cards.forEach((card, index) => {
+    drawMetricCard({
+      ...card,
+      x: margin + ((index % 4) * (cardWidth + gap)),
+      y: 167 + (Math.floor(index / 4) * 76),
+      width: cardWidth,
+    });
+  });
+
+  const openAlerts = alerts.filter((alert) => alert.status === "open");
+  const highAlerts = openAlerts.filter((alert) => alert.severity === "high");
+  const totalPositionNotional = positions.reduce((sum, position) => sum + n(position.notional), 0);
+  const totalPositionMargin = positions.reduce((sum, position) => sum + n(position.margin), 0);
+  const weightedLeverage = totalPositionMargin > 0 ? totalPositionNotional / totalPositionMargin : 0;
+  let y = drawSectionTitle("Risk and exposure snapshot", "Current surveillance and live ClearingHouse exposure at the time of export.", 339);
+  const miniWidth = (contentWidth - (gap * 3)) / 4;
+  [
+    { label: "Open alerts", value: count(openAlerts.length), note: `${count(highAlerts.length)} high severity`, tone: openAlerts.length ? "red" : "green" },
+    { label: "Open notional", value: compactMoney(totalPositionNotional), note: `${count(positions.length)} positions` },
+    { label: "Position margin", value: compactMoney(totalPositionMargin), note: "Reserved on-chain" },
+    { label: "Weighted leverage", value: `${weightedLeverage.toFixed(2)}x`, note: "Notional / margin", tone: weightedLeverage >= 8 ? "red" : weightedLeverage >= 5 ? "amber" : "ink" },
+  ].forEach((card, index) => drawMetricCard({ ...card, x: margin + (index * (miniWidth + gap)), y, width: miniWidth }));
+
+  const volume30d = series.reduce((sum, row) => sum + n(row.volume), 0);
+  const pnl30d = series.reduce((sum, row) => sum + n(row.net_pnl), 0);
+  const activeDays = series.filter((row) => n(row.volume) > 0).length;
+  const peakDay = series.reduce((best, row) => (!best || n(row.volume) > n(best.volume) ? row : best), null);
+  y += 91;
+  y = drawSectionTitle("30-day operating trend", "A compact summary of the daily series shown on the administration dashboard.", y);
+  const trendText = `${money(volume30d)} volume across ${count(activeDays)} active day(s); cumulative net PnL ${signedMoney(pnl30d)}. ${peakDay ? `Peak volume was ${money(peakDay.volume)} on ${safe(peakDay.day)}.` : "No daily activity was recorded."}`;
+  y = drawCallout({ y, title: "Thirty-day summary", body: trendText, tone: "blue" }) + 13;
+  drawCallout({
+    y,
+    title: "Report scope",
+    body: "Trading, fee, funding and PnL measures come from canonical_pnl_events. Open positions are read live from the ClearingHouse and may be incomplete when the on-chain read reports an error. CSV exports remain available for full row-level analysis.",
+    tone: positionError ? "amber" : "blue",
+  });
+
+  // Page 2+: structured detail tables.
+  y = addReportPage("Market performance");
+  const topMarket = [...markets].sort((a, b) => n(b.volume) - n(a.volume))[0];
+  const marketSubtitle = topMarket && n(kpis?.total_volume) > 0
+    ? `${cleanMarket(topMarket.market_name)} is the largest market by volume at ${(100 * n(topMarket.volume) / n(kpis.total_volume)).toFixed(1)}% of total reported volume.`
+    : "Volume, participation, fees, funding, PnL and liquidation activity by market.";
+  drawTable({
+    title: "Market performance",
+    subtitle: marketSubtitle,
+    y,
+    rows: [...markets].sort((a, b) => n(b.volume) - n(a.volume)),
+    columns: [
+      { label: "Market", width: 100, get: (row) => cleanMarket(row.market_name), bold: true },
+      { label: "Volume", width: 76, get: (row) => money(row.volume), align: "right" },
+      { label: "Trades", width: 46, get: (row) => count(row.trade_count), align: "right" },
+      { label: "Unique", width: 46, get: (row) => count(row.unique_traders), align: "right" },
+      { label: "Fees", width: 61, get: (row) => money(row.fees), align: "right", color: () => colors.green },
+      { label: "Funding", width: 62, get: (row) => signedMoney(row.funding), align: "right" },
+      { label: "Net PnL", width: 65, get: (row) => signedMoney(row.net_pnl), align: "right", color: (row) => n(row.net_pnl) < 0 ? colors.red : colors.green },
+      { label: "Liqs", width: 55, get: (row) => count(row.liquidations), align: "right", color: () => colors.amber },
+    ],
+  });
+
+  y = addReportPage("Surveillance and exposure");
+  const alertRows = [...alerts]
+    .sort((a, b) => (a.status === "open" ? -1 : 1) - (b.status === "open" ? -1 : 1) || new Date(b.detected_at) - new Date(a.detected_at))
+    .slice(0, 20);
+  y = drawTable({
+    title: "Surveillance alerts",
+    subtitle: `Showing up to 20 alerts, prioritizing open items. ${count(openAlerts.length)} alert(s) are currently open; ${count(highAlerts.length)} are high severity.`,
+    y,
+    rows: alertRows,
+    emptyLabel: "No manipulation alerts were recorded.",
+    columns: [
+      { label: "Detected UTC", width: 90, get: (row) => row.detected_at ? new Date(row.detected_at).toISOString().slice(0, 16).replace("T", " ") : "-" },
+      { label: "Severity", width: 52, get: (row) => row.severity || "-", bold: true, color: (row) => row.severity === "high" ? colors.red : row.severity === "medium" ? colors.amber : colors.muted },
+      { label: "Type", width: 86, get: (row) => kindLabel(row.kind) },
+      { label: "Wallet", width: 77, get: (row) => row.agent_label || (row.wallet ? `${row.wallet.slice(0, 6)}...${row.wallet.slice(-4)}` : "-") },
+      { label: "Market", width: 78, get: (row) => cleanMarket(row.market) },
+      { label: "Impact", width: 54, get: (row) => bps(row.impact_bps), align: "right" },
+      { label: "Notional", width: 74, get: (row) => row.notional_usd == null ? "-" : money(row.notional_usd), align: "right" },
+    ],
+  });
+
+  y = addReportPage("Open positions");
+  drawTable({
+    title: "Largest open positions",
+    subtitle: positionError
+      ? `The on-chain position read reported: ${safe(positionError)}. Values below may be incomplete.`
+      : `Showing up to 20 positions ordered by notional. Aggregate open notional is ${money(totalPositionNotional)} against ${money(totalPositionMargin)} of position margin.`,
+    y,
+    rows: [...positions].sort((a, b) => n(b.notional) - n(a.notional)).slice(0, 20),
+    emptyLabel: positionError ? "Open positions could not be read completely." : "No open positions were found.",
+    columns: [
+      { label: "Trader", width: 95, get: (row) => agentName(row.trader) || row.username || (row.trader ? `${row.trader.slice(0, 6)}...${row.trader.slice(-4)}` : "-") },
+      { label: "Market", width: 95, get: (row) => cleanMarket(row.marketName), bold: true },
+      { label: "Side", width: 45, get: (row) => row.isLong ? "Long" : "Short", color: (row) => row.isLong ? colors.green : colors.red },
+      { label: "Size", width: 62, get: (row) => n(row.size).toFixed(4), align: "right" },
+      { label: "Entry", width: 66, get: (row) => money(row.entryPrice), align: "right" },
+      { label: "Notional", width: 78, get: (row) => money(row.notional), align: "right" },
+      { label: "Margin", width: 70, get: (row) => money(row.margin), align: "right" },
+    ],
+  });
+
+  y = addReportPage("Participants and activity");
+  y = drawTable({
+    title: "Top traders by net PnL",
+    subtitle: "The 10 highest-ranked wallets from the administration view. Agent labels are shown where available.",
+    y,
+    rows: traders.slice(0, 10),
+    emptyLabel: "No trader activity was recorded.",
+    columns: [
+      { label: "Trader", width: 106, get: (row) => agentName(row.user_address) || row.username || (row.user_address ? `${row.user_address.slice(0, 6)}...${row.user_address.slice(-4)}` : "-") },
+      { label: "Volume", width: 80, get: (row) => money(row.volume), align: "right" },
+      { label: "Trades", width: 50, get: (row) => count(row.trade_count), align: "right" },
+      { label: "Realized", width: 74, get: (row) => signedMoney(row.realized_pnl), align: "right", color: (row) => n(row.realized_pnl) < 0 ? colors.red : colors.green },
+      { label: "Funding", width: 68, get: (row) => signedMoney(row.funding), align: "right" },
+      { label: "Fees", width: 62, get: (row) => money(row.fees), align: "right" },
+      { label: "Net PnL", width: 71, get: (row) => signedMoney(row.net_pnl), align: "right", bold: true, color: (row) => n(row.net_pnl) < 0 ? colors.red : colors.green },
+    ],
+  });
+
+  if (y > footerTop - 210) y = addReportPage("Recent activity");
+  drawTable({
+    title: "Recent activity",
+    subtitle: "The 10 most recent indexed accounting events included for operational context.",
+    y,
+    rows: events.slice(0, 10),
+    emptyLabel: "No recent activity was recorded.",
+    columns: [
+      { label: "Time UTC", width: 88, get: (row) => row.block_timestamp ? new Date(row.block_timestamp).toISOString().slice(0, 16).replace("T", " ") : "-" },
+      { label: "Trader", width: 92, get: (row) => agentName(row.user_address) || row.username || (row.user_address ? `${row.user_address.slice(0, 6)}...${row.user_address.slice(-4)}` : "-") },
+      { label: "Market", width: 88, get: (row) => cleanMarket(row.market_name) },
+      { label: "Type", width: 75, get: (row) => (row.accounting_type || "-").replace(/_/g, " ") },
+      { label: "Side", width: 42, get: (row) => row.side || "-", color: (row) => String(row.side).toLowerCase() === "long" ? colors.green : String(row.side).toLowerCase() === "short" ? colors.red : colors.muted },
+      { label: "Notional", width: 70, get: (row) => row.notional == null ? "-" : money(row.notional), align: "right" },
+      { label: "Net PnL", width: 56, get: (row) => signedMoney(row.net_pnl), align: "right", color: (row) => n(row.net_pnl) < 0 ? colors.red : colors.green },
+    ],
+  });
+
+  const pageCount = pdf.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    pdf.setPage(page);
+    pdf.setDrawColor(...colors.line);
+    pdf.line(margin, footerTop, pageWidth - margin, footerTop);
+    pdf.setTextColor(...colors.faint);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7);
+    pdf.text("Internal operational report - generated from the ByteStrike administration dashboard", margin, footerTop + 16);
+    pdf.text(`Page ${page} of ${pageCount}`, pageWidth - margin, footerTop + 16, { align: "right" });
+  }
+
+  return pdf;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Small building blocks
 // ─────────────────────────────────────────────────────────────────────────────
@@ -418,32 +812,29 @@ export default function AdminDashboard() {
       .forEach((fn, i) => setTimeout(fn, i * 300));
   };
 
-  // ── PDF export — captures the dashboard exactly as rendered (dark theme kept) ─
+  // Structured, paginated operational report. This deliberately avoids
+  // screenshotting the dashboard so the PDF remains readable and printable.
   const exportPdf = async () => {
-    if (!contentRef.current || pdfBusy) return;
+    if (!kpis || pdfBusy) return;
     setPdfBusy(true);
-    const actions = actionsRef.current;
-    if (actions) actions.style.visibility = "hidden"; // hide buttons in the capture
     try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas-pro"),
-        import("jspdf"),
-      ]);
-      const canvas = await html2canvas(contentRef.current, {
-        backgroundColor: "#050507", // surface-0, so gaps match the page
-        scale: 2,
-        useCORS: true,
+      const { jsPDF } = await import("jspdf");
+      const pdf = buildAdminDashboardPdf({
+        jsPDF,
+        kpis,
+        markets,
+        series,
+        traders,
+        events,
+        alerts,
+        positions: onchainPositions,
+        positionError: posError,
       });
-      const w = canvas.width / 2;
-      const h = canvas.height / 2;
-      const pdf = new jsPDF({ orientation: w >= h ? "landscape" : "portrait", unit: "px", format: [w, h] });
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
-      pdf.save(`admin-dashboard-${new Date().toISOString().slice(0, 10)}.pdf`);
+      pdf.save(`bytestrike-platform-report-${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (err) {
       console.error("PDF export failed", err);
       alert(`PDF export failed: ${err?.message || "unknown error"}`);
     } finally {
-      if (actions) actions.style.visibility = "";
       setPdfBusy(false);
     }
   };
