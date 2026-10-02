@@ -173,7 +173,7 @@ const HERO_TICKER_MARKETS = [
 
 // Keep the original static platform preview available as an immediate fallback
 // while the interactive showcase is reviewed.
-const USE_INTERACTIVE_PLATFORM_SHOWCASE = true;
+const USE_INTERACTIVE_PLATFORM_SHOWCASE = false;
 
 function safeWelcomeNext(raw) {
   if (!raw || typeof raw !== "string" || raw.startsWith("//") || raw.includes("\\")) return "/trade";
