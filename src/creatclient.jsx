@@ -96,8 +96,10 @@ function createDisabledSupabaseClient() {
 // WebSocket connections (Realtime) are NOT affected by global.fetch — they
 // continue to connect directly to Supabase, which is required since Workers
 // cannot proxy WebSocket upgrades.
+const ENTITY_ACCESS_RPC_PATH = "/rest/v1/rpc/current_entity_access_state";
+
 const customFetch = gatewayUrl
-  ? (input, init) => {
+  ? async (input, init) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       // Keep binary Storage traffic direct. The gateway intentionally limits
       // ordinary request bodies to 1 MB and parses them as text, while private
@@ -111,7 +113,34 @@ const customFetch = gatewayUrl
         return fetch(input, init);
       }
       const routed = url.replace(supabaseUrl, gatewayUrl);
-      return fetch(routed, init);
+      const isEntityAccessRpc =
+        parsedUrl.origin === new URL(supabaseUrl).origin &&
+        parsedUrl.pathname === ENTITY_ACCESS_RPC_PATH;
+
+      try {
+        const response = await fetch(routed, init);
+        if (!isEntityAccessRpc) return response;
+
+        // Entity access is an idempotent, authenticated status/claim RPC. If
+        // the proxy rejects the request or returns a non-JSON success body,
+        // retry this one endpoint directly against Supabase. The same JWT,
+        // grants and database function still enforce every access decision.
+        if (response.ok) {
+          try {
+            await response.clone().json();
+            return response;
+          } catch {
+            console.warn("[Supabase] gateway returned an invalid entity-access response; retrying directly.");
+          }
+        } else {
+          console.warn(`[Supabase] gateway entity-access request failed (${response.status}); retrying directly.`);
+        }
+        return fetch(url, init);
+      } catch (error) {
+        if (!isEntityAccessRpc) throw error;
+        console.warn("[Supabase] gateway entity-access request failed; retrying directly.", error);
+        return fetch(url, init);
+      }
     }
   : undefined;
 
