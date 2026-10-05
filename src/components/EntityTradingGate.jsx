@@ -23,6 +23,21 @@ export default function EntityTradingGate({ children }) {
       try {
         const access = await getEntityAccessState(session.user.id);
         if (!active) return;
+
+        // Entity access may be served from the short-lived client cache. Do not
+        // use its mfa_complete snapshot to decide whether this *current*
+        // session has completed MFA: a successful challenge upgrades the JWT
+        // to aal2 immediately while the earlier access snapshot can still say
+        // false. Read the active session's assurance level directly instead.
+        let currentAal = null;
+        if (access.membershipFound) {
+          const { data: assurance, error: assuranceError } =
+            await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (assuranceError) throw assuranceError;
+          if (!active) return;
+          currentAal = assurance?.currentLevel ?? null;
+        }
+
         // Narrow rollout exception: a frontend-first deployment can coexist
         // briefly with a genuinely missing table. Once the schema exists,
         // inability to verify onboarding fails closed instead of permitting a
@@ -30,7 +45,7 @@ export default function EntityTradingGate({ children }) {
         if (!access.schemaAvailable && !access.isAdmin) {
           console.warn("[EntityTradingGate] onboarding schema is not available yet");
           setState({ phase: "guest" });
-        } else if (access.membershipFound && !access.mfaComplete) {
+        } else if (access.membershipFound && currentAal !== "aal2") {
           setState({ phase: "mfa" });
         } else {
           setState({ phase: access.onboardingComplete ? "allowed" : "onboarding" });
