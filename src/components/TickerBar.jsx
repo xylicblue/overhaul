@@ -7,6 +7,7 @@ import { useReadContract } from "wagmi";
 import { SEPOLIA_CONTRACTS, MARKET_IDS } from "../contracts/addresses";
 import MarketRegistryABI from "../contracts/abis/MarketRegistry.json";
 import { supabase } from "../creatclient";
+import { TRADE_DEMO_MARKET_NAME, TRADE_H100_ONLY } from "../config/tradeDemoMode";
 import {
   ChevronDown,
   Search,
@@ -667,10 +668,11 @@ const TickerBar = () => {
   const { selectedMarket, selectMarket } = useMarket();
   const { markets }                      = useMarketsData({ includeOpenInterest: false });
 
-  const marketName =
-    typeof selectedMarket === "string"
+  const marketName = TRADE_H100_ONLY
+    ? TRADE_DEMO_MARKET_NAME
+    : typeof selectedMarket === "string"
       ? selectedMarket
-      : selectedMarket?.name || "H100-GPU-PERP";
+      : selectedMarket?.name || TRADE_DEMO_MARKET_NAME;
 
   const { data: marketData } = useMarketRealTimeData(marketName);
 
@@ -713,30 +715,34 @@ const TickerBar = () => {
         </span>
         <span className="text-[9px] font-semibold text-ink-faint bg-surface-2 px-1.5 py-0.5 rounded tracking-wider">PERP</span>
 
-        {/* Dedicated Switch button */}
-        <button
-          ref={buttonRef}
-          onClick={() => {
-            if (!isModalOpen && buttonRef.current) {
-              const rect = buttonRef.current.getBoundingClientRect();
-              setDropdownPosition({ top: rect.bottom + 6, left: rect.left });
-            }
-            setIsModalOpen(prev => !prev);
-          }}
-          className="flex items-center gap-1 px-2 py-1 rounded-md bg-surface-2 hover:bg-surface-3 text-ink-muted hover:text-ink text-[10px] font-medium tracking-wide transition-colors duration-150"
-        >
-          Switch
-          <ChevronDown size={10} className={`transition-transform duration-150 ${isModalOpen ? "rotate-180" : ""}`} />
-        </button>
+        {!TRADE_H100_ONLY && (
+          <>
+            {/* Dedicated Switch button */}
+            <button
+              ref={buttonRef}
+              onClick={() => {
+                if (!isModalOpen && buttonRef.current) {
+                  const rect = buttonRef.current.getBoundingClientRect();
+                  setDropdownPosition({ top: rect.bottom + 6, left: rect.left });
+                }
+                setIsModalOpen(prev => !prev);
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-md bg-surface-2 hover:bg-surface-3 text-ink-muted hover:text-ink text-[10px] font-medium tracking-wide transition-colors duration-150"
+            >
+              Switch
+              <ChevronDown size={10} className={`transition-transform duration-150 ${isModalOpen ? "rotate-180" : ""}`} />
+            </button>
 
-        <MarketSelectorModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSelect={selectMarket}
-          currentMarket={marketName}
-          position={dropdownPosition}
-          buttonRef={buttonRef}
-        />
+            <MarketSelectorModal
+              isOpen={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+              onSelect={selectMarket}
+              currentMarket={marketName}
+              position={dropdownPosition}
+              buttonRef={buttonRef}
+            />
+          </>
+        )}
       </div>
 
       {/* ── Mark price (Tier 1 — the hero number) ─────────────────────────── */}

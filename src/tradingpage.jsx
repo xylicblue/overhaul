@@ -5,6 +5,7 @@ import { MarketProvider } from "./marketcontext";
 import NetworkGuard from "./components/NetworkGuard";
 import WelcomeModal from "./components/WelcomeModal";
 import PageTransition from "./components/PageTransition";
+import { TRADE_DEMO_MARKET_NAME, TRADE_H100_ONLY } from "./config/tradeDemoMode";
 
 const TradingPage = () => {
   const [showWelcome, setShowWelcome] = useState(false);
@@ -28,7 +29,7 @@ const TradingPage = () => {
   return (
     <PageTransition className="flex flex-col h-full overflow-hidden relative">
       <NetworkGuard>
-        <MarketProvider>
+        <MarketProvider lockedMarket={TRADE_H100_ONLY ? TRADE_DEMO_MARKET_NAME : null}>
           <TradingDashboard onHelpClick={() => setShowWelcome(true)} />
         </MarketProvider>
       </NetworkGuard>

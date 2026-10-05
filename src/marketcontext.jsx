@@ -15,16 +15,20 @@ export const useMarket = () => {
 
 // MarketProvider: kept only for URL-param sync (?market=X)
 // No longer needed for state — any component can call useMarket() anywhere
-export const MarketProvider = ({ children }) => {
+export const MarketProvider = ({ children, lockedMarket = null }) => {
   const [searchParams] = useSearchParams();
   const selectMarket   = useMarketStore((s) => s.selectMarket);
 
   useEffect(() => {
+    if (lockedMarket) {
+      selectMarket(lockedMarket);
+      return;
+    }
     const marketParam = searchParams.get("market");
     if (marketParam && (AVAILABLE_MARKETS[marketParam] || getMarketByName(marketParam))) {
       selectMarket(marketParam);
     }
-  }, [searchParams, selectMarket]);
+  }, [lockedMarket, searchParams, selectMarket]);
 
   return children;
 };

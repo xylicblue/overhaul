@@ -17,6 +17,8 @@ import { useAuthModalStore } from "./stores/useAuthModalStore";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { getEntityAccessState } from "./services/entityOnboarding";
+import { AVAILABLE_MARKETS } from "./stores/useMarketStore";
+import { TRADE_DEMO_MARKET_NAME, TRADE_H100_ONLY } from "./config/tradeDemoMode";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OrderPanelGate — handles all three states of the right-side order panel
@@ -190,7 +192,13 @@ const OrderPanelGate = ({
 // TradingDashboard
 // ─────────────────────────────────────────────────────────────────────────────
 export const TradingDashboard = ({ onHelpClick }) => {
-  const { selectedMarket } = useMarket();
+  const { selectedMarket: storedSelectedMarket } = useMarket();
+  // Keep the restriction at the final Trade-page composition boundary as well
+  // as in the selector. Even a persisted market or non-H100 ?market= URL cannot
+  // reach the chart or order form while demo mode is enabled.
+  const selectedMarket = TRADE_H100_ONLY
+    ? AVAILABLE_MARKETS[TRADE_DEMO_MARKET_NAME]
+    : storedSelectedMarket;
   const [activeMobileTab, setActiveMobileTab] = useState("chart");
   const [drawerOpen, setDrawerOpen]           = useState(false);
   const [shouldBounce, setShouldBounce]       = useState(false);
