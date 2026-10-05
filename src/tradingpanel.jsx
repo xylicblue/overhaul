@@ -352,12 +352,7 @@ export const TradingPanel = ({ selectedMarket }) => {
   }, [leverageEnabled, marketId, maxSelectableLeverage]);
 
   // ── Calculations (memoised — only rerun when inputs actually change) ───────
-  const {
-    effectiveBalance, marketPrice, executionPrice,
-    maxSize, maxNotional, sizeNum, inputNum, sliderMax, sliderValue,
-    riskPrice, marginPriceSource, feeBps, liqPrice, isOverMax, invalidReason,
-    preview, amountLimit, protocolSize, targetMarginRaw, extraMarginRaw,
-  } = useMemo(() => {
+  const liveOrderCalc = useMemo(() => {
     const quoteFreeCollateralRaw = quoteValueRaw && quoteValueRaw > reservedMarginRaw
       ? quoteValueRaw - reservedMarginRaw
       : 0n;
@@ -456,6 +451,19 @@ export const TradingPanel = ({ selectedMarket }) => {
     position?.marginRaw, position?.entryPriceX18, orderInputMode, leverageEnabled, selectedTargetLeverage,
   ]);
 
+  // While an order is executing, keep showing the preview that was submitted.
+  // Once the open lands, the live preview would re-evaluate the same order on
+  // top of the new position and reduced free collateral (e.g. flashing
+  // "Insufficient quote collateral") even though nothing is wrong.
+  const frozenOrderCalcRef = useRef(null);
+  if (!isOrderExecuting) frozenOrderCalcRef.current = liveOrderCalc;
+  const {
+    effectiveBalance, marketPrice, executionPrice,
+    maxSize, maxNotional, sizeNum, inputNum, sliderMax, sliderValue,
+    riskPrice, marginPriceSource, feeBps, liqPrice, isOverMax, invalidReason,
+    preview, amountLimit, protocolSize, targetMarginRaw, extraMarginRaw,
+  } = isOrderExecuting && frozenOrderCalcRef.current ? frozenOrderCalcRef.current : liveOrderCalc;
+
   const saveSubmittedTrade = useCallback(async (submittedOrder, txHash) => {
     if (!address || !submittedOrder) return;
     await recordTradeWithRetry(
@@ -505,6 +513,55 @@ export const TradingPanel = ({ selectedMarket }) => {
     const riskPrice = markPrice > indexPrice ? markPrice : indexPrice;
     return { position: freshPosition, riskPrice };
   }, [publicClient, address, marketId]);
+
+  const readPositionNow = useCallback(async () => {
+    if (!publicClient || !address || !marketId) throw new Error("Position state is unavailable");
+    const result = await publicClient.readContract({
+      address: SEPOLIA_CONTRACTS.clearingHouse,
+      abi: ClearingHouseABI.abi,
+      functionName: "getPosition",
+      args: [address, marketId],
+    });
+    return normalizePositionResult(result);
+  }, [publicClient, address, marketId]);
+
+  // Resolves once a submitted transaction's effect is visible on-chain.
+  // Smart-account wallets (e.g. MetaMask's delegation relay) can return a hash
+  // that never gets a receipt because the call lands in a different relayed
+  // transaction, so the position is polled alongside the receipt and whichever
+  // confirms first wins. `isApplied(position)` detects the effect. Returns the
+  // updated position.
+  const waitForPositionUpdate = useCallback(async (hash, isApplied, { timeoutMs = 180_000, intervalMs = 2_000 } = {}) => {
+    let settled = false;
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const viaReceipt = publicClient.waitForTransactionReceipt({ hash, timeout: timeoutMs }).then(async (receipt) => {
+      if (receipt?.status === "reverted") throw new Error("Transaction reverted.");
+      return readPositionNow();
+    });
+
+    const viaPosition = (async () => {
+      const deadline = Date.now() + timeoutMs;
+      while (!settled && Date.now() < deadline) {
+        await sleep(intervalMs);
+        try {
+          const current = await readPositionNow();
+          if (isApplied(current)) return current;
+        } catch {
+          // Transient RPC failures are retried until the deadline.
+        }
+      }
+      throw new Error("Timed out waiting for the transaction to confirm.");
+    })();
+
+    try {
+      return await Promise.any([viaReceipt, viaPosition]);
+    } catch (aggregate) {
+      throw aggregate?.errors?.[0] || aggregate;
+    } finally {
+      settled = true;
+    }
+  }, [publicClient, readPositionNow]);
 
   const refreshConfirmedPosition = useCallback(async (minimumMarginRaw = 0n) => {
     const { snapshot } = await waitForPositionMargin({
@@ -643,6 +700,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         txActionText: side,
         deferOpenSuccess: true,
       };
+      const sizeBeforeOpen = (await readPositionNow()).size;
       toast.loading("Review order transaction in wallet...", { id: "trade" });
       openSubmittedHash = await openPosition(isLong, protocolSize, amountLimit);
 
@@ -650,31 +708,37 @@ export const TradingPanel = ({ selectedMarket }) => {
         throw new Error("Position submitted, but the app could not confirm the transaction.");
       }
 
-      // Request the margin transaction immediately after the open transaction.
-      // Waiting for the first receipt before requesting the second transaction
-      // causes some wallets to suppress the delayed prompt. Wallet nonces keep
-      // these transactions ordered on-chain.
-      if (extraMarginRaw > MARGIN_TOP_UP_DUST_X18) {
-        toast.loading("Review margin transaction in wallet...", { id: "trade" });
-        try {
-          marginSubmittedHash = await addMarginRaw(extraMarginRaw);
-        } catch (marginError) {
-          marginSubmissionError = marginError;
-        }
-      }
-
       toast.loading("Submitted, waiting for confirmation...", { id: "trade" });
-      const openReceipt = await publicClient.waitForTransactionReceipt({ hash: openSubmittedHash });
-      if (openReceipt?.status === "reverted") {
-        throw new Error("Position transaction reverted.");
-      }
+      const openedPosition = await waitForPositionUpdate(
+        openSubmittedHash,
+        (current) => current.size !== sizeBeforeOpen,
+      );
       openConfirmed = true;
 
-      if (marginSubmissionError) throw marginSubmissionError;
-      if (marginSubmittedHash) {
-        toast.loading("Applying target leverage...", { id: "trade" });
-        const marginReceipt = await publicClient.waitForTransactionReceipt({ hash: marginSubmittedHash });
-        if (marginReceipt?.status === "reverted") throw new Error("Margin adjustment reverted");
+      // The margin top-up is requested only after the open is on-chain. Sending
+      // it while the open is pending lets the wallet estimate it against
+      // pre-open state, so it can fail once the open consumes collateral. The
+      // top-up is sized from the confirmed on-chain margin.
+      if (extraMarginRaw > MARGIN_TOP_UP_DUST_X18) {
+        try {
+          const desiredMarginRaw = preview.finalMargin || targetMarginRaw || 0n;
+          const confirmedMarginRaw = openedPosition.margin;
+          const topUpRaw = desiredMarginRaw > confirmedMarginRaw ? desiredMarginRaw - confirmedMarginRaw : 0n;
+          if (topUpRaw > MARGIN_TOP_UP_DUST_X18) {
+            await simulateAddMarginRaw(topUpRaw);
+            toast.loading("Review margin transaction in wallet...", { id: "trade" });
+            marginSubmittedHash = await addMarginRaw(topUpRaw);
+            toast.loading("Applying target leverage...", { id: "trade" });
+            await waitForPositionUpdate(
+              marginSubmittedHash,
+              // Half the top-up tolerates funding settled inside addMargin.
+              (current) => current.margin >= confirmedMarginRaw + topUpRaw / 2n,
+            );
+          }
+        } catch (marginError) {
+          marginSubmissionError = marginError;
+          throw marginError;
+        }
       }
 
       void saveSubmittedTrade(submittedOpenOrderRef.current, openSubmittedHash).catch(() => {
@@ -716,7 +780,11 @@ export const TradingPanel = ({ selectedMarket }) => {
     } catch (err) {
       if (openSubmittedHash && openConfirmed) {
         setLastTx(openSubmittedHash, submittedOpenOrderRef.current?.txActionText || side);
-        toast.error("Margin transaction was not completed.", { id: "trade" });
+        void Promise.allSettled([refetchPosition?.(), refetchAllPositions?.()]);
+        const marginDiag = diagnoseOpenPositionError(marginSubmissionError || err, { marketName: market.name });
+        const message = `Position opened, but the leverage margin was not added: ${marginDiag.message} You can add margin from the position panel.`;
+        setPreflightError({ ...marginDiag, title: "Margin not added", message });
+        toast.error(message, { id: "trade", duration: 8000 });
       } else {
         const diag = diagnoseOpenPositionError(err, { marketName: market.name });
         setPreflightError(diag);
