@@ -93,12 +93,9 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
       return access;
     } catch (error) {
       console.warn("[ProfileDropdown] entity status check failed:", error.message);
-      setEntityAccess({
-        isAdmin: false,
-        onboardingComplete: false,
-        collectionComplete: false,
-        schemaAvailable: false,
-      });
+      // Keep the last verified state. A network or gateway failure must not
+      // turn an approved entity into an apparently incomplete applicant.
+      setEntityAccess((previous) => previous || { schemaAvailable: false });
       return null;
     }
   }, [session.user.id]);
@@ -123,15 +120,10 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
       })
       .catch((error) => {
         console.warn("[ProfileDropdown] entity status check failed:", error.message);
-        if (active) setEntityAccess({
-          isAdmin: false,
-          onboardingComplete: false,
-          collectionComplete: false,
-          schemaAvailable: false,
-        });
+        if (active) setEntityAccess((previous) => previous || { schemaAvailable: false });
       });
     return () => { active = false; };
-  }, [session.user.id, location.key]);
+  }, [session.user.id]);
 
   // Approval can happen while the client keeps an existing browser session
   // open. Refresh at natural interaction points so the dropdown does not keep
@@ -155,6 +147,8 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
     if (opening) refreshEntityAccess();
   };
 
+  const entityAccessLoading = entityAccess === null;
+  const entityAccessUnavailable = entityAccess?.schemaAvailable === false;
   const entityOnboardingComplete = entityAccess?.isAdmin === true || entityAccess?.onboardingComplete === true;
   const entityApplicationStatus = entityAccess?.application?.status;
   const entityReviewPending = entityAccess?.isAdmin !== true &&
@@ -287,23 +281,29 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
                 {/* KYC Chip */}
                 <div
                   className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                    entityReviewPending
+                    entityAccessLoading || entityAccessUnavailable
+                      ? "text-zinc-500 border-zinc-700/50 bg-zinc-800/30"
+                      : entityReviewPending
                       ? "text-amber-300/80 border-amber-400/15 bg-amber-400/[0.06]"
                       : entityOnboardingComplete && isVerified
                       ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/[0.08]"
                       : "text-zinc-500 border-zinc-700/50 bg-zinc-800/30 cursor-pointer hover:text-amber-400 hover:border-amber-500/20 hover:bg-amber-500/[0.06] transition-colors"
                   }`}
-                  onClick={entityReviewPending ? goToEntityOnboarding : !entityOnboardingComplete ? goToEntityOnboarding : !isVerified ? launchSumsubSDK : undefined}
-                  title={entityReviewPending ? "View entity verification status" : !entityOnboardingComplete ? "Complete entity onboarding" : isVerified ? "Identity verified" : "Click to verify identity"}
+                  onClick={entityAccessLoading || entityAccessUnavailable ? undefined : entityReviewPending ? goToEntityOnboarding : !entityOnboardingComplete ? goToEntityOnboarding : !isVerified ? launchSumsubSDK : undefined}
+                  title={entityAccessLoading ? "Checking entity access" : entityAccessUnavailable ? "Entity access is temporarily unavailable" : entityReviewPending ? "View entity verification status" : !entityOnboardingComplete ? "Complete entity onboarding" : isVerified ? "Identity verified" : "Click to verify identity"}
                 >
-                  {entityReviewPending ? (
+                  {entityAccessLoading ? (
+                    <CircleDot size={11} className="animate-pulse" />
+                  ) : entityAccessUnavailable ? (
+                    <ShieldAlert size={11} />
+                  ) : entityReviewPending ? (
                     <CircleDot size={11} />
                   ) : entityOnboardingComplete && isVerified ? (
                     <ShieldCheck size={11} />
                   ) : (
                     <ShieldAlert size={11} />
                   )}
-                  {entityReviewPending ? "Pending" : !entityOnboardingComplete ? "Onboard" : isVerified ? "KYC" : "Verify"}
+                  {entityAccessLoading ? "Checking" : entityAccessUnavailable ? "Unavailable" : entityReviewPending ? "Pending" : !entityOnboardingComplete ? "Onboard" : isVerified ? "KYC" : "Verify"}
                 </div>
               </div>
             </div>
@@ -312,7 +312,23 @@ const ProfileDropdown = ({ session, profile, onLogout }) => {
 
             {/* ── Wallet Section ──────────────────────────────────────── */}
             <div className="p-3">
-              {entityReviewPending ? (
+              {entityAccessLoading ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-4 py-2.5 text-center text-xs font-medium text-zinc-500"
+                >
+                  Checking account access…
+                </button>
+              ) : entityAccessUnavailable ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-4 py-2.5 text-center text-xs font-medium text-zinc-500"
+                >
+                  Account status temporarily unavailable
+                </button>
+              ) : entityReviewPending ? (
                 <button
                   onClick={goToEntityOnboarding}
                   className="w-full rounded-lg border border-amber-300/[0.12] bg-amber-300/[0.035] px-4 py-2.5 text-center text-xs font-medium text-amber-100/80 transition-colors duration-150 hover:border-amber-300/[0.2] hover:bg-amber-300/[0.065]"

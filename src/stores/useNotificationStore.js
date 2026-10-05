@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { supabase } from "../creatclient";
+import { isNotificationForUser } from "../utils/notificationAudience";
 
 const DEFAULT_PREFS = { enabled: true, types: ["info", "announcement", "warning"] };
 
@@ -95,10 +96,13 @@ export const useNotificationStore = create(
         .from("notifications")
         .select("*")
         .eq("is_active", true)
+        .or(`recipient_id.is.null,recipient_id.eq.${userId}`)
         .or("expires_at.is.null,expires_at.gt." + new Date().toISOString())
         .order("created_at", { ascending: false });
       if (!notifError && notifData) {
-        set({ allNotifications: notifData });
+        // Administrators can inspect every notification in the dedicated admin
+        // screen. Keep the ordinary notification bell scoped to its audience.
+        set({ allNotifications: notifData.filter((n) => isNotificationForUser(n, userId)) });
       }
 
       // Fetch read IDs
@@ -122,7 +126,11 @@ export const useNotificationStore = create(
           { event: "INSERT", schema: "public", table: "notifications" },
           (payload) => {
             const n = payload.new;
-            if (n.is_active && (!n.expires_at || new Date(n.expires_at) > new Date())) {
+            if (
+              isNotificationForUser(n, userId)
+              && n.is_active
+              && (!n.expires_at || new Date(n.expires_at) > new Date())
+            ) {
               set((s) => ({ allNotifications: [n, ...s.allNotifications] }));
             }
           }
@@ -132,11 +140,14 @@ export const useNotificationStore = create(
           { event: "UPDATE", schema: "public", table: "notifications" },
           (payload) => {
             const updated = payload.new;
-            set((s) => ({
-              allNotifications: updated.is_active
-                ? s.allNotifications.map((n) => (n.id === updated.id ? updated : n))
-                : s.allNotifications.filter((n) => n.id !== updated.id),
-            }));
+            set((s) => {
+              const remaining = s.allNotifications.filter((n) => n.id !== updated.id);
+              const visible =
+                isNotificationForUser(updated, userId)
+                && updated.is_active
+                && (!updated.expires_at || new Date(updated.expires_at) > new Date());
+              return { allNotifications: visible ? [updated, ...remaining] : remaining };
+            });
           }
         )
         .on(

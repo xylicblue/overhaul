@@ -678,7 +678,7 @@ const SharedLayout = () => {
           two-factor on any authenticated session before the app is usable. */}
       <div className="flex-1 pt-14 flex flex-col">
         <AccountGate session={session}>
-          <MfaGate session={session}>
+          <MfaGate session={session} showHeader={false}>
             {/* Wallet/profile synchronisation performs an authenticated profile
                 mutation. Mount it only after MFA has reached aal2 so the
                 server-side enforcement cannot race the login challenge. */}

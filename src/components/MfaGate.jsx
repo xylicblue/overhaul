@@ -18,7 +18,7 @@ import logo from "../assets/ByteStrikeLogoFinal.png";
 // Fail-open: if the status check throws (e.g. MFA not yet enabled in the Supabase
 // project), we render children. Enforcement activates once MFA is enabled and the
 // migration applied, so rolling this out cannot brick the app beforehand.
-export default function MfaGate({ session, children }) {
+export default function MfaGate({ session, children, showHeader = true }) {
   const [state, setState] = useState({ phase: "checking" }); // checking | ok | challenge | enroll | nudge | error
   const [dismissed, setDismissed] = useState(false);
 
@@ -58,15 +58,17 @@ export default function MfaGate({ session, children }) {
   if (state.phase === "enroll") {
     return (
       <main className="min-h-screen bg-[radial-gradient(circle_at_50%_-20%,rgba(71,102,255,0.15),transparent_34rem)] bg-[#070708] text-ink">
-        <header className="flex h-16 items-center justify-between border-b border-white/[0.07] bg-[#070708]/80 px-[30px] backdrop-blur-xl max-sm:px-[17px]">
-          <Link to="/" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#6377ed]/50" aria-label="Return to ByteStrike home">
-            <img src={logo} alt="ByteStrike" className="h-[31px] w-auto" />
-          </Link>
-          <div className="flex items-center gap-2 text-xs font-semibold text-ink-muted">
-            <ShieldCheck size={15} />
-            <span className="max-sm:hidden">Secure account setup</span>
-          </div>
-        </header>
+        {showHeader && (
+          <header className="flex h-16 items-center justify-between border-b border-white/[0.07] bg-[#070708]/80 px-[30px] backdrop-blur-xl max-sm:px-[17px]">
+            <Link to="/" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#6377ed]/50" aria-label="Return to ByteStrike home">
+              <img src={logo} alt="ByteStrike" className="h-[31px] w-auto" />
+            </Link>
+            <div className="flex items-center gap-2 text-xs font-semibold text-ink-muted">
+              <ShieldCheck size={15} />
+              <span className="max-sm:hidden">Secure account setup</span>
+            </div>
+          </header>
+        )}
 
         <div className="mx-auto grid w-[min(1060px,calc(100%-40px))] grid-cols-[270px_minmax(0,1fr)] items-start gap-16 py-14 max-md:w-[min(680px,calc(100%-28px))] max-md:grid-cols-1 max-md:gap-7 max-md:py-8">
           <aside className="pt-5 max-md:pt-0">

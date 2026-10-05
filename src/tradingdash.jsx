@@ -27,6 +27,7 @@ const OrderPanelGate = ({
   isConnected,
   isKycVerified,
   entityAccessLoading,
+  entityAccessUnavailable,
   entityOnboardingComplete,
   selectedMarket,
 }) => {
@@ -79,6 +80,29 @@ const OrderPanelGate = ({
   // The market and chart remain visible before onboarding, but order entry and
   // wallet connection stay unavailable. This also covers a wallet restored by
   // the browser from a previous session rather than connected through a button.
+  if (session && entityAccessUnavailable && !entityOnboardingComplete) {
+    return (
+      <>
+        <div className="px-3 py-2 border-b border-line bg-surface-2/40 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-medium text-ink-faint uppercase tracking-[0.14em]">Read only</span>
+            <span className="text-[11px] text-ink-muted leading-tight">Entity status is temporarily unavailable</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-white"
+          >
+            Retry
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 opacity-50 pointer-events-none select-none">
+          <TradingPanel selectedMarket={selectedMarket} />
+        </div>
+      </>
+    );
+  }
+
   if (session && (entityAccessLoading || !entityOnboardingComplete)) {
     return (
       <>
@@ -179,7 +203,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
   // "Connect wallet" strip can be swapped for a "Verify identity first"
   // prompt when the user has not completed KYC.
   const [isKycVerified, setIsKycVerified] = useState(false);
-  const [entityAccess, setEntityAccess] = useState({ loading: true, allowed: false });
+  const [entityAccess, setEntityAccess] = useState({ loading: true, allowed: false, unavailable: false });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -198,34 +222,45 @@ export const TradingDashboard = ({ onHelpClick }) => {
       .select("kyc_status")
       .eq("id", session.user.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return;
+        if (error) {
+          console.warn("[TradingDashboard] KYC status check failed; retaining previous state:", error.message);
+          return;
+        }
         const k = data?.kyc_status ?? "not_verified";
         setIsKycVerified(k === "verified" || k === "completed");
       });
     return () => { cancelled = true; };
-  }, [session]);
+  }, [session?.user?.id]);
 
   useEffect(() => {
     let cancelled = false;
     if (!session?.user?.id) {
-      setEntityAccess({ loading: false, allowed: false });
+      setEntityAccess({ loading: false, allowed: false, unavailable: false });
       return () => { cancelled = true; };
     }
 
-    setEntityAccess({ loading: true, allowed: false });
+    setEntityAccess({ loading: true, allowed: false, unavailable: false });
     getEntityAccessState(session.user.id)
       .then((access) => {
         if (!cancelled) {
           setEntityAccess({
             loading: false,
             allowed: access.isAdmin || access.onboardingComplete,
+            unavailable: access.schemaAvailable === false,
           });
         }
       })
       .catch((error) => {
         console.warn("[TradingDashboard] entity status check failed:", error.message);
-        if (!cancelled) setEntityAccess({ loading: false, allowed: false });
+        if (!cancelled) {
+          setEntityAccess((previous) => ({
+            loading: false,
+            allowed: previous.allowed,
+            unavailable: !previous.allowed,
+          }));
+        }
       });
 
     return () => { cancelled = true; };
@@ -433,6 +468,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
             isConnected={isConnected}
             isKycVerified={isKycVerified}
             entityAccessLoading={entityAccess.loading}
+            entityAccessUnavailable={entityAccess.unavailable}
             entityOnboardingComplete={entityAccess.allowed}
             selectedMarket={selectedMarket}
           />
@@ -455,6 +491,7 @@ export const TradingDashboard = ({ onHelpClick }) => {
                 isConnected={isConnected}
                 isKycVerified={isKycVerified}
                 entityAccessLoading={entityAccess.loading}
+                entityAccessUnavailable={entityAccess.unavailable}
                 entityOnboardingComplete={entityAccess.allowed}
                 selectedMarket={selectedMarket}
               />

@@ -1,4 +1,5 @@
 import { supabase } from "../creatclient";
+import { entityAccessFreshnessMs, normalizeEntityAccessState } from "../utils/entityAccessState";
 
 export const ENTITY_DOCUMENT_BUCKET = "entity-onboarding-documents";
 export const MAX_ENTITY_DOCUMENT_BYTES = 15 * 1024 * 1024;
@@ -46,34 +47,118 @@ export function isEntityOnboardingSchemaMissing(error) {
     /entity_applications.*(does not exist|schema cache)/i.test(error?.message || "");
 }
 
-export async function getEntityAccessState(userId) {
+function isEntityAccessFunctionMissing(error) {
+  return error?.code === "PGRST202" ||
+    /(could not find|does not exist).*current_entity_access_state/i.test(error?.message || "");
+}
+
+const ACCESS_CACHE_PREFIX = "bytestrike:entity-access:v1:";
+const ACCESS_STALE_IF_ERROR_MS = 30 * 60_000;
+const memoryAccessCache = new Map();
+const inflightAccessRequests = new Map();
+
+function readStoredAccess(userId) {
+  const memory = memoryAccessCache.get(userId);
+  if (memory) return memory;
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(`${ACCESS_CACHE_PREFIX}${userId}`) || "null");
+    if (!stored?.verifiedAt || !stored?.value) return null;
+    memoryAccessCache.set(userId, stored);
+    return stored;
+  } catch {
+    return null;
+  }
+}
+
+function storeAccess(userId, value) {
+  const entry = { value, verifiedAt: Date.now() };
+  memoryAccessCache.set(userId, entry);
+  if (typeof window !== "undefined") {
+    try {
+      window.sessionStorage.setItem(`${ACCESS_CACHE_PREFIX}${userId}`, JSON.stringify(entry));
+    } catch {
+      // Memory caching still prevents duplicate checks when storage is blocked.
+    }
+  }
+  return entry;
+}
+
+export function clearEntityAccessStateCache(userId = null) {
+  if (userId) memoryAccessCache.delete(userId);
+  else memoryAccessCache.clear();
+  if (typeof window === "undefined") return;
+  try {
+    if (userId) {
+      window.sessionStorage.removeItem(`${ACCESS_CACHE_PREFIX}${userId}`);
+      return;
+    }
+    for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.sessionStorage.key(index);
+      if (key?.startsWith(ACCESS_CACHE_PREFIX)) window.sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Cache invalidation must never interrupt logout or onboarding actions.
+  }
+}
+
+// A cache is valid only within the current authenticated session. Token
+// refreshes deliberately keep it, while an explicit sign-in/out starts clean
+// so a revoked membership cannot be inherited from an earlier session.
+if (typeof window !== "undefined") {
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+      clearEntityAccessStateCache();
+    }
+  });
+}
+
+export async function getEntityAccessState(userId, { forceRefresh = false } = {}) {
   if (!userId) throw new Error("Please sign in to continue.");
 
-  const { data, error } = await supabase.rpc("current_entity_access_state");
-  if (error) {
-    if (isEntityOnboardingSchemaMissing(error) || /current_entity_access_state/i.test(error.message || "")) {
-      return {
-        isAdmin: false,
-        onboardingComplete: false,
-        collectionComplete: false,
-        application: null,
-        schemaAvailable: false,
-      };
-    }
-    throw new Error(error.message || "Could not verify entity onboarding status.");
+  const cached = readStoredAccess(userId);
+  const cacheAge = cached ? Date.now() - cached.verifiedAt : Number.POSITIVE_INFINITY;
+  if (!forceRefresh && cached && cacheAge < entityAccessFreshnessMs(cached.value)) {
+    return { ...cached.value, cacheStatus: "fresh", lastVerifiedAt: cached.verifiedAt };
   }
 
-  return {
-    isAdmin: data?.is_admin === true,
-    onboardingComplete: data?.onboarding_complete === true,
-    collectionComplete: data?.collection_complete === true,
-    application: data?.application || null,
-    schemaAvailable: data?.schema_available !== false,
-    membershipFound: data?.membership_found === true,
-    mfaComplete: data?.mfa_complete === true,
-    memberType: data?.member_type || null,
-    entityRoles: data?.entity_roles || [],
-  };
+  if (inflightAccessRequests.has(userId)) return inflightAccessRequests.get(userId);
+
+  const request = (async () => {
+    const { data, error } = await supabase.rpc("current_entity_access_state");
+    if (error) {
+      // A previously verified approval is safer UX than converting a timeout,
+      // gateway throttle or transient PostgREST failure into "not onboarded".
+      // Sensitive writes continue to re-check access server-side.
+      if (cached && cacheAge < ACCESS_STALE_IF_ERROR_MS &&
+          (cached.value.isAdmin || cached.value.onboardingComplete)) {
+        console.warn("[EntityAccess] using last verified access after refresh failure:", error.message);
+        return { ...cached.value, cacheStatus: "stale", lastVerifiedAt: cached.verifiedAt };
+      }
+      if (isEntityOnboardingSchemaMissing(error) || isEntityAccessFunctionMissing(error)) {
+        return {
+          isAdmin: false,
+          onboardingComplete: false,
+          collectionComplete: false,
+          application: null,
+          schemaAvailable: false,
+          membershipFound: false,
+          mfaComplete: false,
+          cacheStatus: "unavailable",
+        };
+      }
+      throw new Error(error.message || "Could not verify entity onboarding status.");
+    }
+
+    const value = normalizeEntityAccessState(data);
+    const entry = storeAccess(userId, value);
+    return { ...value, cacheStatus: "verified", lastVerifiedAt: entry.verifiedAt };
+  })().finally(() => {
+    inflightAccessRequests.delete(userId);
+  });
+
+  inflightAccessRequests.set(userId, request);
+  return request;
 }
 
 async function currentUser() {
