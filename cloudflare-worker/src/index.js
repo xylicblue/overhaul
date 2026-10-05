@@ -77,19 +77,6 @@ function classifyRequest(pathname, method) {
   return "read";
 }
 
-async function isWalletLinkRequest(request, pathname) {
-  if (pathname !== "/functions/v1/api-profile" || request.method !== "POST") {
-    return false;
-  }
-
-  try {
-    const body = await request.clone().json();
-    return body?.action === "get-wallet-link-nonce" || body?.action === "update-wallet";
-  } catch {
-    return false;
-  }
-}
-
 const CACHEABLE_TABLES = [
   "price_data", "b200_index_prices", "h200_index_prices", "a100_index_prices",
   "t4_index_prices", "h100_non_hyperscalers_perp_prices", "h100_hyperscalers_perp_prices",
@@ -268,32 +255,24 @@ async function handleRequest(request, env, ctx, requestId) {
     return fetch(wsUrl.toString(), { headers: request.headers, method: request.method });
   }
 
-  // Wallet linking already requires a verified Supabase session, AAL2, an
-  // approved entity/admin check and a one-time wallet signature in api-profile.
-  // Do not place those two actions in the shared per-IP write bucket: routine
-  // background writes or users behind one public IP must not block a wallet
-  // challenge or disconnect. All other routes retain their existing limits.
-  const bypassSharedRateLimit = await isWalletLinkRequest(request, url.pathname);
-  let rl = { allowed: true, remaining: null };
-  if (!bypassSharedRateLimit) {
-    const clientIP     = request.headers.get("CF-Connecting-IP") || "unknown";
-    const tier         = classifyRequest(url.pathname, method);
-    const rateLimitKey = `${clientIP}:${tier}`;
-    rl                 = await checkRateLimit(rateLimitKey, tier, kv);
+  // Rate limiting
+  const clientIP     = request.headers.get("CF-Connecting-IP") || "unknown";
+  const tier         = classifyRequest(url.pathname, method);
+  const rateLimitKey = `${clientIP}:${tier}`;
+  const rl           = await checkRateLimit(rateLimitKey, tier, kv);
 
-    if (!rl.allowed) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again later." }), {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          ...SECURITY_HEADERS,
-          "Content-Type": "application/json",
-          "Retry-After":          String(rl.retryAfter || 60),
-          "X-RateLimit-Remaining": "0",
-          "X-Request-ID":          requestId,
-        },
-      });
-    }
+  if (!rl.allowed) {
+    return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again later." }), {
+      status: 429,
+      headers: {
+        ...corsHeaders,
+        ...SECURITY_HEADERS,
+        "Content-Type": "application/json",
+        "Retry-After":          String(rl.retryAfter || 60),
+        "X-RateLimit-Remaining": "0",
+        "X-Request-ID":          requestId,
+      },
+    });
   }
 
   const supabaseUrl = env.SUPABASE_URL;
@@ -364,11 +343,7 @@ async function handleRequest(request, env, ctx, requestId) {
   const responseHeaders = new Headers(proxyResponse.headers);
   for (const [k, v] of Object.entries(corsHeaders))     responseHeaders.set(k, v);
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) responseHeaders.set(k, v);
-  if (rl.remaining === null) {
-    responseHeaders.delete("X-RateLimit-Remaining");
-  } else {
-    responseHeaders.set("X-RateLimit-Remaining", String(rl.remaining));
-  }
+  responseHeaders.set("X-RateLimit-Remaining", String(rl.remaining));
   responseHeaders.set("X-Cache",      "MISS");
   responseHeaders.set("X-Request-ID", requestId);
   responseHeaders.delete("access-control-allow-origin");

@@ -102,41 +102,13 @@ export function clearEntityAccessStateCache(userId = null) {
   }
 }
 
-function sessionIdFromAccessToken(accessToken) {
-  if (!accessToken || typeof window === "undefined") return null;
-  try {
-    const encoded = accessToken.split(".")[1];
-    if (!encoded) return null;
-    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/")
-      .padEnd(Math.ceil(encoded.length / 4) * 4, "=");
-    return JSON.parse(window.atob(base64))?.session_id || null;
-  } catch {
-    return null;
-  }
-}
-
-// A cache is valid only within the current authenticated session. Supabase may
-// emit SIGNED_IN when an existing session is re-established (for example on
-// tab focus), so clear only when the actual session changes or signs out.
-// Token refreshes keep the same session_id and deliberately preserve access.
+// A cache is valid only within the current authenticated session. Token
+// refreshes deliberately keep it, while an explicit sign-in/out starts clean
+// so a revoked membership cannot be inherited from an earlier session.
 if (typeof window !== "undefined") {
-  let activeAuthSessionId = null;
-  supabase.auth.onAuthStateChange((event, session) => {
-    const nextSessionId = sessionIdFromAccessToken(session?.access_token);
-    if (event === "INITIAL_SESSION") {
-      activeAuthSessionId = nextSessionId;
-      return;
-    }
-    if (event === "SIGNED_OUT") {
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
       clearEntityAccessStateCache();
-      activeAuthSessionId = null;
-      return;
-    }
-    if (event === "SIGNED_IN") {
-      if (activeAuthSessionId && nextSessionId && activeAuthSessionId !== nextSessionId) {
-        clearEntityAccessStateCache();
-      }
-      activeAuthSessionId = nextSessionId || activeAuthSessionId;
     }
   });
 }

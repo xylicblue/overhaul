@@ -1,5 +1,5 @@
 // src/Web3AuthHandler.js
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { supabase } from "./creatclient";
 import { updateWallet, getWalletLinkNonce } from "./services/api";
@@ -30,21 +30,15 @@ const Web3AuthHandler = () => {
   const { address, isConnected, isDisconnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { disconnect } = useDisconnect();
-  const [userId, setUserId] = useState(null);
+  const userIdRef = useRef(null);
   // F-11: avoid re-prompting the user for a signature every render cycle.
   // Once we successfully linked `address`, remember it so a re-mount of this
   // handler with the same wagmi state doesn't fire another wallet-sign popup.
   const linkedAddressRef = useRef(null);
-  const linkingAddressRef = useRef(null);
   const onboardingBlockedAddressRef = useRef(null);
   // KYC guard: remember the last address we refused so we don't repeatedly
   // toast the same error while wagmi keeps re-firing the connect event.
   const kycBlockedAddressRef = useRef(null);
-  // A wallet provider reports "connected" before ByteStrike has accepted the
-  // wallet for this profile. Rejected provisional connections must be torn
-  // down without also clearing a previously approved profile wallet.
-  const suppressNextProfileUnlinkRef = useRef(false);
-  const wasConnectedRef = useRef(isConnected);
 
   useEffect(() => {
     const getUserId = async () => {
@@ -52,42 +46,21 @@ const Web3AuthHandler = () => {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        setUserId(user.id);
+        userIdRef.current = user.id;
       }
     };
     getUserId();
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const rejectProvisionalConnection = () => {
-      linkedAddressRef.current = null;
-      linkingAddressRef.current = null;
-      suppressNextProfileUnlinkRef.current = true;
-      try { disconnect(); } catch { /* ignore */ }
-    };
-
     const updateUserProfile = async () => {
-      // getUser() is asynchronous. Keeping the ID in React state ensures this
-      // effect runs again if the wallet connected before authentication had
-      // finished resolving (the first-login race that previously left a
-      // rejected wallet visibly connected).
-      if (!userId) return;
+      if (!userIdRef.current) return;
 
-      if (isConnected && address) {
-        wasConnectedRef.current = true;
-        const normalizedAddress = address.toLowerCase();
-        if (
-          linkedAddressRef.current === normalizedAddress ||
-          linkingAddressRef.current === normalizedAddress
-        ) return;
-        linkingAddressRef.current = normalizedAddress;
-
+      if (isConnected && address && linkedAddressRef.current !== address) {
         // Entity collection precedes KYC and wallet linking. Check it even for
         // provider-restored sessions, not only explicit Connect button clicks.
         try {
-          const access = await getEntityAccessState(userId);
+          const access = await getEntityAccessState(userIdRef.current);
           if (!access.isAdmin && !access.onboardingComplete) {
             if (onboardingBlockedAddressRef.current !== address) {
               onboardingBlockedAddressRef.current = address;
@@ -96,13 +69,13 @@ const Web3AuthHandler = () => {
                 { id: "wallet-onboarding-required" },
               );
             }
-            rejectProvisionalConnection();
+            try { disconnect(); } catch { /* ignore */ }
             return;
           }
           onboardingBlockedAddressRef.current = null;
         } catch (error) {
           console.warn("Could not verify entity onboarding before wallet link:", error);
-          rejectProvisionalConnection();
+          try { disconnect(); } catch { /* ignore */ }
           return;
         }
 
@@ -110,7 +83,7 @@ const Web3AuthHandler = () => {
         // reject anyway. Also tear down the wagmi connection so the browser
         // does not report a "connected" wallet that the profile does not
         // acknowledge.
-        const kyc = await fetchKycStatus(userId);
+        const kyc = await fetchKycStatus(userIdRef.current);
         if (!isKycVerified(kyc)) {
           if (kycBlockedAddressRef.current !== address) {
             kycBlockedAddressRef.current = address;
@@ -119,7 +92,7 @@ const Web3AuthHandler = () => {
               { id: "wallet-kyc-required" },
             );
           }
-          rejectProvisionalConnection();
+          try { disconnect(); } catch { /* ignore */ }
           return;
         }
         kycBlockedAddressRef.current = null;
@@ -130,10 +103,8 @@ const Web3AuthHandler = () => {
           const { message } = await getWalletLinkNonce(address, "ethereum");
           const signature = await signMessageAsync({ message });
           await updateWallet(address, { signature, chain: "ethereum" });
-          if (!cancelled) {
-            linkedAddressRef.current = normalizedAddress;
-            toast.success("Wallet connected!");
-          }
+          linkedAddressRef.current = address;
+          toast.success("Wallet connected!");
         } catch (e) {
           console.warn("Failed to link wallet:", e);
           // Suppress the "wallet already linked to another account" toast:
@@ -141,32 +112,21 @@ const Web3AuthHandler = () => {
           // used across multiple Supabase logins, and the message is more
           // alarming than helpful. Still logged to the console for debugging.
           const msg = e?.message || "";
-          // Any failed challenge/signature/profile write means ByteStrike did
-          // not accept this connection. Tear down the provisional wagmi state
-          // immediately; this is especially important for an entity wallet
-          // rejected by the declared-and-screened-address control.
-          rejectProvisionalConnection();
+          // The wallet provider can report a connection before the server has
+          // accepted the wallet for this account. If Compliance has not
+          // approved and screened this exact entity wallet, tear down that
+          // browser connection so it cannot be mistaken for a tradable one.
+          if (/not an approved and screened wallet/i.test(msg)) {
+            linkedAddressRef.current = null;
+            try { disconnect(); } catch { /* ignore */ }
+          }
           if (!/already linked to another account/i.test(msg)) {
             toast.error(msg || "Failed to link wallet.");
           }
-        } finally {
-          linkingAddressRef.current = null;
         }
       }
 
       if (isDisconnected) {
-        // Ignore the initial disconnected render and the disconnect generated
-        // by a rejected provisional link. Neither represents a user asking to
-        // unlink an accepted wallet from their ByteStrike profile.
-        if (!wasConnectedRef.current) return;
-        wasConnectedRef.current = false;
-        if (suppressNextProfileUnlinkRef.current) {
-          suppressNextProfileUnlinkRef.current = false;
-          linkedAddressRef.current = null;
-          linkingAddressRef.current = null;
-          return;
-        }
-
         toast.success("Wallet disconnected.");
         console.log("Wallet disconnected. Removing address from profile...");
         try {
@@ -179,8 +139,7 @@ const Web3AuthHandler = () => {
     };
 
     updateUserProfile();
-    return () => { cancelled = true; };
-  }, [address, isConnected, isDisconnected, signMessageAsync, disconnect, userId]);
+  }, [address, isConnected, isDisconnected, signMessageAsync, disconnect]);
 
   // This component renders nothing. It just handles logic in the background.
   return null;
