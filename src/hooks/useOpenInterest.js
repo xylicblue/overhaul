@@ -175,7 +175,7 @@ export function useMarketsOpenInterest(markets = getActiveMarkets()) {
     [activeMarkets]
   );
 
-  const { data, isLoading, error } = useReadContracts({
+  const { data, dataUpdatedAt, isLoading, error } = useReadContracts({
     contracts,
     query: {
       enabled: contracts.length > 0,
@@ -187,7 +187,10 @@ export function useMarketsOpenInterest(markets = getActiveMarkets()) {
     if (!data || data.length === 0) return;
 
     const nextEntries = {};
-    const timestamp = Date.now();
+    // dataUpdatedAt advances on every successful refetch, even when the values
+    // are unchanged (wagmi keeps the same `data` reference in that case).
+    // Keying on it keeps unchanged OI fresh instead of letting it expire.
+    const timestamp = dataUpdatedAt || Date.now();
     activeMarkets.forEach((market, index) => {
       const longResult = data[index * 3];
       const shortResult = data[index * 3 + 1];
@@ -230,7 +233,7 @@ export function useMarketsOpenInterest(markets = getActiveMarkets()) {
       ...prev,
       ...nextEntries,
     }));
-  }, [activeMarkets, data]);
+  }, [activeMarkets, data, dataUpdatedAt]);
 
   const openInterestByMarket = useMemo(
     () => valuesFromEntries(cachedEntries),

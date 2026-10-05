@@ -6,7 +6,7 @@ import { useOraclePrice } from "./hooks/useOracle";
 import { useMarketOpenInterest, useMarketsOpenInterest } from "./hooks/useOpenInterest";
 import { useRegistryMarket, useRegistryMarkets } from "./hooks/useRegistryMarkets";
 import { DEFAULT_MARKET_KEY, getActiveMarkets, getMarketByName } from "./contracts/addresses";
-import { getMarketStat24h } from "./services/api";
+import { getMarketStat24h, getMarketStats24h } from "./services/api";
 import VAMMABI from "./contracts/abis/vAMM.json";
 
 const SEPOLIA_CHAIN_ID = 11155111;
@@ -208,16 +208,26 @@ export const useMarketsData = ({ includeOpenInterest = true } = {}) => {
   useEffect(() => {
     let cancelled = false;
     async function fetchStats() {
-      const entries = await Promise.all(
-        DEPLOYED_MARKETS.map(async (market) => {
-          try {
-            return [market.marketId, await getMarketStat24h(market.marketId)];
-          } catch {
-            return [market.marketId, null];
-          }
-        })
+      // One request returns every market's stats; fetching per market fired a
+      // burst of identical requests that could fail intermittently.
+      let allStats;
+      try {
+        allStats = await getMarketStats24h();
+      } catch {
+        return; // keep the last good values
+      }
+      const byId = new Map(
+        (allStats || []).map((stat) => [stat.market_id?.toLowerCase(), stat])
       );
-      if (!cancelled) setStatsByMarket(Object.fromEntries(entries));
+      if (cancelled) return;
+      setStatsByMarket((prev) => {
+        const next = { ...prev };
+        DEPLOYED_MARKETS.forEach((market) => {
+          const stat = byId.get(market.marketId?.toLowerCase());
+          if (stat) next[market.marketId] = stat;
+        });
+        return next;
+      });
     }
 
     fetchStats();
@@ -297,7 +307,9 @@ export const useMarketRealTimeData = (marketName) => {
     const fetch24hStats = async () => {
       try {
         const stats = await getMarketStat24h(marketId);
-        if (!cancelled) setStats24h(stats);
+        // A failed or empty poll keeps the last good stats rather than
+        // flashing $0.00 until the next poll.
+        if (!cancelled && stats) setStats24h(stats);
       } catch (error) {
         console.error("Error fetching 24h stats:", error);
       }
