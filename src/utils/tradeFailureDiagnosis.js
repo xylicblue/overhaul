@@ -184,6 +184,11 @@ export function diagnoseOpenPositionError(error, { marketName } = {}) {
     return { severity: "info", title: "Cancelled", message: "Transaction cancelled in wallet." };
   }
 
+  // Wallet nonce behind the chain (seen with MetaMask smart-account relays).
+  if (normalized.includes("nonce too low")) {
+    return { severity: "error", title: "Wallet Out of Sync", message: "Your wallet used an outdated transaction number. Wait a few seconds and try again. If it repeats, clear activity data in MetaMask (Settings > Advanced)." };
+  }
+
   // Confirmation-wait outcomes raised by the order panel itself.
   if (normalized.includes("mined but did not take effect")) {
     return { severity: "error", title: "Transaction Failed", message: "The transaction was mined but had no effect. It most likely reverted or ran out of gas." };

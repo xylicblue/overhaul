@@ -520,15 +520,26 @@ export const TradingPanel = ({ selectedMarket }) => {
   // batching as "ready". For them the open and the margin top-up go out as one
   // batched transaction: one approval, wallet-sized gas for the whole batch,
   // and no half-completed order. Other wallets keep the two-step flow.
+  // "supported" means the wallet would first upgrade the account; that is only
+  // accepted when the account already carries EIP-7702 delegation code, so an
+  // ordinary EOA is never pushed into an account upgrade by an order.
   const getAtomicBatchWallet = useCallback(async () => {
     if (!walletClient || !address) return null;
     try {
       const capabilities = await walletClient.getCapabilities({ account: address, chainId: 11155111 });
-      return capabilities?.atomic?.status === "ready" ? walletClient : null;
-    } catch {
+      const status = capabilities?.atomic?.status;
+      console.info("[order] wallet atomic batching capability:", status ?? "none", capabilities);
+      if (status === "ready") return walletClient;
+      if (status === "supported" && publicClient) {
+        const code = await publicClient.getCode({ address });
+        if (code?.toLowerCase().startsWith("0xef0100")) return walletClient;
+      }
+      return null;
+    } catch (error) {
+      console.info("[order] wallet capabilities unavailable:", error?.shortMessage || error?.message);
       return null;
     }
-  }, [walletClient, address]);
+  }, [walletClient, address, publicClient]);
 
   const sendOpenWithMarginBatch = useCallback(async (batchWallet, { isLong: long, size: orderSize, limit, marginRaw }) => {
     const sizeWei = parseUnits(String(orderSize), 18);
@@ -831,7 +842,16 @@ export const TradingPanel = ({ selectedMarket }) => {
               // nonce is never mistaken for a failed margin transaction.
               const nonceBeforeMargin = await nonceWhere((p) => p.size === openedPosition.size);
               toast.loading("Review margin transaction in wallet...", { id: "trade" });
-              marginSubmittedHash = await addMarginRaw(topUpRaw);
+              try {
+                marginSubmittedHash = await addMarginRaw(topUpRaw);
+              } catch (sendError) {
+                // Smart-account relays can leave the wallet's local nonce behind
+                // the chain after the open. Retry once after the wallet resyncs.
+                if (!/nonce too low/i.test(`${sendError?.message} ${sendError?.details}`)) throw sendError;
+                toast.loading("Wallet nonce out of sync, review the margin transaction again...", { id: "trade" });
+                await new Promise((resolve) => setTimeout(resolve, 4_000));
+                marginSubmittedHash = await addMarginRaw(topUpRaw);
+              }
               toast.loading("Applying target leverage...", { id: "trade" });
               await waitForPositionUpdate(
                 marginSubmittedHash,
