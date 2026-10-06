@@ -66,7 +66,7 @@ const OPEN_ERROR_MAP = {
     message:  "This market's index price is currently unavailable. Trading will resume after the oracle updates.",
   },
   CuOracleAdapter_PriceZero:              { severity: "error", title: "Oracle Price Unavailable", message: "This market's index price is currently unavailable. Trading will resume after the oracle updates." },
-  CuOracleAdapter_PriceStale:             { severity: "error", title: "Oracle Price Stale",       message: "This market's index price is stale. Trading will resume after the oracle updates." },
+  CuOracleAdapter_PriceStale:             { severity: "error", title: "Oracle Price Stale",       message: "An index price is more than 12 hours old, either for this market or for another market where you hold a position. Opening, closing and withdrawing are blocked until that price updates." },
   MultiAssetOracleAdapter_PriceZero:      { severity: "error", title: "Oracle Price Unavailable", message: "This market's index price is currently unavailable." },
   MultiAssetOracleAdapter_PriceStale:     { severity: "error", title: "Oracle Price Stale",       message: "This market's index price is stale. Trading will resume after the oracle updates." },
   ChainlinkOracle_ZeroPrice:              { severity: "error", title: "Oracle Price Unavailable", message: "This market's index price is currently unavailable." },
@@ -184,7 +184,24 @@ export function diagnoseOpenPositionError(error, { marketName } = {}) {
     return { severity: "info", title: "Cancelled", message: "Transaction cancelled in wallet." };
   }
 
-  // 2. Network / RPC
+  // 2. Protocol custom error. A decoded revert is definitive, so it is checked
+  // before the network heuristic: viem revert messages often mention "RPC".
+  const protocolErrorName = extractProtocolErrorName(text);
+  if (protocolErrorName && OPEN_ERROR_MAP[protocolErrorName]) {
+    const template = OPEN_ERROR_MAP[protocolErrorName];
+    // Substitute {market} placeholder if marketName is provided
+    const message = marketName
+      ? template.message.replace("{market}", marketName)
+      : template.message.replace(" in {market}", "").replace(" on {market}", "");
+    return {
+      ...template,
+      message,
+      protocolErrorName,
+      marketName,
+    };
+  }
+
+  // 3. Network / RPC
   if (
     normalized.includes("network error") ||
     normalized.includes("failed to fetch") ||
@@ -196,7 +213,7 @@ export function diagnoseOpenPositionError(error, { marketName } = {}) {
     return { severity: "error", title: "Network Error", message: "Network or RPC error. Please check Sepolia and try again." };
   }
 
-  // 3. Gas
+  // 4. Gas
   if (
     normalized.includes("insufficient funds for gas") ||
     normalized.includes("insufficient funds") ||
@@ -206,7 +223,7 @@ export function diagnoseOpenPositionError(error, { marketName } = {}) {
     return { severity: "error", title: "Not Enough ETH", message: "Not enough Sepolia ETH to pay gas for this transaction." };
   }
 
-  // 4. vAMM string errors (from require statements inside the AMM)
+  // 5. vAMM string errors (from require statements inside the AMM)
   if (normalized.includes("swaps paused")) {
     return { severity: "error", title: "Trading Paused", message: "Trading is paused for this market." };
   }
@@ -225,22 +242,6 @@ export function diagnoseOpenPositionError(error, { marketName } = {}) {
   }
   if (normalized.includes("stale") && (normalized.includes("oracle") || normalized.includes("price"))) {
     return { severity: "error", title: "Oracle Price Stale", message: "This market's index price is stale. Trading will resume after the oracle updates." };
-  }
-
-  // 5. Protocol custom error
-  const protocolErrorName = extractProtocolErrorName(text);
-  if (protocolErrorName && OPEN_ERROR_MAP[protocolErrorName]) {
-    const template = OPEN_ERROR_MAP[protocolErrorName];
-    // Substitute {market} placeholder if marketName is provided
-    const message = marketName
-      ? template.message.replace("{market}", marketName)
-      : template.message.replace(" in {market}", "").replace(" on {market}", "");
-    return {
-      ...template,
-      message,
-      protocolErrorName,
-      marketName,
-    };
   }
 
   // 6. Generic receipt revert
