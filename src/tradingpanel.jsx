@@ -531,37 +531,59 @@ export const TradingPanel = ({ selectedMarket }) => {
   // transaction, so the position is polled alongside the receipt and whichever
   // confirms first wins. `isApplied(position)` detects the effect. Returns the
   // updated position.
-  const waitForPositionUpdate = useCallback(async (hash, isApplied, { timeoutMs = 180_000, intervalMs = 2_000 } = {}) => {
-    let settled = false;
+  // `nonceBefore` is the wallet's mined nonce before the transaction was sent.
+  // Once the nonce moves past it but the effect is still missing over several
+  // polls, the transaction was mined and failed (e.g. reverted or ran out of
+  // gas); smart-account relays may never return a matching receipt for it.
+  const waitForPositionUpdate = useCallback((hash, isApplied, { nonceBefore, timeoutMs = 180_000, intervalMs = 2_000 } = {}) => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    let settled = false;
 
-    const viaReceipt = publicClient.waitForTransactionReceipt({ hash, timeout: timeoutMs }).then(async (receipt) => {
-      if (receipt?.status === "reverted") throw new Error("Transaction reverted.");
-      return readPositionNow();
-    });
+    return new Promise((resolve, reject) => {
+      const finish = (fn) => (value) => {
+        if (settled) return;
+        settled = true;
+        fn(value);
+      };
+      const succeed = finish(resolve);
+      const fail = finish(reject);
 
-    const viaPosition = (async () => {
-      const deadline = Date.now() + timeoutMs;
-      while (!settled && Date.now() < deadline) {
-        await sleep(intervalMs);
-        try {
-          const current = await readPositionNow();
-          if (isApplied(current)) return current;
-        } catch {
-          // Transient RPC failures are retried until the deadline.
+      // A matching receipt settles the wait either way. A receipt timeout or
+      // lookup error is ignored: the position poll owns the deadline.
+      publicClient.waitForTransactionReceipt({ hash, timeout: timeoutMs }).then(
+        (receipt) => (receipt?.status === "reverted"
+          ? fail(new Error("Transaction reverted."))
+          : readPositionNow().then(succeed, () => {})),
+        () => {},
+      );
+
+      (async () => {
+        const deadline = Date.now() + timeoutMs;
+        let minedWithoutEffect = 0;
+        while (!settled && Date.now() < deadline) {
+          await sleep(intervalMs);
+          let current;
+          let minedNonce;
+          try {
+            current = await readPositionNow();
+            if (nonceBefore != null) {
+              minedNonce = await publicClient.getTransactionCount({ address, blockTag: "latest" });
+            }
+          } catch {
+            continue; // transient RPC failure, retry until the deadline
+          }
+          if (isApplied(current)) return succeed(current);
+          if (minedNonce != null) {
+            minedWithoutEffect = minedNonce > nonceBefore ? minedWithoutEffect + 1 : 0;
+            if (minedWithoutEffect >= 4) {
+              return fail(new Error("The transaction was mined but did not take effect. It most likely reverted or ran out of gas."));
+            }
+          }
         }
-      }
-      throw new Error("Timed out waiting for the transaction to confirm.");
-    })();
-
-    try {
-      return await Promise.any([viaReceipt, viaPosition]);
-    } catch (aggregate) {
-      throw aggregate?.errors?.[0] || aggregate;
-    } finally {
-      settled = true;
-    }
-  }, [publicClient, readPositionNow]);
+        fail(new Error("Timed out waiting for the transaction to confirm."));
+      })();
+    });
+  }, [publicClient, readPositionNow, address]);
 
   const refreshConfirmedPosition = useCallback(async (minimumMarginRaw = 0n) => {
     const { snapshot } = await waitForPositionMargin({
@@ -701,6 +723,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         deferOpenSuccess: true,
       };
       const sizeBeforeOpen = (await readPositionNow()).size;
+      const nonceBeforeOpen = await publicClient.getTransactionCount({ address, blockTag: "latest" });
       toast.loading("Review order transaction in wallet...", { id: "trade" });
       openSubmittedHash = await openPosition(isLong, protocolSize, amountLimit);
 
@@ -712,6 +735,7 @@ export const TradingPanel = ({ selectedMarket }) => {
       const openedPosition = await waitForPositionUpdate(
         openSubmittedHash,
         (current) => current.size !== sizeBeforeOpen,
+        { nonceBefore: nonceBeforeOpen },
       );
       openConfirmed = true;
 
@@ -726,6 +750,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           const topUpRaw = desiredMarginRaw > confirmedMarginRaw ? desiredMarginRaw - confirmedMarginRaw : 0n;
           if (topUpRaw > MARGIN_TOP_UP_DUST_X18) {
             await simulateAddMarginRaw(topUpRaw);
+            const nonceBeforeMargin = await publicClient.getTransactionCount({ address, blockTag: "latest" });
             toast.loading("Review margin transaction in wallet...", { id: "trade" });
             marginSubmittedHash = await addMarginRaw(topUpRaw);
             toast.loading("Applying target leverage...", { id: "trade" });
@@ -733,6 +758,7 @@ export const TradingPanel = ({ selectedMarket }) => {
               marginSubmittedHash,
               // Half the top-up tolerates funding settled inside addMargin.
               (current) => current.margin >= confirmedMarginRaw + topUpRaw / 2n,
+              { nonceBefore: nonceBeforeMargin },
             );
           }
         } catch (marginError) {

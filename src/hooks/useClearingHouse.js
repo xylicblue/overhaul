@@ -205,6 +205,22 @@ export function useAccountValue(userAddress = null) {
 }
 
 /**
+ * Gas limit with headroom for ClearingHouse writes. Smart-account wallets
+ * (e.g. MetaMask's delegation relay) add their own overhead on top of the
+ * call, and their estimates have left addMargin out of gas. Returns undefined
+ * when estimation fails so the wallet falls back to its own estimate.
+ */
+async function bufferedGas(publicClient, account, request) {
+  if (!publicClient || !account) return undefined;
+  try {
+    const estimate = await publicClient.estimateContractGas({ ...request, account });
+    return (estimate * 3n) / 2n + 150_000n;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Open a position (long or short)
  * @param {string} marketId - Market ID
  */
@@ -238,6 +254,8 @@ export function useOpenPosition(marketId) {
       args: [marketId, isLong, sizeWei, amountLimitWei],
       chainId: SEPOLIA_CHAIN_ID,
     };
+    const gas = await bufferedGas(publicClient, address, request);
+    if (gas) request.gas = gas;
 
     if (writeContractAsync) {
       return writeContractAsync(request);
@@ -363,6 +381,8 @@ export function useAddMargin(marketId) {
       args: [marketId, rawAmount],
       chainId: SEPOLIA_CHAIN_ID,
     };
+    const gas = await bufferedGas(publicClient, address, request);
+    if (gas) request.gas = gas;
 
     if (writeContractAsync) {
       return writeContractAsync(request);
