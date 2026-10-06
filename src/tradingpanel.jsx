@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTradingStore } from "./stores/useTradingStore";
 import ReactDOM from "react-dom";
 import { toast } from "react-hot-toast";
-import { useAccount, usePublicClient, useReadContract } from "wagmi";
+import { useAccount, usePublicClient, useReadContract, useWalletClient } from "wagmi";
+import { encodeFunctionData } from "viem";
 import { parseUnits } from "ethers";
 import { recordTradeWithRetry } from "./services/tradeQueue";
 import { useMarketRealTimeData } from "./marketData";
@@ -219,6 +220,7 @@ export const TradingPanel = ({ selectedMarket }) => {
           resetOrder, setLastTx } = useTradingStore();
   const { address }               = useAccount();
   const publicClient              = usePublicClient({ chainId: 11155111 });
+  const { data: walletClient }    = useWalletClient({ chainId: 11155111 });
 
   const marketId                 = selectedMarket?.marketId || selectedMarket?.id || MARKET_IDS[selectedMarket?.name] || MARKET_IDS["H100-GPU-PERP"];
   const { riskParams }           = useMarketRiskParams(marketId);
@@ -514,16 +516,82 @@ export const TradingPanel = ({ selectedMarket }) => {
     return { position: freshPosition, riskPrice };
   }, [publicClient, address, marketId]);
 
-  const readPositionNow = useCallback(async () => {
+  // Smart accounts that are already upgraded (MetaMask EIP-7702) report atomic
+  // batching as "ready". For them the open and the margin top-up go out as one
+  // batched transaction: one approval, wallet-sized gas for the whole batch,
+  // and no half-completed order. Other wallets keep the two-step flow.
+  const getAtomicBatchWallet = useCallback(async () => {
+    if (!walletClient || !address) return null;
+    try {
+      const capabilities = await walletClient.getCapabilities({ account: address, chainId: 11155111 });
+      return capabilities?.atomic?.status === "ready" ? walletClient : null;
+    } catch {
+      return null;
+    }
+  }, [walletClient, address]);
+
+  const sendOpenWithMarginBatch = useCallback(async (batchWallet, { isLong: long, size: orderSize, limit, marginRaw }) => {
+    const sizeWei = parseUnits(String(orderSize), 18);
+    const limitWei = typeof limit === "bigint" ? limit : parseUnits(String(limit || 0), 18);
+    const calls = [
+      {
+        to: SEPOLIA_CONTRACTS.clearingHouse,
+        data: encodeFunctionData({ abi: ClearingHouseABI.abi, functionName: "openPosition", args: [marketId, long, sizeWei, limitWei] }),
+      },
+      {
+        to: SEPOLIA_CONTRACTS.clearingHouse,
+        data: encodeFunctionData({ abi: ClearingHouseABI.abi, functionName: "addMargin", args: [marketId, marginRaw] }),
+      },
+    ];
+    const { id } = await batchWallet.sendCalls({ account: address, calls, forceAtomic: true });
+    let result;
+    try {
+      result = await batchWallet.waitForCallsStatus({ id, timeout: 180_000 });
+    } catch {
+      throw new Error("Timed out waiting for the transaction to confirm.");
+    }
+    if (result.status === "failure") throw new Error("Transaction reverted.");
+    if (result.status !== "success") throw new Error("Timed out waiting for the transaction to confirm.");
+    return result.receipts?.[0]?.transactionHash || null;
+  }, [address, marketId]);
+
+  const readPositionNow = useCallback(async (blockNumber) => {
     if (!publicClient || !address || !marketId) throw new Error("Position state is unavailable");
     const result = await publicClient.readContract({
       address: SEPOLIA_CONTRACTS.clearingHouse,
       abi: ClearingHouseABI.abi,
       functionName: "getPosition",
       args: [address, marketId],
+      ...(blockNumber != null ? { blockNumber } : {}),
     });
     return normalizePositionResult(result);
   }, [publicClient, address, marketId]);
+
+  // Position and mined nonce read at one block height, so the two always
+  // describe the same chain state even when RPC nodes are at different heights.
+  const readAccountSnapshot = useCallback(async () => {
+    const blockNumber = await publicClient.getBlockNumber();
+    const [position, nonce] = await Promise.all([
+      readPositionNow(blockNumber),
+      publicClient.getTransactionCount({ address, blockNumber }),
+    ]);
+    return { position, nonce };
+  }, [publicClient, readPositionNow, address]);
+
+  // Mined nonce at a block where `matches(position)` holds. Used as the
+  // baseline for detecting a mined transaction that had no effect.
+  const nonceWhere = useCallback(async (matches, attempts = 10) => {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        const { position, nonce } = await readAccountSnapshot();
+        if (matches(position)) return nonce;
+      } catch {
+        // retry
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+    }
+    return null; // no reliable baseline: fall back to receipt and timeout only
+  }, [readAccountSnapshot]);
 
   // Resolves once a submitted transaction's effect is visible on-chain.
   // Smart-account wallets (e.g. MetaMask's delegation relay) can return a hash
@@ -565,9 +633,10 @@ export const TradingPanel = ({ selectedMarket }) => {
           let current;
           let minedNonce;
           try {
-            current = await readPositionNow();
             if (nonceBefore != null) {
-              minedNonce = await publicClient.getTransactionCount({ address, blockTag: "latest" });
+              ({ position: current, nonce: minedNonce } = await readAccountSnapshot());
+            } else {
+              current = await readPositionNow();
             }
           } catch {
             continue; // transient RPC failure, retry until the deadline
@@ -583,7 +652,7 @@ export const TradingPanel = ({ selectedMarket }) => {
         fail(new Error("Timed out waiting for the transaction to confirm."));
       })();
     });
-  }, [publicClient, readPositionNow, address]);
+  }, [publicClient, readPositionNow, readAccountSnapshot]);
 
   const refreshConfirmedPosition = useCallback(async (minimumMarginRaw = 0n) => {
     const { snapshot } = await waitForPositionMargin({
@@ -722,48 +791,59 @@ export const TradingPanel = ({ selectedMarket }) => {
         txActionText: side,
         deferOpenSuccess: true,
       };
-      const sizeBeforeOpen = (await readPositionNow()).size;
-      const nonceBeforeOpen = await publicClient.getTransactionCount({ address, blockTag: "latest" });
-      toast.loading("Review order transaction in wallet...", { id: "trade" });
-      openSubmittedHash = await openPosition(isLong, protocolSize, amountLimit);
+      const { position: positionBeforeOpen, nonce: nonceBeforeOpen } = await readAccountSnapshot();
+      const sizeBeforeOpen = positionBeforeOpen.size;
+      const batchWallet = extraMarginRaw > MARGIN_TOP_UP_DUST_X18 ? await getAtomicBatchWallet() : null;
+      if (batchWallet) {
+        toast.loading("Review order in wallet (one approval for order and margin)...", { id: "trade" });
+        openSubmittedHash = await sendOpenWithMarginBatch(batchWallet, {
+          isLong, size: protocolSize, limit: amountLimit, marginRaw: extraMarginRaw,
+        });
+        openConfirmed = true;
+      } else {
+        toast.loading("Review order transaction in wallet...", { id: "trade" });
+        openSubmittedHash = await openPosition(isLong, protocolSize, amountLimit);
 
-      if (!openSubmittedHash || !publicClient) {
-        throw new Error("Position submitted, but the app could not confirm the transaction.");
-      }
+        if (!openSubmittedHash || !publicClient) {
+          throw new Error("Position submitted, but the app could not confirm the transaction.");
+        }
 
-      toast.loading("Submitted, waiting for confirmation...", { id: "trade" });
-      const openedPosition = await waitForPositionUpdate(
-        openSubmittedHash,
-        (current) => current.size !== sizeBeforeOpen,
-        { nonceBefore: nonceBeforeOpen },
-      );
-      openConfirmed = true;
+        toast.loading("Submitted, waiting for confirmation...", { id: "trade" });
+        const openedPosition = await waitForPositionUpdate(
+          openSubmittedHash,
+          (current) => current.size !== sizeBeforeOpen,
+          { nonceBefore: nonceBeforeOpen },
+        );
+        openConfirmed = true;
 
-      // The margin top-up is requested only after the open is on-chain. Sending
-      // it while the open is pending lets the wallet estimate it against
-      // pre-open state, so it can fail once the open consumes collateral. The
-      // top-up is sized from the confirmed on-chain margin.
-      if (extraMarginRaw > MARGIN_TOP_UP_DUST_X18) {
-        try {
-          const desiredMarginRaw = preview.finalMargin || targetMarginRaw || 0n;
-          const confirmedMarginRaw = openedPosition.margin;
-          const topUpRaw = desiredMarginRaw > confirmedMarginRaw ? desiredMarginRaw - confirmedMarginRaw : 0n;
-          if (topUpRaw > MARGIN_TOP_UP_DUST_X18) {
-            await simulateAddMarginRaw(topUpRaw);
-            const nonceBeforeMargin = await publicClient.getTransactionCount({ address, blockTag: "latest" });
-            toast.loading("Review margin transaction in wallet...", { id: "trade" });
-            marginSubmittedHash = await addMarginRaw(topUpRaw);
-            toast.loading("Applying target leverage...", { id: "trade" });
-            await waitForPositionUpdate(
-              marginSubmittedHash,
-              // Half the top-up tolerates funding settled inside addMargin.
-              (current) => current.margin >= confirmedMarginRaw + topUpRaw / 2n,
-              { nonceBefore: nonceBeforeMargin },
-            );
+        // The margin top-up is requested only after the open is on-chain. Sending
+        // it while the open is pending lets the wallet estimate it against
+        // pre-open state, so it can fail once the open consumes collateral. The
+        // top-up is sized from the confirmed on-chain margin.
+        if (extraMarginRaw > MARGIN_TOP_UP_DUST_X18) {
+          try {
+            const desiredMarginRaw = preview.finalMargin || targetMarginRaw || 0n;
+            const confirmedMarginRaw = openedPosition.margin;
+            const topUpRaw = desiredMarginRaw > confirmedMarginRaw ? desiredMarginRaw - confirmedMarginRaw : 0n;
+            if (topUpRaw > MARGIN_TOP_UP_DUST_X18) {
+              await simulateAddMarginRaw(topUpRaw);
+              // Baseline taken where the open is already visible, so the open's own
+              // nonce is never mistaken for a failed margin transaction.
+              const nonceBeforeMargin = await nonceWhere((p) => p.size === openedPosition.size);
+              toast.loading("Review margin transaction in wallet...", { id: "trade" });
+              marginSubmittedHash = await addMarginRaw(topUpRaw);
+              toast.loading("Applying target leverage...", { id: "trade" });
+              await waitForPositionUpdate(
+                marginSubmittedHash,
+                // Half the top-up tolerates funding settled inside addMargin.
+                (current) => current.margin >= confirmedMarginRaw + topUpRaw / 2n,
+                { nonceBefore: nonceBeforeMargin },
+              );
+            }
+          } catch (marginError) {
+            marginSubmissionError = marginError;
+            throw marginError;
           }
-        } catch (marginError) {
-          marginSubmissionError = marginError;
-          throw marginError;
         }
       }
 
@@ -791,9 +871,11 @@ export const TradingPanel = ({ selectedMarket }) => {
             {submittedOpenOrderRef.current?.sideLabel || "Position"} opened
             {leverageEnabled ? ` at ${selectedTargetLeverage}×.` : "."}
           </div>
-          <a href={getSepoliaTxUrl(openSubmittedHash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
-            View on Etherscan
-          </a>
+          {openSubmittedHash && (
+            <a href={getSepoliaTxUrl(openSubmittedHash)} target="_blank" rel="noopener noreferrer" className="underline text-sm">
+              View on Etherscan
+            </a>
+          )}
         </div>,
         { id: "trade", duration: 5000 }
       );

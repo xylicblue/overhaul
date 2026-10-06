@@ -184,6 +184,17 @@ export function diagnoseOpenPositionError(error, { marketName } = {}) {
     return { severity: "info", title: "Cancelled", message: "Transaction cancelled in wallet." };
   }
 
+  // Confirmation-wait outcomes raised by the order panel itself.
+  if (normalized.includes("mined but did not take effect")) {
+    return { severity: "error", title: "Transaction Failed", message: "The transaction was mined but had no effect. It most likely reverted or ran out of gas." };
+  }
+  if (normalized.includes("timed out waiting for the transaction")) {
+    return { severity: "warning", title: "Not Confirmed Yet", message: "The transaction has not confirmed after 3 minutes. Check your wallet activity before retrying." };
+  }
+  if (normalized.includes("transaction reverted.")) {
+    return { severity: "error", title: "Transaction Reverted", message: "The transaction reverted on-chain." };
+  }
+
   // 2. Protocol custom error. A decoded revert is definitive, so it is checked
   // before the network heuristic: viem revert messages often mention "RPC".
   const protocolErrorName = extractProtocolErrorName(text);
