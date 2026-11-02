@@ -28,6 +28,8 @@ import {
   screenEntityWallets,
 } from "../services/api";
 import { createOnboardingDocumentPreview } from "../services/entityOnboarding";
+import EntityComplianceControls, { ComplianceEvidencePanel } from "./EntityComplianceControls";
+import { loadEntityExtendedContext } from "../services/entityCompliance";
 
 const FACTORS = [
   ["source_of_funds", "Source of funds"],
@@ -88,7 +90,7 @@ const formatDate = (value) => {
 };
 
 async function fetchEntityReviewContext(applicationId) {
-  const [contextResult, decisionResult] = await Promise.all([
+  const [contextResult, decisionResult, extendedResult] = await Promise.all([
     supabase.rpc("admin_entity_risk_context", { p_application_id: applicationId }),
     supabase
       .from("entity_application_decisions")
@@ -97,12 +99,17 @@ async function fetchEntityReviewContext(applicationId) {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    loadEntityExtendedContext(applicationId).catch((error) => {
+      if (error?.code === "PGRST202" || /admin_entity_extended_context/i.test(error?.message || "")) return {};
+      throw error;
+    }),
   ]);
   if (contextResult.error) throw contextResult.error;
   if (decisionResult.error) throw decisionResult.error;
   return {
     ...contextResult.data,
     latest_compliance_decision: decisionResult.data || null,
+    extended: extendedResult || {},
   };
 }
 
@@ -142,6 +149,7 @@ export default function EntityRiskReview({ standalone = false }) {
   const [result, setResult] = useState(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [workspaceTab, setWorkspaceTab] = useState("risk");
   const [adjustDerived, setAdjustDerived] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const [openingDocumentId, setOpeningDocumentId] = useState("");
@@ -274,13 +282,17 @@ export default function EntityRiskReview({ standalone = false }) {
     ["Entity phone", context.application.entity_phone],
     ["Primary contact", context.application.primary_contact_legal_name],
     ["Primary contact phone", context.application.primary_contact_phone],
-    ["Stock exchange", context.application.listed_on_stock_exchange ? context.application.stock_exchange_name || "Listed" : "Not listed"],
+    ["Stock exchange", context.application.listed_on_stock_exchange
+      ? [context.application.stock_exchange_name, context.application.stock_exchange_ticker].filter(Boolean).join(" · ") || "Listed"
+      : "Not listed"],
     ["Financial institution", context.application.is_financial_institution ? titleCase(context.application.financial_institution_type || "Yes") : "No"],
     ["Regulatory registration", context.application.regulatory_registration_number],
     ["Competent authority", context.application.competent_authority],
   ].filter(([, value]) => value && value !== "Not available") : [];
+  const backgroundScreeningsReady = (context?.extended?.background_screenings || [])
+    .every((screening) => screening.status === "completed");
   const canAssess = ["submitted", "under_review", "approved"].includes(context?.application?.status) &&
-    context?.application?.identity_verification_status === "completed";
+    context?.application?.identity_verification_status === "completed" && backgroundScreeningsReady;
   const assessmentIsCurrent = Boolean(
     latestAssessment?.assessed_at &&
     (!context?.application?.submitted_at || new Date(latestAssessment.assessed_at) >= new Date(context.application.submitted_at)),
@@ -347,7 +359,11 @@ export default function EntityRiskReview({ standalone = false }) {
       return;
     }
     if (context?.application?.identity_verification_status !== "completed") {
-      setError("Identity verification must be completed for the primary contact and every connected person before risk is calculated.");
+      setError("Required biometric checks and background screenings must be complete before risk is calculated.");
+      return;
+    }
+    if (!backgroundScreeningsReady) {
+      setError("Complete every queued background screening before calculating risk.");
       return;
     }
     if (!form || FACTORS.some(([factor]) => !form[factor]) || !/^\d{4}$/.test(form.isicCode)) {
@@ -381,9 +397,12 @@ export default function EntityRiskReview({ standalone = false }) {
         p_wallet_key: form.wallet,
         p_isic_code: form.isicCode,
         p_gate_keys: form.gateKeys,
-        p_gate_evidence: form.complianceNotes.trim()
-          ? { compliance_notes: form.complianceNotes.trim() }
-          : {},
+        p_gate_evidence: {
+          ...(form.complianceNotes.trim() ? { compliance_notes: form.complianceNotes.trim() } : {}),
+          ...((context.extended?.compliance_documents || []).length
+            ? { supporting_document_ids: context.extended.compliance_documents.map((document) => document.id) }
+            : {}),
+        },
         p_manual_score_override: form.manualScore === "" ? null : Number(form.manualScore),
         p_manual_override_reason: form.manualScore === "" ? null : form.manualReason.trim(),
       });
@@ -475,6 +494,13 @@ export default function EntityRiskReview({ standalone = false }) {
     }
   };
 
+  const refreshSelectedContext = useCallback(async () => {
+    if (!selectedId) return;
+    const nextContext = await fetchEntityReviewContext(selectedId);
+    setContext(nextContext);
+    setForm((current) => current ? { ...initialForm(nextContext), complianceNotes: current.complianceNotes } : initialForm(nextContext));
+  }, [selectedId]);
+
   const renderGate = (gate, emphasis = "neutral") => {
     const isBlock = gate.action === "BLOCK";
     const tone = emphasis === "finding"
@@ -520,8 +546,8 @@ export default function EntityRiskReview({ standalone = false }) {
             <ShieldCheck className="h-4 w-4" />
             Entity Compliance
           </div>
-          <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-ink">Application review</h2>
-          <p className="mt-1.5 text-[13px] leading-5 text-ink-faint">Review evidence, confirm risk signals, and record an auditable decision.</p>
+          <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-ink">Customer profiles &amp; risk</h2>
+          <p className="mt-1.5 text-[13px] leading-5 text-ink-faint">Retrieve applicants and approved customers, review evidence, and maintain an auditable risk record.</p>
         </div>
         <div className="flex items-center gap-2 text-[11px] text-ink-faint">
           <span>{queue.length} applications</span>
@@ -545,8 +571,8 @@ export default function EntityRiskReview({ standalone = false }) {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search applications"
-                aria-label="Search entity applications"
+                placeholder="Search customer profiles"
+                aria-label="Search entity customer profiles"
                 className="h-11 w-full rounded-xl border border-line bg-surface-1 pl-10 pr-3 text-[13px] text-ink outline-none placeholder:text-ink-ghost focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10"
               />
             </div>
@@ -566,7 +592,7 @@ export default function EntityRiskReview({ standalone = false }) {
             </div>
           </div>
           <div className="mb-2 flex items-center justify-between px-2">
-            <p className="text-[11px] font-semibold text-ink-muted">Applications</p>
+            <p className="text-[11px] font-semibold text-ink-muted">Customer profiles</p>
             <span className="text-[10px] text-ink-ghost">{filteredQueue.length}</span>
           </div>
           {filteredQueue.length === 0 && !loading ? (
@@ -575,7 +601,10 @@ export default function EntityRiskReview({ standalone = false }) {
             <button
               type="button"
               key={item.application_id}
-              onClick={() => setSelectedId(item.application_id)}
+              onClick={() => {
+                if (item.application_id !== selectedId) setWorkspaceTab("risk");
+                setSelectedId(item.application_id);
+              }}
               className={`group mb-1.5 flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all ${selectedId === item.application_id ? "border-blue-500/25 bg-blue-500/[0.08]" : "border-transparent hover:border-line-subtle hover:bg-surface-2/70"}`}
             >
               <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[13px] font-semibold ${selectedId === item.application_id ? "bg-blue-500/15 text-blue-300" : "bg-surface-2 text-ink-muted"}`}>
@@ -603,13 +632,13 @@ export default function EntityRiskReview({ standalone = false }) {
           {loading && !context ? (
             <div className="flex h-full min-h-[520px] items-center justify-center gap-3 text-[13px] text-ink-faint">
               <RefreshCw className="h-4 w-4 animate-spin" />
-              Loading application…
+              Loading customer profile…
             </div>
           ) : !context || !form ? (
             <div className="flex h-full min-h-[520px] flex-col items-center justify-center text-center">
               <Building2 className="h-7 w-7 text-ink-ghost" />
-              <p className="mt-4 text-[15px] font-medium text-ink-muted">Select an application</p>
-              <p className="mt-1 text-[12px] text-ink-faint">Choose an entity from the list to begin the review.</p>
+              <p className="mt-4 text-[15px] font-medium text-ink-muted">Select a customer</p>
+              <p className="mt-1 text-[12px] text-ink-faint">Choose an entity to review its application and ongoing profile.</p>
             </div>
           ) : (
             <div>
@@ -647,6 +676,35 @@ export default function EntityRiskReview({ standalone = false }) {
                   )}
                 </div>
 
+                <div
+                  className="mb-7 flex w-full max-w-[420px] rounded-xl border border-line-subtle bg-surface-0/55 p-1"
+                  role="tablist"
+                  aria-label="Application workspace"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={workspaceTab === "risk"}
+                    onClick={() => setWorkspaceTab("risk")}
+                    className={`flex h-9 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-[11px] font-semibold transition-all ${workspaceTab === "risk" ? "bg-surface-2 text-ink shadow-[0_1px_8px_rgba(0,0,0,0.22)]" : "text-ink-faint hover:text-ink-muted"}`}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Risk assessment
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={workspaceTab === "profile"}
+                    onClick={() => setWorkspaceTab("profile")}
+                    className={`flex h-9 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-[11px] font-semibold transition-all ${workspaceTab === "profile" ? "bg-surface-2 text-ink shadow-[0_1px_8px_rgba(0,0,0,0.22)]" : "text-ink-faint hover:text-ink-muted"}`}
+                  >
+                    <Building2 className="h-3.5 w-3.5" />
+                    Customer profile
+                  </button>
+                </div>
+
+                {workspaceTab === "risk" ? (
+                  <>
                 {Boolean(context.derived_inputs?.warnings?.length || context.derived_inputs?.missing?.length) && (
                   <div className="mb-6 flex items-start gap-3 rounded-2xl border border-warn/20 bg-warn/[0.05] px-4 py-3.5">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
@@ -963,7 +1021,11 @@ export default function EntityRiskReview({ standalone = false }) {
                             <p className="truncate text-[12px] font-medium text-ink-muted">{person.full_name}</p>
                             <p className="mt-0.5 truncate text-[10px] text-ink-faint">{(person.roles || []).map(titleCase).join(", ")}</p>
                           </div>
-                          <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${person.sumsub_review_status === "approved" ? "bg-up/[0.08] text-up" : "bg-warn/[0.08] text-warn"}`}>{titleCase(person.sumsub_review_status)}</span>
+                          <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${(person.will_trade_on_platform ? person.sumsub_review_status === "approved" : person.background_screening_status === "completed") ? "bg-up/[0.08] text-up" : "bg-warn/[0.08] text-warn"}`}>
+                            {person.will_trade_on_platform
+                              ? `Biometric · ${titleCase(person.sumsub_review_status)}`
+                              : `Background · ${titleCase(person.background_screening_status)}`}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -985,6 +1047,13 @@ export default function EntityRiskReview({ standalone = false }) {
                     placeholder="Evidence reviewed, findings, and rationale"
                   />
                 </label>
+
+                <ComplianceEvidencePanel
+                  applicationId={context.application.id}
+                  documents={context.extended?.compliance_documents || []}
+                  purpose={form.manualScore !== "" ? "risk_override" : "review_evidence"}
+                  onRefresh={refreshSelectedContext}
+                />
 
                 <details className="group mt-4 rounded-xl border border-line-subtle bg-surface-1/50">
                   <summary className="flex cursor-pointer list-none items-center justify-between px-3.5 py-3 text-[11px] font-medium text-ink-muted">
@@ -1019,7 +1088,7 @@ export default function EntityRiskReview({ standalone = false }) {
                   type="button"
                   onClick={createAssessment}
                   disabled={saving || !canAssess}
-                  title={!canAssess ? "Submit the application and complete every identity verification first." : undefined}
+                  title={!canAssess ? "Submit the application and complete all required biometric and background checks first." : undefined}
                   className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-[13px] font-semibold text-black shadow-[0_8px_30px_rgba(255,255,255,0.08)] transition-all hover:bg-white/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {saving
@@ -1028,6 +1097,8 @@ export default function EntityRiskReview({ standalone = false }) {
                       ? "Awaiting submission"
                       : context.application.identity_verification_status !== "completed"
                         ? "Awaiting identity checks"
+                      : !backgroundScreeningsReady
+                        ? "Awaiting background checks"
                       : context.assessments?.length ? "Create assessment revision" : "Calculate risk"}
                   {!saving && canAssess && <ChevronRight className="h-4 w-4" />}
                 </button>
@@ -1177,7 +1248,7 @@ export default function EntityRiskReview({ standalone = false }) {
                           </details>
                           {decisionMode === "approve" && (
                             <p className="mt-2.5 text-[9px] leading-4 text-ink-faint">
-                              Approval activates email-bound entity memberships for the representative and every connected person.
+                              Approval activates email-bound membership for the representative and connected people designated as platform users.
                             </p>
                           )}
                           <div className="mt-3 flex gap-2">
@@ -1213,6 +1284,10 @@ export default function EntityRiskReview({ standalone = false }) {
                 </section>
               </aside>
             </div>
+                  </>
+                ) : (
+                  <EntityComplianceControls context={context} onRefresh={refreshSelectedContext} />
+                )}
             </div>
           )}
         </div>

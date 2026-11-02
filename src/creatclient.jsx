@@ -12,6 +12,7 @@ const supabaseUrl  = normalizeUrl(import.meta.env.VITE_SUPABASE_URL || import.me
 const gatewayUrl   = normalizeUrl(import.meta.env.VITE_API_GATEWAY_URL);
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_PUBLIC_KEY;
 const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+const useGateway = Boolean(gatewayUrl && !import.meta.env.DEV);
 
 if (import.meta.env.PROD) {
   for (const [name, value] of [["VITE_SUPABASE_URL", supabaseUrl], ["VITE_API_GATEWAY_URL", gatewayUrl]]) {
@@ -96,7 +97,7 @@ function createDisabledSupabaseClient() {
 // WebSocket connections (Realtime) are NOT affected by global.fetch — they
 // continue to connect directly to Supabase, which is required since Workers
 // cannot proxy WebSocket upgrades.
-const customFetch = gatewayUrl
+const customFetch = useGateway
   ? (input, init) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       // Keep binary Storage traffic direct. The gateway intentionally limits

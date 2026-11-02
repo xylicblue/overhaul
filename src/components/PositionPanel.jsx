@@ -22,6 +22,7 @@ import { recordTradeWithRetry } from "../services/tradeQueue";
 import { formatTransactionError, getSepoliaTxUrl } from "../utils/transactionErrors";
 import { absolutePositionSize, closePresetSize, formatPositionSize } from "../utils/positionSize";
 import { calculateCloseSettlementPreview, calculatePostFundingMargin } from "../utils/positionMetrics";
+import { assertEntityTransactionAllowed } from "../services/entityRestrictions";
 
 const hasOpenPositionData = (data) => {
   if (!data) return false;
@@ -271,6 +272,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
     setIsCloseSubmitting(true);
     setCloseInlineError("");
     try {
+      await assertEntityTransactionAllowed("close_position");
       const closeAmountRaw = parseUnits(closeAmount.toString(), 18);
       const submittedClosedSize = parseFloat(closeAmount);
       const closePrice          = currentPrice || entryPrice;
@@ -331,6 +333,7 @@ function PositionRow({ position, closingPosition, setClosingPosition, closeSize,
     setIsAddMarginSubmitting(true);
     setAddMarginInlineError("");
     try {
+      await assertEntityTransactionAllowed("margin_change");
       const latestPosition  = await refetchLivePosition?.();
       const stillHasPosition = latestPosition?.data
         ? hasOpenPositionData(latestPosition.data)

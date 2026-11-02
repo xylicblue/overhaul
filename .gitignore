@@ -46,6 +46,12 @@ scripts/stop_cron_job.sql
 scripts/test_edge_function.js
 scripts/verify_prices.js
 supabase/
+!supabase/
+supabase/*
+!supabase/migrations/
+supabase/migrations/*
+!supabase/migrations/20261015163521_complete_entity_live_monitoring_controls.sql
+!supabase/migrations/20261015163709_schedule_entity_monitoring_screenings.sql
 b200.md
 h100.md
 SYSTEM_OVERVIEW.md

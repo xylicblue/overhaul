@@ -225,3 +225,80 @@
   .entity-kyc-person > .entity-kyc-action { width: fit-content; }
   .entity-kyc-sdk-header { align-items: flex-start; flex-direction: column; }
 }
+/* Layered ownership mapper -------------------------------------------------- */
+.ownership-builder {
+  margin-top: 24px;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.16);
+}
+.ownership-builder-intro { display: flex; align-items: flex-start; gap: 13px; }
+.ownership-builder-mark { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 13px; color: #6eaeff; background: rgba(0,113,227,.13); border: 1px solid rgba(79,156,255,.18); }
+.ownership-builder-intro h3 { margin: 0; font-size: 15px; color: var(--ink, #f5f5f7); }
+.ownership-builder-intro p { max-width: 720px; margin: 5px 0 0; color: var(--ink-faint, #8e8e93); font-size: 12px; line-height: 1.65; }
+.ownership-total { margin-left: auto; min-width: 122px; padding: 10px 13px; border-radius: 14px; text-align: right; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); }
+.ownership-total strong, .ownership-total small { display: block; }
+.ownership-total strong { color: #ffb340; font-size: 16px; }
+.ownership-total small { margin-top: 2px; color: #8e8e93; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.ownership-total.is-complete strong { color: #30d158; }
+.ownership-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 12px; }
+.ownership-actions button, .ownership-children-head button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.09); border-radius: 10px; color: #b8b8bd; background: rgba(255,255,255,.035); font-size: 11px; font-weight: 600; }
+.ownership-actions button:hover, .ownership-children-head button:hover { color: #fff; background: rgba(255,255,255,.065); }
+.ownership-tree { display: grid; gap: 10px; }
+.ownership-node { padding: 15px; border: 1px solid rgba(255,255,255,.075); border-radius: 17px; background: rgba(8,8,10,.36); }
+.ownership-node-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.ownership-node-icon { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 10px; color: #a1a1a6; background: rgba(255,255,255,.05); }
+.ownership-node-head strong, .ownership-node-head small { display: block; }
+.ownership-node-head strong { color: #ececf0; font-size: 12px; }
+.ownership-node-head small { margin-top: 2px; color: #77777d; font-size: 9px; }
+.ownership-remove { margin-left: auto; width: 31px; height: 31px; display: grid; place-items: center; border: 0; border-radius: 10px; color: #77777d; background: transparent; }
+.ownership-remove:hover { color: #ff6961; background: rgba(255,69,58,.08); }
+.ownership-node-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.ownership-percent-input { position: relative; }
+.ownership-percent-input input { width: 100%; padding-right: 34px !important; }
+.ownership-percent-input b { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #77777d; font-size: 11px; }
+.ownership-children { margin-top: 14px; padding: 13px; border-left: 1px solid rgba(84,156,255,.28); border-radius: 0 14px 14px 0; background: rgba(0,113,227,.025); }
+.ownership-children-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.ownership-children-head > span { display: inline-flex; align-items: center; gap: 5px; color: #8e8e93; font-size: 10px; font-weight: 600; }
+.ownership-children-head > div { display: flex; gap: 6px; }
+.ownership-children .ownership-node + .ownership-node { margin-top: 8px; }
+.ownership-empty { margin: 4px 0 0; color: #77777d; font-size: 10px; line-height: 1.55; }
+.ownership-empty-state { padding: 34px 20px; border: 1px dashed rgba(255,255,255,.11); border-radius: 17px; text-align: center; color: #77777d; }
+.ownership-empty-state svg { margin: 0 auto 10px; }
+.ownership-empty-state strong { display: block; color: #aaaab0; font-size: 12px; }
+.ownership-empty-state p { margin: 5px 0 0; font-size: 10px; }
+.ownership-calculator { margin-top: 13px; padding: 13px; border: 1px solid rgba(48,209,88,.12); border-radius: 15px; background: rgba(48,209,88,.035); }
+.ownership-calculator > div:first-child { margin-bottom: 8px; }
+.ownership-calculator > div:first-child strong, .ownership-calculator > div:first-child small { display: block; }
+.ownership-calculator > div:first-child strong { color: #c7f2d0; font-size: 11px; }
+.ownership-calculator > div:first-child small { margin-top: 3px; color: #74877a; font-size: 9px; }
+.ownership-result { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; border-top: 1px solid rgba(48,209,88,.09); }
+.ownership-result span b, .ownership-result span small { display: block; }
+.ownership-result span b { color: #c6c6ca; font-size: 11px; }
+.ownership-result span small { margin-top: 2px; color: #717176; font-size: 9px; }
+.ownership-result > strong { color: #30d158; font-size: 13px; }
+.ownership-errors { margin-top: 12px; padding: 11px 13px; border: 1px solid rgba(255,159,10,.18); border-radius: 13px; background: rgba(255,159,10,.055); }
+.ownership-errors p { margin: 0; color: #d8a75f; font-size: 10px; line-height: 1.55; }
+.ownership-errors p + p { margin-top: 4px; }
+.ownership-save-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.07); }
+.ownership-save-row p { margin: 0; color: #77777d; font-size: 10px; line-height: 1.55; }
+.ownership-save-row button { flex: 0 0 auto; padding: 10px 14px; border: 0; border-radius: 11px; color: #fff; background: #0a84ff; font-size: 11px; font-weight: 650; }
+.ownership-save-row button:disabled { cursor: not-allowed; opacity: .38; }
+.entity-trader-choice { display: flex; align-items: flex-start; gap: 11px; margin: 14px 0; padding: 14px; border: 1px solid rgba(255,255,255,.08); border-radius: 15px; background: rgba(255,255,255,.025); cursor: pointer; }
+.entity-trader-choice.selected { border-color: rgba(10,132,255,.28); background: rgba(10,132,255,.07); }
+.entity-trader-choice input { margin-top: 3px; accent-color: #0a84ff; }
+.entity-trader-choice strong, .entity-trader-choice small { display: block; }
+.entity-trader-choice strong { color: #d8d8dc; font-size: 11px; }
+.entity-trader-choice small { margin-top: 4px; color: #7d7d83; font-size: 10px; line-height: 1.5; }
+.entity-background-note { display: flex; align-items: flex-start; gap: 9px; margin: -4px 0 14px; padding: 11px 13px; border-radius: 13px; color: #9b9ba1; background: rgba(255,255,255,.025); font-size: 10px; line-height: 1.55; }
+.entity-background-note svg { flex: 0 0 auto; margin-top: 1px; color: #30d158; }
+
+@media (max-width: 720px) {
+  .ownership-builder { padding: 16px; }
+  .ownership-builder-intro { flex-wrap: wrap; }
+  .ownership-total { width: 100%; margin-left: 51px; text-align: left; }
+  .ownership-node-grid { grid-template-columns: 1fr; }
+  .ownership-children-head, .ownership-save-row { align-items: flex-start; flex-direction: column; }
+}

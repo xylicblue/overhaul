@@ -21,13 +21,63 @@ function normalizeSupabaseUrl(value) {
 
 const SUPABASE_URL = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL);
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_PUBLIC_KEY;
-const API_BASE = import.meta.env.VITE_API_GATEWAY_URL || SUPABASE_URL;
+// The production gateway deliberately accepts only approved production
+// origins. Local Vite development therefore calls Supabase directly instead
+// of sending browser requests through a gateway that will reject localhost.
+const API_BASE = import.meta.env.DEV
+  ? SUPABASE_URL
+  : (import.meta.env.VITE_API_GATEWAY_URL || SUPABASE_URL);
 const MARKET_STATS_API_BASE = import.meta.env.VITE_MARKET_STATS_API_URL;
 
 // ── Helper: get current session token ────────────────────────────────────
-async function getAuthToken() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+function authError(message, code) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+async function clearInvalidLocalSession() {
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // The server-side session is already invalid. Local cleanup is best-effort.
+  }
+}
+
+async function getAuthToken({ requireFreshSession = false } = {}) {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.access_token) {
+    if (requireFreshSession) {
+      throw authError("Please sign in again before recording a Compliance decision.", "reauth_required");
+    }
+    return null;
+  }
+
+  if (!requireFreshSession) return session.access_token;
+
+  // Compliance decisions are security-sensitive and must not rely only on a
+  // JWT cached in the browser. Force a refresh so Supabase confirms that the
+  // underlying Auth session still exists before the request is submitted.
+  const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+  if (refreshError || !refreshed?.session?.access_token) {
+    await clearInvalidLocalSession();
+    throw authError(
+      "Your secure session is no longer active. Please sign in and complete MFA again before recording the decision.",
+      "reauth_required"
+    );
+  }
+
+  const token = refreshed.session.access_token;
+  const { data: verified, error: verificationError } = await supabase.auth.getUser(token);
+  if (verificationError || !verified?.user) {
+    await clearInvalidLocalSession();
+    throw authError(
+      "Your secure session could not be verified. Please sign in and complete MFA again before recording the decision.",
+      "reauth_required"
+    );
+  }
+
+  return token;
 }
 
 // ── Helper: call edge function through gateway ───────────────────────────
@@ -40,7 +90,7 @@ export async function callEdgeFunction(functionName, payload, options = {}) {
 
   // Add auth header if we have a session
   if (options.auth !== false) {
-    const token = await getAuthToken();
+    const token = await getAuthToken({ requireFreshSession: options.requireFreshSession === true });
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
@@ -282,14 +332,14 @@ export async function decideEntityApplication({
     action,
     client_message: clientMessage,
     internal_note: internalNote,
-  });
+  }, { requireFreshSession: true });
 }
 
 export async function retryEntityDecisionEmail(decisionId) {
   return callEdgeFunction("entity-application-decision", {
     operation: "retry_email",
     decision_id: decisionId,
-  });
+  }, { requireFreshSession: true });
 }
 
 export async function openConnectedPersonKycInvite(invite) {

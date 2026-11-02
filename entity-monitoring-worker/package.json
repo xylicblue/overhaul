@@ -1,0 +1,22 @@
+{
+  "name": "bytestrike-entity-monitoring-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Independent shadow AML and transaction-monitoring event worker for ByteStrike entities",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "check": "node --check index.js && node --check src/config.js && node --check src/equity.js && node --check src/events.js && node --check src/worker.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.57.4",
+    "dotenv": "17.2.3",
+    "viem": "2.56.0"
+  }
+}

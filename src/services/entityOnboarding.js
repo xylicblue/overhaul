@@ -1,5 +1,6 @@
 import { supabase } from "../creatclient";
 import { entityAccessFreshnessMs, normalizeEntityAccessState } from "../utils/entityAccessState";
+import { analyseOwnershipStructure } from "../utils/ownershipStructure";
 
 export const ENTITY_DOCUMENT_BUCKET = "entity-onboarding-documents";
 export const MAX_ENTITY_DOCUMENT_BYTES = 15 * 1024 * 1024;
@@ -245,11 +246,14 @@ export async function updateEntityApplication(applicationId, updates) {
 
 export async function saveConnectedPerson(applicationId, person) {
   if (!person.roles?.length) throw new Error("Select at least one role for the connected person.");
-  if (!person.full_name?.trim() || !person.phone?.trim() || !person.email?.trim() ||
+  if (!person.full_name?.trim() ||
       !person.nationality_country_code || !person.residence_country_code ||
       !person.residential_address?.trim() || !person.date_of_birth ||
       !person.tax_identification_number?.trim()) {
     throw new Error("Complete every required connected-person field.");
+  }
+  if (person.will_trade_on_platform && (!person.phone?.trim() || !person.email?.trim())) {
+    throw new Error("Platform users need an email address and phone number for biometric verification.");
   }
   if (person.roles.includes("beneficial_owner") &&
       (person.ownership_percent === "" || person.ownership_percent == null)) {
@@ -270,6 +274,7 @@ export async function saveConnectedPerson(applicationId, person) {
     residential_address: person.residential_address?.trim() || null,
     date_of_birth: person.date_of_birth || null,
     tax_identification_number: person.tax_identification_number?.trim() || null,
+    will_trade_on_platform: Boolean(person.will_trade_on_platform),
   };
 
   const query = person.id
@@ -409,6 +414,9 @@ export function validateApplicationForSubmission(application, people, documents)
   if (application.listed_on_stock_exchange && !application.stock_exchange_name?.trim()) {
     throw new Error("Provide the stock exchange on which the entity is listed.");
   }
+  if (application.listed_on_stock_exchange && !application.stock_exchange_ticker?.trim()) {
+    throw new Error("Provide the listed entity's trading ticker.");
+  }
   if (!application.crypto_wallet_addresses?.length || !application.directors_and_officers?.length) {
     throw new Error("Add at least one intended wallet and one director or officer.");
   }
@@ -424,11 +432,18 @@ export function validateApplicationForSubmission(application, people, documents)
   const missing = neededDocuments.filter((category) => !categories.has(category));
   if (missing.length) throw new Error("Upload every required entity document before submitting.");
   if (!people.length) throw new Error("Add at least one connected person.");
+  const ownership = analyseOwnershipStructure(application.ownership_structure || [], people);
+  if (!ownership.complete) {
+    throw new Error(ownership.errors[0] || "Map the full direct and indirect ownership structure before submitting.");
+  }
   for (const person of people) {
-    if (!person.roles?.length || !person.full_name || !person.phone || !person.email ||
+    if (!person.roles?.length || !person.full_name ||
         !person.nationality_country_code || !person.residence_country_code ||
         !person.residential_address || !person.date_of_birth || !person.tax_identification_number) {
       throw new Error(`Complete all required details for ${person.full_name || "each connected person"}.`);
+    }
+    if (person.will_trade_on_platform && (!person.phone || !person.email)) {
+      throw new Error(`Add an email address and phone number for platform user ${person.full_name}.`);
     }
     if (person.roles.includes("beneficial_owner") && person.ownership_percent == null) {
       throw new Error(`Enter the ownership percentage for ${person.full_name}.`);

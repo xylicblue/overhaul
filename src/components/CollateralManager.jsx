@@ -13,6 +13,7 @@ import { useAllPositions, useDeposit, useWithdraw } from "../hooks/useClearingHo
 import { usePositionMetrics } from "../hooks/usePositionMetrics";
 import ConfirmationModal from "./ConfirmationModal";
 import { CheckCircle2, AlertCircle, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { assertEntityTransactionAllowed } from "../services/entityRestrictions";
 
 const ERC20_ABI = [
   {
@@ -162,6 +163,7 @@ export function CollateralManager() {
 
   const confirmWithdrawal = async () => {
     try {
+      await assertEntityTransactionAllowed("collateral_withdrawal");
       withdraw(selectedToken.address, amount);
       toast.loading("Withdrawing…", { id: "withdraw" });
     } catch {
@@ -174,6 +176,7 @@ export function CollateralManager() {
     try {
       if (isDepositing) {
         if (needsApproval) return toast.error("Insufficient allowance — approve first");
+        await assertEntityTransactionAllowed("collateral_deposit");
         deposit(selectedToken.address, amount);
         toast.loading("Depositing…", { id: "deposit" });
       } else {

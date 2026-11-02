@@ -38,6 +38,7 @@ import {
 } from "./utils/orderPreview";
 import FirstTradeConsentModal from "./components/FirstTradeConsentModal";
 import { hasAcceptedTradingConsent, acceptTradingConsent } from "./services/privacyAck";
+import { assertEntityTransactionAllowed } from "./services/entityRestrictions";
 
 const DEFAULT_FEE_BPS = 10;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -778,6 +779,15 @@ export const TradingPanel = ({ selectedMarket }) => {
       return;
     }
     setIsSimulating(false);
+
+    try {
+      await assertEntityTransactionAllowed("open_position");
+    } catch (permissionError) {
+      const diag = { severity: "error", title: "Transaction restricted", message: permissionError.message };
+      setPreflightError(diag);
+      toast.error(diag.message, { id: "trade" });
+      return;
+    }
 
     // ── 4. Simulation passed — open wallet ──────────────────────────────────
     let openSubmittedHash = null;

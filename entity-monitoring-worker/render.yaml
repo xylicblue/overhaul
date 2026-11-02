@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: bytestrike-entity-monitoring-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: RPC_URL
+        sync: false
+      - key: CHAIN_ID
+        sync: false
+      - key: CLEARING_HOUSE_ADDRESS
+        sync: false
+      - key: COLLATERAL_TOKEN_ADDRESS
+        sync: false
+      - key: START_BLOCK
+        sync: false

@@ -15,7 +15,10 @@ function normalizeSupabaseUrl(value) {
 
 const SUPABASE_URL = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL);
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_PUBLIC_KEY;
-const EDGE_FUNCTION_URL = `${import.meta.env.VITE_API_GATEWAY_URL || SUPABASE_URL}/functions/v1/wallet-auth`;
+const API_BASE = import.meta.env.DEV
+  ? SUPABASE_URL
+  : (import.meta.env.VITE_API_GATEWAY_URL || SUPABASE_URL);
+const EDGE_FUNCTION_URL = `${API_BASE}/functions/v1/wallet-auth`;
 
 /**
  * Call the wallet-auth edge function

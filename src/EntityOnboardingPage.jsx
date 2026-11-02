@@ -31,8 +31,10 @@ import {
 } from "./services/api";
 import AccountGate from "./components/AccountGate";
 import MfaGate from "./components/MfaGate";
+import OwnershipStructureBuilder from "./components/OwnershipStructureBuilder";
 import logo from "./assets/ByteStrikeLogoFinal.png";
 import { COUNTRIES } from "./data/countries";
+import { analyseOwnershipStructure } from "./utils/ownershipStructure";
 import {
   ACCEPTED_ENTITY_DOCUMENT_TYPES,
   FINANCIAL_ENTITY_TYPES,
@@ -52,7 +54,7 @@ import "./entity-onboarding.css";
 
 const ENTITY_TYPES = [
   { value: "private_company", label: "Private company", group: "Corporate and legal entities" },
-  { value: "public_company", label: "Public company", group: "Corporate and legal entities" },
+  { value: "state_owned_company", label: "State-owned company", group: "Corporate and legal entities" },
   { value: "partnership", label: "Partnership or LLP", group: "Corporate and legal entities" },
   { value: "trust_foundation", label: "Trust or foundation", group: "Corporate and legal entities" },
   { value: "non_profit", label: "Non-profit organisation", group: "Corporate and legal entities" },
@@ -72,7 +74,7 @@ const DOCUMENT_REQUIREMENTS = [
   ["certificate_good_standing", "Certificate of good standing", "Current certificate issued by the relevant registry"],
   ["bank_statement", "Bank statement", "Recent statement in the entity's legal name"],
   ["source_of_funds", "Source of funds evidence", "Document supporting the source described above"],
-  ["aml_program_certificate", "AML compliance programme certificate", "Certificate for the entity's own programme"],
+  ["aml_program_certificate", "AML/ATF and sanctions programme certificate", "Certificate covering the entity's AML, ATF and sanctions programme"],
   ["aml_atf_sanctions_policy", "AML, ATF and sanctions policy", "Current policy document"],
 ];
 
@@ -114,6 +116,7 @@ const EMPTY_PERSON = {
   residential_address: "",
   date_of_birth: "",
   tax_identification_number: "",
+  will_trade_on_platform: false,
 };
 
 function applicationStep(application) {
@@ -145,6 +148,8 @@ function verificationLabel(status) {
     not_started: "Not started",
     invited: "Invitation sent",
     pending: "In progress",
+    queued: "Queued securely",
+    processing: "Screening",
     in_review: "Under review",
     approved: "Verified",
     verified: "Verified",
@@ -152,13 +157,15 @@ function verificationLabel(status) {
     resubmission: "Action required",
     retry: "Action required",
     rejected: "Review required",
+    action_required: "Review required",
+    failed: "Compliance follow-up",
   };
   return labels[status] || "Not started";
 }
 
 function verificationTone(status) {
   if (APPROVED_KYC_STATES.has(status)) return "verified";
-  if (["resubmission", "retry", "rejected"].includes(status)) return "attention";
+  if (["resubmission", "retry", "rejected", "action_required", "failed"].includes(status)) return "attention";
   return "pending";
 }
 
@@ -286,7 +293,7 @@ function EntityIdentityVerification({ application, onApplicationChanged, onEditA
         icon={ShieldCheck}
         eyebrow="Identity verification"
         title="Verify the people behind the entity"
-        description="The primary contact completes verification here. Each other connected person receives a private link at the email address supplied in the application."
+        description="The primary contact and declared platform users complete biometric verification. Other connected people are screened in the background from the information and ID evidence already supplied."
       />
       <div className="entity-kyc-edit-row">
         <div>
@@ -326,24 +333,25 @@ function EntityIdentityVerification({ application, onApplicationChanged, onEditA
             </article>
 
             {(state?.connected_persons || []).map((person) => {
+              const backgroundOnly = !person.verification_via_primary_contact && !person.will_trade_on_platform;
               const verified = APPROVED_KYC_STATES.has(person.sumsub_review_status);
               const inviteFailed = Boolean(person.invitation?.last_error);
               return (
                 <article className="entity-kyc-person" key={person.id}>
-                  <div className="entity-kyc-person-mark"><Mail size={18} /></div>
+                  <div className="entity-kyc-person-mark">{backgroundOnly ? <ShieldCheck size={18} /> : <Mail size={18} />}</div>
                   <div className="entity-kyc-person-copy">
-                    <small>{person.verification_via_primary_contact ? "Verified with primary contact" : "Connected person"}</small>
+                    <small>{person.verification_via_primary_contact ? "Verified with primary contact" : backgroundOnly ? "Background screening" : "Platform user"}</small>
                     <strong>{person.full_name}</strong>
-                    <span>{person.email}</span>
-                    {!person.verification_via_primary_contact && person.invitation?.sent_at && !inviteFailed && (
+                    <span>{backgroundOnly ? "No biometric email required" : person.email}</span>
+                    {!backgroundOnly && !person.verification_via_primary_contact && person.invitation?.sent_at && !inviteFailed && (
                       <em>Private invitation sent {new Date(person.invitation.sent_at).toLocaleDateString()}</em>
                     )}
                     {inviteFailed && <em className="is-error">Delivery failed. Send the invitation again.</em>}
                   </div>
-                  <span className={`entity-kyc-status ${verificationTone(person.sumsub_review_status)}`}>
-                    {verificationLabel(person.sumsub_review_status)}
+                  <span className={`entity-kyc-status ${verificationTone(backgroundOnly ? person.background_screening_status : person.sumsub_review_status)}`}>
+                    {backgroundOnly ? verificationLabel(person.background_screening_status) : verificationLabel(person.sumsub_review_status)}
                   </span>
-                  {!person.verification_via_primary_contact && !verified && (
+                  {!backgroundOnly && !person.verification_via_primary_contact && !verified && (
                     <button type="button" className="entity-secondary entity-kyc-action" disabled={busyPerson === person.id} onClick={() => resend(person.id)}>
                       {busyPerson === person.id ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
                       {person.invitation?.sent_at ? "Resend" : "Send invitation"}
@@ -356,7 +364,7 @@ function EntityIdentityVerification({ application, onApplicationChanged, onEditA
 
           <div className="entity-kyc-footnote">
             <ShieldCheck size={17} />
-            <p>Invitation links expire after seven days and provide verification access only. Connected persons do not receive a ByteStrike account or access to trading.</p>
+            <p>Invitation links are sent only to platform users and expire after seven days. Background-screened people receive no email and no ByteStrike account.</p>
           </div>
         </>
       )}
@@ -549,12 +557,14 @@ function EntityOnboardingFlow({ user }) {
   const [selectedEntityType, setSelectedEntityType] = useState("");
   const [businessAddressSame, setBusinessAddressSame] = useState(true);
   const [listedOnExchange, setListedOnExchange] = useState(false);
+  const [ownershipStructure, setOwnershipStructure] = useState([]);
 
   const refresh = async ({ preserveStep = false } = {}) => {
     const state = await loadEntityOnboarding();
     setApplication(state.application);
     setDocuments(state.documents);
     setPeople(state.connectedPersons);
+    setOwnershipStructure(state.application?.ownership_structure || []);
     if (state.application && !preserveStep) {
       setStep(applicationStep(state.application));
     }
@@ -577,6 +587,7 @@ function EntityOnboardingFlow({ user }) {
         setSelectedEntityType(state.application?.entity_type || "");
         setBusinessAddressSame(state.application?.business_address_same !== false);
         setListedOnExchange(Boolean(state.application?.listed_on_stock_exchange));
+        setOwnershipStructure(state.application?.ownership_structure || []);
         setStep(applicationStep(state.application));
       } catch (error) {
         if (active) toast.error(error.message);
@@ -635,6 +646,7 @@ function EntityOnboardingFlow({ user }) {
         incorporation_country_code: values.incorporation_country_code,
         listed_on_stock_exchange: values.listed_on_stock_exchange === "yes",
         stock_exchange_name: values.listed_on_stock_exchange === "yes" ? values.stock_exchange_name.trim() : null,
+        stock_exchange_ticker: values.listed_on_stock_exchange === "yes" ? values.stock_exchange_ticker.trim().toUpperCase() : null,
         corporate_identification_number: values.corporate_identification_number.trim(),
         entity_type: values.entity_type,
         entity_type_other: values.entity_type === "other" ? values.entity_type_other.trim() : null,
@@ -648,6 +660,10 @@ function EntityOnboardingFlow({ user }) {
         directors_and_officers: values.directors_and_officers.split("\n").map((v) => v.trim()).filter(Boolean),
         source_of_funds_category: values.source_of_funds_category,
         source_of_funds: values.source_of_funds.trim(),
+        account_purpose: values.account_purpose,
+        expected_monthly_deposits_usd: values.expected_monthly_deposits_usd
+          ? Number(values.expected_monthly_deposits_usd)
+          : null,
         is_financial_institution: isFinancial,
         onboarding_step: isFinancial ? 2 : 3,
         status: "in_progress",
@@ -692,6 +708,40 @@ function EntityOnboardingFlow({ user }) {
       toast.success("Connected person saved");
     } catch (error) {
       toast.error(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveOwnershipMap = async () => {
+    const analysis = analyseOwnershipStructure(ownershipStructure, people);
+    if (!analysis.complete) {
+      toast.error(analysis.errors[0] || "Complete the ownership map before saving.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const effectiveByPerson = new Map();
+      analysis.naturalOwners.forEach((owner) => {
+        if (!owner.connectedPersonId) return;
+        effectiveByPerson.set(
+          owner.connectedPersonId,
+          (effectiveByPerson.get(owner.connectedPersonId) || 0) + owner.effectivePercentage,
+        );
+      });
+      await Promise.all(people.map((person) => {
+        if (!person.roles?.includes("beneficial_owner")) return Promise.resolve();
+        return saveConnectedPerson(application.id, {
+          ...person,
+          ownership_percent: Number((effectiveByPerson.get(person.id) || 0).toFixed(4)),
+        });
+      }));
+      const saved = await updateEntityApplication(application.id, { ownership_structure: ownershipStructure });
+      setApplication(saved);
+      await refresh({ preserveStep: true });
+      toast.success("Ownership map saved");
+    } catch (error) {
+      toast.error(error.message || "Could not save the ownership map.");
     } finally {
       setSaving(false);
     }
@@ -982,7 +1032,10 @@ function EntityOnboardingFlow({ user }) {
               </select>
             </label>
             {listedOnExchange && (
-              <Input label="Stock exchange" name="stock_exchange_name" required defaultValue={application.stock_exchange_name || ""} />
+              <>
+                <Input label="Stock exchange" name="stock_exchange_name" required defaultValue={application.stock_exchange_name || ""} hint="Use the exchange's full legal or recognised market name." />
+                <Input label="Trading ticker" name="stock_exchange_ticker" required defaultValue={application.stock_exchange_ticker || ""} hint="Enter the listed entity's market ticker." />
+              </>
             )}
             <Textarea
               label="Ethereum-compatible wallet addresses intended for use"
@@ -1016,10 +1069,31 @@ function EntityOnboardingFlow({ user }) {
               </select>
               <small>This controlled category feeds the risk model; your description and evidence remain available to Compliance.</small>
             </label>
+            <label className="entity-field">
+              <span>Primary account purpose <em>Required</em></span>
+              <select name="account_purpose" required defaultValue={application.account_purpose || ""}>
+                <option value="" disabled>Select the primary purpose</option>
+                <option value="hedging">Hedging</option>
+                <option value="trading">Trading</option>
+              </select>
+              <small>Choose the purpose that best describes how the entity expects to use the platform.</small>
+            </label>
+            <Input
+              label="Expected monthly collateral deposits (USD)"
+              name="expected_monthly_deposits_usd"
+              type="number"
+              min="1"
+              step="0.01"
+              defaultValue={application.expected_monthly_deposits_usd || ""}
+              hint="Optional. Compliance may collect or refine this as a tailored EDD baseline when needed."
+            />
           </div>
 
           <div className="entity-subsection">
-            <div><h3>Supporting documents</h3><p>PDF or image files, up to 15 MB each.</p></div>
+            <div>
+              <h3>Supporting documents</h3>
+              <p>PDF or image files, up to 15 MB each. Certificates and time-sensitive evidence must be dated within the last three months.</p>
+            </div>
             <div className="entity-document-list">
               {DOCUMENT_REQUIREMENTS.map(([category, title, description]) => (
                 <DocumentField
@@ -1079,7 +1153,7 @@ function EntityOnboardingFlow({ user }) {
             icon={UserRound}
             eyebrow="Step 2"
             title="Connected natural persons"
-            description="Add every owner holding 10% or more equity or control, director, officer and authorised signatory."
+            description="Add every direct or indirect natural-person owner holding 10% or more effective equity or control, together with all directors, officers and authorised signatories."
           />
           <div className="entity-person-list">
             {people.map((person, index) => (
@@ -1113,12 +1187,19 @@ function EntityOnboardingFlow({ user }) {
               <Plus size={16} /> Add connected person
             </button>
           )}
+          <OwnershipStructureBuilder
+            value={ownershipStructure}
+            people={people}
+            onChange={setOwnershipStructure}
+            onSave={saveOwnershipMap}
+            saving={saving}
+          />
           <div className="entity-submit-note">
             <ShieldCheck size={18} />
             <p>
-              After submission, the primary contact will complete identity verification here and each other connected
-              person will receive a private verification invitation by email. All required checks must be completed
-              before Compliance can approve the entity.
+              The primary contact and only connected people marked as platform users will receive biometric verification.
+              Beneficial owners, directors and officers who will not use the platform are screened in the background
+              from the information and identity documents supplied here; they do not receive an email invitation.
             </p>
           </div>
           <FormFooter
@@ -1157,10 +1238,27 @@ function ConnectedPersonEditor({ person, index, documents, applicationId, saving
           </label>
         ))}
       </div>
+      <label className={`entity-trader-choice ${draft.will_trade_on_platform ? "selected" : ""}`}>
+        <input
+          type="checkbox"
+          checked={Boolean(draft.will_trade_on_platform)}
+          onChange={(event) => update("will_trade_on_platform", event.target.checked)}
+        />
+        <span>
+          <strong>This person will use or trade on the ByteStrike platform</strong>
+          <small>They will receive a private Sumsub email and complete identity document plus liveness checks.</small>
+        </span>
+      </label>
+      {!draft.will_trade_on_platform && (
+        <div className="entity-background-note">
+          <ShieldCheck size={16} />
+          <span>No biometric invitation will be sent. ByteStrike Compliance will screen this person in the background using the details and ID uploaded below.</span>
+        </div>
+      )}
       <div className="entity-form-grid">
         <Input label="Full legal name" required value={draft.full_name} onChange={(e) => update("full_name", e.target.value)} />
-        <Input label="Phone number" type="tel" required value={draft.phone} onChange={(e) => update("phone", e.target.value)} />
-        <Input label="Email address" type="email" required value={draft.email} onChange={(e) => update("email", e.target.value)} />
+        <Input label="Phone number" type="tel" required={draft.will_trade_on_platform} value={draft.phone} onChange={(e) => update("phone", e.target.value)} hint={draft.will_trade_on_platform ? "Required for a platform user." : "Optional for a background-screened person."} />
+        <Input label="Email address" type="email" required={draft.will_trade_on_platform} value={draft.email} onChange={(e) => update("email", e.target.value)} hint={draft.will_trade_on_platform ? "The biometric invitation is sent here." : "Optional; no invitation will be sent."} />
         <CountrySelect label="Nationality" required value={draft.nationality_country_code || ""} onChange={(e) => update("nationality_country_code", e.target.value)} />
         <CountrySelect label="Country of residence" required value={draft.residence_country_code || ""} onChange={(e) => update("residence_country_code", e.target.value)} />
         <Input label="Date of birth" type="date" required value={draft.date_of_birth || ""} onChange={(e) => update("date_of_birth", e.target.value)} />
@@ -1180,7 +1278,7 @@ function ConnectedPersonEditor({ person, index, documents, applicationId, saving
             connectedPersonId={person.id}
             category="connected_person_government_id"
             title="Government-issued identification"
-            description="Save the person, then upload an unexpired photo ID"
+            description="Save the person, then upload an unexpired photo ID for secure screening"
             onChanged={onDocumentsChanged}
           />
         ) : (

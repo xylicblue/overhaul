@@ -7,7 +7,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem';
 import { sepolia } from 'viem/chains';
-import { SEPOLIA_CONTRACTS, getActiveMarkets } from '../contracts/addresses';
+import { SEPOLIA_CONTRACTS, getActiveMarkets } from '../contracts/addresses.js';
 
 const runtimeEnv = typeof process !== 'undefined' ? process.env : {};
 const viteEnv = import.meta.env || {};
