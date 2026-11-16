@@ -52,6 +52,15 @@ supabase/*
 supabase/migrations/*
 !supabase/migrations/20261015163521_complete_entity_live_monitoring_controls.sql
 !supabase/migrations/20261015163709_schedule_entity_monitoring_screenings.sql
+!supabase/migrations/20261116225053_add_entity_address_and_wallet_ownership_controls.sql
+!supabase/functions/
+supabase/functions/*
+!supabase/functions/entity-address-autocomplete/
+!supabase/functions/entity-address-autocomplete/index.ts
+!supabase/functions/entity-wallet-ownership/
+!supabase/functions/entity-wallet-ownership/index.ts
+!supabase/functions/entity-wallet-screening/
+!supabase/functions/entity-wallet-screening/index.ts
 b200.md
 h100.md
 SYSTEM_OVERVIEW.md

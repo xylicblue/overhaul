@@ -18,6 +18,12 @@ Sumsub screening, automatic Tier 2 or Tier 3 classification from ISIC, EDD execu
 5. Deploy the frontend.
 6. Test with a newly created account and an existing account before enabling the flow for demonstrations.
 
+### Address and wallet-ownership controls
+
+Apply `20261116225053_add_entity_address_and_wallet_ownership_controls.sql`, then deploy the `entity-address-autocomplete`, `entity-wallet-ownership` and updated `entity-wallet-screening` Edge Functions. Address suggestions use the public Photon service backed by OpenStreetMap and require no API key. Configure `ENTITY_WALLET_RPC_URL` as the server-side RPC endpoint used to validate EIP-1271 smart-contract wallet signatures; it must not be placed in a `VITE_` variable.
+
+Applicants may type an address manually if Photon is unavailable. The public Photon endpoint is suitable for moderate autocomplete traffic but does not provide ByteStrike with a service-level agreement; if production traffic becomes material, deploy a private Photon instance or adopt another approved provider. Typed search text is sent to Photon to produce suggestions, and the interface displays the required OpenStreetMap attribution. For declared wallets, an EIP-191 or EIP-1271 signature is verified automatically. A custodian confirmation or test-transaction reference creates a pending Compliance review; Scorechain refuses to screen the wallet until that fallback has been verified.
+
 The migration is additive. It does not alter existing trading, market, profile or protocol tables. The frontend gate permits the existing flow only when the new table is genuinely absent, which prevents a frontend-first deployment from taking the existing exchange offline. Once the table exists, an operational lookup failure blocks the trading screen until entity status can be verified.
 
 ## Current access behavior

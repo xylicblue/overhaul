@@ -32,6 +32,8 @@ import {
 import AccountGate from "./components/AccountGate";
 import MfaGate from "./components/MfaGate";
 import OwnershipStructureBuilder from "./components/OwnershipStructureBuilder";
+import AddressAutocomplete from "./components/AddressAutocomplete";
+import WalletOwnershipPanel from "./components/WalletOwnershipPanel";
 import logo from "./assets/ByteStrikeLogoFinal.png";
 import { COUNTRIES } from "./data/countries";
 import { analyseOwnershipStructure } from "./utils/ownershipStructure";
@@ -551,6 +553,7 @@ function EntityOnboardingFlow({ user }) {
   const [application, setApplication] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [people, setPeople] = useState([]);
+  const [walletOwnershipProofs, setWalletOwnershipProofs] = useState([]);
   const [profileUsername, setProfileUsername] = useState("");
   const [step, setStep] = useState(0);
   const [draftPerson, setDraftPerson] = useState(null);
@@ -558,13 +561,18 @@ function EntityOnboardingFlow({ user }) {
   const [businessAddressSame, setBusinessAddressSame] = useState(true);
   const [listedOnExchange, setListedOnExchange] = useState(false);
   const [ownershipStructure, setOwnershipStructure] = useState([]);
+  const [walletDraftText, setWalletDraftText] = useState("");
+  const [incorporationCountryCode, setIncorporationCountryCode] = useState("");
 
   const refresh = async ({ preserveStep = false } = {}) => {
     const state = await loadEntityOnboarding();
     setApplication(state.application);
     setDocuments(state.documents);
     setPeople(state.connectedPersons);
+    setWalletOwnershipProofs(state.walletOwnershipProofs || []);
     setOwnershipStructure(state.application?.ownership_structure || []);
+    setWalletDraftText((state.application?.crypto_wallet_addresses || []).join("\n"));
+    setIncorporationCountryCode(state.application?.incorporation_country_code || "");
     if (state.application && !preserveStep) {
       setStep(applicationStep(state.application));
     }
@@ -584,10 +592,13 @@ function EntityOnboardingFlow({ user }) {
         setApplication(state.application);
         setDocuments(state.documents);
         setPeople(state.connectedPersons);
+        setWalletOwnershipProofs(state.walletOwnershipProofs || []);
         setSelectedEntityType(state.application?.entity_type || "");
         setBusinessAddressSame(state.application?.business_address_same !== false);
         setListedOnExchange(Boolean(state.application?.listed_on_stock_exchange));
         setOwnershipStructure(state.application?.ownership_structure || []);
+        setWalletDraftText((state.application?.crypto_wallet_addresses || []).join("\n"));
+        setIncorporationCountryCode(state.application?.incorporation_country_code || "");
         setStep(applicationStep(state.application));
       } catch (error) {
         if (active) toast.error(error.message);
@@ -804,16 +815,29 @@ function EntityOnboardingFlow({ user }) {
         return;
       }
 
-      const saved = await submitEntityApplication(state.application, state.connectedPersons, state.documents);
+      const saved = await submitEntityApplication(
+        state.application,
+        state.connectedPersons,
+        state.documents,
+        state.walletOwnershipProofs || []
+      );
       setApplication(saved);
       setStep(4);
       toast.success("Information submitted. Continue with identity verification.");
-      try {
-        const screening = await screenEntityWallets(saved.id);
-        toast.success(`Wallet screening completed: ${String(screening.wallet_key || "complete").replace(/_/g, " ")}`);
-      } catch (screeningError) {
-        console.error("Automatic entity wallet screening failed", screeningError);
-        toast("The application was submitted, but wallet screening is pending a Compliance retry.");
+      const declaredWallets = (saved.crypto_wallet_addresses || []).map((wallet) => wallet.toLowerCase());
+      const verifiedWallets = new Set((state.walletOwnershipProofs || [])
+        .filter((proof) => proof.status === "verified")
+        .map((proof) => proof.wallet_address));
+      if (declaredWallets.every((wallet) => verifiedWallets.has(wallet))) {
+        try {
+          const screening = await screenEntityWallets(saved.id);
+          toast.success(`Wallet screening completed: ${String(screening.wallet_key || "complete").replace(/_/g, " ")}`);
+        } catch (screeningError) {
+          console.error("Automatic entity wallet screening failed", screeningError);
+          toast("The application was submitted, but wallet screening is pending a Compliance retry.");
+        }
+      } else {
+        toast("Application submitted. Scorechain screening will start after Compliance verifies the fallback wallet evidence.");
       }
     } catch (error) {
       toast.error(error.message);
@@ -955,7 +979,14 @@ function EntityOnboardingFlow({ user }) {
             description="Provide the entity's registration, operating and financial information. Progress is saved at the end of this step."
           />
           <div className="entity-form-grid">
-            <Textarea label="Registered address" name="registered_address" required defaultValue={application.registered_address || ""} rows={3} />
+            <AddressAutocomplete
+              label="Registered address"
+              name="registered_address"
+              required
+              defaultValue={application.registered_address || ""}
+              countryCode={incorporationCountryCode}
+              hint="Start typing and select the closest match. You can still enter an address manually if needed."
+            />
             <div className="entity-field entity-field-wide">
               <label className="entity-check">
                 <input
@@ -967,7 +998,14 @@ function EntityOnboardingFlow({ user }) {
                 <span><Check size={13} /> Business address is the same as the registered address</span>
               </label>
               {!businessAddressSame && (
-                <Textarea label="Business address" name="business_address" required defaultValue={application.business_address || ""} rows={3} />
+                <AddressAutocomplete
+                  label="Business address"
+                  name="business_address"
+                  required
+                  defaultValue={application.business_address || ""}
+                  countryCode={incorporationCountryCode}
+                  hint="Start typing and select the closest match."
+                />
               )}
             </div>
             <Input label="Date of incorporation or establishment" name="incorporation_date" type="date" required defaultValue={application.incorporation_date || ""} />
@@ -976,7 +1014,8 @@ function EntityOnboardingFlow({ user }) {
               label="Country of incorporation"
               name="incorporation_country_code"
               required
-              defaultValue={application.incorporation_country_code || ""}
+              value={incorporationCountryCode}
+              onChange={(event) => setIncorporationCountryCode(event.target.value)}
             />
             <Input label="Corporate identification number" name="corporate_identification_number" required defaultValue={application.corporate_identification_number || ""} />
             <Input label="Entity phone number" name="entity_phone" type="tel" required defaultValue={application.entity_phone || ""} />
@@ -1041,9 +1080,21 @@ function EntityOnboardingFlow({ user }) {
               label="Ethereum-compatible wallet addresses intended for use"
               name="crypto_wallet_addresses"
               required
-              defaultValue={(application.crypto_wallet_addresses || []).join("\n")}
+              value={walletDraftText}
+              onChange={(event) => setWalletDraftText(event.target.value)}
               rows={4}
-              hint="Enter one 0x address per line. Scorechain screens each address after submission; the API key remains server-side."
+              hint="Enter one 0x address per line. Control of every wallet must be proven before Scorechain screening."
+            />
+            <WalletOwnershipPanel
+              application={application}
+              walletText={walletDraftText}
+              proofs={walletOwnershipProofs}
+              onChanged={async (change = {}) => {
+                if (change.application) setApplication(change.application);
+                const state = await loadEntityOnboarding();
+                setApplication(state.application);
+                setWalletOwnershipProofs(state.walletOwnershipProofs || []);
+              }}
             />
             <Textarea
               label="Legal names of directors and officers"
@@ -1264,7 +1315,14 @@ function ConnectedPersonEditor({ person, index, documents, applicationId, saving
         <Input label="Date of birth" type="date" required value={draft.date_of_birth || ""} onChange={(e) => update("date_of_birth", e.target.value)} />
         <Input label="Tax identification number" required value={draft.tax_identification_number} onChange={(e) => update("tax_identification_number", e.target.value)} />
         <Input label="Ownership percentage" type="number" min="0" max="100" step="0.01" value={draft.ownership_percent ?? ""} onChange={(e) => update("ownership_percent", e.target.value)} hint="Required for beneficial owners." />
-        <Textarea label="Residential address" required value={draft.residential_address} onChange={(e) => update("residential_address", e.target.value)} rows={3} />
+        <AddressAutocomplete
+          label="Residential address"
+          required
+          value={draft.residential_address}
+          onChange={(event) => update("residential_address", event.target.value)}
+          countryCode={draft.residence_country_code}
+          hint="Start typing and select the closest match. Manual entry remains available."
+        />
         <Textarea label="Control description" value={draft.control_description || ""} onChange={(e) => update("control_description", e.target.value)} rows={3} hint="Describe control rights where they are not represented by equity ownership." />
       </div>
       <div className="entity-person-footer">

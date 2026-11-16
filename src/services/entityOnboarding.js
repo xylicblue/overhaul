@@ -188,10 +188,10 @@ export async function loadEntityOnboarding() {
   throwIf(error, "Could not load the entity application.");
 
   if (!application) {
-    return { user, application: null, connectedPersons: [], documents: [] };
+    return { user, application: null, connectedPersons: [], documents: [], walletOwnershipProofs: [] };
   }
 
-  const [peopleResult, documentsResult] = await Promise.all([
+  const [peopleResult, documentsResult, walletProofsResult] = await Promise.all([
     supabase
       .from("entity_connected_persons")
       .select("*")
@@ -202,15 +202,22 @@ export async function loadEntityOnboarding() {
       .select("*")
       .eq("application_id", application.id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("entity_wallet_ownership_proofs")
+      .select("*")
+      .eq("application_id", application.id)
+      .order("created_at", { ascending: true }),
   ]);
   throwIf(peopleResult.error, "Could not load connected persons.");
   throwIf(documentsResult.error, "Could not load supporting documents.");
+  throwIf(walletProofsResult.error, "Could not load wallet ownership evidence.");
 
   return {
     user,
     application,
     connectedPersons: peopleResult.data || [],
     documents: documentsResult.data || [],
+    walletOwnershipProofs: walletProofsResult.data || [],
   };
 }
 
@@ -358,6 +365,30 @@ export async function uploadOnboardingDocument({ applicationId, category, file, 
   return data;
 }
 
+export async function uploadWalletOwnershipEvidence({ applicationId, walletAddress, file }) {
+  const user = await currentUser();
+  if (!ACCEPTED_ENTITY_DOCUMENT_TYPES.includes(file.type)) {
+    throw new Error("Upload a PDF, JPEG, PNG or WebP file.");
+  }
+  if (file.size > MAX_ENTITY_DOCUMENT_BYTES) {
+    throw new Error("The custodian confirmation must be 15 MB or smaller.");
+  }
+  const normalizedAddress = String(walletAddress || "").trim().toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(normalizedAddress)) throw new Error("Enter a valid wallet address first.");
+  const path = `${user.id}/${applicationId}/wallet-proof/${normalizedAddress}/${crypto.randomUUID()}-${cleanFilename(file.name)}`;
+  const { error } = await supabase.storage
+    .from(ENTITY_DOCUMENT_BUCKET)
+    .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type });
+  throwIf(error, "Could not upload the custodian confirmation.");
+  return { storagePath: path, originalFilename: file.name };
+}
+
+export async function removeWalletOwnershipEvidence(storagePath) {
+  if (!storagePath) return;
+  const { error } = await supabase.storage.from(ENTITY_DOCUMENT_BUCKET).remove([storagePath]);
+  throwIf(error, "Could not remove the unused wallet evidence upload.");
+}
+
 export async function createOnboardingDocumentPreview(document) {
   if (!document?.storage_path) throw new Error("This document is not available for preview.");
 
@@ -383,7 +414,7 @@ export async function removeOnboardingDocument(document) {
   throwIf(error, "Could not remove the document record.");
 }
 
-export function validateApplicationForSubmission(application, people, documents) {
+export function validateApplicationForSubmission(application, people, documents, walletOwnershipProofs = []) {
   const requiredValues = [
     application.primary_contact_legal_name,
     application.primary_contact_phone,
@@ -426,6 +457,15 @@ export function validateApplicationForSubmission(application, people, documents)
   if (invalidWallet) {
     throw new Error(`Enter a valid Ethereum-compatible 0x address instead of ${invalidWallet}.`);
   }
+  const evidencedWallets = new Set(walletOwnershipProofs
+    .filter((proof) => ["verified", "pending_review"].includes(proof.status))
+    .map((proof) => String(proof.wallet_address || "").toLowerCase()));
+  const missingOwnershipProof = application.crypto_wallet_addresses.find(
+    (address) => !evidencedWallets.has(String(address).trim().toLowerCase())
+  );
+  if (missingOwnershipProof) {
+    throw new Error(`Prove control of ${missingOwnershipProof} or submit an approved fallback before submitting.`);
+  }
   const neededDocuments = [...REQUIRED_ENTITY_DOCUMENTS];
   if (application.is_financial_institution) neededDocuments.push("regulatory_licence");
   const categories = new Set(documents.filter((doc) => !doc.connected_person_id).map((doc) => doc.category));
@@ -455,8 +495,8 @@ export function validateApplicationForSubmission(application, people, documents)
   }
 }
 
-export async function submitEntityApplication(application, people, documents) {
-  validateApplicationForSubmission(application, people, documents);
+export async function submitEntityApplication(application, people, documents, walletOwnershipProofs = []) {
+  validateApplicationForSubmission(application, people, documents, walletOwnershipProofs);
   const isicClassCode = String(
     application.isic_class_code || String(application.isic_division || "").match(/\b\d{4}\b/)?.[0] || ""
   ).trim();

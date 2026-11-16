@@ -89,6 +89,21 @@
 .entity-field input:focus, .entity-field select:focus, .entity-field textarea:focus { border-color: #6377ed; background: #101013; box-shadow: 0 0 0 3px rgba(82, 104, 230, .12); }
 .entity-field input::placeholder, .entity-field textarea::placeholder { color: #505058; }
 .entity-field small { color: #66666f; font-size: 10px; line-height: 1.45; }
+.entity-address-field { position: relative; }
+.entity-address-control { position: relative; }
+.entity-address-control > svg:first-child { position: absolute; z-index: 1; top: 14px; left: 13px; color: #65656d; pointer-events: none; }
+.entity-address-control textarea { width: 100%; padding-left: 38px; padding-right: 38px; }
+.entity-address-loader { position: absolute; top: 14px; right: 13px; color: #7f92ff; }
+.entity-address-suggestions { position: absolute; z-index: 70; top: calc(100% - 20px); left: 0; right: 0; overflow: hidden; border: 1px solid #34343b; border-radius: 14px; background: rgba(17,17,20,.98); box-shadow: 0 22px 60px rgba(0,0,0,.5); backdrop-filter: blur(18px); }
+.entity-address-suggestions button { width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; border: 0; border-bottom: 1px solid rgba(255,255,255,.055); color: #bdbdc4; background: transparent; text-align: left; cursor: pointer; }
+.entity-address-suggestions button:hover, .entity-address-suggestions button:focus { background: rgba(82,104,230,.1); outline: none; }
+.entity-address-suggestions button > svg { flex: none; margin-top: 2px; color: #7f92ff; }
+.entity-address-suggestions button span, .entity-address-suggestions button strong, .entity-address-suggestions button small { display: block; }
+.entity-address-suggestions button strong { color: #e2e2e6; font-size: 11px; font-weight: 620; }
+.entity-address-suggestions button small { margin-top: 3px; color: #71717a; font-size: 9px; }
+.entity-address-suggestions > p { margin: 0; padding: 8px 12px; color: #66666e; font-size: 8px; text-align: right; }
+.entity-address-suggestions > p a { color: inherit; text-decoration: none; }
+.entity-address-suggestions > p a:hover { color: #9a9aa3; text-decoration: underline; }
 .entity-check { display: flex; align-items: center; margin-bottom: 13px; cursor: pointer; }
 .entity-check input, .entity-role-grid input { position: absolute; opacity: 0; pointer-events: none; }
 .entity-check span { display: flex; align-items: center; gap: 7px; color: #92929b; font-size: 11px; }
@@ -295,10 +310,39 @@
 .entity-background-note { display: flex; align-items: flex-start; gap: 9px; margin: -4px 0 14px; padding: 11px 13px; border-radius: 13px; color: #9b9ba1; background: rgba(255,255,255,.025); font-size: 10px; line-height: 1.55; }
 .entity-background-note svg { flex: 0 0 auto; margin-top: 1px; color: #30d158; }
 
+.entity-wallet-proof { grid-column: 1 / -1; margin-top: -3px; padding: 20px; border: 1px solid rgba(255,255,255,.085); border-radius: 19px; background: linear-gradient(145deg, rgba(255,255,255,.038), rgba(255,255,255,.015)); }
+.entity-wallet-proof-intro { display: flex; align-items: flex-start; gap: 12px; }
+.entity-wallet-proof-intro > span { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; color: #8ba0ff; border: 1px solid rgba(99,119,237,.18); border-radius: 12px; background: rgba(82,104,230,.1); }
+.entity-wallet-proof-intro h3 { margin: 0; color: #e1e1e5; font-size: 13px; font-weight: 650; }
+.entity-wallet-proof-intro p { max-width: 760px; margin: 5px 0 0; color: #777781; font-size: 10px; line-height: 1.6; }
+.entity-wallet-empty, .entity-wallet-proof-note { margin: 14px 0 0; color: #686871; font-size: 9px; line-height: 1.55; }
+.entity-wallet-proof-list { display: grid; gap: 9px; margin-top: 15px; }
+.entity-wallet-proof-row { padding: 13px; border: 1px solid #2d2d33; border-radius: 14px; background: rgba(8,8,10,.48); }
+.entity-wallet-proof-row.is-verified { border-color: rgba(48,209,88,.18); background: rgba(48,209,88,.035); }
+.entity-wallet-proof-copy { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+.entity-wallet-proof-copy > svg { flex: none; margin-top: 1px; color: #8d99d9; }
+.entity-wallet-proof-row.is-verified .entity-wallet-proof-copy > svg { color: #53d477; }
+.entity-wallet-proof-copy span, .entity-wallet-proof-copy strong, .entity-wallet-proof-copy small { display: block; min-width: 0; }
+.entity-wallet-proof-copy strong { overflow-wrap: anywhere; color: #c9c9cf; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; font-weight: 540; line-height: 1.5; }
+.entity-wallet-proof-copy small { margin-top: 3px; color: #74747d; font-size: 9px; }
+.entity-wallet-proof-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 11px 0 0 26px; }
+.entity-wallet-proof-actions .entity-secondary { padding: 8px 11px; font-size: 10px; }
+.entity-wallet-fallback-link { border: 0; color: #8f99d4; background: transparent; font-size: 9px; cursor: pointer; }
+.entity-wallet-fallback { display: grid; gap: 9px; margin: 12px 0 0 26px; padding: 12px; border: 1px solid rgba(255,255,255,.065); border-radius: 12px; background: rgba(255,255,255,.018); }
+.entity-wallet-fallback-tabs { display: flex; gap: 7px; }
+.entity-wallet-fallback-tabs button { padding: 6px 8px; border: 1px solid #303038; border-radius: 8px; color: #74747d; background: transparent; font-size: 9px; cursor: pointer; }
+.entity-wallet-fallback-tabs button.active { color: #c7cdf1; border-color: rgba(99,119,237,.3); background: rgba(82,104,230,.08); }
+.entity-wallet-file { display: flex; align-items: center; gap: 8px; padding: 10px 11px; border: 1px dashed #383841; border-radius: 10px; color: #9aa4df; font-size: 10px; cursor: pointer; }
+.entity-wallet-fallback input, .entity-wallet-fallback textarea { width: 100%; box-sizing: border-box; padding: 10px 11px; border: 1px solid #303037; border-radius: 9px; color: #d8d8dc; background: #0b0b0d; font-size: 10px; outline: none; }
+.entity-wallet-fallback small { color: #696972; font-size: 9px; line-height: 1.5; }
+.entity-wallet-fallback > .entity-secondary { width: fit-content; padding: 8px 11px; font-size: 10px; }
+
 @media (max-width: 720px) {
   .ownership-builder { padding: 16px; }
   .ownership-builder-intro { flex-wrap: wrap; }
   .ownership-total { width: 100%; margin-left: 51px; text-align: left; }
   .ownership-node-grid { grid-template-columns: 1fr; }
   .ownership-children-head, .ownership-save-row { align-items: flex-start; flex-direction: column; }
+  .entity-wallet-proof { padding: 16px; }
+  .entity-wallet-proof-actions, .entity-wallet-fallback { margin-left: 0; }
 }

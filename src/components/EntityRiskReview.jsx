@@ -29,6 +29,7 @@ import {
 } from "../services/api";
 import { createOnboardingDocumentPreview } from "../services/entityOnboarding";
 import EntityComplianceControls, { ComplianceEvidencePanel } from "./EntityComplianceControls";
+import EntityWalletOwnershipReview from "./EntityWalletOwnershipReview";
 import { loadEntityExtendedContext } from "../services/entityCompliance";
 
 const FACTORS = [
@@ -900,6 +901,10 @@ export default function EntityRiskReview({ standalone = false }) {
               </div>
 
               <aside className="space-y-4 self-start 2xl:sticky 2xl:top-5">
+                <EntityWalletOwnershipReview
+                  applicationId={context.application.id}
+                  onChanged={refreshSelectedContext}
+                />
                 <section className="rounded-[20px] border border-line-subtle bg-surface-0/30 p-5">
                   <div className="flex items-center gap-2.5">
                     <Building2 className="h-4 w-4 text-ink-faint" />

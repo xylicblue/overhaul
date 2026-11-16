@@ -320,6 +320,53 @@ export async function screenEntityWallets(applicationId, { force = false } = {})
   });
 }
 
+export async function suggestEntityAddresses(input, { countryCode = "", sessionToken = "" } = {}) {
+  return callEdgeFunction("entity-address-autocomplete", {
+    input,
+    country_code: countryCode || null,
+    session_token: sessionToken || null,
+  });
+}
+
+export async function requestEntityWalletOwnershipChallenge(applicationId, walletAddress, chainId = 11155111) {
+  return callEdgeFunction("entity-wallet-ownership", {
+    action: "challenge",
+    application_id: applicationId,
+    wallet_address: walletAddress,
+    chain_id: chainId,
+  });
+}
+
+export async function verifyEntityWalletOwnershipSignature(challengeId, signature) {
+  return callEdgeFunction("entity-wallet-ownership", {
+    action: "verify_signature",
+    challenge_id: challengeId,
+    signature,
+  });
+}
+
+export async function submitEntityWalletOwnershipFallback(payload) {
+  return callEdgeFunction("entity-wallet-ownership", {
+    action: "submit_fallback",
+    ...payload,
+  });
+}
+
+export async function reviewEntityWalletOwnershipFallback(payload) {
+  return callEdgeFunction("entity-wallet-ownership", {
+    action: "review_fallback",
+    ...payload,
+  }, { requireFreshSession: true });
+}
+
+export async function getEntityWalletOwnershipEvidenceUrl(applicationId, proofId) {
+  return callEdgeFunction("entity-wallet-ownership", {
+    action: "evidence_url",
+    application_id: applicationId,
+    proof_id: proofId,
+  });
+}
+
 export async function decideEntityApplication({
   applicationId,
   action,
